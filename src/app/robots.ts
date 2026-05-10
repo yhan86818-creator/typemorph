@@ -9,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: '/private/',
     },
-    sitemap: 'https://typeflow.dev/sitemap.xml',
+    sitemap: 'https://typeflow-pro.pages.dev/sitemap.xml',
   };
 }

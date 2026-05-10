@@ -1,13 +1,16 @@
-<h2>CSS Variables: The Foundation of Modern Web Themes</h2>
-      <p>Custom Properties (CSS Variables) are the modern way to handle theming and design tokens in web development. They provide a native, high-performance way to share values across your stylesheets. However, manually defining <code>--color-primary</code>, <code>--font-size-base</code>, and dozens of other variables from a design JSON file is a tedious task.</p>
+<h2>The Power of Dynamic Theming with CSS Variables</h2>
+<p><strong>CSS Custom Properties</strong>, commonly known as <strong>CSS Variables</strong>, have revolutionized the way developers handle theming and design systems in modern web development. Unlike static CSS, variables can be updated at runtime, allowing for powerful features like dark mode, dynamic color schemes, and responsive design systems without the need for complex preprocessors. When a design team provides a JSON file containing design tokens (colors, spacing, typography), manually translating these dozens or hundreds of values into CSS variable declarations is a monotonous and error-prone chore.</p>
 
-      <h3>Streamlining Web Styling</h3>
-      <p>TypeFlow simplifies your styling workflow by generating clean CSS variable blocks from your design tokens:</p>
-      <ul>
-        <li><strong>:root Definition:</strong> We generate the standard <code>:root { ... }</code> block ready for your global stylesheet.</li>
-        <li><strong>Token Mapping:</strong> Our generator ensures that your JSON keys are correctly transformed into valid CSS variable names.</li>
-        <li><strong>Instant Results:</strong> Paste your design JSON and get functional CSS variable code in seconds.</li>
-      </ul>
+<h2>Bridging Design Tokens and Stylesheets</h2>
+<p>Manually transcribing a JSON design system into CSS variables (e.g., <code>--color-primary: #3b82f6;</code>) involves significant repetitive typing. A single mistake in a hex code or a typo in a variable name can lead to visual inconsistencies that are hard to debug. By automating the conversion of raw JSON design data directly into a clean, well-formatted CSS variable sheet, developers can ensure that their application's theme perfectly matches the design specification while saving valuable time.</p>
 
-      <h3>Secure Design Prototyping</h3>
-      <p>TypeFlow's local-first engine ensures your CSS variables are generated locally. Your design patterns and tokens remain private while you prepare your styling environment.</p>
+<h2>TypeFlow's Design System Engine</h2>
+<p>TypeFlow intelligently analyzes your JSON data to generate pristine, production-ready CSS variable declarations.</p>
+<ul>
+  <li><strong>Recursive Variable Mapping:</strong> We accurately translate nested JSON structures into a flat list of CSS variables, using idiomatic naming conventions (e.g., <code>primary-red-500</code>) that are easy to use in your stylesheets.</li>
+  <li><strong>Clean Formatting:</strong> The generated output is perfectly formatted within a <code>:root { ... }</code> block, ready to be copied directly into your global CSS file.</li>
+  <li><strong>Local-First: Protecting Your Brand Identity:</strong> Your design system is a key part of your brand identity. TypeFlow operates 100% locally, ensuring your proprietary color palettes and spacing rules never leave your machine.</li>
+</ul>
+
+<h2>Conclusion</h2>
+<p>Stop manually transcribing design tokens and embrace the power of dynamic CSS. Use TypeFlow to instantly and securely convert any JSON theme data into a clean, production-ready CSS variable sheet. Streamline your design-to-code workflow and implement beautiful, consistent user interfaces effortlessly.</p>

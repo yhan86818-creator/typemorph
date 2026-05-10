@@ -1,13 +1,19 @@
-<h2>Solid.js: Fine-Grained Reactivity and Performance</h2>
-      <p>Solid.js is known for its incredible performance and fine-grained reactivity. To maintain this performance, properly typing your component props is essential. However, manually defining interfaces for the <code>props</code> object in complex components is a tedious part of the development cycle.</p>
+<h2>The Reactive Power of Solid.js</h2>
+<p><strong>Solid.js</strong> has taken the frontend world by storm by offering a reactive paradigm that closely resembles React's component syntax, but without the overhead of a Virtual DOM. Solid compiles its templates directly to real DOM nodes and uses fine-grained reactivity (via Signals) to update only the exact elements that change. However, when building modern Solid applications with TypeScript, managing the shape of data passed down through components is critical. Developers must carefully define <code>Props</code> interfaces to ensure that components receive the correct data from parent components or external APIs.</p>
 
-      <h3>Optimizing Solid.js Workflows</h3>
-      <p>TypeFlow generates perfectly typed Solid.js props from your JSON samples:</p>
-      <ul>
-        <li><strong>Interface Generation:</strong> We create the TypeScript interfaces for your component props.</li>
-        <li><strong>Destructuring Support:</strong> We provide the standard pattern for handling props in Solid.js to ensure reactivity is preserved.</li>
-        <li><strong>Fast Iteration:</strong> Paste your API response and get functional Solid.js prop code instantly.</li>
-      </ul>
+<h2>Eliminating Component Boilerplate</h2>
+<p>When you fetch a complex JSON payload from a backend API, mapping that data to the props of a Solid.js component can involve writing dozens of lines of repetitive TypeScript interfaces. If you manually transcribe the JSON into an interface and make a typo, your component might fail to render correctly, or you'll lose the benefits of IDE autocomplete. By automating the conversion of raw JSON data into strictly typed Solid.js Props interfaces, developers can instantly scaffold highly reliable, type-safe components, drastically reducing development time and preventing runtime errors.</p>
 
-      <h3>Local-First Security</h3>
-      <p>TypeFlow's local-first architecture ensures your Solid.js logic is generated entirely in your browser. No sensitive data structures are ever exposed to an external server.</p>
+<h2>TypeFlow's Solid.js Component Generator</h2>
+<p>TypeFlow intelligently analyzes JSON structures and generates pristine TypeScript interfaces perfectly suited for Solid.js components.</p>
+<ul>
+  <li><strong>Precise Type Mapping:</strong> JSON arrays, objects, and primitives are automatically mapped to exact TypeScript types, ensuring that your <code>Props</code> interface perfectly matches the incoming data.</li>
+  <li><strong>Component Scaffolding:</strong> In addition to the types, TypeFlow optionally scaffolds the basic Solid.js component structure (e.g., <code>const MyComponent: Component&lt;MyProps&gt; = (props) =&gt; ...</code>), allowing you to start building the UI immediately.</li>
+  <li><strong>Optional Property Detection:</strong> By analyzing your data, TypeFlow detects fields that may be missing or null, automatically marking them as optional (<code>?</code>) in the generated interface, preventing "undefined is not an object" errors during rendering.</li>
+</ul>
+
+<h2>Local-First Architecture for Total Privacy</h2>
+<p>The JSON data you use to prototype your components often contains sensitive information, such as user profiles, internal API responses, or proprietary business metrics. Uploading this data to a third-party server for conversion is a significant security risk. <strong>TypeFlow is completely Local-First.</strong> The parsing of your JSON and the generation of your Solid.js code happens entirely within your browser. Your sensitive data never touches the external internet, guaranteeing absolute privacy.</p>
+
+<h2>Conclusion</h2>
+<p>Build blazing-fast, type-safe UIs without the repetitive boilerplate. Use TypeFlow to instantly convert any JSON payload into strict Solid.js Props interfaces. Streamline your component creation, ensure perfect data flow, and unlock the full potential of fine-grained reactivity.</p>

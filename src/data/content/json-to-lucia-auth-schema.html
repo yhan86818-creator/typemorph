@@ -1,13 +1,16 @@
-<h2>Lucia Auth: The Developer's Favorite for Session Management</h2>
-      <p><strong>Lucia Auth</strong> is an authentication library that gives you total control over your database while handling the complexities of session management securely. Unlike "black-box" auth providers, Lucia requires you to define your own <code>user</code> and <code>session</code> tables. Mapping your existing user JSON objects to these database tables correctly is a critical first step in integration.</p>
+<h2>The Next Generation of Authentication in the JS Ecosystem</h2>
+<p><strong>Lucia Auth</strong> is a modern, lightweight, and framework-agnostic authentication library that has taken the TypeScript community by storm. Unlike monolithic authentication services, Lucia gives developers total control over their database schema while providing the absolute minimum primitives needed for secure session management. A critical part of setting up Lucia is defining the <strong>Database Schema</strong> for your users and sessions. When migrating from another auth provider or scaffolding a new project, manually transcribing your user data models into a Lucia-compatible database schema is a tedious and error-prone task.</p>
 
-      <h3>Why TypeFlow is the Essential Lucia Companion</h3>
-      <p>TypeFlow automates the creation of database-ready Lucia schemas from your user data samples:</p>
-      <ul>
-        <li><strong>Database Dialects:</strong> We generate schema definitions for PostgreSQL, MySQL, and SQLite.</li>
-        <li><strong>User & Session Sync:</strong> Our generator ensures that your user table includes all the necessary custom attributes from your JSON sample.</li>
-        <li><strong>Security First:</strong> We provide the standard structure required by Lucia, including <code>id</code> and session-related fields.</li>
-      </ul>
+<h2>Eliminating Database Boilerplate for Lucia</h2>
+<p>Writing a database schema for Lucia involves defining specific tables for <code>auth_user</code> and <code>auth_session</code>, including required fields for IDs, session expirations, and custom user attributes. If you manually transcribe a JSON user profile and make a typo in the field name or type, Lucia's runtime session validation may fail or behave unpredictably. By automating the conversion of sample user JSON directly into a strict database schema definition (for Prisma, Drizzle, or raw SQL), developers can ensure their authentication layer is perfectly typed and ready for production from the start.</p>
 
-      <h3>Local-First Auth Engineering</h3>
-      <p>Your user data structures and database schemas are highly sensitive. TypeFlow's local-first architecture ensures your Lucia schemas are generated entirely in your browser. No architectural blueprints or user patterns are ever sent to an external server.</p>
+<h2>TypeFlow's Lucia Scaffolding Engine</h2>
+<p>TypeFlow intelligently analyzes your user data structures to generate pristine, production-ready Lucia Auth schemas optimized for your favorite ORM.</p>
+<ul>
+  <li><strong>Precise Attribute Mapping:</strong> We automatically extract custom user attributes from your JSON sample and map them to the correct database column types, ensuring your Lucia user objects are perfectly typed.</li>
+  <li><strong>Session Model Generation:</strong> TypeFlow generates the exact schema needed for Lucia's session management, including foreign key relationships and expiration timestamps.</li>
+  <li><strong>Local-First: Securing Your Auth Blueprints:</strong> Authentication schemas are the blueprints of your security architecture. TypeFlow operates 100% locally, ensuring your proprietary user models never touch an external server.</li>
+</ul>
+
+<h2>Conclusion</h2>
+<p>Experience the freedom of Lucia Auth without the manual setup overhead. Use TypeFlow to instantly and securely convert any user JSON payload into a robust, production-ready database schema for Lucia Auth. Accelerate your development, ensure perfect data integrity, and build secure applications with absolute confidence.</p>

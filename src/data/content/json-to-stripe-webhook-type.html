@@ -1,13 +1,19 @@
-<h2>Stripe: The Infrastructure for Global Payments</h2>
-      <p>Integrating <strong>Stripe</strong> requires robust handling of webhooks for events like <code>checkout.session.completed</code> or <code>customer.subscription.deleted</code>. Stripe's event payloads are notoriously large and complex. Relying on generic types or <code>any</code> in your webhook handlers is a major security and reliability risk for payment-critical applications.</p>
+<h2>Processing Payments with Absolute Safety</h2>
+<p><strong>Stripe</strong> is the global standard for processing online payments. To maintain synchronization between Stripe's servers and your application (e.g., fulfilling an order when a payment succeeds), developers rely heavily on <strong>Webhooks</strong>. A webhook is simply an HTTP endpoint that Stripe calls with a massive, deeply nested JSON payload representing an Event. For applications built with TypeScript, handling these webhooks without strict type definitions is a recipe for disaster. Accessing the wrong property on a <code>charge.succeeded</code> event can result in unfulfilled orders, lost revenue, and catastrophic runtime crashes.</p>
 
-      <h3>Why TypeFlow for Stripe Engineering?</h3>
-      <p>TypeFlow provides a professional solution for handling Stripe's complex data structures:</p>
-      <ul>
-        <li><strong>Precise Mapping:</strong> We generate interfaces for specific Stripe objects (Invoices, Subscriptions, Sessions) directly from your event samples.</li>
-        <li><strong>Metadata Support:</strong> Correctly type the <code>metadata</code> fields where you store your internal application IDs.</li>
-        <li><strong>Reliability:</strong> Build webhook handlers that are checked at compile-time against the actual structure of your Stripe events.</li>
-      </ul>
+<h2>The Challenge of Webhook Typings</h2>
+<p>While Stripe provides an official Node.js SDK with types, developers often use serverless functions (like AWS Lambda, Cloudflare Workers, or Next.js API routes) where they might parse the raw JSON body directly before passing it to the SDK, or they may be using a language/framework where the SDK types are cumbersome to extract. Manually writing a TypeScript interface to perfectly match Stripe's notoriously complex event objects—which include nested data objects, previous attributes, and metadata—is an exhausting and error-prone process. Automating this conversion guarantees that your webhook handler exactly matches the payload you received during testing.</p>
 
-      <h3>Secure Payment Logic</h3>
-      <p>Stripe event samples contain sensitive financial context. TypeFlow's local-first engine ensures your Stripe types are generated locally, keeping your payment logic and data patterns private.</p>
+<h2>TypeFlow's Webhook Extraction Engine</h2>
+<p>TypeFlow deeply analyzes Stripe webhook JSON payloads and outputs pristine, production-ready TypeScript interfaces.</p>
+<ul>
+  <li><strong>Deep Object Mapping:</strong> Stripe payloads contain complex nesting (e.g., <code>event.data.object</code>). TypeFlow seamlessly extracts these nested hierarchies into distinct, reusable TypeScript interfaces.</li>
+  <li><strong>Precise Type Inference:</strong> Unix timestamps, booleans, and currency amounts (integers) are perfectly mapped to their exact TypeScript equivalents, ensuring your payment processing logic is mathematically sound.</li>
+  <li><strong>Optional Property Detection:</strong> Stripe objects often have nullable fields depending on the event type. TypeFlow intelligently detects missing or null fields in your sample and applies the <code>?</code> modifier, protecting your backend from undefined errors.</li>
+</ul>
+
+<h2>Local-First: Protecting Your Financial Architecture</h2>
+<p>Stripe webhook payloads contain highly sensitive financial data, customer emails, and proprietary business transaction details. Uploading these payloads to a public, cloud-based converter exposes your application to severe security and compliance risks (including PCI concerns). <strong>TypeFlow is 100% Local-First.</strong> The semantic parsing of your JSON and the generation of your TypeScript interfaces execute entirely within your browser's memory. Your financial data never leaves your machine.</p>
+
+<h2>Conclusion</h2>
+<p>Handle payments with absolute confidence. Use TypeFlow to instantly and securely convert Stripe webhook JSON payloads into strict, production-ready TypeScript interfaces. Eliminate manual typing errors, secure your payment pipelines, and build robust, revenue-critical applications faster.</p>

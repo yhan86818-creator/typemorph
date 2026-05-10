@@ -1,13 +1,19 @@
-<h2>PocketBase: The All-in-One Realtime Backend</h2>
-      <p><strong>PocketBase</strong> is a lightweight, open-source backend consisting of an embedded SQLite database with realtime subscriptions and built-in auth. To use the PocketBase JavaScript/TypeScript SDK effectively, you need interfaces that match your collections. Manually writing these for complex, evolving schemas is a repetitive task.</p>
+<h2>The Rise of PocketBase in Rapid Development</h2>
+<p><strong>PocketBase</strong> has rapidly emerged as a beloved, open-source backend-in-a-file, combining an embedded SQLite database with real-time subscriptions, authentication, and a sleek admin UI. It is the perfect backend for indie hackers, rapid prototyping, and medium-scale applications. When interacting with PocketBase using its official JavaScript SDK, developers heavily rely on TypeScript to ensure that the data they read from and write to their "Collections" matches the expected schema. However, manually maintaining TypeScript interfaces that mirror your PocketBase schema is a tedious and error-prone process.</p>
 
-      <h3>Streamlining PocketBase Development</h3>
-      <p>TypeFlow provides a professional solution for PocketBase developers:</p>
-      <ul>
-        <li><strong>Collection Mapping:</strong> We generate TypeScript interfaces for your PocketBase collections.</li>
-        <li><strong>System Fields:</strong> Our generator correctly handles PocketBase's default fields like <code>id</code>, <code>created</code>, and <code>updated</code>.</li>
-        <li><strong>Swift Generation:</strong> Paste your collection's JSON export and get functional TypeScript models instantly.</li>
-      </ul>
+<h2>Bridging the Schema-to-Type Gap</h2>
+<p>PocketBase collections return JSON records that contain system fields (like <code>id</code>, <code>created</code>, and <code>updated</code>) alongside your custom fields. If you manually write a TypeScript interface and forget to include the system fields, or if you mistype a relation field, your frontend code will encounter frustrating type errors when using the SDK. By automating the conversion of a sample PocketBase JSON response directly into a strict TypeScript interface, developers can instantly synchronize their frontend codebase with their backend schema, ensuring flawless data fetching and mutation.</p>
 
-      <h3>Privacy and Performance</h3>
-      <p>TypeFlow's local-first engine ensures your PocketBase logic is generated locally. No data or collection patterns ever leave your browser, making it safe for professional full-stack development.</p>
+<h2>TypeFlow's Precision PocketBase Generator</h2>
+<p>TypeFlow deeply analyzes PocketBase JSON responses and outputs idiomatic TypeScript definitions optimized for the PocketBase SDK.</p>
+<ul>
+  <li><strong>System Field Integration:</strong> We automatically detect and correctly type PocketBase's standard system fields (<code>id</code>, <code>created</code>, <code>updated</code>, <code>collectionId</code>, <code>collectionName</code>), ensuring your interfaces are fully compatible with the SDK's <code>RecordModel</code>.</li>
+  <li><strong>Relation Handling:</strong> If your JSON includes nested relational data (often fetched via the <code>expand</code> parameter), TypeFlow intelligently extracts these into nested TypeScript interfaces, providing perfect type safety for joined queries.</li>
+  <li><strong>Strict Type Mapping:</strong> JSON strings, numbers, booleans, and arrays are accurately mapped to their corresponding TypeScript equivalents, complete with optional markers for nullable fields.</li>
+</ul>
+
+<h2>Local-First: Securing Your Database Schema</h2>
+<p>Your PocketBase JSON records represent the core schema of your database, potentially containing sensitive user data, internal IDs, or proprietary business structures. Pasting this data into an online, cloud-based converter exposes your application architecture to third-party servers. <strong>TypeFlow is a 100% Local-First tool.</strong> The parsing of your database records and the generation of your TypeScript types execute entirely within your browser's local memory. Your database schema never leaves your machine.</p>
+
+<h2>Conclusion</h2>
+<p>Keep your frontend perfectly synchronized with your backend. Use TypeFlow to instantly turn any PocketBase JSON response into a strict, SDK-ready TypeScript interface. Eliminate manual typing errors, speed up your API integration, and build type-safe full-stack applications with confidence.</p>

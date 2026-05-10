@@ -1,13 +1,19 @@
-<h2>Elm: The Delightful Language for Reliable Web Apps</h2>
-      <p><strong>Elm</strong> is famous for having "no runtime exceptions" in practice. To achieve this, every piece of external data must be strictly decoded into Elm types. Writing these <code>Decoders</code> for complex, nested JSON objects is the most challenging part of learning and using Elm. It requires precision and deep understanding of functional decoding patterns.</p>
+<h2>Strict Functional Safety on the Frontend</h2>
+<p><strong>Elm</strong> is a purely functional programming language that compiles to JavaScript, famous for its guarantee of "No Runtime Exceptions in Practice." It achieves this through a phenomenally rigorous type system. However, when an Elm application needs to communicate with the outside world—such as receiving JSON from a REST API—it cannot simply trust that the data matches its internal types. Developers must write <strong>Decoders</strong> to safely parse the untyped JSON string into strictly typed Elm records. Writing these decoders manually is often considered the steepest learning curve and the most tedious task in Elm development.</p>
 
-      <h3>Reliable Elm Integrations</h3>
-      <p>TypeFlow simplifies your Elm development by automating the decoding boilerplate:</p>
-      <ul>
-        <li><strong>Type Alias Generation:</strong> We create the Elm types that match your JSON structure.</li>
-        <li><strong>Decoder Logic:</strong> Our generator provides the full <code>Json.Decode</code> pipeline for your data.</li>
-        <li><strong>Zero Errors:</strong> Ensure your Elm app stays safe by using correctly generated decoders.</li>
-      </ul>
+<h2>The Pain of Manual Elm Decoders</h2>
+<p>In Elm, if a JSON payload contains a string where an integer is expected, the Decoder intentionally fails, protecting the application from crashing but forcing the developer to handle the error explicitly. Writing <code>Json.Decode.pipeline</code> or nested decoders for a massive API payload requires mapping every single field, checking for optionality, and maintaining parallel Elm <code>type alias</code> records. A single missing field in your decoder logic means the entire payload is rejected. Automating this process by generating both the Elm <code>type alias</code> and the corresponding <code>Decoder</code> from a JSON sample completely eliminates this frustration.</p>
 
-      <h3>Private Elm Engineering</h3>
-      <p>TypeFlow's local-first engine ensures your Elm logic is generated entirely in your browser. No data patterns or architectural blueprints ever leave your machine.</p>
+<h2>TypeFlow's Precision Elm Engine</h2>
+<p>TypeFlow provides a flawlessly accurate generation engine tailored for the Elm architecture.</p>
+<ul>
+  <li><strong>Dual Code Generation:</strong> We automatically generate both the strict <code>type alias</code> record and the corresponding <code>Decoder</code> function, ensuring perfect synchronization between your data types and parsing logic.</li>
+  <li><strong>Intelligent Optionality (Maybe):</strong> TypeFlow detects missing or optional fields in your JSON sample and automatically utilizes <code>Json.Decode.maybe</code>, mapping the field to a <code>Maybe a</code> type in Elm to handle nulls safely.</li>
+  <li><strong>Nested Decoders:</strong> Complex, deeply nested JSON objects are cleanly extracted into separate Elm records and composed together using elegant, modular decoders.</li>
+</ul>
+
+<h2>Local-First: Securing Your Functional Architecture</h2>
+<p>Your API responses often contain proprietary business logic and sensitive user data. Uploading these JSON payloads to a cloud-based converter exposes your application's internal structure to the internet. <strong>TypeFlow is 100% Local-First.</strong> The semantic parsing of your JSON and the generation of your Elm decoders execute entirely within your browser's local memory. Your data never touches an external server, ensuring absolute privacy.</p>
+
+<h2>Conclusion</h2>
+<p>Embrace Elm's safety guarantees without the manual boilerplate. Use TypeFlow to instantly convert any JSON payload into strictly typed Elm records and robust decoders. Accelerate your frontend development, guarantee safe API communication, and eliminate runtime exceptions effortlessly.</p>

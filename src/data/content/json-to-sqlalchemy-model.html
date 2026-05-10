@@ -1,13 +1,19 @@
-<h2>SQLAlchemy: The Database Toolkit for Python</h2>
-      <p><strong>SQLAlchemy</strong> is the most powerful and flexible ORM for the Python ecosystem. It provides a full suite of enterprise-level persistence patterns. However, manually defining <code>Base</code> classes and <code>Column</code> attributes for dozens of fields in complex database tables is a time-consuming process for Python developers.</p>
+<h2>The Power of Python Object-Relational Mapping</h2>
+<p>In the Python ecosystem, <strong>SQLAlchemy</strong> is the undisputed heavyweight champion of Object-Relational Mapping (ORM). It provides a full suite of well-known enterprise-level persistence patterns, designed for efficient and high-performing database access. Instead of writing raw SQL strings, developers define their database schema using Python classes. However, when migrating a legacy NoSQL database (like MongoDB) to PostgreSQL, or when scaffolding a new SQLAlchemy backend based on a massive JSON payload from a frontend prototype, manually transcribing the JSON structure into SQLAlchemy <code>Column</code> definitions is a tedious, boilerplate-heavy task.</p>
 
-      <h3>Streamlining Python Workflows</h3>
-      <p>TypeFlow simplifies your Python database development by inferring SQLAlchemy models from your samples:</p>
-      <ul>
-        <li><strong>Class Generation:</strong> We generate valid SQLAlchemy class definitions with the correct imports.</li>
-        <li><strong>Column Mapping:</strong> JSON types are mapped to SQLAlchemy's <code>String</code>, <code>Integer</code>, <code>Boolean</code>, and <code>DateTime</code>.</li>
-        <li><strong>Fast Iteration:</strong> Move from a raw JSON sample to a production-ready SQLAlchemy model in seconds.</li>
-      </ul>
+<h2>Accelerating Database Schema Design</h2>
+<p>Writing an SQLAlchemy model requires precise mapping of data types. A JSON string must become a <code>String(255)</code> or <code>Text</code>, a JSON number must become an <code>Integer</code> or <code>Float</code>, and booleans map to <code>Boolean</code>. If a developer manually transcribes a JSON array and incorrectly maps a numeric ID field as a <code>String</code>, the database migrations will fail, or worse, data integrity will be compromised. Automating the generation of SQLAlchemy model classes directly from a JSON sample instantly scaffolds your data access layer, ensuring perfect synchronization between your API responses and your relational database schema.</p>
 
-      <h3>Private Data Engineering</h3>
-      <p>TypeFlow's local-first engine ensures your SQLAlchemy models are generated locally. Your database patterns and business logic remain private while you build your backend.</p>
+<h2>TypeFlow's Relational Scaffolding Engine</h2>
+<p>TypeFlow intelligently analyzes your JSON data to generate pristine, production-ready SQLAlchemy Declarative models.</p>
+<ul>
+  <li><strong>Accurate Column Typing:</strong> JSON primitives are automatically translated into their precise SQLAlchemy equivalents (e.g., <code>Column(Integer)</code>, <code>Column(String)</code>, <code>Column(Boolean)</code>), ensuring database integrity.</li>
+  <li><strong>Primary Key Injection:</strong> TypeFlow automatically detects or injects standard <code>id = Column(Integer, primary_key=True)</code> fields to ensure your models are immediately queryable.</li>
+  <li><strong>Modern Declarative Syntax:</strong> We generate clean Python classes using SQLAlchemy's modern Declarative Base syntax, ready to be dropped straight into your FastAPI or Flask applications.</li>
+</ul>
+
+<h2>Local-First: Protecting Your Data Models</h2>
+<p>Your database schema represents the most critical intellectual property of your application. It defines how your business stores and relates information. Uploading your proprietary JSON data models to a cloud-based converter exposes your enterprise architecture to potential leaks. <strong>TypeFlow is a 100% Local-First tool.</strong> The semantic parsing of your JSON and the generation of your SQLAlchemy Python classes execute entirely within your browser's local memory. Your database blueprints never leave your machine.</p>
+
+<h2>Conclusion</h2>
+<p>Stop writing database boilerplate by hand. Use TypeFlow to instantly convert any JSON payload into robust, production-ready SQLAlchemy model classes. Accelerate your backend Python development, ensure perfect data typing, and deploy your database schemas with absolute confidence.</p

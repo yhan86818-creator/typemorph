@@ -1,288 +1,116 @@
+import { tsGen, zodGen, goGen, rustGen, javaGen, prismaGen, uiGen } from './generators';
+import { Schema } from './types';
 
-/**
- * TypeFlow Ultimate Engine - Enterprise Grade Data Inference
- * Features: Deep Recursion, Parent-Aware Naming, Smart Union Detection, Multi-Target Generation
- */
+export { type Schema };
 
-export type InferredType = {
-  kind: 'primitive' | 'object' | 'array' | 'null' | 'unknown' | 'union';
-  type: string;
-  name?: string;
-  properties?: Record<string, InferredType>;
-  items?: InferredType[]; // For arrays or unions
-  isOptional?: boolean;
+export const inferSchema = (val: any): Schema => {
+  if (Array.isArray(val)) return { type: 'array', itemType: inferSchema(val[0] || {}) };
+  if (val !== null && typeof val === 'object') {
+    const fields: Record<string, Schema> = {};
+    for (const key in val) fields[key] = inferSchema(val[key]);
+    return { type: 'object', fields };
+  }
+  return { type: typeof val };
 };
 
-const isDate = (str: string) => !isNaN(Date.parse(str)) && str.length > 10;
-const isEmail = (str: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str);
-const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
-const isURL = (str: string) => /^https?:\/\/.+/.test(str);
-
-/**
- * Step 1: Infer a structured schema from raw data with Parent-Aware Naming
- */
-export function inferSchema(data: any, nameHint: string = "Root", parentName: string = ""): InferredType {
-  const currentName = parentName ? `${parentName}${nameHint.charAt(0).toUpperCase() + nameHint.slice(1)}` : nameHint;
-
-  if (data === null) return { kind: 'null', type: 'null' };
-  
-  if (Array.isArray(data)) {
-    if (data.length === 0) return { kind: 'array', type: 'any[]', items: [{ kind: 'unknown', type: 'any' }] };
-    
-    const schemas = data.map((item, i) => inferSchema(item, nameHint, parentName));
-    
-    // Check if all items are objects - then merge them
-    if (schemas.every(s => s.kind === 'object')) {
-      const mergedProps: Record<string, InferredType> = {};
-      const allKeys = new Set<string>();
-      schemas.forEach(s => Object.keys(s.properties!).forEach(k => allKeys.add(k)));
-      
-      allKeys.forEach(key => {
-        const variants = schemas.map(s => s.properties![key]).filter(Boolean);
-        if (variants.length < schemas.length) {
-          const base = variants[0];
-          mergedProps[key] = { ...base, isOptional: true };
-        } else {
-          // Check for type consistency within the same property across array items
-          const types = new Set(variants.map(v => v.type));
-          if (types.size > 1) {
-             mergedProps[key] = { kind: 'union', type: Array.from(types).join(' | '), items: variants };
-          } else {
-             mergedProps[key] = variants[0];
-          }
-        }
-      });
-      
-      return { 
-        kind: 'array', 
-        type: `${currentName}[]`, 
-        items: [{ kind: 'object', type: currentName, properties: mergedProps, name: currentName }] 
-      };
+export const runEngine = (json: any, lang: string, slug: string = ""): any => {
+  try {
+    const schema = inferSchema(json);
+    switch (lang) {
+      case 'typescript': 
+        return `/**\n * TypeFlow Generated TypeScript Interface\n */\n` + tsGen.generate(schema);
+      case 'zod': 
+        return `import { z } from "zod";\n\n` + zodGen.generate(schema);
+      case 'go': return goGen.generate(schema);
+      case 'rust': return rustGen.generate(schema);
+      case 'java': return javaGen.generate(schema);
+      case 'sql': return prismaGen.generate(schema);
+      case 'ui': return uiGen.generate(schema);
+      case 'python': 
+        return `from pydantic import BaseModel\n\nclass Root(BaseModel):\n` + 
+          Object.keys(json).map(k => `    ${k}: ${typeof json[k] === 'number' ? 'float' : 'str'}`).join('\n');
+      case 'csharp':
+        return `public class Root\n{\n` + 
+          Object.keys(json).map(k => `    public ${typeof json[k] === 'number' ? 'double' : 'string'} ${k} { get; set; }`).join('\n') + `\n}`;
+      case 'swift':
+        return `struct Root: Codable {\n` + 
+          Object.keys(json).map(k => `    let ${k}: ${typeof json[k] === 'number' ? 'Double' : 'String'}`).join('\n') + `\n}`;
+      case 'kotlin':
+        return `data class Root(\n` + 
+          Object.keys(json).map(k => `    val ${k}: ${typeof json[k] === 'number' ? 'Double' : 'String'}`).join(',\n') + `\n)`;
+      case 'jsonschema':
+        return { $schema: "http://json-schema.org/draft-07/schema#", type: "object", properties: {} };
+      default: return JSON.stringify(json, null, 2);
     }
-    
-    // Otherwise, treat as Union of types
-    const uniqueTypes = Array.from(new Set(schemas.map(s => s.type)));
-    return { 
-        kind: 'array', 
-        type: `${uniqueTypes.join(' | ')}[]`, 
-        items: schemas.length > 1 ? [{ kind: 'union', type: uniqueTypes.join(' | '), items: schemas }] : [schemas[0]] 
-    };
+  } catch (e) { return "// Error: " + String(e); }
+};
+
+export const parseYAML = (str: string) => {
+  const obj: any = {};
+  str.split('\n').forEach(line => {
+    const [k, v] = line.split(':').map(s => s.trim());
+    if (k && v) obj[k] = isNaN(Number(v)) ? v : Number(v);
+  });
+  return obj;
+};
+
+export const parseXML = (str: string) => {
+  const match = str.match(/<(\w+)>([^<]+)<\/\1>/g);
+  const obj: any = {};
+  match?.forEach(m => {
+    const k = m.match(/<(\w+)>/)?.[1];
+    const v = m.match(/>([^<]+)</)?.[1];
+    if (k && v) obj[k] = isNaN(Number(v)) ? v : Number(v);
+  });
+  return obj;
+};
+
+export const parseCurl = (curl: string) => {
+  const method = curl.match(/-X\s+(\w+)/)?.[1] || 'GET';
+  const url = curl.match(/'(https?:\/\/[^']+)'/)?.[1] || curl.match(/"(https?:\/\/[^"]+)"/)?.[1] || "";
+  const headers: any = {};
+  const headerMatches = curl.matchAll(/-H\s+'([^']+)'/g);
+  for (const m of headerMatches) {
+    const [k, v] = m[1].split(':').map(s => s.trim());
+    headers[k] = v;
   }
-  
-  if (typeof data === 'object') {
-    const properties: Record<string, InferredType> = {};
-    for (const key in data) {
-      properties[key] = inferSchema(data[key], key, currentName);
-    }
-    return { kind: 'object', type: currentName, properties, name: currentName };
+  const bodyMatch = curl.match(/-d\s+'([^']+)'/);
+  let bodyJson = null;
+  if (bodyMatch) {
+    try { bodyJson = JSON.parse(bodyMatch[1]); } catch(e) {}
   }
-  
-  let type: string = typeof data;
-  if (type === 'string') {
-    if (isDate(data)) type = 'Date';
-    else if (isEmail(data)) type = 'email';
-    else if (isUUID(data)) type = 'uuid';
-    else if (isURL(data)) type = 'url';
+  return { method, url, headers, body: bodyMatch?.[1] || "", bodyJson };
+};
+
+export const curlToTypeScript = (parsed: any) => {
+  const { method, url, headers, body, bodyJson } = parsed;
+  let out = `/**\n * TypeFlow Generated React Hook\n */\n`;
+  out += `export const useApiCall = async () => {\n`;
+  if (Object.keys(headers).length > 0) {
+    out += `  const headers = ${JSON.stringify(headers, null, 2).replace(/\n/g, '\n  ')};\n\n`;
   }
-  
-  return { kind: 'primitive', type };
-}
+  out += `  const res = await fetch('${url}', {\n`;
+  out += `    method: '${method}',\n`;
+  if (Object.keys(headers).length > 0) out += `    headers,\n`;
+  if (body) out += `    body: ${bodyJson ? 'JSON.stringify(body)' : `'${body}'`},\n`;
+  out += `  });\n\n`;
+  out += `  return await res.json();\n`;
+  out += `};`;
+  return out;
+};
 
-/**
- * Step 2: Language-Specific Generators
- */
-
-// Base Generator for shared logic
-abstract class BaseGenerator {
-    protected definitions: Map<string, string> = new Map();
-    abstract generate(schema: InferredType): string;
-}
-
-export class TypeScriptGenerator extends BaseGenerator {
-  generate(schema: InferredType): string {
-    this.definitions.clear();
-    const mainType = this.process(schema);
-    let result = "";
-    this.definitions.forEach((body, name) => {
-      result += `export interface ${name} {\n${body}}\n\n`;
-    });
-    return (result || `export type Root = ${mainType};`).trim();
+export const parseSQLToZod = (sql: string) => {
+  const tableName = sql.match(/CREATE TABLE (\w+)/)?.[1] || 'Schema';
+  const columns = sql.matchAll(/(\w+)\s+(\w+)/g);
+  let out = `export const ${tableName}Schema = z.object({\n`;
+  for (const col of columns) {
+    if (['CREATE', 'TABLE', 'PRIMARY', 'KEY', 'NOT', 'NULL'].includes(col[1].toUpperCase())) continue;
+    const type = col[2].toUpperCase();
+    let zodType = 'z.string()';
+    if (['INT', 'INTEGER', 'FLOAT', 'DECIMAL'].includes(type)) zodType = 'z.number()';
+    if (['BOOLEAN', 'BOOL'].includes(type)) zodType = 'z.boolean()';
+    out += `  ${col[1]}: ${zodType},\n`;
   }
-
-  private process(schema: InferredType): string {
-    if (schema.kind === 'primitive') {
-      if (['email', 'uuid', 'url'].includes(schema.type)) return 'string';
-      return schema.type;
-    }
-    if (schema.kind === 'null') return 'null';
-    if (schema.kind === 'union') return schema.type;
-    if (schema.kind === 'array') return `${this.process(schema.items![0])}[]`;
-    
-    if (schema.kind === 'object') {
-      let body = "";
-      for (const key in schema.properties) {
-        const prop = schema.properties[key];
-        body += `  ${key}${prop.isOptional ? '?' : ''}: ${this.process(prop)};\n`;
-      }
-      this.definitions.set(schema.name!, body);
-      return schema.name!;
-    }
-    return 'any';
-  }
-}
-
-export class GoGenerator extends BaseGenerator {
-    generate(schema: InferredType): string {
-        this.definitions.clear();
-        this.process(schema, schema.name || "Root");
-        let result = "package main\n\n";
-        this.definitions.forEach((body, n) => {
-            result += `type ${n} struct {\n${body}}\n\n`;
-        });
-        return result.trim();
-    }
-
-    private process(schema: InferredType, name: string): string {
-        if (schema.kind === 'primitive') {
-            if (schema.type === 'number') return "float64";
-            if (schema.type === 'boolean') return "bool";
-            return "string";
-        }
-        if (schema.kind === 'array') return `[]${this.process(schema.items![0], name + "Item")}`;
-        if (schema.kind === 'object') {
-            let body = "";
-            for (const key in schema.properties) {
-                const prop = schema.properties[key];
-                const goKey = key.charAt(0).toUpperCase() + key.slice(1);
-                body += `\t${goKey} ${this.process(prop, goKey)} \`json:"${key}${prop.isOptional ? ',omitempty' : ''}"\`\n`;
-            }
-            this.definitions.set(name, body);
-            return name;
-        }
-        return "interface{}";
-    }
-}
-
-export class RustGenerator extends BaseGenerator {
-    generate(schema: InferredType): string {
-        this.definitions.clear();
-        this.process(schema, schema.name || "Root");
-        let result = "use serde::{Serialize, Deserialize};\n\n";
-        this.definitions.forEach((body, n) => {
-            result += `#[derive(Serialize, Deserialize, Debug)]\npub struct ${n} {\n${body}}\n\n`;
-        });
-        return result.trim();
-    }
-
-    private process(schema: InferredType, name: string): string {
-        if (schema.kind === 'primitive') {
-            if (schema.type === 'number') return "f64";
-            if (schema.type === 'boolean') return "bool";
-            return "String";
-        }
-        if (schema.kind === 'array') return `Vec<${this.process(schema.items![0], name + "Item")}>`;
-        if (schema.kind === 'object') {
-            let body = "";
-            for (const key in schema.properties) {
-                const prop = schema.properties[key];
-                const type = this.process(prop, key.charAt(0).toUpperCase() + key.slice(1));
-                body += `    pub ${key}: ${prop.isOptional ? `Option<${type}>` : type},\n`;
-            }
-            this.definitions.set(name, body);
-            return name;
-        }
-        return "serde_json::Value";
-    }
-}
-
-export class JavaGenerator extends BaseGenerator {
-    generate(schema: InferredType): string {
-        this.definitions.clear();
-        this.process(schema, schema.name || "Root");
-        let result = "";
-        this.definitions.forEach((body, n) => {
-            result += `public class ${n} {\n${body}}\n\n`;
-        });
-        return result.trim();
-    }
-
-    private process(schema: InferredType, name: string): string {
-        if (schema.kind === 'primitive') {
-            if (schema.type === 'number') return "Double";
-            if (schema.type === 'boolean') return "Boolean";
-            return "String";
-        }
-        if (schema.kind === 'array') return `List<${this.process(schema.items![0], name + "Item")}>`;
-        if (schema.kind === 'object') {
-            let body = "";
-            for (const key in schema.properties) {
-                const prop = schema.properties[key];
-                const type = this.process(prop, key.charAt(0).toUpperCase() + key.slice(1));
-                body += `    private ${type} ${key};\n`;
-            }
-            this.definitions.set(name, body);
-            return name;
-        }
-        return "Object";
-    }
-}
-
-export class ZodGenerator extends BaseGenerator {
-    generate(schema: InferredType): string {
-        return `import { z } from "zod";\n\nexport const RootSchema = ${this.process(schema)};`;
-    }
-
-    private process(s: InferredType): string {
-        if (s.kind === 'primitive') {
-            let base = `z.${s.type === 'Date' ? 'date()' : s.type === 'number' ? 'number()' : s.type === 'boolean' ? 'boolean()' : 'string()'}`;
-            if (s.type === 'email') base += ".email()";
-            if (s.type === 'uuid') base += ".uuid()";
-            if (s.type === 'url') base += ".url()";
-            return s.isOptional ? `${base}.optional()` : base;
-        }
-        if (s.kind === 'null') return 'z.null()';
-        if (s.kind === 'array') return `z.array(${this.process(s.items![0])})`;
-        if (s.kind === 'object') {
-            let body = "z.object({\n";
-            for (const key in s.properties) {
-                body += `  ${key}: ${this.process(s.properties[key])},\n`;
-            }
-            body += "})";
-            return s.isOptional ? `${body}.optional()` : body;
-        }
-        return "z.any()";
-    }
-}
-
-export class PrismaGenerator extends BaseGenerator {
-    generate(schema: InferredType): string {
-        this.definitions.clear();
-        this.process(schema, schema.name || "Root");
-        let result = "datasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\n";
-        this.definitions.forEach((body, n) => {
-            result += `model ${n} {\n  id Int @id @default(autoincrement())\n${body}}\n\n`;
-        });
-        return result.trim();
-    }
-
-    private process(schema: InferredType, name: string): string {
-        if (schema.kind === 'object') {
-            let body = "";
-            for (const key in schema.properties) {
-                const prop = schema.properties[key];
-                let pType = "String";
-                if (prop.kind === 'primitive') {
-                   if (prop.type === 'number') pType = "Float";
-                   else if (prop.type === 'boolean') pType = "Boolean";
-                   else if (prop.type === 'Date') pType = "DateTime";
-                } else if (prop.kind === 'object') {
-                   pType = this.process(prop, key.charAt(0).toUpperCase() + key.slice(1));
-                }
-                body += `  ${key} ${pType}${prop.isOptional ? '?' : ''}\n`;
-            }
-            this.definitions.set(name, body);
-            return name;
-        }
-        return "Json";
-    }
-}
+  out += `});`;
+  return out;
+};

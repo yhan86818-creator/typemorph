@@ -1,13 +1,19 @@
-<h2>Tailwind CSS: The Utility-First Revolution</h2>
-      <p><strong>Tailwind CSS</strong> has transformed how we style modern web applications by providing a utility-first approach. As design systems mature, moving from design tokens (stored in JSON) to a functional <code>tailwind.config.js</code> file is a critical workflow. Manually mapping dozens of colors, spacing values, and font sizes is a significant time investment.</p>
+<h2>The Core of Utility-First Design</h2>
+<p><strong>Tailwind CSS</strong> is the industry standard for utility-first CSS frameworks, allowing frontend developers to build custom user interfaces rapidly without writing custom CSS classes. At the heart of every Tailwind project is the <code>tailwind.config.js</code> file, which defines the design system's theme, including custom colors, fonts, spacing, and breakpoints. When a design team hands over a massive JSON file exported from Figma (containing design tokens like brand colors and typography scales), manually translating that nested JSON structure into a valid Tailwind configuration object is an incredibly tedious and repetitive chore.</p>
 
-      <h3>Why TypeFlow is the Essential Tailwind Tool</h3>
-      <p>TypeFlow provides a professional solution for design system automation:</p>
-      <ul>
-        <li><strong>Theme Generation:</strong> We map JSON tokens directly to Tailwind's <code>theme.extend</code> object.</li>
-        <li><strong>Token Sync:</strong> Our generator ensures that your colors, spacing, and typography are perfectly synced with your design files.</li>
-        <li><strong>Fast Export:</strong> Go from raw design JSON to a functional Tailwind config in milliseconds.</li>
-      </ul>
+<h2>Automating Design System Integration</h2>
+<p>Writing a Tailwind theme configuration by hand requires mapping a hierarchical JSON color palette (e.g., <code>primary: { 100: '#e0f2fe', 200: '#bae6fd' }</code>) precisely into the <code>theme.extend.colors</code> object. If a developer makes a typo in a hex code or misaligns the nested structure, the custom utility classes (like <code>bg-primary-200</code>) will silently fail to generate, breaking the UI. By automating the conversion of raw JSON design tokens directly into a pristine, ready-to-use Tailwind configuration file, developers can instantly synchronize their codebase with the design team's vision.</p>
 
-      <h3>Local-First Design Engineering</h3>
-      <p>Your design tokens are part of your brand's intellectual property. TypeFlow's local-first architecture ensures your Tailwind configs are generated entirely in your browser, keeping your design system patterns private.</p>
+<h2>TypeFlow's Design Token Engine</h2>
+<p>TypeFlow intelligently parses your JSON design tokens to generate flawless, production-ready Tailwind configurations.</p>
+<ul>
+  <li><strong>Nested Palette Mapping:</strong> We accurately translate deeply nested JSON color palettes and spacing scales into the precise JavaScript object structure required by Tailwind's <code>theme.extend</code> block.</li>
+  <li><strong>Safe JavaScript Generation:</strong> Unlike standard JSON, a Tailwind config is a JavaScript module. TypeFlow automatically generates the <code>module.exports = { ... }</code> boilerplate, outputting clean, executable JavaScript.</li>
+  <li><strong>Token Categorization:</strong> Based on your JSON structure, TypeFlow can intelligently group tokens into relevant Tailwind theme categories, such as <code>colors</code>, <code>fontFamily</code>, or <code>spacing</code>.</li>
+</ul>
+
+<h2>Local-First: Protecting Your Brand Identity</h2>
+<p>Your design tokens represent your company's proprietary brand identity and unreleased UI designs. Uploading these JSON tokens to a public, cloud-based converter exposes your design system to potential leaks. <strong>TypeFlow is 100% Local-First.</strong> The semantic parsing of your JSON and the generation of your Tailwind configuration execute entirely within your browser's local memory. Your design blueprints never leave your machine.</p>
+
+<h2>Conclusion</h2>
+<p>Stop manually transcribing Figma tokens. Use TypeFlow to instantly and securely convert JSON design tokens into perfectly structured Tailwind CSS configurations. Streamline your design-to-code workflow, eliminate hex code typos, and implement pixel-perfect design systems effortlessly.</p>

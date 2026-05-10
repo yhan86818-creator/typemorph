@@ -1,13 +1,19 @@
-<h2>Svelte 5: The Revolution of Runes</h2>
-      <p>Svelte 5 introduces <strong>Runes</strong>, with <code>$props()</code> replacing the legacy <code>export let</code> syntax for component properties. This shift brings better type safety and reactivity, but it also means updating your workflow. Manually writing these definitions for large data structures is a low-value, repetitive task.</p>
+<h2>The Elegance of Svelte Component Design</h2>
+<p><strong>Svelte</strong> has redefined frontend development by moving the bulk of the work from the browser to the compile step. Instead of using a Virtual DOM, Svelte compiles your components into highly efficient vanilla JavaScript that surgically updates the DOM when state changes. With the widespread adoption of SvelteKit and TypeScript, maintaining strict type safety across your component tree is paramount. To ensure reliable data flow, developers must define precise TypeScript interfaces for the <code>props</code> that their Svelte components expect to receive from the server or parent components.</p>
 
-      <h3>Streamlining Svelte Development</h3>
-      <p>TypeFlow provides a future-proof solution for Svelte developers:</p>
-      <ul>
-        <li><strong>Svelte 5 Support:</strong> We generate the modern <code>let { ... } = $props&lt;{ ... }&gt;();</code> syntax.</li>
-        <li><strong>Svelte 4 Compatibility:</strong> We still provide the classic <code>export let</code> definitions for existing projects.</li>
-        <li><strong>Type Safety:</strong> Full TypeScript support for all generated prop definitions.</li>
-      </ul>
+<h2>Automating SvelteKit Data Flow</h2>
+<p>When fetching complex JSON data from an external API or a SvelteKit <code>load</code> function, manually mapping that JSON structure into a TypeScript <code>interface</code> or <code>type</code> inside your <code>.svelte</code> file is incredibly repetitive. A single typo or misunderstood nested array can break your component's rendering logic and destroy IDE autocomplete functionality. By automating the generation of strict TypeScript interfaces directly from your raw JSON payload, you can instantly scaffold perfectly typed Svelte components, ensuring that your UI always receives the exact data shape it expects.</p>
 
-      <h3>Private Svelte Prototyping</h3>
-      <p>Your UI logic is your own. TypeFlow's local-first engine ensures your Svelte code is generated locally, keeping your component structures and data patterns private.</p>
+<h2>TypeFlow's Svelte Component Scaffolder</h2>
+<p>TypeFlow analyzes JSON data and generates clean, idiomatic TypeScript code tailored perfectly for Svelte components.</p>
+<ul>
+  <li><strong>Native Svelte Syntax:</strong> We generate perfectly formatted <code>export let propertyName: Type;</code> declarations (or modern Svelte 5 <code>$props()</code> interfaces) that drop seamlessly into your <code>&lt;script lang="ts"&gt;</code> block.</li>
+  <li><strong>Deep Type Extraction:</strong> Complex, deeply nested JSON objects and arrays are intelligently extracted into standalone, reusable TypeScript interfaces, keeping your component code clean and maintainable.</li>
+  <li><strong>Intelligent Nullability:</strong> By analyzing your payload, TypeFlow automatically detects optional or missing fields, applying the necessary TypeScript optional modifiers (<code>?</code>) to prevent unexpected rendering crashes on undefined data.</li>
+</ul>
+
+<h2>Local-First: Protecting Your Application State</h2>
+<p>The JSON payloads you use to prototype your components often contain sensitive user data, proprietary API responses, or internal application state. Uploading this data to a third-party cloud converter is a serious privacy risk. <strong>TypeFlow operates 100% locally.</strong> The conversion of your JSON to Svelte TypeScript interfaces happens entirely within your browser. Your sensitive application data never touches an external server, guaranteeing absolute security.</p>
+
+<h2>Conclusion</h2>
+<p>Stop wasting time manually writing component types. Use TypeFlow to instantly convert any JSON payload into strict, production-ready Svelte Props interfaces. Accelerate your SvelteKit development, eliminate runtime data errors, and build robust, perfectly typed user interfaces effortlessly.</p>
