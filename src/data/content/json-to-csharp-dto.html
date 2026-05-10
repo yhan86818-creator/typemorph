@@ -1,0 +1,19 @@
+<h2>The Role of Data Transfer Objects in .NET</h2>
+<p>In modern <strong>C# and .NET</strong> enterprise architectures, Data Transfer Objects (DTOs) are a fundamental design pattern. They are used to encapsulate data and send it from one subsystem of an application to another, particularly across network boundaries in ASP.NET Core web APIs. However, when consuming external APIs or agreeing on a new contract with a frontend team, developers are often handed a massive JSON payload. Manually writing the C# classes to deserialize this payload—complete with correct property types, <code>{ get; set; }</code> accessors, and JSON serialization attributes—is an incredibly tedious and error-prone process.</p>
+
+<h2>Eliminating Boilerplate with Automated DTOs</h2>
+<p>Manually translating JSON into C# DTOs introduces several risks. A developer might incorrectly map a JSON float to a C# <code>int</code>, leading to silent data truncation, or forget to apply <code>[JsonPropertyName]</code> attributes when dealing with snake_case JSON keys, resulting in null values upon deserialization. By automating the conversion from raw JSON directly into production-ready C# DTOs, you guarantee that your application's data boundaries are strictly and accurately typed, drastically reducing debugging time and runtime serialization errors.</p>
+
+<h2>TypeFlow's High-Precision C# Engine</h2>
+<p>TypeFlow understands the strict typing requirements and idiomatic conventions of the .NET ecosystem.</p>
+<ul>
+  <li><strong>Idiomatic PascalCase:</strong> We automatically convert incoming JSON keys (like <code>user_name</code>) into idiomatic C# properties (<code>UserName</code>), while preserving the original mapping via attributes.</li>
+  <li><strong>Serialization Support:</strong> Our generator provides out-of-the-box support for both <code>System.Text.Json</code> and <code>Newtonsoft.Json</code>, injecting the correct attributes so your DTOs work flawlessly with your preferred serializer.</li>
+  <li><strong>Nullability and Types:</strong> We intelligently map JSON primitives to C# types (e.g., <code>double</code>, <code>string</code>, <code>bool</code>) and suggest nullable value types (<code>int?</code>) where appropriate, ensuring robust handling of missing data.</li>
+</ul>
+
+<h2>Local-First: Securing Your Enterprise Logic</h2>
+<p>Your C# DTOs reveal the internal data structures of your microservices and APIs. Sending these structural blueprints to a cloud-based converter exposes your proprietary enterprise architecture. <strong>TypeFlow is 100% Local-First.</strong> The generation of your C# classes happens entirely in your local browser memory. Your JSON samples never touch an external server, guaranteeing strict adherence to corporate security and privacy policies.</p>
+
+<h2>Conclusion</h2>
+<p>Stop wasting hours writing <code>get; set;</code> boilerplate. Use TypeFlow to instantly convert any JSON payload into a clean, type-safe C# Data Transfer Object. Streamline your .NET development, prevent serialization errors, and build more robust ASP.NET APIs today.</p>

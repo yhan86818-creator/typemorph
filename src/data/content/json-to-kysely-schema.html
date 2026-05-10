@@ -1,0 +1,32 @@
+<h2>Kysely: The Type-Safe SQL Query Builder for Perfectionists</h2>
+      <p><strong>Kysely</strong> (pronounced Key-Se-Lee) is a type-safe SQL query builder for TypeScript. It doesn't attempt to hide SQL from you; instead, it makes it type-safe, providing full IDE autocomplete and compile-time checks for your raw queries. To use Kysely effectively, you must define a <code>Database</code> interface that perfectly reflects your table structure. Writing this interface manually for complex, multi-table databases is a repetitive and time-consuming task.</p>
+      
+      <p>TypeFlow simplifies your Kysely workflow by inferring the necessary TypeScript types directly from your JSON data samples. Whether you are mapping an existing database or designing a new feature, TypeFlow ensures your Kysely types are accurate and production-ready.</p>
+
+      <h2>Engineering Type-Safe Queries with Kysely</h2>
+      <p>Our Kysely generator is built to handle the complexities of modern database interactions, focusing on precision and developer experience.</p>
+
+      <h3>1. Advanced Type Mapping for Kysely</h3>
+      <p>We go beyond simple primitives. TypeFlow maps JSON types to the specific TypeScript types required by Kysely, including support for <code>Generated<T></code>, <code>ColumnType<T, I, U></code>, and custom types. We intelligently identify timestamps, IDs, and boolean flags, ensuring your <code>Database</code> interface is as strict as your business requirements demand.</p>
+
+      <h3>2. Schema Consistency and Autocomplete</h3>
+      <p>The primary benefit of Kysely is the "God-mode" autocomplete it provides for SQL queries. By generating your interfaces with TypeFlow, you ensure that every <code>select</code>, <code>insert</code>, and <code>update</code> operation is validated against your actual data shape. This eliminates the "Column 'x' does not exist" errors that plague manual query writing.</p>
+
+      <h3>3. Handling Nullability and Partial Updates</h3>
+      <p>In real-world databases, many columns are nullable or have default values. TypeFlow analyzes your data to identify these patterns, correctly applying <code>null</code> types or marking fields as optional for <code>Insertable</code> and <code>Updateable</code> operations. This ensures your application handles missing data with the same grace as your database.</p>
+
+      <h2>Local-First: Protecting Your Query Architecture</h2>
+      <p>Your <code>Database</code> interface is a map of your entire data layer. It reveals sensitive column names, data relationships, and architectural choices. Using cloud-based converters to build these types is a significant privacy risk, as it exposes your internal blueprints to third-party servers.</p>
+
+      <p><strong>TypeFlow is 100% Local-First.</strong> The Kysely type generation happens entirely in your browser. Your data samples <strong>never leave your machine</strong>. This ensures that your database architecture remains private and secure, meeting the requirements of enterprise-grade security and compliance (GDPR, SOC2).</p>
+
+      <h2>Use Cases: Where TypeFlow + Kysely Wins</h2>
+      <ul>
+        <li><strong>Serverless Functions:</strong> Quickly define light-weight database types for AWS Lambda or Cloudflare Workers using Kysely.</li>
+        <li><strong>Legacy Database Porting:</strong> Generate Kysely interfaces from JSON exports of your existing SQL databases.</li>
+        <li><strong>Rapid API Development:</strong> Move from a JSON mockup to a fully typed Kysely query layer in seconds.</li>
+        <li><strong>Type-Safe Refactoring:</strong> Ensure your entire query layer is updated instantly when your data shape changes.</li>
+      </ul>
+
+      <h2>Conclusion: Elevating SQL with Type-Safety</h2>
+      <p>TypeFlow's JSON-to-Kysely converter is the essential bridge between your data and your query layer. By automating the generation of Kysely interfaces, you improve developer velocity, reduce bugs, and unlock the full power of type-safe SQL. Master your database interactions with TypeFlow.</p>

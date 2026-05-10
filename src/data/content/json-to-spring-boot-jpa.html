@@ -1,0 +1,19 @@
+<h2>The Heavy Lifting of Java Enterprise Development</h2>
+<p>In the Java enterprise ecosystem, <strong>Spring Boot</strong> and <strong>JPA (Java Persistence API)</strong> are the gold standard for backend data management. To map database tables to Java objects, developers use JPA Entities. However, in modern API-first development, you often receive a JSON payload specification before the database schema even exists. Manually writing Java POJOs, applying the correct <code>@Entity</code>, <code>@Id</code>, and <code>@Column</code> annotations, and generating getters/setters for massive JSON payloads is the definition of tedious enterprise boilerplate.</p>
+
+<h2>Automating the Entity Mapping Process</h2>
+<p>Writing JPA entities by hand for deeply nested JSON data is not only slow but heavily prone to human error. A misspelled column name or a mismatched data type will cause Hibernate to fail during application startup. By automating the conversion from JSON directly into annotated Spring Boot JPA Entities, you skip hours of structural plumbing. You ensure that your Java models are instantly ready for repositories, controllers, and database migrations, strictly matching the required data shape.</p>
+
+<h2>TypeFlow: The Enterprise Java Architect</h2>
+<p>TypeFlow provides high-fidelity Java code generation that adheres to strict enterprise conventions.</p>
+<ul>
+  <li><strong>Smart Annotation Injection:</strong> We automatically add the necessary <code>@Entity</code> and <code>@Table</code> annotations, and intelligently guess the Primary Key field (e.g., <code>id</code>), decorating it with <code>@Id</code> and <code>@GeneratedValue</code>.</li>
+  <li><strong>Relationship Scaffolding:</strong> Nested objects within your JSON are extracted into separate Entity classes, giving you the perfect structural foundation to add <code>@OneToMany</code> or <code>@ManyToOne</code> relationship mappings.</li>
+  <li><strong>Lombok Support:</strong> We optionally inject <code>@Data</code>, <code>@NoArgsConstructor</code>, and <code>@AllArgsConstructor</code> annotations to keep your Java files clean, modern, and free of noisy getter/setter boilerplate.</li>
+</ul>
+
+<h2>Local-First: Securing Your Corporate Data Models</h2>
+<p>Your JPA entities map directly to your corporate database schema. Exposing this information to third-party cloud tools violates strict enterprise security and compliance standards (such as SOC2). <strong>TypeFlow is a 100% Local-First tool.</strong> Your JSON parsing and Java code generation are executed entirely within your local browser environment. Your database blueprint never leaves your network.</p>
+
+<h2>Conclusion</h2>
+<p>Eliminate Java boilerplate and accelerate your Spring Boot development. With TypeFlow, you can instantly turn JSON payloads into production-ready JPA Entities, ensuring strict type safety and a rapid transition from API design to database persistence.</p>

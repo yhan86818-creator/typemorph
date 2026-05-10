@@ -1,0 +1,19 @@
+<h2>The Developer's Alternative to Postman</h2>
+<p>For backend developers and API engineers, <strong><code>.http</code> files</strong> (often used with the VS Code REST Client or JetBrains IDEs) have become a highly popular, lightweight alternative to bulky API testing tools like Postman. They allow you to define HTTP requests using plain text, commit them to version control, and execute them directly from your code editor. However, when you need to test an endpoint that requires a massive, deeply nested JSON payload, manually formatting the <code>POST</code> request, setting the correct headers, and correctly placing the JSON body in a plain text file is a surprisingly annoying and error-prone task.</p>
+
+<h2>Automating API Testing Workflows</h2>
+<p>Manually constructing an <code>.http</code> file requires strict adherence to RFC 2616 formatting rules. If you forget to include a blank line between the headers and the JSON body, or if you misspell <code>Content-Type: application/json</code>, the IDE's HTTP client will fail to send the request correctly, leading to hours of frustrating debugging. By automating the generation of an <code>.http</code> file directly from your raw JSON payload, you instantly create a perfectly formatted, executable test case. This completely eliminates formatting errors and drastically speeds up the API testing process.</p>
+
+<h2>TypeFlow's Precision HTTP Generator</h2>
+<p>TypeFlow takes your JSON and wraps it in a perfectly compliant, ready-to-execute HTTP request template.</p>
+<ul>
+  <li><strong>Perfect Formatting:</strong> The generator guarantees the exact spacing and blank lines required by popular IDE HTTP clients, ensuring your requests execute flawlessly on the first try.</li>
+  <li><strong>Automatic Header Injection:</strong> We automatically inject the critical <code>Content-Type: application/json</code> and <code>Accept: application/json</code> headers, preventing common server-side parsing rejections.</li>
+  <li><strong>Variable Support:</strong> The generated <code>.http</code> file includes scaffolding for environment variables (e.g., <code>{{baseUrl}}</code>), allowing you to easily switch between local, staging, and production testing environments.</li>
+</ul>
+
+<h2>Local-First: Protecting Your API Payloads</h2>
+<p>JSON payloads used for testing often contain sensitive information, such as authentication tokens, PII (Personally Identifiable Information), or proprietary business data. Pasting this data into an online, cloud-based converter exposes your credentials to third-party server logs. <strong>TypeFlow is a 100% Local-First utility.</strong> The conversion of your JSON to an <code>.http</code> file occurs entirely within your browser. Your sensitive payload never leaves your machine, ensuring complete privacy.</p>
+
+<h2>Conclusion</h2>
+<p>Ditch the bulky API clients and embrace lightweight testing. Use TypeFlow to instantly turn any JSON object into a perfectly formatted, executable <code>.http</code> file. Speed up your API testing, commit your tests to version control, and never fight with HTTP formatting errors again.</p

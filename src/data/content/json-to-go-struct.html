@@ -1,0 +1,27 @@
+<h2>The Golang Philosophy: Explicit Types and High Performance</h2>
+      <p><strong>Go (Golang)</strong> is the engine of the modern cloud, powering everything from Kubernetes to high-frequency trading platforms. Central to Go's power is its strict, static type system and its high-performance JSON marshalling. However, for Gophers, the transition between JSON and internal data structures involves a significant amount of "Boilerplate"—specifically, the creation of structs with correct <strong>PascalCase</strong> field names and <code>json:"key"</code> tags.</p>
+      
+      <p>TypeFlow provides a professional-grade solution for this workflow. By automating the generation of idiomatic Go structs from your JSON samples, we enable you to build robust, type-safe backend services with unprecedented speed.</p>
+
+      <h2>Idiomatic Go: Beyond Simple Translation</h2>
+      <p>Writing Go structs manually is more than just mapping types; it requires following the community's strict idiomatic patterns. TypeFlow's Go engine is designed to think like a senior Go engineer.</p>
+
+      <h3>1. Automatic PascalCase and JSON Tagging</h3>
+      <p>In Go, field visibility is determined by capitalization. To "export" a field for the JSON marshaler, it must be <strong>PascalCase</strong>. TypeFlow automatically transforms your camelCase or snake_case JSON keys into idiomatic PascalCase field names while preserving the original key in the <code>json:"..."</code> struct tag. This ensures your Go code is both idiomatic and functional.</p>
+
+      <h3>2. Intelligent Type Inference for the Go Ecosystem</h3>
+      <p>Go has a diverse set of primitive types. TypeFlow's engine intelligently maps JSON types to the most appropriate Go equivalents: <code>string</code>, <code>int64</code>, <code>float64</code>, and <code>bool</code>. For timestamps, it suggests the <code>time.Time</code> type, and for complex objects, it extracts nested structs to maintain a clean, flat architecture where possible.</p>
+
+      <h3>3. Handling Nulls and Optionality with Pointers</h3>
+      <p>Go doesn't have a built-in "Optional" type. Instead, developers often use **Pointers** (e.g., <code>*string</code>) to represent fields that can be <code>null</code> or missing. TypeFlow analyzes your JSON array samples and automatically applies pointer types where nullability is detected, ensuring your structs can correctly handle the nuances of real-world API data.</p>
+
+      <h2>Local-First: Privacy for Your Service Blueprints</h2>
+      <p>Your Go structs represent the internal data models of your backend services—the very core of your business logic. Sharing these models with cloud-based converters is a significant security liability. It reveals your field names, internal logic, and architectural patterns to third-party servers.</p>
+
+      <p><strong>TypeFlow is 100% Local-First.</strong> The struct generation happens entirely in your browser using high-performance JavaScript logic. Your data <strong>never leaves your machine</strong>. This architecture makes TypeFlow the only secure choice for Gophers working on proprietary enterprise software, financial systems, or high-performance cloud infrastructure.</p>
+
+      <h2>Use Cases: Streamlining Go Development</h2>
+      <ul>
+        <li><strong>Microservices Integration:</strong> Quickly generate structs to consume data from internal or external REST APIs.</li>
+        <li><strong>Configuration Loading:</strong> Create structs that match your <code>config.json</code> files for use with <code>encoding/json</code>.</li>
+      <p>TypeFlow's cURL-to-Fetch converter is an essential tool for any modern web developer. By automating the transition between command-line testing and application code, we allow you to build better APIs with less effort and fewer bugs. Experience the speed, productivity, and security of modern API consumption with TypeFlow today.</p>

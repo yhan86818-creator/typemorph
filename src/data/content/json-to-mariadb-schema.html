@@ -1,0 +1,19 @@
+<h2>The Relational Power of MariaDB</h2>
+<p><strong>MariaDB</strong>, a highly performant and open-source fork of MySQL, powers countless enterprise applications and modern web services. While it supports dynamic JSON columns, the most efficient and scalable way to query and index data remains within strictly typed relational columns. When developers are tasked with persisting data from a new external API or a frontend JSON mockup, they must design a relational schema. Manually writing the <code>CREATE TABLE</code> Data Definition Language (DDL) statements—choosing the exact data types for dozens of fields—is a slow, error-prone task that delays development.</p>
+
+<h2>Automating Schema Design and DDL Generation</h2>
+<p>Database schema design requires precision. If a developer mistakenly assigns a <code>TINYINT</code> to a JSON field that occasionally returns massive ID numbers, the application will experience catastrophic data truncation in production. By automatically generating MariaDB <code>CREATE TABLE</code> statements directly from realistic JSON samples, you eliminate the guesswork. The automated engine analyzes the data to suggest the most appropriate column types, ensuring that your database migrations are robust, scalable, and ready for deployment.</p>
+
+<h2>TypeFlow's Optimized MariaDB Engine</h2>
+<p>TypeFlow performs deep semantic analysis on your JSON to output highly optimized MariaDB DDL.</p>
+<ul>
+  <li><strong>Intelligent Type Mapping:</strong> JSON primitives are accurately mapped to their optimal MariaDB counterparts. Strings become <code>VARCHAR(255)</code> or <code>TEXT</code>, while numbers are mapped to <code>INT</code>, <code>BIGINT</code>, or <code>DECIMAL</code> depending on precision requirements.</li>
+  <li><strong>Handling Nested Structures:</strong> Complex nested JSON objects are intelligently identified. TypeFlow can suggest secondary relational tables linked by foreign keys, promoting proper database normalization according to relational best practices.</li>
+  <li><strong>Constraints and Nullability:</strong> By analyzing your JSON payload, the generator identifies fields that are consistently present and automatically applies <code>NOT NULL</code> constraints, ensuring strict data integrity at the database level.</li>
+</ul>
+
+<h2>Local-First: Securing Your Database Blueprints</h2>
+<p>Your <code>CREATE TABLE</code> statements constitute the architectural blueprint of your entire business. Exposing your database structures, column names, and relational logic to cloud-based converters is a severe security vulnerability. <strong>TypeFlow operates entirely locally.</strong> The semantic parsing of your JSON and generation of MariaDB DDL executes exclusively within your browser. Your database schema never touches an external server, guaranteeing compliance with enterprise security protocols.</p>
+
+<h2>Conclusion</h2>
+<p>Bridge the gap between raw JSON APIs and relational storage instantly. With TypeFlow, you can automatically generate optimized, production-ready MariaDB <code>CREATE TABLE</code> statements from any payload. Eliminate manual DDL typing, prevent data truncation, and accelerate your backend architecture design.</p>

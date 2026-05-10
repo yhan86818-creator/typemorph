@@ -1,0 +1,32 @@
+<h2>The Full-Stack Disconnect: Database vs. Frontend Validation</h2>
+      <p>In a complex full-stack application, maintaining a "Source of Truth" for your data structures is one of the most difficult architectural challenges. Your database schema is defined in SQL (DDL), while your frontend validation is defined in TypeScript (Zod). When a column is added or modified in the database, a developer must manually update the corresponding Zod schema. Failure to do so leads to <strong>Silent Data Mismatches</strong>—the most frustrating type of bug to debug in production.</p>
+      
+      <p>TypeFlow's SQL-to-Zod converter is designed to eliminate this disconnect. By parsing your standard <code>CREATE TABLE</code> statements and transforming them into production-ready Zod schemas, we ensure that your validation layer is always a perfect reflection of your database structure.</p>
+
+      <h2>Automated Schema Transformation: The Technical Edge</h2>
+      <p>Our SQL parser isn't just looking for keywords. It's a structured engineering tool that understands the semantics of relational database design.</p>
+
+      <h3>1. Semantic Type Mapping</h3>
+      <p>We map standard SQL data types to their most accurate Zod equivalents. <code>VARCHAR</code> and <code>TEXT</code> become <code>z.string()</code>, <code>INTEGER</code> and <code>DECIMAL</code> become <code>z.number()</code>, and <code>BOOLEAN</code> is correctly identified. For more complex types like <code>JSONB</code> or <code>ARRAY</code>, TypeFlow provides the necessary Zod scaffolding to ensure total type safety.</p>
+
+      <h3>2. Nullability and Constraint Awareness</h3>
+      <p>One of the key benefits of SQL is its ability to enforce data constraints. TypeFlow analyzes your DDL for <code>NOT NULL</code> constraints. Fields that are nullable in the database are automatically marked with <code>.nullable()</code> in the generated Zod schema, ensuring your frontend accurately reflects your database's strictness. We also identify primary keys to help you structure your internal IDs.</p>
+
+      <h3>3. Performance-First Code Generation</h3>
+      <p>The generated Zod schemas are optimized for performance and readability. We use idiomatic Zod patterns that ensure your validation layer adds minimal overhead to your application while providing maximum safety.</p>
+
+      <h2>Local-First: Protecting Your Database Architecture</h2>
+      <p>Your database schema (DDL) is the literal blueprint of your company's information architecture. Exposing these statements to "Online SQL Converters" is a significant security risk. Malicious actors or data leaks from these third-party tools can reveal your internal table structures, relationship maps, and sensitive field names.</p>
+
+      <p><strong>TypeFlow is 100% Local-First.</strong> The SQL parsing and Zod generation happen entirely in your browser. Your database structure <strong>never leaves your machine</strong>. This architecture makes TypeFlow the only compliant choice for developers working on high-security systems, government projects, or enterprise applications that require strict data sovereignty.</p>
+
+      <h2>Use Cases: Scaling with SQL-to-Zod</h2>
+      <ul>
+        <li><strong>Greenfield Projects:</strong> Design your database first, then instantly generate the entire validation layer for your API.</li>
+        <li><strong>Legacy Modernization:</strong> Quickly add Zod validation to an old project by importing its existing SQL schema.</li>
+        <li><strong>Infrastructure as Code:</strong> Keep your Zod schemas in sync with your Terraform or Flyway migrations by automating the generation process.</li>
+        <li><strong>Type-Safe Testing:</strong> Generate Zod schemas to validate mock data generated for your integration tests.</li>
+      </ul>
+
+      <h2>Conclusion: Establishing a Unified Data Truth</h2>
+      <p>TypeFlow's SQL-to-Zod converter is more than a utility; it's a bridge between the relational world of databases and the type-safe world of modern TypeScript. By unifying these two layers, you reduce the risk of production bugs, improve developer velocity, and ensure that your application's data integrity is enforced from the database all the way to the UI.</p>

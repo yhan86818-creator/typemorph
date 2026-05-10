@@ -1,0 +1,19 @@
+<h2>The Standard for Android and Backend Development</h2>
+<p><strong>Kotlin</strong> has taken the software world by storm, becoming the official language for Android development and a highly popular, modern alternative to Java for backend services (especially with frameworks like Spring Boot and Ktor). Kotlin's strict null-safety and concise syntax make it a joy to write. When communicating with web APIs, data is typically parsed using libraries like Gson, Moshi, or Kotlinx Serialization. However, manually transcribing a massive JSON payload into Kotlin Data Classes (DTOs)—carefully defining <code>val</code> properties, types, and serialization annotations—is a repetitive task that slows down feature delivery.</p>
+
+<h2>Automating Data Transfer Objects in Kotlin</h2>
+<p>Writing Kotlin DTOs by hand is not only tedious but risky. If a developer assumes a JSON property is always present and defines it as a non-null <code>String</code>, but the API later returns <code>null</code>, the application will crash with a <code>NullPointerException</code> or serialization failure. Automating the conversion from JSON to Kotlin Data Classes ensures that the generated models perfectly reflect the actual data. This process automatically applies nullability modifiers (<code>?</code>) where appropriate, guaranteeing that your application can safely consume and serialize API responses without unexpected crashes.</p>
+
+<h2>TypeFlow's Precision Kotlin Engine</h2>
+<p>TypeFlow generates highly idiomatic Kotlin code optimized for modern Android and server-side development.</p>
+<ul>
+  <li><strong>Data Class Optimization:</strong> We exclusively generate Kotlin <code>data class</code> structures, providing built-in <code>equals()</code>, <code>hashCode()</code>, and <code>copy()</code> functions for free, which are essential for robust DTOs.</li>
+  <li><strong>Smart Null-Safety:</strong> The engine deeply analyzes the JSON payload. If it detects nulls or missing fields across arrays, it automatically marks the corresponding Kotlin properties as nullable (e.g., <code>val name: String?</code>).</li>
+  <li><strong>Serialization Annotations:</strong> TypeFlow provides optional support for injecting standard serialization annotations (like <code>@SerializedName</code> for Gson or <code>@Json</code> for Moshi) to handle discrepancies between JSON <code>snake_case</code> keys and Kotlin's <code>camelCase</code> conventions.</li>
+</ul>
+
+<h2>Local-First: Securing Your Application Data</h2>
+<p>The JSON responses you convert often contain sensitive business logic, API keys, or proprietary data formats specific to your Android app or Kotlin backend. Using cloud-based formatters risks exposing this sensitive architecture to external servers. <strong>TypeFlow is 100% Local-First.</strong> Your Kotlin code is generated entirely within your browser's memory. Your API payloads never leave your machine, guaranteeing compliance with enterprise security protocols.</p>
+
+<h2>Conclusion</h2>
+<p>Eliminate Android and backend boilerplate instantly. Use TypeFlow to securely translate complex JSON payloads into perfect Kotlin Data Classes. Ensure absolute null-safety, speed up your API integrations, and embrace the conciseness of modern Kotlin development.</p

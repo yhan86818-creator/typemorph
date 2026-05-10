@@ -1,0 +1,19 @@
+<h2>Semi-Structured Data Mastery in Snowflake</h2>
+<p><strong>Snowflake</strong> has revolutionized cloud data warehousing with its native ability to ingest and query semi-structured data (like JSON, Avro, and Parquet) using the powerful <code>VARIANT</code> data type. Unlike traditional databases that require strict flattening, Snowflake allows you to load raw JSON into a single column and query it using dot notation (e.g., <code>src:user.name::string</code>). However, to integrate this <code>VARIANT</code> data into downstream BI tools (like Tableau or Looker) or perform performant SQL joins, data engineers must create Views that map these JSON paths into strongly typed relational columns. Manually writing these massive <code>SELECT</code> statements is a repetitive and error-prone task.</p>
+
+<h2>Automating the JSON Flattening View</h2>
+<p>Writing Snowflake extraction views by hand requires meticulously mapping every JSON path and casting it to the correct Snowflake data type. A single typo in the JSON path (e.g., writing <code>src:userId</code> instead of <code>src:user_id</code>) or forgetting to cast a field (<code>::number</code>) will result in null values or massive query performance degradation. By automating the generation of these Snowflake Variant mapping queries directly from a JSON sample, engineers can instantly create robust, strongly typed Views. This completely eliminates manual typing errors and dramatically speeds up the data modeling process.</p>
+
+<h2>TypeFlow's Snowflake Extraction Engine</h2>
+<p>TypeFlow understands Snowflake's unique syntax and generates highly optimized SQL extraction queries.</p>
+<ul>
+  <li><strong>Precise Path Traversal:</strong> We recursively analyze deeply nested JSON structures to generate the exact Snowflake dot-notation paths (<code>src:parent.child.property</code>) required to access the data.</li>
+  <li><strong>Automatic Type Casting:</strong> Based on the JSON values, TypeFlow automatically appends the correct Snowflake cast operators (e.g., <code>::string</code>, <code>::float</code>, <code>::boolean</code>), ensuring optimal query performance and BI tool compatibility.</li>
+  <li><strong>Clean Column Aliasing:</strong> The engine automatically generates clean, readable SQL aliases for the extracted fields (e.g., <code>src:user.first_name::string AS user_first_name</code>), creating an instantly usable relational View.</li>
+</ul>
+
+<h2>Local-First: Protecting Your Data Warehouse Architecture</h2>
+<p>Your Snowflake schemas and extraction views represent the core logic of your corporate analytics pipeline. Sending your proprietary JSON data structures to a cloud-based converter exposes your internal business metrics to third parties. <strong>TypeFlow is 100% Local-First.</strong> The parsing of your JSON and the generation of your Snowflake SQL queries happen entirely within your local browser memory. Your data never touches an external server, ensuring absolute privacy.</p>
+
+<h2>Conclusion</h2>
+<p>Unlock the power of Snowflake <code>VARIANT</code> data instantly. Use TypeFlow to automatically generate pristine, strongly typed extraction Views from any JSON payload. Eliminate manual path typing, ensure accurate data casting, and accelerate your BI reporting workflows.</p

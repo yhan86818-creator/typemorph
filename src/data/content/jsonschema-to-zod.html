@@ -1,0 +1,19 @@
+<h2>The Shift to Runtime Validation with Zod</h2>
+<p>While <strong>JSON Schema</strong> is the universal standard for describing data formats across different languages and platforms, it is inherently static. In the modern TypeScript ecosystem, developers demand dynamic, runtime validation to ensure data integrity at the edge of their applications. <strong>Zod</strong> has become the premier choice for this, offering a developer-friendly API that simultaneously validates data and infers strict TypeScript types. However, migrating massive legacy JSON Schemas (such as OpenAPI specs or configuration definitions) into Zod manually is a monumental and error-prone task.</p>
+
+<h2>Automating the Migration from Static to Dynamic</h2>
+<p>Manually rewriting a complex, deeply nested JSON Schema with numerous <code>$ref</code> pointers, <code>anyOf</code> logic, and regex patterns into Zod syntax takes days and introduces translation errors. By automating the conversion from JSON Schema to Zod, you instantly modernize your validation layer. This allows you to leverage Zod's powerful <code>.parse()</code> and <code>.safeParse()</code> methods on incoming API payloads, form submissions, or configuration files, while maintaining compatibility with systems that still emit standard JSON Schema definitions.</p>
+
+<h2>TypeFlow: The Ultimate Zod Architect</h2>
+<p>TypeFlow's engine performs a semantic translation, mapping standard JSON Schema concepts directly into idiomatic Zod constructs.</p>
+<ul>
+  <li><strong>Complex Type Resolution:</strong> We accurately convert JSON Schema primitives, arrays, and objects, while intelligently handling <code>enum</code> and <code>const</code> values by translating them into <code>z.enum()</code> and <code>z.literal()</code>.</li>
+  <li><strong>Validation Constraints:</strong> Important JSON Schema constraints such as <code>minLength</code>, <code>maximum</code>, and <code>pattern</code> (regex) are seamlessly mapped to their Zod equivalents (e.g., <code>.min()</code>, <code>.max()</code>, <code>.regex()</code>), ensuring no validation logic is lost.</li>
+  <li><strong>Handling Optionality:</strong> TypeFlow analyzes the <code>required</code> array in your JSON Schema objects and automatically applies <code>.optional()</code> to any missing properties in the resulting Zod schema, ensuring perfect type alignment.</li>
+</ul>
+
+<h2>Local-First Architecture: Total Blueprint Privacy</h2>
+<p>Your JSON Schemas often define the core structural requirements of your databases, APIs, and business logic. Exposing these blueprints to third-party cloud converters risks leaking your internal architecture. <strong>TypeFlow is completely Local-First.</strong> The complex parsing of your JSON Schema and generation of Zod code happens entirely in your browser. Your structural data never touches an external server, guaranteeing enterprise-grade privacy.</p>
+
+<h2>Conclusion</h2>
+<p>Modernize your TypeScript applications instantly. With TypeFlow, you can transform static JSON Schema definitions into powerful, runtime-validated Zod schemas in seconds. Stop writing validation boilerplate and start building resilient, type-safe systems today.</p>

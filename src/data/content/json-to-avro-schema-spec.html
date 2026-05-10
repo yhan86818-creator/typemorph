@@ -1,0 +1,19 @@
+<h2>The Importance of Apache Avro in Big Data</h2>
+<p><strong>Apache Avro</strong> is a highly efficient, compact, binary data serialization system heavily used in big data pipelines, Hadoop ecosystems, and Apache Kafka streaming architectures. Unlike JSON, Avro requires a strict, pre-defined JSON-based schema to encode and decode data. This schema enforces data integrity and enables schema evolution. However, writing an Avro Schema (<code>.avsc</code>) from scratch for a large, complex, deeply nested JSON data payload is an incredibly daunting and slow process, requiring developers to manually define <code>type: "record"</code>, list <code>fields</code>, and map data types.</p>
+
+<h2>Bridging Raw Data and Binary Serialization</h2>
+<p>When you define a big data pipeline, your actual JSON payload is the starting point. Manually translating that payload into an Avro Schema often leads to structural mismatches. If a developer accidentally defines a field as <code>int</code> when the data actually requires <code>long</code>, or forgets to wrap an optional field in a <code>["null", "type"]</code> union, the Avro serializer will fail catastrophically during data ingestion. By automatically extracting a precise Avro Schema from a real JSON data sample, you instantly generate a high-fidelity blueprint, ready for use in Kafka Schema Registries.</p>
+
+<h2>TypeFlow's High-Fidelity Avro Inference</h2>
+<p>TypeFlow performs deep structural analysis to generate comprehensive, production-ready Apache Avro Schema specifications.</p>
+<ul>
+  <li><strong>Recursive Record Generation:</strong> We accurately identify all JSON primitives and deeply parse nested objects and arrays, outputting clean Avro <code>record</code> types and nested <code>array</code> definitions with strict item types.</li>
+  <li><strong>Automatic Optionality (Unions):</strong> By analyzing your payload (or array of payloads), TypeFlow automatically detects fields that may be absent and formats them as Avro Unions (e.g., <code>["null", "string"]</code>), preventing serialization crashes.</li>
+  <li><strong>Smart Type Mapping:</strong> JSON numbers are intelligently analyzed to determine if they should be mapped to Avro's <code>int</code>, <code>long</code>, <code>float</code>, or <code>double</code>, ensuring maximum storage efficiency in your data lake.</li>
+</ul>
+
+<h2>Local-First: Securing Your Data Architecture</h2>
+<p>Your Avro Schema serves as the master blueprint for your data warehouse or event streaming architecture. Exposing your raw JSON payloads to cloud-based converters to generate this schema risks leaking proprietary business models and sensitive structure layouts. <strong>TypeFlow operates 100% locally.</strong> Your data is parsed and your schema is generated entirely within your browser. Your data pipeline architecture never touches our servers.</p>
+
+<h2>Conclusion</h2>
+<p>Stop writing Avro Schema boilerplate by hand. Use TypeFlow to instantly reverse-engineer a precise, production-ready Avro Schema specification from any data sample. Accelerate your Kafka integrations, enforce strict data validation, and build reliable big data pipelines with absolute confidence.</p>

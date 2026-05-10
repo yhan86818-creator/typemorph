@@ -1,0 +1,19 @@
+<h2>The Challenge of Managing Server State in React</h2>
+<p>Modern React applications rely heavily on external APIs, but standard <code>fetch</code> or <code>axios</code> calls lack built-in mechanisms for caching, deduplication, and background updates. <strong>TanStack Query (React Query)</strong> has emerged as the industry standard for managing server state, offering a robust set of features to handle these complexities. However, developers often find themselves manually writing repetitive <code>useQuery</code> and <code>useMutation</code> hooks for every single API endpoint. This manual process is not only tedious but also prone to type mismatches between the server response and the client-side state.</p>
+
+<h2>Bridging the Gap: Automated Hook Generation</h2>
+<p>Translating a raw JSON response into a fully typed React Query hook requires defining the TypeScript interfaces for the data, configuring the query keys, and writing the fetcher function. When an API changes, updating all these moving parts manually is a massive productivity drain. By automating the generation of React Query hooks directly from JSON payloads, you establish a <strong>Single Source of Truth</strong>. This ensures that your frontend data fetching layer is always perfectly synchronized with your backend APIs, eliminating <code>undefined is not an object</code> runtime errors.</p>
+
+<h2>TypeFlow's Intelligent React Query Engine</h2>
+<p>TypeFlow goes beyond simple interface generation. It analyzes your JSON data and outputs idiomatic, production-ready TanStack Query code.</p>
+<ul>
+  <li><strong>Strict Typing:</strong> We generate precise TypeScript interfaces for your JSON payload and automatically inject them into the <code>useQuery&lt;TData, TError&gt;</code> generic types.</li>
+  <li><strong>Query Key Management:</strong> The engine provides standard, scalable query key arrays (e.g., <code>['user', { id }]</code>) to ensure predictable cache invalidation and data deduplication.</li>
+  <li><strong>Fetcher Abstraction:</strong> We generate clean async fetcher functions utilizing native <code>fetch</code>, fully configured with the inferred types, ready to be dropped into your custom hooks file.</li>
+</ul>
+
+<h2>100% Local-First: Protecting Your API Architecture</h2>
+<p>Your API responses often contain sensitive information, proprietary data structures, and internal naming conventions. Using cloud-based converters exposes your internal backend architecture to third-party servers. <strong>TypeFlow is 100% Local-First.</strong> The generation of your React Query hooks happens entirely within your browser's memory. Your data never leaves your machine, ensuring total privacy and compliance with enterprise security standards.</p>
+
+<h2>Conclusion</h2>
+<p>Stop writing boilerplate data-fetching logic. With TypeFlow, you can instantly turn any JSON API response into a robust, type-safe TanStack Query hook. Accelerate your React development cycle, eliminate manual type syncing, and build more resilient frontend applications today.</p>

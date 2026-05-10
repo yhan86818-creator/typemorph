@@ -1,0 +1,19 @@
+<h2>Data Warehousing at Scale with Amazon Redshift</h2>
+<p><strong>Amazon Redshift</strong> is a massive-scale, columnar data warehouse used by enterprises to analyze petabytes of data. While Redshift supports querying nested data using the <code>SUPER</code> data type, the most performant, cost-effective, and analytically efficient way to store and query data is within strictly typed, flattened relational tables. When data engineers are tasked with ingesting streams of JSON data (from Kinesis, S3, or external APIs), they must design the Redshift schema. Manually writing the <code>CREATE TABLE</code> DDL statements—choosing between <code>VARCHAR</code>, <code>BIGINT</code>, and <code>TIMESTAMP</code> for hundreds of fields—is a massive bottleneck in the ETL pipeline.</p>
+
+<h2>Automating Schema Design for the Cloud</h2>
+<p>Redshift schema design requires absolute precision. If an engineer mistakenly assigns a <code>VARCHAR(50)</code> to a JSON field that occasionally returns long URLs, the entire <code>COPY</code> command ingestion process will fail with data truncation errors. By automatically generating Redshift <code>CREATE TABLE</code> statements directly from realistic JSON samples, data engineers eliminate the guesswork. The automated engine analyzes the payload to suggest the most appropriate columnar types and lengths, ensuring that your ETL migrations are robust, scalable, and ready for massive analytics workloads.</p>
+
+<h2>TypeFlow's High-Fidelity Redshift Engine</h2>
+<p>TypeFlow performs deep semantic analysis on your JSON to output highly optimized Amazon Redshift DDL.</p>
+<ul>
+  <li><strong>Intelligent Columnar Mapping:</strong> JSON primitives are accurately mapped to their optimal Redshift counterparts. Strings become <code>VARCHAR</code> with safe default lengths (or <code>MAX</code> if necessary), while numbers are mapped to <code>INTEGER</code>, <code>BIGINT</code>, or <code>DOUBLE PRECISION</code> depending on inferred precision.</li>
+  <li><strong>Handling Nested Structures:</strong> Complex nested JSON objects are intelligently flattened into column names (e.g., <code>user_address_city</code>) or optionally mapped to Redshift's native <code>SUPER</code> type for semi-structured querying.</li>
+  <li><strong>Data Warehouse Optimization:</strong> The generated DDL provides the perfect foundation for engineers to easily append critical Redshift optimizations like <code>SORTKEY</code> and <code>DISTKEY</code> before deployment.</li>
+</ul>
+
+<h2>Local-First: Securing Your Analytics Blueprints</h2>
+<p>Your <code>CREATE TABLE</code> statements constitute the architectural blueprint of your corporate data warehouse. Exposing your schema structures, column names, and relational logic to cloud-based converters is a severe security vulnerability. <strong>TypeFlow operates entirely locally.</strong> The semantic parsing of your JSON and generation of Redshift DDL executes exclusively within your browser. Your database schema never touches an external server, guaranteeing compliance with enterprise security protocols.</p>
+
+<h2>Conclusion</h2>
+<p>Accelerate your ETL pipelines instantly. With TypeFlow, you can automatically generate optimized, production-ready Amazon Redshift <code>CREATE TABLE</code> statements from any JSON payload. Eliminate manual DDL typing, prevent <code>COPY</code> command failures, and scale your analytics faster.</p

@@ -1,0 +1,19 @@
+<h2>Managing Design Tokens at Scale</h2>
+<p>In modern frontend architecture, consistency is paramount. Design teams frequently use tools like Figma or Sketch to establish a global design system, exporting colors, typography scales, and spacing units as massive, nested <strong>JSON Design Tokens</strong>. However, to actually use these tokens in a traditional or component-based web application, frontend developers must convert them into CSS preprocessor variables. Manually translating a nested JSON object into a flat list of <strong>Sass (SCSS) variables</strong> (e.g., <code>$color-primary-500: #3b82f6;</code>) is an incredibly tedious, repetitive, and error-prone chore.</p>
+
+<h2>Bridging the Gap Between Design and Styling</h2>
+<p>Manually transcribing design tokens from JSON to SCSS invites subtle UI bugs. A developer might accidentally copy a hex code incorrectly or mistake a pixel value, breaking the visual harmony of the application. Furthermore, when the design team updates the JSON tokens, manually syncing those changes to the SCSS codebase is a massive time sink. By automating the conversion of JSON directly into SCSS variables, you establish a flawless, automated pipeline between design and development, ensuring pixel-perfect accuracy on every build.</p>
+
+<h2>TypeFlow's SCSS Translation Engine</h2>
+<p>TypeFlow intelligently parses complex design JSON and generates clean, strictly formatted Sass variables.</p>
+<ul>
+  <li><strong>Smart Variable Flattening:</strong> Deeply nested JSON objects (e.g., <code>{ "colors": { "primary": { "500": "#fff" } } }</code>) are automatically flattened into intuitive, kebab-case SCSS variables (<code>$colors-primary-500: #fff;</code>), creating a predictable namespace.</li>
+  <li><strong>Unit Preservation:</strong> String values containing CSS units (like <code>16px</code> or <code>1.5rem</code>) and raw numbers are perfectly preserved and formatted according to strict SCSS syntax requirements.</li>
+  <li><strong>Ready for Import:</strong> The output is formatted cleanly, ready to be dropped into your <code>_variables.scss</code> file and immediately imported into your application's global stylesheet.</li>
+</ul>
+
+<h2>Local-First: Keeping Your UI Proprietary</h2>
+<p>Your design tokens dictate the unique visual identity of your brand and application. Uploading these JSON definitions to an external server exposes your design system to unnecessary security risks and potential corporate espionage. <strong>TypeFlow is a 100% Local-First utility.</strong> The transformation from JSON to SCSS variables executes entirely in your browser's local memory. Your design tokens never leave your network.</p>
+
+<h2>Conclusion</h2>
+<p>Accelerate your UI styling workflow. With TypeFlow, you can instantly turn JSON design tokens into production-ready SCSS variables. Eliminate manual CSS translation, enforce absolute design consistency, and build beautiful user interfaces faster.</p

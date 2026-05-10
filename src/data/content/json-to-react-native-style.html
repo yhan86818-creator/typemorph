@@ -1,0 +1,19 @@
+<h2>The Unique Challenges of React Native Styling</h2>
+<p>While <strong>React Native</strong> utilizes a syntax similar to web CSS, it does not actually use CSS. Instead, styling is handled entirely via JavaScript objects using the <code>StyleSheet.create()</code> API. This approach lacks the cascading nature of CSS and requires strict camelCase property names (e.g., <code>backgroundColor</code> instead of <code>background-color</code>). When design teams hand over design tokens or when migrating a traditional web application to mobile, manually converting massive CSS files or JSON design exports into valid React Native StyleSheet objects is a painstakingly slow and error-prone process.</p>
+
+<h2>Bridging Web Design and Mobile Development</h2>
+<p>Manually transcribing styles from a JSON design token file into React Native requires translating units. React Native does not support standard web units like <code>px</code>, <code>em</code>, or <code>rem</code> directly in the same way; numeric values represent density-independent pixels. A developer must carefully strip out unsupported units and convert properties like <code>box-shadow</code> into iOS and Android specific shadow properties (e.g., <code>elevation</code>). Automating this conversion process guarantees that your mobile app achieves pixel-perfect parity with the design specs without hours of manual translation and debugging.</p>
+
+<h2>TypeFlow's Mobile-First Conversion Engine</h2>
+<p>TypeFlow intelligently adapts web-centric JSON design data into idiomatic React Native code.</p>
+<ul>
+  <li><strong>Property Normalization:</strong> We automatically convert kebab-case CSS properties found in JSON exports into the strict camelCase required by the React Native <code>StyleSheet</code> API.</li>
+  <li><strong>Unit Stripping and Conversion:</strong> The engine intelligently handles numeric values, stripping out incompatible <code>px</code> suffixes and formatting them as raw numbers, ensuring your app compiles without red screen errors.</li>
+  <li><strong>Shadow and Layout Adaptation:</strong> Complex web styles like shadows are parsed and mapped to their closest React Native equivalents, providing a solid foundation for both iOS and Android styling.</li>
+</ul>
+
+<h2>Local-First: Securing Your App's UI Identity</h2>
+<p>Your design tokens and UI stylesheets dictate the visual identity of your mobile application. Sharing these proprietary design files with online cloud converters exposes your brand's unique assets to third-party servers. <strong>TypeFlow is 100% Local-First.</strong> The generation of your React Native StyleSheets happens entirely in your browser. Your design tokens never leave your local machine, ensuring absolute privacy for your intellectual property.</p>
+
+<h2>Conclusion</h2>
+<p>Speed up your mobile UI implementation. Use TypeFlow to instantly and accurately translate JSON design tokens into production-ready React Native <code>StyleSheet</code> objects. Eliminate manual unit conversion, prevent styling errors, and build beautiful cross-platform apps faster.</p

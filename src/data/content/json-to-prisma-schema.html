@@ -1,0 +1,32 @@
+<h2>Prisma: The Modern Foundation for Type-Safe Databases</h2>
+      <p><strong>Prisma</strong> has fundamentally changed how developers interact with databases. By providing a declarative schema language (PSL) and a type-safe client, it has become the de facto standard for Node.js and TypeScript applications. However, at the start of a new feature or project, you often have a JSON data mockup from a frontend designer or a third-party API before you have a database schema. Manually translating that JSON into <code>model</code> blocks in your <code>schema.prisma</code> file is a repetitive, low-value task.</p>
+      
+      <p>TypeFlow's JSON-to-Prisma converter automates this "Schema-First" workflow. By inferring database models directly from your data samples, we allow you to move from prototype to production in a fraction of the time.</p>
+
+      <h2>Intelligent Schema Inference: The TypeFlow Advantage</h2>
+      <p>Our Prisma engine is designed for high-fidelity schema generation, ensuring your <code>schema.prisma</code> file is clean, idiomatic, and migration-ready.</p>
+
+      <h3>1. Relational Mapping and Type Inference</h3>
+      <p>We map JSON types to their most appropriate Prisma equivalents. <code>string</code> becomes <code>String</code>, <code>number</code> becomes <code>Int</code> or <code>Float</code>, and <code>boolean</code> becomes <code>Boolean</code>. For complex nested objects, TypeFlow identifies potential <strong>Relation Patterns</strong> and suggests separate models connected by foreign keys, following database normalization best practices.</p>
+
+      <h3>2. Attribute and Constraint Detection</h3>
+      <p>A great Prisma model needs more than just types; it needs constraints. TypeFlow analyzes your JSON data to identify fields that should be marked as <code>@id</code>, <code>@default(now())</code>, or <code>@unique</code>. We also detect nullable fields across your samples and apply the <code>?</code> modifier to your Prisma fields accordingly.</p>
+
+      <h3>3. Multi-Database Compatibility</h3>
+      <p>Whether you are using PostgreSQL, MySQL, SQLite, or MongoDB, the generated models are designed to be compatible with Prisma's cross-database abstraction. You can easily adapt the generated schema to your specific database provider.</p>
+
+      <h2>Local-First: Security for Your Database Blueprints</h2>
+      <p>Your <code>schema.prisma</code> file is the literal architectural blueprint of your application. It reveals your table structures, relationship logic, and data validation rules. Sharing your JSON samples with cloud-based converters exposes your internal system design to unnecessary risks.</p>
+
+      <p><strong>TypeFlow is 100% Local-First.</strong> The Prisma model generation happens entirely in your browser's memory. Your data samples <strong>never leave your machine</strong>. This ensures that your database architecture remains private and secure, meeting the strict requirements of enterprise-grade security and compliance (SOC2, HIPAA, GDPR).</p>
+
+      <h2>Use Cases: Accelerating Prisma Workflows</h2>
+      <ul>
+        <li><strong>API-First Prototyping:</strong> Paste a response from a mock API and instantly generate the Prisma models needed to persist that data.</li>
+        <li><strong>Legacy Database Integration:</strong> Quickly build a Prisma schema for an existing dataset by importing JSON exports of your tables.</li>
+        <li><strong>Rapid Feature Development:</strong> Move from a designer's JSON mockup to a functional database schema in seconds, not hours.</li>
+        <li><strong>Team Collaboration:</strong> Share generated models with your team as a starting point for architectural discussions.</li>
+      </ul>
+
+      <h2>Conclusion: Mastering the Data Lifecycle with Prisma</h2>
+      <p>TypeFlow's JSON-to-Prisma converter is the essential tool for modern full-stack engineers. By unifying your data samples with your database schema, you reduce the "Plumbing" overhead of your project and focus on what matters: building great products. Experience the future of schema-first development with TypeFlow.</p>

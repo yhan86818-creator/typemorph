@@ -1,0 +1,13 @@
+<h2>Clerk: Simplifying User Management</h2>
+      <p><strong>Clerk</strong> provides a beautiful, pre-built authentication experience, but your backend still needs to stay in sync with user events (like <code>user.created</code> or <code>user.updated</code>) via webhooks. These webhook payloads are complex and deeply nested. Manually writing TypeScript interfaces for every event type is an error-prone process that can lead to broken sync logic.</p>
+
+      <h3>Reliable Clerk Integrations</h3>
+      <p>TypeFlow automates the creation of high-quality Clerk webhook types from your JSON samples:</p>
+      <ul>
+        <li><strong>Event Specificity:</strong> We generate interfaces that capture the exact structure of Clerk's event data.</li>
+        <li><strong>Nested Attribute Support:</strong> Full support for Clerk's <code>public_metadata</code> and <code>private_metadata</code> fields.</li>
+        <li><strong>Type Safety:</strong> Ensure your webhook handlers are fully typed to prevent runtime errors during user synchronization.</li>
+      </ul>
+
+      <h3>Local-First Webhook Engineering</h3>
+      <p>Webhook payloads contain sensitive user data. TypeFlow's local-first architecture ensures your Clerk types are generated entirely in your browser. No user data or event patterns are ever exposed to an external server.</p>

@@ -1,0 +1,19 @@
+<h2>Data Modeling in the Elixir Ecosystem</h2>
+<p><strong>Elixir</strong>, running on the highly concurrent Erlang VM (BEAM), has become a dominant language for building scalable, real-time web applications, particularly with the Phoenix framework. In Elixir, incoming JSON data is typically parsed into generic Maps. However, when you need strict pattern matching, compile-time checks for keys, and a clear data contract, you must convert these dynamic Maps into <strong>Structs</strong> (<code>defstruct</code>). Manually writing the module definitions, defining the struct keys, and writing the decoding logic for a massive, deeply nested JSON payload is a slow, error-prone chore that disrupts the functional flow.</p>
+
+<h2>Why Automated Struct Generation is Essential</h2>
+<p>A generic Elixir Map allows any key, making it difficult to maintain robust internal APIs. If a developer accidentally relies on a misspelled key in a generic Map, the error might only surface at runtime. By transforming JSON payloads directly into strict Elixir Structs, you enable absolute safety through pattern matching. Automating this process saves hours of manual typing and prevents typos from creeping into your <code>defstruct</code> definitions, ensuring that your data layer perfectly mirrors external API contracts or database structures.</p>
+
+<h2>TypeFlow's Elixir Generation Engine</h2>
+<p>TypeFlow provides idiomatic, clean Elixir code that fits perfectly into Phoenix or standard Mix projects.</p>
+<ul>
+  <li><strong>Idiomatic Snake Case:</strong> We automatically convert JSON keys (often camelCase) into Elixir's strict <code>snake_case</code> convention, ensuring your Struct fields look and feel like native Elixir code.</li>
+  <li><strong>Nested Module Extraction:</strong> Complex, multi-level JSON structures are intelligently parsed. TypeFlow automatically generates separate, modular <code>defmodule</code> blocks for nested objects, keeping your codebase clean and organized.</li>
+  <li><strong>TypeSpec Generation:</strong> Beyond just the <code>defstruct</code>, TypeFlow optionally generates the corresponding <code>@type t :: %__MODULE__{...}</code> typespecs, providing immediate value for Dialyzer static analysis and better IDE autocomplete.</li>
+</ul>
+
+<h2>Local-First: Privacy for Your Concurrent Systems</h2>
+<p>Elixir applications often handle high-volume, sensitive data streams, such as real-time messaging or financial transactions. The JSON payloads representing this data are highly proprietary. Transmitting them to external, cloud-based converters poses a severe security risk. <strong>TypeFlow is 100% Local-First.</strong> The generation of your Elixir Structs occurs entirely within your browser. Your sensitive architectural blueprints never touch an external server.</p>
+
+<h2>Conclusion</h2>
+<p>Embrace the safety of strict pattern matching without the boilerplate. With TypeFlow, you can instantly turn any JSON payload into a robust, idiomatic Elixir Struct. Speed up your Phoenix development and build safer, more reliable concurrent applications today.</p>

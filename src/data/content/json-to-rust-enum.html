@@ -1,0 +1,19 @@
+<h2>The Power of Rust's Type System</h2>
+<p><strong>Rust</strong> is celebrated for its unparalleled memory safety and expressive type system. At the heart of Rust's data modeling are Enums (enumerations), which, unlike in other languages, can encapsulate complex data and variants (Algebraic Data Types). When building high-performance APIs or CLI tools, developers often encounter JSON payloads with polymorphic structures—where a single field might return a string, an integer, or a completely different nested object depending on the context. Manually defining the complex Rust <code>enum</code> and associated <code>serde</code> macros to deserialize this polymorphic JSON is a highly advanced and tedious task.</p>
+
+<h2>Automating Polymorphic Deserialization</h2>
+<p>Handling mixed-type JSON arrays or polymorphic objects in Rust requires writing Enums decorated with attributes like <code>#[serde(untagged)]</code> or <code>#[serde(tag = "type")]</code>. A single mistake in these annotations will cause <code>serde_json</code> to fail at runtime with cryptic error messages. By automating the extraction of Rust Enums directly from JSON, you bridge the gap between flexible API payloads and Rust's ultra-strict compiler. This ensures that your application handles dynamic data gracefully without resorting to unsafe operations or generic <code>serde_json::Value</code> types.</p>
+
+<h2>TypeFlow's Intelligent Serde Engine</h2>
+<p>TypeFlow analyzes the variance in your JSON data to generate production-ready, idiomatic Rust code.</p>
+<ul>
+  <li><strong>Variant Inference:</strong> The engine detects fields that return different data types across your JSON array samples and automatically constructs an <code>enum</code> containing the exact variants required (e.g., <code>Int(i32)</code>, <code>Str(String)</code>).</li>
+  <li><strong>Serde Integration:</strong> We automatically inject the critical <code>#[derive(Serialize, Deserialize, Debug)]</code> macros, along with the necessary untagged or tagged attributes required for seamless JSON parsing.</li>
+  <li><strong>Idiomatic Naming:</strong> JSON keys are automatically converted to Rust's required CamelCase for Enum variants, ensuring your code passes <code>cargo clippy</code> without warnings.</li>
+</ul>
+
+<h2>Local-First: Privacy for Your Systems Code</h2>
+<p>Rust is often used for critical systems programming, financial backends, and secure infrastructure. The JSON structures you process represent highly sensitive architectural blueprints. Transmitting this data to cloud-based converters introduces unacceptable security vulnerabilities. <strong>TypeFlow operates entirely locally.</strong> Your JSON parsing and Rust code generation execute solely within your browser, ensuring your proprietary systems architecture remains strictly confidential.</p>
+
+<h2>Conclusion</h2>
+<p>Unlock the full power of <code>serde_json</code> without the boilerplate. With TypeFlow, you can instantly translate polymorphic JSON payloads into strict, robust Rust Enums. Eliminate deserialization panics, write safer systems code, and accelerate your Rust development today.</p

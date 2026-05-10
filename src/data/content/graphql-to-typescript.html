@@ -1,0 +1,19 @@
+<h2>The Disconnect Between GraphQL and Frontend TypeScript</h2>
+<p><strong>GraphQL</strong> revolutionized API consumption by allowing clients to request exactly the data they need. However, without strict typing on the client side, the benefits of a strongly typed GraphQL schema are lost. Developers often resort to writing manual TypeScript interfaces that merely approximate the GraphQL queries. This leads to a dangerous disconnect: when the GraphQL schema evolves, the manually written frontend types silently become outdated, causing unpredictable UI bugs and runtime crashes.</p>
+
+<h2>Why Automated Type Generation is Non-Negotiable</h2>
+<p>To fully leverage the power of GraphQL in a TypeScript application (like React, Vue, or Angular), your client-side types must be a 100% accurate reflection of your GraphQL queries and mutations. Manually maintaining this synchronization is impossible at scale. By automatically converting your GraphQL queries and schema definitions into TypeScript interfaces, you create a seamless, end-to-end type-safe pipeline. If a field is removed from the schema, your TypeScript compiler will instantly flag the error in your frontend code before it ever reaches production.</p>
+
+<h2>TypeFlow's High-Precision GraphQL Parser</h2>
+<p>TypeFlow's conversion engine understands the nuances of the GraphQL specification, ensuring that the generated TypeScript code is idiomatic and deeply integrated.</p>
+<ul>
+  <li><strong>Precise Nullability Mapping:</strong> GraphQL distinguishes between nullable (<code>String</code>) and non-nullable (<code>String!</code>) fields. TypeFlow accurately translates these into TypeScript's optional properties (<code>?</code>) and union types (<code>| null</code>).</li>
+  <li><strong>Nested Selection Sets:</strong> We recursively parse complex GraphQL selection sets, generating nested interfaces or modular exported types that perfectly match the shape of the data returned by the query, rather than the entire schema model.</li>
+  <li><strong>Input Types and Enums:</strong> Beyond just responses, TypeFlow accurately converts GraphQL Input Objects and Enums into strict TypeScript types, ensuring your mutation variables are flawlessly validated at compile-time.</li>
+</ul>
+
+<h2>Local-First: Securing Your Enterprise Schema</h2>
+<p>A GraphQL schema acts as a complete blueprint of your company's data graph, exposing relationships, internal object names, and business logic capabilities. Sending your schema or queries to online converters is a massive security risk. <strong>TypeFlow operates 100% locally in your browser.</strong> Your GraphQL definitions never leave your machine, ensuring your proprietary data architecture remains strictly confidential and secure.</p>
+
+<h2>Conclusion</h2>
+<p>End-to-end type safety is the holy grail of modern web development. By using TypeFlow to bridge your GraphQL operations with TypeScript, you eliminate human error, drastically reduce debugging time, and empower your team to build scalable, resilient applications with total confidence.</p>

@@ -1,0 +1,19 @@
+<h2>The Rise of CSS-in-JS in React</h2>
+<p><strong>Styled Components</strong> revolutionized React development by allowing engineers to write actual CSS directly inside JavaScript, scoping styles to specific components. This approach eliminates global namespace collisions and makes UI code highly modular. However, when migrating from traditional CSS architectures, or when a design system exports its tokens (colors, typography, spacing) as a massive JSON file, developers face a tedious task. Manually converting JSON design tokens or inline style objects into dynamic Styled Components code is a repetitive and error-prone chore.</p>
+
+<h2>Bridging Design Tokens and Component Logic</h2>
+<p>In modern frontend teams, designers often provide a JSON file containing all the necessary style attributes. Manually typing these out into <code>const Wrapper = styled.div\`...\`</code> blocks takes hours and risks introducing subtle visual bugs due to typos. By automating the conversion of JSON style objects into valid Styled Components syntax, developers can instantly bridge the gap between design handoffs and functional React code. This ensures pixel-perfect accuracy and dramatically speeds up the UI implementation phase.</p>
+
+<h2>TypeFlow's CSS-in-JS Engine</h2>
+<p>TypeFlow intelligent parses JSON style objects and generates clean, modern Styled Components.</p>
+<ul>
+  <li><strong>CamelCase to Kebab-Case:</strong> We automatically convert JavaScript-style property names (e.g., <code>backgroundColor</code>) into standard CSS syntax (<code>background-color</code>), ensuring your template literals are perfectly formatted.</li>
+  <li><strong>Dynamic Prop Scaffolding:</strong> TypeFlow sets up the scaffolding for dynamic styling. Instead of hardcoding values, we format the output so you can easily inject props (e.g., <code>${props => props.theme.color}</code>) into your generated components.</li>
+  <li><strong>Unit Inference:</strong> For numeric values commonly associated with pixels (like padding or margin), the generator intuitively appends standard CSS units, reducing manual touch-ups.</li>
+</ul>
+
+<h2>Local-First: Keeping Your UI Proprietary</h2>
+<p>Your design tokens and UI structures are a core part of your brand's proprietary user experience. Uploading these JSON definitions to an external server exposes your design system to unnecessary security risks. <strong>TypeFlow is a 100% Local-First utility.</strong> The transformation from JSON to Styled Components executes entirely in your browser's local memory. Your design tokens never leave your network.</p>
+
+<h2>Conclusion</h2>
+<p>Accelerate your React UI development. With TypeFlow, you can instantly turn JSON style objects and design tokens into production-ready Styled Components. Eliminate manual CSS translation, enforce design consistency, and build beautiful user interfaces faster.</p>

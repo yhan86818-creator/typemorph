@@ -1,0 +1,19 @@
+<h2>The Statically Typed Challenge of Dynamic Data</h2>
+<p><strong>Go (Golang)</strong> is highly regarded for its performance, concurrency models, and strict static typing. However, when a Go backend needs to consume unpredictable, dynamic, or deeply nested JSON payloads from external webhooks or legacy APIs, defining strict <code>struct</code> types beforehand is often impossible. In these scenarios, developers must unmarshal JSON into a <code>map[string]interface{}</code>. While this provides flexibility, manually writing the boilerplate to safely traverse and type-assert these dynamic maps is a verbose and error-prone process that strips away Go's inherent safety.</p>
+
+<h2>Automating Dynamic Data Structures</h2>
+<p>Working with nested <code>map[string]interface{}</code> in Go requires repetitive type assertions (e.g., <code>val, ok := myMap["key"].(string)</code>). If the JSON structure is complex, manual translation into Go maps often leads to immediate runtime panics if a type is assumed incorrectly. By automating the conversion of sample JSON into a clearly defined, pre-structured Go map initialization or parsing template, developers can instantly understand the shape of the dynamic data they are working with. This dramatically speeds up the integration of undocumented APIs.</p>
+
+<h2>TypeFlow's Go Map Generator</h2>
+<p>TypeFlow provides idiomatic Go code that bridges the gap between dynamic JSON and Go's strict type system.</p>
+<ul>
+  <li><strong>Precise Type Assertions:</strong> The generator analyzes the JSON payload and outputs the exact Go map structure required, utilizing <code>interface{}</code> only where necessary while correctly identifying known primitives like <code>float64</code> (default for JSON numbers in Go) and <code>string</code>.</li>
+  <li><strong>Nested Map Initialization:</strong> Complex nested JSON objects are accurately translated into deeply nested <code>map[string]interface{}</code> definitions, preventing compilation errors associated with manual map initialization.</li>
+  <li><strong>Safe Access Patterns:</strong> TypeFlow provides the correct boilerplate patterns for safely iterating over JSON arrays (slices of interfaces) and accessing map keys without triggering runtime panics.</li>
+</ul>
+
+<h2>Local-First: Protecting Your API Keys and Data</h2>
+<p>The JSON payloads you need to convert often contain sensitive webhook structures, proprietary API keys, or internal routing metadata. Sending this data to a cloud-based converter exposes your Go microservices to potential security breaches. <strong>TypeFlow operates 100% locally.</strong> The conversion from JSON to Go maps executes entirely within your browser's memory. Your sensitive payloads never leave your network, guaranteeing full compliance with enterprise security standards.</p>
+
+<h2>Conclusion</h2>
+<p>Tame dynamic JSON in your Go applications. With TypeFlow, you can instantly generate robust <code>map[string]interface{}</code> structures from any payload. Avoid runtime panics, eliminate boilerplate, and build safer, more resilient Go microservices today.</p>

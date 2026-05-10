@@ -1,0 +1,19 @@
+<h2>The Complexity of Orchestrating React Animations</h2>
+<p><strong>Framer Motion</strong> has become the de facto standard for building fluid, physics-based animations in React. While it offers incredible power, managing complex, multi-element animation sequences (variants) directly within your JSX can quickly lead to "spaghetti code." Often, design teams or external animation tools export animation curves, keyframes, and durations as raw JSON data. Manually converting this JSON into strict Framer Motion <code>Variants</code> objects is tedious, error-prone, and disrupts the creative flow.</p>
+
+<h2>Bridging Design Tokens and Code</h2>
+<p>When you attempt to manually write out Framer Motion variants for complex states (e.g., <code>initial</code>, <code>animate</code>, <code>exit</code>, <code>hover</code>), a single typo in a spring configuration or easing array will break the entire visual experience. By automating the conversion of JSON animation data into strongly-typed Framer Motion <code>Variants</code> objects, you seamlessly bridge the gap between design and development. This ensures that the exact physics and timings approved by designers are instantly and flawlessly rendered in your React components.</p>
+
+<h2>TypeFlow's Smart Variant Generator</h2>
+<p>TypeFlow analyzes your JSON configuration and outputs clean, idiomatic Framer Motion code.</p>
+<ul>
+  <li><strong>Variant Extraction:</strong> We parse structured JSON animation data and generate clean, named JavaScript/TypeScript objects formatted specifically for the <code>variants={...}</code> prop.</li>
+  <li><strong>TypeScript Integration:</strong> We generate code utilizing the <code>Variants</code> type from <code>framer-motion</code>, providing full autocomplete and type safety within your IDE for state names and CSS properties.</li>
+  <li><strong>Transition Orchestration:</strong> Complex nested timing configurations (like <code>staggerChildren</code> and <code>delayChildren</code>) are correctly formatted and preserved, ensuring perfect choreography for list animations and page transitions.</li>
+</ul>
+
+<h2>Local-First: Securing Your Proprietary UI Designs</h2>
+<p>Your application's motion design is a critical part of your brand identity and user experience. Sending proprietary design tokens or animation logic to external cloud converters is an unnecessary risk. <strong>TypeFlow is a 100% Local-First tool.</strong> The parsing of your animation data and code generation occurs entirely in your browser. Your UI blueprints never leave your machine.</p>
+
+<h2>Conclusion</h2>
+<p>Bring your React UIs to life without the boilerplate. Use TypeFlow to instantly transform JSON animation exports into production-ready Framer Motion variants. Focus on creating beautiful, engaging user experiences instead of wrestling with syntax errors.</p>

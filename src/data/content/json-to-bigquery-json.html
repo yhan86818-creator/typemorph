@@ -1,0 +1,19 @@
+<h2>Streaming Data into Google BigQuery</h2>
+<p><strong>Google BigQuery</strong> is an incredibly powerful, serverless data warehouse designed for massive-scale analytics. While BigQuery can ingest standard JSON via the <code>bq</code> command line or API, it has very strict requirements: the JSON must be formatted as <strong>Newline Delimited JSON (NDJSON)</strong>. In this format, every JSON object must be flattened onto a single line, separated only by a newline character. When data engineers export logs, analytics events, or database dumps in standard, pretty-printed JSON arrays, they must convert this data into NDJSON before BigQuery will accept it.</p>
+
+<h2>The Hassle of Formatting Massive Datasets</h2>
+<p>Attempting to manually reformat a standard JSON array (e.g., <code>[ { "id": 1 }, { "id": 2 } ]</code>) into Newline Delimited JSON requires removing the outer brackets and stripping out all internal line breaks and indentation. For files containing thousands of records, manual editing or writing custom bash scripts using <code>jq</code> is tedious and disrupts the data ingestion workflow. If a single line break is left inside a JSON object's string value, the BigQuery import job will fail entirely. Automating this transformation ensures immediate compatibility with BigQuery's strict ingestion engine.</p>
+
+<h2>TypeFlow's High-Performance NDJSON Engine</h2>
+<p>TypeFlow takes standard, formatted JSON arrays and instantly optimizes them for BigQuery ingestion.</p>
+<ul>
+  <li><strong>Array Unwrapping:</strong> The generator automatically strips the outer JSON array brackets, treating each top-level object as an independent data row.</li>
+  <li><strong>Newline Delimitation:</strong> Every object is aggressively minimized and placed on a single line, strictly adhering to the NDJSON specification required by Google Cloud.</li>
+  <li><strong>Safe String Handling:</strong> TypeFlow ensures that any newline characters (<code>\n</code>) embedded within the actual JSON string values are safely escaped, preventing premature line breaks that would corrupt the BigQuery import.</li>
+</ul>
+
+<h2>Local-First: Securing Your Analytics Pipelines</h2>
+<p>The datasets destined for BigQuery often contain massive amounts of proprietary analytics, user behavior logs, and financial records. Uploading this raw data to a cloud-based converter exposes your company's most valuable assets. <strong>TypeFlow is 100% Local-First.</strong> The conversion to BigQuery JSON happens entirely within your browser's local memory. Your analytics data never touches our servers, ensuring total compliance with privacy regulations.</p>
+
+<h2>Conclusion</h2>
+<p>Streamline your data warehousing workflows. Use TypeFlow to instantly and securely convert standard JSON arrays into BigQuery-ready Newline Delimited JSON (NDJSON). Eliminate import errors, skip writing custom bash scripts, and get your data ready for analytics faster.</p

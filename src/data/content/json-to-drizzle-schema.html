@@ -1,0 +1,32 @@
+<h2>The Rise of Drizzle: Performance and Type Safety</h2>
+      <p><strong>Drizzle ORM</strong> has rapidly become the preferred choice for TypeScript developers who demand both high performance and a "close to the metal" SQL experience. Unlike heavier, more abstract ORMs, Drizzle is designed to be lightweight, predictable, and fully type-safe. However, as your application grows, manually defining your <code>pgTable</code>, <code>mysqlTable</code>, or <code>sqliteTable</code> schemas for dozens of entities becomes a significant time sink.</p>
+      
+      <p>TypeFlow's JSON-to-Drizzle converter is designed to eliminate this friction. By automating the generation of Drizzle table definitions from your existing data structures or JSON mockups, we allow you to focus on your business logic instead of boilerplate schema definitions.</p>
+
+      <h2>Intelligent Drizzle Schema Inference</h2>
+      <p>Our conversion engine doesn't just perform simple type mapping; it understands the idiomatic patterns of the Drizzle ecosystem.</p>
+
+      <h3>1. Semantic Column Mapping</h3>
+      <p>We map JSON types directly to Drizzle's rich set of column types. A standard string becomes <code>text()</code> or <code>varchar()</code>, numbers are intelligently mapped to <code>integer()</code> or <code>decimal()</code>, and booleans become <code>boolean()</code>. For more complex data, we provide the scaffolding for <code>jsonb()</code> (PostgreSQL) or <code>json()</code> (MySQL) columns, ensuring your nested data is handled correctly.</p>
+
+      <h3>2. Dialect-Specific Generation</h3>
+      <p>Drizzle supports multiple SQL dialects, and each has its own nuances. TypeFlow provides the correct imports and function calls for <strong>PostgreSQL, MySQL, and SQLite</strong>. Whether you're using <code>pg-core</code> or <code>mysql-core</code>, the generated schema is ready to be dropped into your <code>schema.ts</code> file with minimal adjustments.</p>
+
+      <h3>3. Constraint and Nullability Awareness</h3>
+      <p>By analyzing your JSON samples, TypeFlow identifies fields that are consistently present versus those that are optional. We apply the <code>.notNull()</code> modifier where data is guaranteed, helping you maintain strict data integrity at the database level. We also provide placeholders for primary keys and timestamps (<code>createdAt</code>, <code>updatedAt</code>) to speed up your table setup.</p>
+
+      <h2>Local-First: Privacy for Your Database Blueprints</h2>
+      <p>Your database schema is the architectural foundation of your product. It contains sensitive information about your data models, field naming conventions, and relationship logic. Using cloud-based converters for this task exposes your internal system design to unnecessary security risks.</p>
+
+      <p><strong>TypeFlow is 100% Local-First.</strong> The Drizzle schema generation happens entirely in your browser. Your data samples and generated code <strong>never leave your machine</strong>. This ensures that your database architecture remains private and secure, making TypeFlow the only choice for professional enterprise development.</p>
+
+      <h2>Use Cases: Scaling with Drizzle</h2>
+      <ul>
+        <li><strong>Rapid Prototyping:</strong> Move from a JSON mockup to a functional Drizzle schema in seconds.</li>
+        <li><strong>Microservices Integration:</strong> Quickly build schemas for local caching of data received from external JSON APIs.</li>
+        <li><strong>Migration from Legacy Systems:</strong> Generate Drizzle definitions from existing JSON exports of your legacy database tables.</li>
+        <li><strong>Type-Safe Testing:</strong> Create transient database tables for integration tests based on your mock data structures.</li>
+      </ul>
+
+      <h2>Conclusion: Building Leaner, Faster Database Layers</h2>
+      <p>TypeFlow's JSON-to-Drizzle converter is an essential tool for the modern TypeScript engineer. By unifying your data samples with your Drizzle schema, you reduce the manual effort required to maintain a type-safe database layer. Build faster, safer, and leaner applications with TypeFlow.</p>

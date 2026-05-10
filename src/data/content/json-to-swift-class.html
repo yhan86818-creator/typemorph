@@ -1,0 +1,19 @@
+<h2>Native Data Modeling in iOS Development</h2>
+<p><strong>Swift</strong> is Apple's powerful, strictly typed programming language for iOS, macOS, watchOS, and tvOS development. When building modern native applications, connecting to REST APIs and decoding JSON responses is a fundamental requirement. Since the introduction of the <code>Codable</code> protocol in Swift 4, parsing JSON has become much more streamlined. However, when an iOS developer is handed a massive, deeply nested JSON payload from a backend team, manually writing the corresponding Swift <code>class</code> or <code>struct</code> definitions—ensuring every property type is correct and mapping <code>CodingKeys</code> for non-camelCase strings—is an incredibly tedious and error-prone process.</p>
+
+<h2>The Dangers of Manual JSON Decoding</h2>
+<p>In Swift, a single type mismatch during JSON decoding will cause the entire <code>JSONDecoder().decode()</code> operation to fail, resulting in empty data and a broken UI. If an API occasionally returns a <code>null</code> value for a property, but the developer forgot to mark the Swift property as optional (<code>?</code>), the app will crash or fail to load data. By automating the extraction of Swift classes directly from a JSON sample, iOS developers can guarantee that their data models are perfectly aligned with the API contract. This completely eliminates decoding failures caused by human typos or incorrect type assumptions.</p>
+
+<h2>TypeFlow's Idiomatic Swift Generation</h2>
+<p>TypeFlow is designed to generate clean, modern Swift code that adheres strictly to Apple's design guidelines.</p>
+<ul>
+  <li><strong>Codable by Default:</strong> We automatically append the <code>Codable</code> protocol to all generated classes and structs, making them instantly ready for use with Swift's native <code>JSONDecoder</code> and <code>JSONEncoder</code>.</li>
+  <li><strong>Intelligent Optionality:</strong> By analyzing JSON structures, TypeFlow identifies missing or null fields and automatically generates Swift optionals (e.g., <code>String?</code>, <code>Int?</code>), preventing runtime decoding crashes.</li>
+  <li><strong>CodingKeys Generation:</strong> When incoming JSON keys use <code>snake_case</code> (e.g., <code>user_id</code>), the engine automatically converts the Swift property to idiomatic <code>camelCase</code> (<code>userId</code>) and generates the necessary <code>CodingKeys</code> enum to bridge the gap seamlessly.</li>
+</ul>
+
+<h2>Local-First: Protecting Proprietary iOS Architecture</h2>
+<p>Your Swift data models represent the internal business logic and data structures of your iOS application. Pasting proprietary API payloads into online, cloud-based converters exposes your app's architecture and backend data shapes to third parties. <strong>TypeFlow is 100% Local-First.</strong> The generation of your Swift models executes entirely within your browser's local memory. Your JSON data never touches our servers, ensuring absolute privacy and adherence to Apple's strict security paradigms.</p>
+
+<h2>Conclusion</h2>
+<p>Stop writing boilerplate Swift models and fighting <code>DecodingError</code>s. With TypeFlow, you can instantly turn any JSON payload into a robust, <code>Codable</code> Swift class. Accelerate your iOS development cycle, enforce strict type safety, and build more resilient native applications today.</p

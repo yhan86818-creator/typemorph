@@ -1,0 +1,13 @@
+<h2>Terraform: Orchestrating the Cloud</h2>
+      <p><strong>Terraform</strong> is the industry standard for Infrastructure as Code (IaC). As your infrastructure grows, managing configurations in JSON or external files and mapping them to Terraform variables becomes a significant part of your DevOps workflow. Manually defining <code>variable "name" { type = object(...) }</code> for complex configurations is tedious and error-prone.</p>
+
+      <h3>Automating Infrastructure Configuration</h3>
+      <p>TypeFlow simplifies your DevOps workflow by inferring Terraform types from your JSON configs:</p>
+      <ul>
+        <li><strong>Type Inference:</strong> We map JSON types to Terraform's <code>string</code>, <code>number</code>, <code>bool</code>, <code>list</code>, and <code>object</code> types.</li>
+        <li><strong>Validation Readiness:</strong> Our generated variables provide the perfect structure for adding Terraform validation blocks.</li>
+        <li><strong>Secure Export:</strong> Go from a raw JSON config to a functional <code>variables.tf</code> block in milliseconds.</li>
+      </ul>
+
+      <h3>Private Infrastructure Design</h3>
+      <p>Your infrastructure blueprints are highly sensitive. TypeFlow's local-first engine ensures your Terraform code is generated entirely in your browser. No configuration patterns or secrets are ever sent to an external server.</p>

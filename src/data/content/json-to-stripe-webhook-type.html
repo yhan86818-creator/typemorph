@@ -1,0 +1,13 @@
+<h2>Stripe: The Infrastructure for Global Payments</h2>
+      <p>Integrating <strong>Stripe</strong> requires robust handling of webhooks for events like <code>checkout.session.completed</code> or <code>customer.subscription.deleted</code>. Stripe's event payloads are notoriously large and complex. Relying on generic types or <code>any</code> in your webhook handlers is a major security and reliability risk for payment-critical applications.</p>
+
+      <h3>Why TypeFlow for Stripe Engineering?</h3>
+      <p>TypeFlow provides a professional solution for handling Stripe's complex data structures:</p>
+      <ul>
+        <li><strong>Precise Mapping:</strong> We generate interfaces for specific Stripe objects (Invoices, Subscriptions, Sessions) directly from your event samples.</li>
+        <li><strong>Metadata Support:</strong> Correctly type the <code>metadata</code> fields where you store your internal application IDs.</li>
+        <li><strong>Reliability:</strong> Build webhook handlers that are checked at compile-time against the actual structure of your Stripe events.</li>
+      </ul>
+
+      <h3>Secure Payment Logic</h3>
+      <p>Stripe event samples contain sensitive financial context. TypeFlow's local-first engine ensures your Stripe types are generated locally, keeping your payment logic and data patterns private.</p>

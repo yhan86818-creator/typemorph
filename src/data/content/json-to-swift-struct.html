@@ -1,0 +1,31 @@
+<h2>Swift Codable: The Standard for Modern iOS Networking</h2>
+      <p>Since the introduction of the <code>Codable</code> protocol, handling JSON in Swift has become significantly safer and more idiomatic. However, manually writing <code>struct</code> definitions for large, nested API responses is a tedious task. Any typo in a property name or a mismatch in data types can lead to decoding errors that are difficult to debug in production.</p>
+      
+      <p>TypeFlow's JSON-to-Swift converter automates the creation of high-quality Swift models from your JSON samples. By automating this process, we ensure your data models are accurate, clean, and fully compliant with Apple's best practices.</p>
+
+      <h2>Intelligent Swift Model Inference</h2>
+      <p>Our conversion engine is optimized for the latest Swift features, ensuring your generated code is ready for production iOS and macOS applications.</p>
+
+      <h3>1. Codable Protocol Support</h3>
+      <p>We generate structs that conform to the <code>Codable</code> protocol (specifically <code>Decodable</code> and <code>Encodable</code>), ready for use with <code>JSONDecoder</code>. This ensures your networking layer is as lean and type-safe as possible.</p>
+
+      <h3>2. Idiomatic CamelCase and CodingKeys</h3>
+      <p>In Swift, properties should follow the <strong>camelCase</strong> convention. TypeFlow automatically converts snake_case JSON keys to camelCase and generates the necessary <code>enum CodingKeys</code> to ensure perfect mapping during decoding.</p>
+
+      <h3>3. Optional Handling and Null Safety</h3>
+      <p>Swift's strong optional system is its greatest strength. TypeFlow analyzes your JSON data to identify fields that should be marked as <strong>optional (?)</strong>, preventing runtime crashes when dealing with unpredictable API responses.</p>
+
+      <h2>Local-First: Privacy for Your iOS Blueprints</h2>
+      <p>Your Swift data models represent the internal networking architecture of your application. Sharing these models with cloud-based converters is a significant security risk, as it exposes your internal blueprints to third-party servers.</p>
+
+      <p><strong>TypeFlow is 100% Local-First.</strong> The Swift struct generation happens entirely in your browser. Your data samples <strong>never leave your machine</strong>. This architecture ensures your system blueprints remain private and secure, meeting the strict requirements of professional enterprise iOS development.</p>
+
+      <h2>Use Cases: Scaling iOS Development</h2>
+      <ul>
+        <li><strong>Modern Networking:</strong> Quickly generate models for your <code>URLSession</code> or <code>Alamofire</code> based networking layers.</li>
+        <li><strong>App Development:</strong> Move from a JSON mockup to a functional Swift data model in seconds.</li>
+        <li><strong>API Integration:</strong> Build type-safe clients for legacy APIs by generating models from their JSON responses.</li>
+      </ul>
+
+      <h2>Conclusion: Building Safer iOS Applications Faster</h2>
+      <p>TypeFlow's JSON-to-Swift converter is an essential tool for any professional iOS engineer. By automating the repetitive task of model definition, we allow you to focus on the complex UI and business logic that makes your app unique. Bridge the gap between your data and your Swift services with TypeFlow.</p>

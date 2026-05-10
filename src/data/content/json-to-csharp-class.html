@@ -1,0 +1,32 @@
+<h2>The .NET Ecosystem: Power and Type Safety</h2>
+      <p><strong>C#</strong> and the **.NET** framework provide one of the most powerful environments for building enterprise-grade applications, from cloud services to cross-platform mobile apps. A core part of any .NET developer's daily work is mapping JSON API responses to **C# Classes**. Manually writing these classes, including properties with correct naming conventions and <code>JsonPropertyName</code> attributes, is a repetitive task that distracts from core development.</p>
+      
+      <p>TypeFlow's JSON-to-C# converter is designed to eliminate this friction. By automating the generation of high-quality C# classes from your JSON samples, we allow you to build type-safe, maintainable .NET services with unprecedented speed.</p>
+
+      <h2>Intelligent C# Class Inference</h2>
+      <p>Our conversion engine is built to follow the latest .NET best practices, ensuring your generated code is clean, modern, and ready for production.</p>
+
+      <h3>1. Idiomatic .NET Patterns</h3>
+      <p>We map JSON types to their C# equivalents: <code>string</code>, <code>double</code>, <code>bool</code>, and <code>DateTime</code>. We automatically apply **PascalCase** to property names, following the official .NET Naming Guidelines. For nested JSON objects, TypeFlow generates separate classes, promoting clean architecture and easy maintenance.</p>
+
+      <h3>2. Support for System.Text.Json and Newtonsoft</h3>
+      <p>Whether you are using the modern <code>System.Text.Json</code> or the classic <code>Newtonsoft.Json</code>, TypeFlow provides the necessary attributes (e.g., <code>[JsonPropertyName("...")]</code>) to ensure your C# properties correctly map to your JSON keys. This ensures that your serialization and deserialization logic is robust and error-free.</p>
+
+      <h3>3. Handling Nullability and Collections</h3>
+      <p>In real-world APIs, data is often missing or comes in arrays. TypeFlow identifies these patterns, suggesting the use of nullable types (e.g., <code>int?</code>) and generating the correct <code>List<T></code> or <code>IEnumerable<T></code> collections. This ensures your C# models are as strict as your data demands.</p>
+
+      <h2>Local-First: Privacy for Your .NET Architecture</h2>
+      <p>Your C# classes represent the internal data architecture of your application. They reveal your service interfaces, internal models, and business logic. Sharing your JSON samples with cloud-based converters is a security liability, as it exposes your internal blueprints to third-party servers.</p>
+
+      <p><strong>TypeFlow is 100% Local-First.</strong> The C# class generation happens entirely in your browser. Your data samples <strong>never leave your machine</strong>. This ensures that your system architecture remains private and secure, meeting the requirements of enterprise security and professional software engineering.</p>
+
+      <h2>Use Cases: Accelerating .NET Development</h2>
+      <ul>
+        <li><strong>ASP.NET Core APIs:</strong> Quickly generate request and response models for your API endpoints.</li>
+        <li><strong>Xamarin and MAUI:</strong> Build data models for cross-platform mobile applications based on backend API responses.</li>
+        <li><strong>Azure Functions:</strong> Rapidly define data structures for serverless functions triggered by JSON-based webhooks.</li>
+        <li><strong>Legacy API Clients:</strong> Create type-safe C# clients for existing APIs by generating models from their data samples.</li>
+      </ul>
+
+      <h2>Conclusion: Building Better .NET Apps Faster</h2>
+      <p>TypeFlow's JSON-to-C# converter is an essential tool for any professional .NET engineer. By automating the repetitive task of class definition, we allow you to focus on the performance and scalability that C# is built for. Bridge the gap between your data and your .NET services with TypeFlow.</p>

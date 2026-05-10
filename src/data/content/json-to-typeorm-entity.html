@@ -1,0 +1,19 @@
+<h2>Navigating Databases in the Node.js Ecosystem</h2>
+<p><strong>TypeORM</strong> is one of the most mature and widely used Object-Relational Mappers (ORMs) in the Node.js and TypeScript ecosystems, heavily utilized in frameworks like NestJS. It relies on TypeScript decorators to map classes to database tables. When building new features from an API-first perspective, developers often start with a JSON response. Translating that JSON into a strict TypeORM Entity class requires tedious manual work: writing properties, importing decorators, and correctly applying <code>@Column()</code>, <code>@PrimaryGeneratedColumn()</code>, and relationship types.</p>
+
+<h2>Why Manual Entity Creation is Unscalable</h2>
+<p>As your application grows, the size and complexity of your JSON payloads expand. Manually defining TypeORM entities for nested data structures takes hours and risks introducing critical bugs. If a developer maps a JSON number to a <code>varchar</code> column instead of an <code>int</code>, or forgets to mark an optional field as nullable in the database, the application will experience runtime SQL errors. Automating this conversion bridges the gap between your API layer and your database schema instantly.</p>
+
+<h2>TypeFlow's High-Precision TypeORM Engine</h2>
+<p>TypeFlow generates highly idiomatic, production-ready TypeScript code optimized specifically for TypeORM.</p>
+<ul>
+  <li><strong>Decorator Automation:</strong> We intelligently map JSON primitives to their exact TypeORM equivalents. Strings receive <code>@Column()</code>, booleans are mapped correctly, and we automatically identify likely ID fields to apply <code>@PrimaryGeneratedColumn()</code>.</li>
+  <li><strong>Strict TypeScript Interfaces:</strong> The generated code is not just an ORM mapping; it utilizes strict TypeScript typings, ensuring your database queries return perfectly typed objects for your application logic.</li>
+  <li><strong>Modular Architecture:</strong> For nested JSON, TypeFlow extracts child objects into separate Entity classes, providing the immediate boilerplate needed to implement <code>@OneToMany</code> and <code>@ManyToOne</code> relational decorators.</li>
+</ul>
+
+<h2>Local-First: Protecting Your Schema Blueprints</h2>
+<p>Database schemas are the most sensitive architectural blueprints of any application. Using online formatters and cloud-based converters means transmitting your data models to unknown servers. <strong>TypeFlow is 100% Local-First.</strong> The generation of your TypeORM entities happens entirely in your local browser instance. Your schema architecture never touches an external network, guaranteeing enterprise-level privacy.</p>
+
+<h2>Conclusion</h2>
+<p>Stop manually typing out database decorators. With TypeFlow, you can instantly convert any JSON payload into a strict, production-ready TypeORM Entity. Streamline your Node.js backend development, reduce SQL errors, and maintain perfect alignment between your API and your database.</p>

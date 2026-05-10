@@ -1,0 +1,19 @@
+<h2>The Dominance of gRPC and Protocol Buffers</h2>
+<p>In modern microservice architectures, <strong>Protocol Buffers (Protobuf)</strong> and gRPC have become the gold standard for high-performance, strictly typed communication. They offer significant speed and bandwidth advantages over traditional REST and JSON. However, when building frontends (like React or Vue) or Node.js gateways that need to interact with these gRPC services, developers face a major hurdle. Manually translating <code>.proto</code> message definitions into strict <strong>TypeScript interfaces</strong> is an incredibly tedious, repetitive task that undermines the very type-safety Protobuf is designed to provide.</p>
+
+<h2>Automating End-to-End Type Safety</h2>
+<p>A single <code>.proto</code> file can contain dozens of <code>message</code> and <code>enum</code> definitions, often heavily nested. If a frontend developer manually writes a TypeScript interface and incorrectly maps a Protobuf <code>int64</code> to a standard TypeScript <code>number</code> (which loses precision), or forgets to mark a field as optional, the application will experience silent data corruption or runtime crashes. By automating the conversion from Protobuf definitions directly to TypeScript interfaces, you establish a flawless, automated contract between your backend microservices and your frontend UI.</p>
+
+<h2>TypeFlow's Protobuf Parsing Engine</h2>
+<p>TypeFlow semantically analyzes your Protocol Buffer definitions and outputs production-ready, idiomatic TypeScript code.</p>
+<ul>
+  <li><strong>Precise Type Mapping:</strong> We intelligently map Protobuf scalar types to TypeScript. For example, <code>string</code> maps to <code>string</code>, <code>bool</code> to <code>boolean</code>, and we provide safe representations for large integers like <code>int64</code> and <code>uint64</code> (e.g., mapping to <code>string</code> or <code>bigint</code> depending on your frontend setup).</li>
+  <li><strong>Enum Translation:</strong> Protobuf <code>enum</code> definitions are accurately converted into strict TypeScript <code>enum</code> types or union types, ensuring perfect autocomplete and compile-time validation in your IDE.</li>
+  <li><strong>Nested Message Handling:</strong> Complex, nested <code>message</code> definitions are recursively parsed and extracted into modular, exported TypeScript interfaces, perfectly preserving the hierarchical structure of your gRPC payloads.</li>
+</ul>
+
+<h2>Local-First: Securing Your Microservice Architecture</h2>
+<p>Your <code>.proto</code> files serve as the master architectural blueprint for your entire microservice ecosystem. They reveal internal service names, data relationships, and proprietary business logic. Exposing these definitions to cloud-based converters is a massive enterprise security vulnerability. <strong>TypeFlow is 100% Local-First.</strong> The parsing of your Protobuf definitions and the generation of TypeScript interfaces execute exclusively within your browser. Your API blueprints never leave your local machine.</p>
+
+<h2>Conclusion</h2>
+<p>Achieve true end-to-end type safety without the boilerplate. With TypeFlow, you can instantly turn any Protocol Buffer definition into strict, reliable TypeScript interfaces. Accelerate your gRPC integrations, prevent data mismatch bugs, and build robust full-stack applications today.</p

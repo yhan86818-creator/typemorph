@@ -1,0 +1,19 @@
+<h2>The Universal Language of Network Requests</h2>
+<p><strong>cURL</strong> is the undisputed standard for testing APIs, transferring data, and debugging network issues from the command line. Whether you are writing documentation, creating automated bash scripts, or sharing reproducible bug reports with backend engineers, providing a valid cURL command is essential. However, when you have a complex, deeply nested JSON payload that needs to be sent via a <code>POST</code> or <code>PUT</code> request, manually escaping quotes and formatting the <code>--data</code> flag in the terminal is an exercise in frustration.</p>
+
+<h2>Automating cURL Command Construction</h2>
+<p>Manually constructing a cURL command for a large JSON body often leads to syntax errors. A single unescaped double quote or a missing bracket will cause the shell to misunderstand the command or the API server to reject the payload with a <code>400 Bad Request</code>. By automatically generating the cURL command directly from your JSON payload, you eliminate formatting headaches. You get an instantly executable, perfectly escaped command that you can paste directly into your terminal or CI/CD pipeline script.</p>
+
+<h2>TypeFlow's Request Generation Engine</h2>
+<p>TypeFlow ensures your terminal commands are precise, safe, and ready to execute.</p>
+<ul>
+  <li><strong>Perfect JSON Escaping:</strong> We automatically handle the complex quote escaping required by bash and Windows command prompts, ensuring your JSON body is passed exactly as intended without shell syntax errors.</li>
+  <li><strong>Automatic Header Injection:</strong> The generator automatically appends the crucial <code>-H "Content-Type: application/json"</code> flag, preventing common server-side parsing failures.</li>
+  <li><strong>Method Detection:</strong> We structure the cURL command to utilize the <code>-X POST</code> method by default when data is present, providing a standard template that you can easily modify for <code>PUT</code> or <code>PATCH</code> requests.</li>
+</ul>
+
+<h2>Local-First: Protecting Your API Data</h2>
+<p>JSON payloads used for testing APIs often contain highly sensitive information, such as authentication tokens, PII (Personally Identifiable Information), or proprietary system configurations. Pasting this data into online converters exposes your credentials to third-party logs. <strong>TypeFlow is a 100% Local-First utility.</strong> The conversion of your JSON to a cURL command occurs entirely within your browser. Your sensitive payload never leaves your machine.</p>
+
+<h2>Conclusion</h2>
+<p>Say goodbye to terminal syntax errors and manual JSON escaping. With TypeFlow, you can instantly turn any JSON object into a perfectly formatted, executable cURL command. Speed up your API testing, write better documentation, and share precise network requests effortlessly.</p>

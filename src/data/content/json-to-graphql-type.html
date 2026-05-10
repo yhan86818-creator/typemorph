@@ -1,0 +1,19 @@
+<h2>The Blueprint of the Data Graph</h2>
+<p><strong>GraphQL</strong> has revolutionized how frontends consume data by providing a strongly typed, queryable schema. At the very core of a GraphQL API are its Types (Object Types, Input Types, Enums). When designing a new GraphQL API from existing REST endpoints, database structures, or frontend JSON mockups, developers must define these Types manually in the Schema Definition Language (SDL). Writing <code>type User { id: ID! name: String! }</code> for a massive, deeply nested JSON payload is incredibly slow and highly susceptible to structural mismatches.</p>
+
+<h2>From Raw Data to Schema Definition Language</h2>
+<p>Manually transcribing a JSON payload into GraphQL SDL introduces the risk of inaccurate type mapping. A developer might define a field as an <code>Int</code> when the actual data contains floats, or forget to mark a required field with an exclamation mark (<code>!</code>), leading to nullability errors when Apollo Server attempts to resolve the data. By automating the conversion of JSON directly into GraphQL Types, you instantly generate an accurate, high-fidelity schema. This allows backend teams to quickly scaffold resolvers and frontend teams to immediately begin writing queries against a valid contract.</p>
+
+<h2>TypeFlow's GraphQL Inference Engine</h2>
+<p>TypeFlow performs deep structural analysis to output clean, idiomatic GraphQL Schema Definition Language (SDL).</p>
+<ul>
+  <li><strong>Precise Primitive Mapping:</strong> JSON strings, booleans, and numbers are accurately mapped to GraphQL's core scalar types (<code>String</code>, <code>Boolean</code>, <code>Int</code>, or <code>Float</code>). We even automatically infer <code>ID</code> types based on common naming conventions (e.g., <code>id</code>, <code>userId</code>).</li>
+  <li><strong>Intelligent Nullability (The <code>!</code> Operator):</strong> By analyzing your JSON samples, TypeFlow detects which fields are always present and appends the non-null operator (<code>!</code>), ensuring your schema enforces strict data contracts.</li>
+  <li><strong>Nested Type Extraction:</strong> Deeply nested JSON objects are automatically extracted and generated as separate, clearly named GraphQL <code>type</code> definitions, keeping your overarching schema modular and readable.</li>
+</ul>
+
+<h2>Local-First: Protecting Your API Graph</h2>
+<p>Your GraphQL schema represents the entire relational blueprint of your company's data. Uploading raw JSON payloads to cloud-based converters in order to generate this schema risks leaking proprietary business models, internal relationships, and sensitive data structures. <strong>TypeFlow is 100% Local-First.</strong> Your data is parsed and your GraphQL SDL is generated entirely within your browser's memory. Your API blueprint never touches an external server.</p>
+
+<h2>Conclusion</h2>
+<p>Stop writing GraphQL SDL boilerplate by hand. Use TypeFlow to instantly reverse-engineer a precise, production-ready GraphQL Type definition from any JSON sample. Accelerate your API design, enforce strict data contracts, and build robust data graphs with confidence.</p

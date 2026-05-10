@@ -1,0 +1,13 @@
+<h2>Type-Safe Configuration in Node.js and Next.js</h2>
+      <p>Environment variables are the foundation of application configuration, but accessing them via <code>process.env</code> is notoriously unsafe in TypeScript. By default, every environment variable is typed as <code>string | undefined</code>, leading to runtime errors if a required variable is missing. Manually maintaining a global <code>ProcessEnv</code> interface is a chore that developers often skip.</p>
+
+      <h3>Why TypeFlow is the Essential Dev Tool</h3>
+      <p>TypeFlow automates the creation of high-quality TypeScript interfaces from your <code>.env</code> files:</p>
+      <ul>
+        <li><strong>Strict Type Inference:</strong> We identify strings, numbers, and booleans in your environment variables.</li>
+        <li><strong>Global Augmentation:</strong> Our generator provides the <code>declare global</code> block needed to augment the NodeJS namespace.</li>
+        <li><strong>Fast Sync:</strong> Paste your <code>.env.example</code> and get a functional TypeScript interface in seconds.</li>
+      </ul>
+
+      <h3>100% Local-First: Security for Secrets</h3>
+      <p>Your environment variables contain sensitive keys and secrets. TypeFlow's local-first engine ensures your <code>.env</code> data is processed entirely within your browser. No data is ever sent to a server, making it the only safe way to generate types for your configuration.</p>

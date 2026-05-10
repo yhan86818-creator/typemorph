@@ -1,0 +1,19 @@
+<h2>The Disconnect Between Relational Databases and the Frontend</h2>
+<p>In full-stack TypeScript development, maintaining synchronization between the <strong>SQL database schema</strong> (PostgreSQL, MySQL, SQLite) and the application's data models is a persistent challenge. When a database column is added, renamed, or changes its nullability, developers must manually hunt down and update the corresponding TypeScript interfaces. Failing to do so results in silent data mismatches, where the application logic assumes a field exists that the database no longer provides, leading to catastrophic runtime crashes.</p>
+
+<h2>Establishing a Unified Data Contract</h2>
+<p>To build truly robust systems, your database definition (DDL) must act as the absolute source of truth. Manually writing TypeScript interfaces that mirror your <code>CREATE TABLE</code> statements is not only tedious but guarantees eventual inconsistency. By automatically translating raw SQL schemas into strict TypeScript interfaces, you create an unbreakable data contract. This ensures that your frontend and backend code inherently understand the exact shape of your database, drastically reducing bugs and accelerating feature development.</p>
+
+<h2>TypeFlow's High-Fidelity SQL Parsing Engine</h2>
+<p>TypeFlow goes beyond simple regex. It semantically parses your SQL Data Definition Language (DDL) to generate idiomatic, production-ready TypeScript types.</p>
+<ul>
+  <li><strong>Precise Type Mapping:</strong> We translate specific database types (e.g., <code>VARCHAR</code>, <code>TEXT</code> to <code>string</code>; <code>INT</code>, <code>DECIMAL</code>, <code>BIGINT</code> to <code>number</code>; <code>BOOLEAN</code> to <code>boolean</code>) ensuring perfect alignment with TypeScript primitives.</li>
+  <li><strong>Nullability Enforcement:</strong> TypeFlow analyzes your SQL for <code>NOT NULL</code> constraints. Columns without this constraint are automatically marked with the optional modifier (<code>?</code>) or united with <code>null</code>, forcing developers to handle empty states safely.</li>
+  <li><strong>JSON and Advanced Types:</strong> Modern databases utilize advanced types like <code>JSONB</code> or <code>ARRAY</code>. TypeFlow intelligently maps these to <code>Record&lt;string, any&gt;</code> or arrays in TypeScript, providing a solid foundation for complex data handling.</li>
+</ul>
+
+<h2>Local-First: Securing Your Database Architecture</h2>
+<p>Your SQL schema is the literal blueprint of your business. It contains sensitive column names, relational logic, and internal architecture secrets. Exposing your <code>CREATE TABLE</code> statements to online converters is a massive security vulnerability. <strong>TypeFlow is 100% Local-First.</strong> The SQL parsing and TypeScript generation occur entirely within your browser's memory. Your database structure never leaves your machine, ensuring total compliance with strict enterprise security protocols.</p>
+
+<h2>Conclusion</h2>
+<p>Bridge the gap between your relational database and your TypeScript application. By using TypeFlow to automatically convert SQL to TypeScript, you eliminate manual syncing, prevent data mismatch bugs, and ensure a rock-solid foundation for your full-stack architecture.</p>

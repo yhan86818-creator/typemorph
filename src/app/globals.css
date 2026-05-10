@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #F8FAFC; /* Slate 50 */
+  --color-foreground: #0F172A; /* Slate 900 */
+  --color-primary: #0F172A; /* Slate 900 */
+  --color-primary-hover: #1E293B;
+  --color-accent: #3B82F6; /* Blue 500 */
+  --color-muted: #F1F5F9; /* Slate 100 */
+  --color-muted-foreground: #64748B; /* Slate 500 */
+  --color-border: #E2E8F0; /* Slate 200 */
+  --color-card: #FFFFFF;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-feature-settings: "cv11", "ss01";
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+    outline: none;
+  }
+}
+
+/* Premium Card */
+.dev-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease-in-out;
+}
+.dev-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+}
+
+/* Inputs */
+.dev-input {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  font-family: monospace;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+  transition: all 0.2s;
+}
+.dev-input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Buttons */
+.btn-primary {
+  @apply bg-primary text-white px-6 py-3 rounded-2xl font-bold transition-all flex items-center justify-center gap-2;
+  box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.2);
+}
+.btn-primary:hover {
+  @apply bg-primary-hover transform -translate-y-0.5;
+  box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.2);
+}
+.btn-secondary {
+  @apply bg-card text-foreground px-6 py-3 rounded-2xl font-bold transition-all border border-border flex items-center justify-center gap-2 shadow-sm;
+}
+.btn-secondary:hover {
+  @apply bg-slate-50;
+}
+
+/* Grid dot pattern */
+.dot-grid {
+  background-image: radial-gradient(circle, #CBD5E1 1px, transparent 1px);
+  background-size: 24px 24px;
+}
