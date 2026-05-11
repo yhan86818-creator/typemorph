@@ -1,190 +1,213 @@
 'use client';
 import React, { useState } from 'react';
 import Editor from '@monaco-editor/react';
-import { motion } from 'framer-motion';
-import { Sparkles, ArrowRight, Code2, Zap, ShieldCheck, Loader2, Wand2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Sparkles, Wand2, ArrowRight, Zap, Loader2, Save, Copy, Check, Crown } from 'lucide-react';
 
 interface LogicLabViewProps {
   isDark: boolean;
   geminiKey: string;
+  isPro: boolean;
+  trialCount: number;
+  setTrialCount: (count: number) => void;
 }
 
-export function LogicLabView({ isDark, geminiKey }: LogicLabViewProps) {
-  const [sourceCode, setSourceCode] = useState(`// Paste legacy code or logic here\nfunction getData(callback) {\n  fetch('https://api.example.com/data')\n    .then(function(res) {\n      return res.json();\n    })\n    .then(function(data) {\n      callback(null, data);\n    })\n    .catch(function(err) {\n      callback(err);\n    });\n}`);
-  const [outputCode, setOutputCode] = useState('');
-  const [isRefactoring, setIsRefactoring] = useState(false);
-  const [targetLang, setTargetLang] = useState('typescript');
+export function LogicLabView({ isDark, geminiKey, isPro, trialCount, setTrialCount }: LogicLabViewProps) {
+  const [input, setInput] = useState(`// Legacy JavaScript to Modern TypeScript
+function fetchUsers(callback) {
+  $.ajax({
+    url: '/api/users',
+    success: function(data) {
+      callback(null, data);
+    },
+    error: function(err) {
+      callback(err);
+    }
+  });
+}`);
+  const [output, setOutput] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
 
-  const handleRefactor = async () => {
-    if (!geminiKey) {
-      alert("Please enter your Gemini API Key in the top bar to use Logic Lab.");
+  const processLogic = async () => {
+    if (!isPro && trialCount <= 0) {
+      setShowPaywall(true);
       return;
     }
-    
-    setIsRefactoring(true);
+
+    if (!geminiKey) {
+      alert("Please enter your Gemini API Key in the top navigation to use AI features.");
+      return;
+    }
+
+    setIsProcessing(true);
     try {
       const prompt = `
-        You are a Senior Principal Engineer. Refactor the following code to ${targetLang}.
-        Requirements:
-        1. Use the most modern best practices (ESNext, Modern Hooks, etc.).
-        2. Ensure high type safety if targeting TypeScript.
-        3. Keep the logic identical but improve readability and performance.
-        4. Return ONLY the code block, no explanations.
+        You are an expert software architect. 
+        Analyze the following code and refactor it into clean, modern, high-performance code.
+        Focus on:
+        - Modern patterns (ESNext, TypeScript, Hooks, etc.)
+        - Type safety
+        - Performance optimization
+        - Readability
         
-        CODE TO REFACTOR:
-        ${sourceCode}
+        INPUT CODE:
+        ${input}
+        
+        Respond ONLY with the refactored code. No markdown code blocks, just the raw code.
       `;
 
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }]
         })
       });
-      
-      const data = await res.json();
-      const refactored = data.candidates[0].content.parts[0].text.replace(/```[a-z]*\n/g, '').replace(/```/g, '');
-      setOutputCode(refactored);
-    } catch (e) {
-      console.error(e);
-      setOutputCode("// Refactoring failed. Please check your API key and connection.");
+
+      const data = await response.json();
+      const result = data.candidates[0].content.parts[0].text.replace(/```[a-z]*\n/g, '').replace(/```/g, '').trim();
+      setOutput(result);
+
+      // Decrement trial
+      if (!isPro) {
+        const newCount = trialCount - 1;
+        setTrialCount(newCount);
+        localStorage.setItem('typeflow_trial_count', String(newCount));
+      }
+    } catch (err) {
+      console.error(err);
+      setOutput("// AI Refactoring Error. Please check your API key and connection.");
     } finally {
-      setIsRefactoring(false);
+      setIsProcessing(false);
     }
   };
 
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(output);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
-    <div className="flex flex-col h-full bg-[#F8FAFC] dark:bg-[#020617] transition-colors duration-500">
+    <div className="flex flex-col h-full bg-[#F8FAFC] dark:bg-[#020617] transition-colors duration-500 relative">
+      {/* Paywall Overlay */}
+      <AnimatePresence>
+        {showPaywall && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 z-[100] bg-[#0F172A]/80 backdrop-blur-xl flex items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="max-w-md w-full bg-white dark:bg-slate-900 rounded-[3rem] p-12 text-center shadow-2xl border border-slate-200 dark:border-slate-800"
+            >
+              <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-[2rem] flex items-center justify-center mx-auto mb-8 text-amber-600">
+                <Crown size={40} />
+              </div>
+              <h2 className="text-3xl font-black mb-4 dark:text-white">Pro Feature</h2>
+              <p className="text-slate-500 dark:text-slate-400 font-medium mb-10 leading-relaxed">
+                You've used all your free trials for Smart Logic Lab. Upgrade to Pro for unlimited AI refactoring and advanced architecture tools.
+              </p>
+              <div className="space-y-4">
+                <a href="https://yhanster206.gumroad.com/l/zjcuuu" target="_blank" className="block w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:scale-105 transition-all">Upgrade to Pro</a>
+                <button onClick={() => setShowPaywall(false)} className="block w-full text-slate-400 font-bold text-xs uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-300 transition-colors">I'll do it later</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
-      <div className="p-8 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#020617]/50 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold text-[10px] uppercase tracking-widest mb-3">
-              <Sparkles size={12} /> AI Experimental Lab
+      <div className="p-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#020617]/50 backdrop-blur-xl shrink-0">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-2.5 bg-purple-600 rounded-2xl shadow-lg shadow-purple-500/20">
+              <Zap size={20} className="text-white" />
             </div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Smart Logic Refactor</h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Transform legacy logic into modern, type-safe code using AI.</p>
-          </div>
-          
-          <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl">
-            {['typescript', 'javascript', 'rust', 'go'].map((lang) => (
-              <button
-                key={lang}
-                onClick={() => setTargetLang(lang)}
-                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${targetLang === lang ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-              >
-                {lang}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Grid */}
-      <div className="flex-1 p-6 overflow-hidden">
-        <div className="max-w-7xl mx-auto h-full grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
-          {/* Input Panel */}
-          <div className="flex flex-col bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden group">
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+            <div>
               <div className="flex items-center gap-2">
-                <Code2 size={16} className="text-slate-400" />
-                <span className="text-xs font-black uppercase tracking-widest text-slate-500">Source Logic</span>
-              </div>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <Editor
-                height="100%"
-                theme={isDark ? "vs-dark" : "light"}
-                defaultLanguage="javascript"
-                value={sourceCode}
-                onChange={(v) => setSourceCode(v || "")}
-                options={{ 
-                  minimap: { enabled: false }, 
-                  fontSize: 14, 
-                  fontFamily: 'var(--font-jetbrains-mono)',
-                  padding: { top: 24, bottom: 24 },
-                  scrollBeyondLastLine: false,
-                  automaticLayout: true 
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Output Panel */}
-          <div className="flex flex-col bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden relative">
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
-              <div className="flex items-center gap-2">
-                <Zap size={16} className="text-blue-500" />
-                <span className="text-xs font-black uppercase tracking-widest text-slate-500">Refactored Output ({targetLang})</span>
-              </div>
-              {outputCode && (
-                <button 
-                  onClick={() => {
-                    navigator.clipboard.writeText(outputCode);
-                    alert("Copied to clipboard!");
-                  }}
-                  className="text-[10px] font-black uppercase text-blue-600 hover:text-blue-700 transition-colors"
-                >
-                  Copy Code
-                </button>
-              )}
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <Editor
-                height="100%"
-                theme={isDark ? "vs-dark" : "light"}
-                language={targetLang === 'typescript' ? 'typescript' : targetLang === 'rust' ? 'rust' : targetLang === 'go' ? 'go' : 'javascript'}
-                value={outputCode || "// Click 'Start AI Refactor' to transform your logic"}
-                options={{ 
-                  minimap: { enabled: false }, 
-                  fontSize: 14, 
-                  fontFamily: 'var(--font-jetbrains-mono)',
-                  readOnly: true,
-                  padding: { top: 24, bottom: 24 },
-                  scrollBeyondLastLine: false,
-                  automaticLayout: true 
-                }}
-              />
-            </div>
-
-            {/* Float Action Button */}
-            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-50">
-              <button
-                onClick={handleRefactor}
-                disabled={isRefactoring}
-                className="group px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black text-sm uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl flex items-center gap-3 disabled:opacity-50 overflow-hidden"
-              >
-                {isRefactoring ? (
-                  <>
-                    <Loader2 className="animate-spin" size={18} />
-                    <span>Analyzing Logic...</span>
-                  </>
-                ) : (
-                  <>
-                    <Wand2 size={18} className="group-hover:rotate-12 transition-transform" />
-                    <span>Start AI Refactor</span>
-                  </>
+                <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Smart Logic Lab</h1>
+                {!isPro && (
+                  <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-900/20 text-amber-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-amber-100 dark:border-amber-900">Pro Feature</span>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              </button>
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">AI-Powered Logic Refactoring</p>
             </div>
           </div>
-
+          
+          <div className="flex items-center gap-4">
+            {!isPro && (
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{trialCount} Free Credits Left</div>
+            )}
+            <button
+              onClick={processLogic}
+              disabled={isProcessing}
+              className="px-8 py-3 bg-purple-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-purple-500/20 disabled:opacity-50 flex items-center gap-2"
+            >
+              {isProcessing ? <Loader2 className="animate-spin" size={14} /> : <Wand2 size={14} />}
+              Refactor Logic
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Footer Info */}
-      <div className="p-6 bg-slate-50 dark:bg-[#020617] border-t border-slate-200 dark:border-slate-800">
-        <div className="max-w-7xl mx-auto flex items-center gap-6 text-slate-400">
-          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider">
-            <ShieldCheck size={14} className="text-green-500" />
-            Local Proxy Processing
+      <div className="flex-1 flex overflow-hidden">
+        {/* Input Editor */}
+        <div className="flex-1 border-r border-slate-200 dark:border-slate-800 flex flex-col">
+          <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Input (Legacy / Raw)</span>
           </div>
-          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider">
-            <Zap size={14} className="text-yellow-500" />
-            Gemini 1.5 Pro Enabled
+          <div className="flex-1 overflow-hidden">
+            <Editor
+              height="100%"
+              theme={isDark ? "vs-dark" : "light"}
+              language="javascript"
+              value={input}
+              onChange={(v) => setInput(v || "")}
+              options={{ 
+                minimap: { enabled: false }, 
+                fontSize: 13, 
+                fontFamily: 'var(--font-jetbrains-mono)',
+                padding: { top: 24, bottom: 24 },
+                automaticLayout: true 
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Output Area */}
+        <div className="flex-1 bg-slate-50 dark:bg-slate-900 flex flex-col">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between">
+            <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest">Refactored Output</span>
+            {output && (
+              <button 
+                onClick={copyToClipboard}
+                className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400 hover:text-purple-600 transition-colors"
+              >
+                {copied ? <Check size={14} /> : <Copy size={14} />}
+                {copied ? 'Copied' : 'Copy Code'}
+              </button>
+            )}
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <Editor
+              height="100%"
+              theme={isDark ? "vs-dark" : "light"}
+              language="typescript"
+              value={output}
+              options={{ 
+                readOnly: true,
+                minimap: { enabled: false }, 
+                fontSize: 13, 
+                fontFamily: 'var(--font-jetbrains-mono)',
+                padding: { top: 24, bottom: 24 },
+                automaticLayout: true 
+              }}
+            />
           </div>
         </div>
       </div>

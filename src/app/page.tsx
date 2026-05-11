@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Sun, Moon, ShieldCheck, Download, Crown, 
   Search, ExternalLink, GitBranch, X, MessageSquare,
-  Wand2, LayoutTemplate, Settings, Home, Sparkles, Zap
+  Wand2, LayoutTemplate, Settings, Home, Sparkles, Zap, Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -15,9 +15,10 @@ import { Workbench } from '@/components/Workbench';
 import { LogicLabView } from '@/components/LogicLabView';
 import { SmartDiffView } from '@/components/SmartDiffView';
 import { RegexBuilderView } from '@/components/RegexBuilderView';
+import { ArchitectureView } from '@/components/ArchitectureView';
 
 export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug = "" }) {
-  const [view, setView] = useState(initialSlug ? 'app' : defaultView);
+  const [view, setView] = useState<any>(initialSlug ? 'app' : defaultView);
   const [isPro, setIsPro] = useState(false);
   const [trialCount, setTrialCount] = useState(3);
   const [isDark, setIsDark] = useState(true);
@@ -25,19 +26,15 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
   const [geminiKey, setGeminiKey] = useState("");
   const [selectedSlug, setSelectedSlug] = useState(initialSlug || 'json-to-typescript');
   const [outputTab, setOutputTab] = useState('typescript');
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [vMsg, setVMsg] = useState({ type: '', text: '' });
+  const [showLicenseModal, setShowLicenseModal] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
-    // Pro check
     if (localStorage.getItem('typeflow_pro') === 'true') setIsPro(true);
-    
-    // AI Key check
     const savedKey = localStorage.getItem('typeflow_gemini_key');
     if (savedKey) setGeminiKey(savedKey);
-    
-    // Theme sync
     const savedTheme = localStorage.getItem('typeflow_theme');
     if (savedTheme === 'light') {
       setIsDark(false);
@@ -46,12 +43,9 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
       setIsDark(true);
       document.documentElement.classList.add('dark');
     }
-
-    // Trial sync
     const today = new Date().toDateString();
     const lastDate = localStorage.getItem('typeflow_last_date');
     const savedCount = localStorage.getItem('typeflow_trial_count');
-    
     if (lastDate !== today) {
       localStorage.setItem('typeflow_last_date', today);
       localStorage.setItem('typeflow_trial_count', '3');
@@ -59,6 +53,12 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
     } else if (savedCount) {
       setTrialCount(parseInt(savedCount));
     }
+
+    // PWA Support
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    });
   }, []);
 
   const toggleTheme = () => {
@@ -66,6 +66,13 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
     setIsDark(newDark);
     localStorage.setItem('typeflow_theme', newDark ? 'dark' : 'light');
     document.documentElement.classList.toggle('dark');
+  };
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') setDeferredPrompt(null);
   };
 
   const handleSelectTool = (slug: string) => {
@@ -86,12 +93,13 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
       if (data.success && !data.purchase.refunded) {
         setIsPro(true);
         localStorage.setItem('typeflow_pro', 'true');
-        setVMsg({ type: 'success', text: 'Pro License Activated!' });
+        setVMsg({ type: 'success', text: 'Pro Activated!' });
+        setTimeout(() => setShowLicenseModal(false), 2000);
       } else {
         setVMsg({ type: 'error', text: 'Invalid key.' });
       }
     } catch (err) {
-      setVMsg({ type: 'error', text: 'Failed to verify.' });
+      setVMsg({ type: 'error', text: 'Error.' });
     } finally {
       setIsVerifying(false);
     }
@@ -103,41 +111,41 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
       <nav className="fixed top-0 left-0 right-0 h-20 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#020617]/80 backdrop-blur-xl z-[100] px-6">
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between">
           <div className="flex items-center gap-10">
-            <button onClick={() => setView('landing')} className="flex items-center gap-3 group">
+            <button onClick={() => setView('landing')} className="flex items-center gap-3 group text-left">
               <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-all">
                 <ShieldCheck size={24} />
               </div>
               <span className="text-xl font-black tracking-tighter dark:text-white">TypeFlow <span className="text-blue-600 italic">Pro</span></span>
             </button>
             
-            <div className="hidden md:flex items-center gap-2 bg-slate-100 dark:bg-slate-900/50 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-800">
-              <button 
-                onClick={() => setView('landing')} 
-                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${view === 'landing' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-              >
-                Explore
-              </button>
-              <button 
-                onClick={() => setView('app')} 
-                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${view === 'app' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-              >
-                Workbench
-              </button>
-              <button 
-                onClick={() => setView('lab')} 
-                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${view === 'lab' ? 'bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-400 hover:text-purple-600 dark:hover:text-purple-400'}`}
-              >
-                <Sparkles size={12} /> Labs
-              </button>
+            <div className="hidden xl:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-800">
+              {['landing', 'app', 'lab', 'visual'].map((v) => (
+                <button 
+                  key={v}
+                  onClick={() => setView(v)} 
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${view === v ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                >
+                  {v === 'lab' && <Sparkles size={12} />}
+                  {v === 'visual' && <Layers size={12} />}
+                  {v === 'landing' ? 'Explore' : v === 'app' ? 'Workbench' : v === 'lab' ? 'Labs' : 'Visuals'}
+                </button>
+              ))}
+              <a href="/blog" className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-all">Blog</a>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
+            {deferredPrompt && (
+              <button onClick={handleInstall} className="hidden md:flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-700 transition-all">
+                <Download size={14} /> Install App
+              </button>
+            )}
+
             {!isPro && (
-              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-100 dark:border-amber-900">
+              <button onClick={() => setShowLicenseModal(true)} className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-100 dark:border-amber-900 hover:scale-105 transition-all">
                 <Crown size={12} className="text-amber-500" />
                 <span className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase">{trialCount} Trials</span>
-              </div>
+              </button>
             )}
             
             <input 
@@ -148,7 +156,7 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
                 setGeminiKey(e.target.value);
                 localStorage.setItem('typeflow_gemini_key', e.target.value);
               }}
-              className="hidden lg:block bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-xs outline-none focus:border-blue-500 w-48 dark:text-white"
+              className="hidden lg:block bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-xs outline-none focus:border-blue-500 w-44 dark:text-white"
             />
 
             <button onClick={toggleTheme} className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-all border border-slate-200 dark:border-slate-700">
@@ -168,34 +176,52 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
 
       {/* Main Layout Body */}
       <div className="flex-1 flex overflow-hidden pt-20">
-        {/* Sidebar (Only in Workbench View) */}
-        {view === 'app' && (
-          <Sidebar selectedSlug={selectedSlug} onSelect={setSelectedSlug} isDark={isDark} />
+        {view !== 'landing' && (
+          <Sidebar 
+            selectedSlug={selectedSlug} 
+            onSelect={handleSelectTool} 
+            isDark={isDark} 
+            setView={setView} 
+            currentView={view} 
+          />
         )}
 
-        {/* Global Sidebar for Tools */}
-        {(view === 'smart-diff' || view === 'regex-builder' || view === 'lab') && (
-          <aside className="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-[#020617] hidden lg:flex flex-col p-6">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Advanced Tools</span>
-            <div className="space-y-2">
-              <button onClick={() => setView('smart-diff')} className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${view === 'smart-diff' ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
-                <Wand2 size={18} /> <span className="text-sm font-bold">Smart Diff</span>
-              </button>
-              <button onClick={() => setView('regex-builder')} className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${view === 'regex-builder' ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
-                <Search size={18} /> <span className="text-sm font-bold">AI Regex</span>
-              </button>
-              <button onClick={() => setView('lab')} className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${view === 'lab' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
-                <Zap size={18} /> <span className="text-sm font-bold">Logic Lab</span>
-              </button>
-            </div>
-          </aside>
-        )}
-
-        <main className="flex-1 overflow-hidden relative">
+        <main className="flex-1 overflow-y-auto relative no-scrollbar">
           <AnimatePresence mode="wait">
             {view === 'landing' && (
-              <motion.div key="landing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full overflow-y-auto no-scrollbar">
+              <motion.div key="landing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
                 <LandingView onSelect={handleSelectTool} />
+                <footer className="bg-slate-50 dark:bg-slate-900/50 py-20 border-t border-slate-100 dark:border-slate-800 mt-20">
+                  <div className="max-w-7xl mx-auto px-6">
+                    <div className="grid md:grid-cols-4 gap-12 mb-20">
+                      <div className="col-span-2">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg"><ShieldCheck size={18} /></div>
+                          <span className="text-xl font-black tracking-tighter dark:text-white">TypeFlow <span className="text-blue-600 italic">Pro</span></span>
+                        </div>
+                        <p className="text-slate-500 max-w-sm mb-8 leading-relaxed font-medium">The most secure, local-first data transformation engine for professional software engineers.</p>
+                      </div>
+                      <div>
+                        <h4 className="font-black text-xs uppercase tracking-[0.2em] text-slate-400 mb-6">Product</h4>
+                        <ul className="space-y-4 text-sm font-bold text-slate-600 dark:text-slate-400">
+                          <li><button onClick={() => setView('app')} className="hover:text-blue-600">Workbench</button></li>
+                          <li><a href="https://yhanster206.gumroad.com/l/zjcuuu" target="_blank" className="hover:text-blue-600">Pricing</a></li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="font-black text-xs uppercase tracking-[0.2em] text-slate-400 mb-6">Resources</h4>
+                        <ul className="space-y-4 text-sm font-bold text-slate-600 dark:text-slate-400">
+                          <li><a href="/blog" className="hover:text-blue-600 flex items-center gap-2">Engineering Blog <ExternalLink size={14} /></a></li>
+                          <li><a href="https://twitter.com/intent/tweet?text=@vuazggItHF38912" target="_blank" className="hover:text-blue-600">Contact</a></li>
+                        </ul>
+                      </div>
+                    </div>
+                    <div className="pt-8 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      <p>© {new Date().getFullYear()} TypeFlow Pro Engine. ALL RIGHTS RESERVED.</p>
+                      <div className="flex gap-8"><span>GDPR COMPLIANT</span><span>LOCAL PROCESSING</span></div>
+                    </div>
+                  </div>
+                </footer>
               </motion.div>
             )}
             {view === 'app' && (
@@ -204,59 +230,58 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
               </motion.div>
             )}
             {view === 'smart-diff' && (
-              <motion.div key="diff" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full overflow-y-auto no-scrollbar">
-                <SmartDiffView 
-                  isDark={isDark} 
-                  geminiKey={geminiKey} 
-                  setGeminiKey={(k) => { setGeminiKey(k); localStorage.setItem('typeflow_gemini_key', k); }}
-                  isPro={isPro}
-                  trialCount={trialCount}
-                  setTrialCount={setTrialCount}
-                />
+              <motion.div key="diff" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
+                <SmartDiffView isDark={isDark} geminiKey={geminiKey} setGeminiKey={(k) => setGeminiKey(k)} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
               </motion.div>
             )}
             {view === 'regex-builder' && (
-              <motion.div key="regex" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full overflow-y-auto no-scrollbar">
-                <RegexBuilderView 
-                  isDark={isDark} 
-                  geminiKey={geminiKey} 
-                  setGeminiKey={(k) => { setGeminiKey(k); localStorage.setItem('typeflow_gemini_key', k); }}
-                  isPro={isPro}
-                  trialCount={trialCount}
-                  setTrialCount={setTrialCount}
-                />
+              <motion.div key="regex" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
+                <RegexBuilderView isDark={isDark} geminiKey={geminiKey} setGeminiKey={(k) => setGeminiKey(k)} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
               </motion.div>
             )}
             {view === 'lab' && (
               <motion.div key="lab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                <LogicLabView isDark={isDark} geminiKey={geminiKey} />
+                <LogicLabView isDark={isDark} geminiKey={geminiKey} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
+              </motion.div>
+            )}
+            {view === 'visual' && (
+              <motion.div key="visual" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
+                <ArchitectureView isDark={isDark} geminiKey={geminiKey} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
               </motion.div>
             )}
           </AnimatePresence>
         </main>
       </div>
 
-      {/* License Mini-Modal */}
-      {!isPro && (
-        <div className="fixed bottom-6 right-6 z-[200]">
-          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-72">
-            <p className="text-[10px] font-black text-slate-400 mb-3 uppercase tracking-widest">Pro License</p>
-            <div className="flex gap-2">
-              <input 
-                type="text" 
-                placeholder="License Key" 
-                value={licenseKey}
-                onChange={(e) => setLicenseKey(e.target.value)}
-                className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-xs outline-none focus:border-blue-600 dark:text-white" 
-              />
-              <button onClick={handleVerify} disabled={isVerifying} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black">
-                {isVerifying ? '...' : 'OK'}
-              </button>
-            </div>
-            {vMsg.text && <p className={`mt-2 text-[9px] font-bold ${vMsg.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>{vMsg.text}</p>}
+      {/* License Modal */}
+      <AnimatePresence>
+        {showLicenseModal && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowLicenseModal(false)} className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-md" />
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl border border-slate-200 dark:border-slate-800">
+              <h2 className="text-xl font-black mb-2 dark:text-white text-slate-900">Activate Pro</h2>
+              <p className="text-slate-500 text-xs mb-6 font-medium">Unlock unlimited AI conversions and visual architecture.</p>
+              <div className="space-y-4">
+                <input 
+                  type="text" 
+                  placeholder="Paste License Key..." 
+                  value={licenseKey}
+                  onChange={(e) => setLicenseKey(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 rounded-xl text-xs outline-none focus:border-blue-600 dark:text-white"
+                />
+                <button 
+                  onClick={handleVerify}
+                  disabled={isVerifying}
+                  className="w-full bg-blue-600 text-white py-3 rounded-xl font-black text-xs shadow-xl hover:scale-[1.02] transition-all"
+                >
+                  {isVerifying ? 'Verifying...' : 'Activate License'}
+                </button>
+                {vMsg.text && <p className={`text-center text-[10px] font-bold ${vMsg.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>{vMsg.text}</p>}
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }

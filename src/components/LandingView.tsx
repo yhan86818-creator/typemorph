@@ -36,7 +36,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
         </motion.div>
 
         {/* Search Cockpit */}
-        <div className="relative max-w-2xl mx-auto mb-20">
+        <div className="relative max-w-2xl mx-auto mb-32">
           <div className="absolute inset-0 bg-blue-600/20 blur-[80px] rounded-full" />
           <div className="relative bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 p-2 flex items-center shadow-2xl">
             <div className="pl-6 text-slate-400">
@@ -53,6 +53,27 @@ export function LandingView({ onSelect }: LandingViewProps) {
               <kbd className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-[10px] font-black text-slate-400 border border-slate-200 dark:border-slate-700">/</kbd>
             </div>
           </div>
+        </div>
+
+        {/* Value Proposition */}
+        <div className="grid md:grid-cols-3 gap-8 mb-32">
+          {[
+            { icon: <ShieldCheck className="text-green-500" />, title: "Local-First Privacy", desc: "No data ever leaves your machine. Full compliance for enterprise sensitive schemas." },
+            { icon: <Sparkles className="text-blue-500" />, title: "AI-Powered Logic", desc: "Beyond simple mapping. Refactor entire logic blocks with Gemini 1.5 Pro integration." },
+            { icon: <Layers className="text-purple-500" />, title: "Visual Architecture", desc: "Instantly turn SQL or JSON into beautiful ER diagrams and system flows." }
+          ].map((v, i) => (
+            <motion.div 
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="p-8 bg-white dark:bg-slate-900/50 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm"
+            >
+              <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center mb-6">{v.icon}</div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white mb-2">{v.title}</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{v.desc}</p>
+            </motion.div>
+          ))}
         </div>
 
         {/* Categories / Grid */}
@@ -90,6 +111,42 @@ export function LandingView({ onSelect }: LandingViewProps) {
         )}
       </div>
 
+        {/* Engineering Blog Section */}
+        <div className="mt-40 mb-32">
+          <div className="flex flex-col md:flex-row items-end justify-between mb-12 gap-6">
+            <div className="max-w-xl">
+              <h2 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white mb-4">
+                Engineering <span className="text-blue-600">Intelligence.</span>
+              </h2>
+              <p className="text-slate-500 dark:text-slate-400 font-medium">
+                Deep dives into local-first development, enterprise security, and the future of type-safe engineering workflows.
+              </p>
+            </div>
+            <a href="/blog" className="flex items-center gap-2 text-sm font-black text-blue-600 uppercase tracking-widest hover:gap-3 transition-all">
+              View All Articles <ArrowRight size={16} />
+            </a>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            <a href="/blog/security-risks-of-online-converters" className="group bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-200 dark:border-slate-800 hover:border-blue-600 transition-all shadow-xl hover:shadow-blue-500/10">
+              <div className="text-[10px] font-black uppercase text-blue-600 mb-6 tracking-widest">Security Analysis</div>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-4 group-hover:text-blue-600 transition-colors">The Hidden Security Risks of Online JSON Converters</h3>
+              <p className="text-slate-500 dark:text-slate-400 font-medium mb-8 line-clamp-2">Why pasting proprietary company data into third-party web tools is a major liability.</p>
+              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-400">
+                Read Full Guide <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+              </div>
+            </a>
+            
+            <a href="/blog/nextjs-type-safety-workflow" className="group bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-200 dark:border-slate-800 hover:border-blue-600 transition-all shadow-xl hover:shadow-blue-500/10">
+              <div className="text-[10px] font-black uppercase text-purple-600 mb-6 tracking-widest">Engineering Guide</div>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-4 group-hover:text-blue-600 transition-colors">Ultimate Type-Safe Workflow for Next.js 15</h3>
+              <p className="text-slate-500 dark:text-slate-400 font-medium mb-8 line-clamp-2">A deep dive into combining Zod, React Query, and TypeScript for bulletproof API integration.</p>
+              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-400">
+                Read Full Guide <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+              </div>
+            </a>
+          </div>
+        </div>
       {/* Feature Badges */}
       <div className="fixed bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-6 px-8 py-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-full shadow-2xl z-50">
         <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest border-r border-slate-200 dark:border-slate-800 pr-6">

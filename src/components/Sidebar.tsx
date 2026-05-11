@@ -1,15 +1,17 @@
 'use client';
 import React, { useState } from 'react';
-import { Layout, Search, Code2, Crown, History } from 'lucide-react';
+import { Layout, Search, Code2, Crown, History, Wand2, Zap, Sparkles, Layers } from 'lucide-react';
 import { converters } from '@/data/converters';
 
 interface SidebarProps {
   selectedSlug: string;
   onSelect: (slug: string) => void;
   isDark: boolean;
+  setView: (view: string) => void;
+  currentView: string;
 }
 
-export function Sidebar({ selectedSlug, onSelect, isDark }: SidebarProps) {
+export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView }: SidebarProps) {
   const [search, setSearch] = useState('');
   
   const filtered = converters.filter(c => 
@@ -20,6 +22,29 @@ export function Sidebar({ selectedSlug, onSelect, isDark }: SidebarProps) {
   return (
     <div className="w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 hidden xl:flex flex-col h-full">
       <div className="p-6">
+        <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4 flex items-center gap-2">
+          <Sparkles size={14}/> Advanced Intelligence
+        </h3>
+        
+        <div className="space-y-1 mb-10">
+          {[
+            { id: 'app', label: 'Workbench', icon: <Layout size={14}/>, color: 'text-blue-500' },
+            { id: 'lab', label: 'Logic Lab', icon: <Zap size={14}/>, color: 'text-purple-500' },
+            { id: 'visual', label: 'Architecture', icon: <Layers size={14}/>, color: 'text-green-500' },
+            { id: 'smart-diff', label: 'Smart Diff', icon: <Wand2 size={14}/>, color: 'text-indigo-500' },
+            { id: 'regex-builder', label: 'AI Regex', icon: <Search size={14}/>, color: 'text-pink-500' },
+          ].map((v) => (
+            <button 
+              key={v.id}
+              onClick={() => setView(v.id)}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${currentView === v.id ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+            >
+              <span className={v.color}>{v.icon}</span>
+              {v.label}
+            </button>
+          ))}
+        </div>
+
         <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4 flex items-center gap-2">
           <Layout size={14}/> All Converters
         </h3>
