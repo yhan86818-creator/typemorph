@@ -3,7 +3,26 @@ import TypeFlowApp from '../../page';
 import { converters } from '@/data/converters';
 import fs from 'fs';
 import path from 'path';
-import { ShieldCheck, Crown } from 'lucide-react';
+import { ShieldCheck, Crown, ArrowRight, BookOpen } from 'lucide-react';
+
+const blogPosts = [
+  {
+    slug: 'security-risks-of-online-converters',
+    title: 'The Hidden Security Risks of Online JSON Converters',
+    excerpt: 'Why pasting proprietary company data into third-party web tools is a major liability, and how to stay safe.',
+    category: 'Security Analysis',
+    categoryColor: 'text-blue-600',
+    keywords: ['json', 'security', 'typescript', 'zod', 'prisma', 'env', 'sql'],
+  },
+  {
+    slug: 'nextjs-type-safety-workflow',
+    title: 'Ultimate Type-Safe Workflow for Next.js 15',
+    excerpt: 'A deep dive into combining Zod, React Query, and TypeScript for bulletproof API integration.',
+    category: 'Engineering Guide',
+    categoryColor: 'text-purple-600',
+    keywords: ['typescript', 'zod', 'react', 'nextjs', 'query', 'prisma', 'graphql'],
+  },
+];
 
 export async function generateStaticParams() {
   return converters.map((c) => ({
@@ -154,30 +173,61 @@ export default async function ConverterPage({ params }: { params: Promise<{ slug
             </div>
           </div>
         </div>
+        {/* Blog Articles Section */}
+        {(() => {
+          const slugWords = slug.split('-');
+          const relatedPosts = blogPosts.filter(post =>
+            post.keywords.some(kw => slugWords.includes(kw))
+          );
+          if (relatedPosts.length === 0) return null;
+          return (
+            <div className="mt-20 pt-20 border-t border-slate-200">
+              <div className="flex items-center gap-3 mb-8">
+                <BookOpen size={20} className="text-blue-600" />
+                <h2 className="text-2xl font-black">From the Engineering Blog</h2>
+              </div>
+              <div className="grid md:grid-cols-2 gap-6">
+                {relatedPosts.map(post => (
+                  <a
+                    key={post.slug}
+                    href={`/blog/${post.slug}`}
+                    className="group p-8 rounded-[2rem] bg-white border border-slate-200 hover:border-blue-400 transition-all shadow-sm hover:shadow-lg hover:shadow-blue-500/10"
+                  >
+                    <div className={`text-[10px] font-black uppercase tracking-widest mb-4 ${post.categoryColor}`}>{post.category}</div>
+                    <h3 className="text-lg font-black text-slate-900 mb-3 group-hover:text-blue-600 transition-colors leading-tight">{post.title}</h3>
+                    <p className="text-sm text-slate-500 font-medium mb-6 line-clamp-2">{post.excerpt}</p>
+                    <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-400 group-hover:text-blue-600 transition-colors">
+                      Read Article <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Related Utilities */}
         <div className="mt-20 pt-20 border-t border-slate-200">
           <h2 className="text-2xl font-black mb-8">Related Utilities</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {converters
               .filter(c => c.slug !== slug)
               .sort((a, b) => {
-                // Score based on shared keywords in the slug (e.g., 'json', 'typescript')
                 const currentWords = slug.split('-');
                 const aScore = a.slug.split('-').filter(w => currentWords.includes(w)).length;
                 const bScore = b.slug.split('-').filter(w => currentWords.includes(w)).length;
                 if (aScore !== bScore) return bScore - aScore;
-                
-                // Deterministic pseudo-random tie-breaker to spread links across all tools
                 const hashA = a.slug.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
                 const hashB = b.slug.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
                 const currentHash = slug.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
                 return (hashA ^ currentHash) - (hashB ^ currentHash);
               })
-              .slice(0, 8) // Display 8 related tools instead of 4
+              .slice(0, 8)
               .map(tool => (
                 <a 
                   key={tool.slug}
                   href={`/converters/${tool.slug}`}
-                  className="p-4 rounded-xl bg-white border border-slate-200 hover:border-blue-300 transition-all text-xs font-bold text-slate-600 hover:text-blue-600 flex items-center justify-center text-center h-full"
+                  className="p-4 rounded-xl bg-white border border-slate-200 hover:border-blue-300 transition-all text-xs font-bold text-slate-600 hover:text-blue-600 flex items-center justify-center text-center"
                 >
                   {tool.title.split(' - ')[0]}
                 </a>
