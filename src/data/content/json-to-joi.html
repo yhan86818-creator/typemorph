@@ -1,19 +1,16 @@
-<h2>Runtime Validation in the Node.js Ecosystem</h2>
-<p>In the Node.js and Express ecosystems, <strong>Joi</strong> has long been the premier library for object schema description and data validation. Whether validating incoming HTTP POST payloads, checking configuration file structures, or ensuring database constraints, Joi provides an incredibly expressive API. However, when migrating a legacy REST API or implementing a massive, deeply nested JSON response mock-up provided by a frontend team, developers are faced with writing the corresponding Joi schema. Manually typing out <code>Joi.object({ ... })</code>, <code>Joi.string().required()</code>, and <code>Joi.number().integer()</code> for dozens of fields is extremely repetitive and highly prone to developer oversight.</p>
+<p>Joi is the industry standard for schema validation in the Node.js ecosystem, particularly within the Hapi framework. Our <strong>Professional JSON to Joi Schema Generator</strong> provides a secure, local-first path to generating robust backend validation logic from your API response samples.</p>
 
-<h2>Eliminating Validation Blind Spots</h2>
-<p>Writing validation schemas by hand is dangerous. If a developer assumes a JSON field is a string, but the API occasionally sends a float, or if a deeply nested optional object is accidentally marked as <code>.required()</code>, the Express middleware will reject valid incoming traffic with a <code>400 Bad Request</code>. Conversely, forgetting to add <code>.required()</code> to a critical field allows invalid data to penetrate the backend. By automating the generation of Joi schemas directly from a sample JSON payload, developers can instantly create a perfect, 100% accurate validation baseline. This eliminates blind spots and ensures that the validation logic perfectly matches the real-world data contract.</p>
+<h2>Defensive Backend Engineering</h2>
+<p>Ensuring that incoming requests or outgoing responses match a strict schema is essential for building stable microservices. Our tool analyzes your JSON samples and generates idiomatic Joi schemas using <code>Joi.object()</code>, <code>Joi.string()</code>, <code>Joi.number()</code>, and more. This provides a solid foundation for your backend's data integrity.</p>
 
-<h2>TypeFlow's Precision Joi Engine</h2>
-<p>TypeFlow intelligently parses your JSON data to output clean, chained Joi validation rules.</p>
+<h2>Local-First Privacy for Enterprise Services</h2>
+<p>Backend schemas represent the core architecture of your application. Sending your JSON samples to a cloud-based converter is an unnecessary security risk. <strong>TypeFlow Pro operates 100% locally.</strong> Your data and schemas remain private, ensuring your compliance with strict data protection standards.</p>
+
+<h2>Key Features</h2>
 <ul>
-  <li><strong>Intelligent Type Mapping:</strong> JSON primitives are perfectly mapped to their Joi equivalents. Strings receive <code>Joi.string()</code>, booleans become <code>Joi.boolean()</code>, and numbers are analyzed to apply <code>Joi.number()</code> (and optionally <code>.integer()</code> if no floats are detected).</li>
-  <li><strong>Complex Array Handling:</strong> JSON arrays are accurately mapped to <code>Joi.array().items(...)</code>, securely validating both the array structure and the specific types contained within it.</li>
-  <li><strong>Requirement Inference:</strong> By analyzing the provided JSON object, TypeFlow automatically appends the <code>.required()</code> chain to properties, establishing a strict, secure validation perimeter out of the box.</li>
+    <li><strong>Comprehensive Type Support:</strong> Correctly maps JSON types to Joi's extensive validation functions.</li>
+    <li><strong>Recursive Structural Mapping:</strong> Handles deeply nested JSON with ease, generating nested <code>Joi.object()</code> and <code>Joi.array()</code> chains.</li>
+    <li><strong>Clean, Ready-to-Paste Code:</strong> Produces standards-compliant Joi schemas that can be used directly in your Node.js backend.</li>
 </ul>
 
-<h2>Local-First: Securing Your API Perimeters</h2>
-<p>Your Joi schemas define the exact security perimeter of your Node.js backend. Uploading your proprietary JSON API payloads to a cloud-based converter exposes your internal data structures and vulnerability points to third parties. <strong>TypeFlow operates 100% locally.</strong> The schema extraction and code generation happen entirely within your browser's memory, ensuring your API architecture remains strictly confidential.</p>
-
-<h2>Conclusion</h2>
-<p>Lock down your Express routes instantly. Use TypeFlow to securely translate any JSON payload into a robust, production-ready Joi validation schema. Eliminate manual typing errors, prevent bad requests, and build more secure Node.js applications today.</p
+<p>Master your backend data standards today with the most secure <strong>JSON to Joi</strong> generator on the market.</p>

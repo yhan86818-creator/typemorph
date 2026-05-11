@@ -1,16 +1,16 @@
-<h2>The Challenge of Amazon DynamoDB's JSON Format</h2>
-<p><strong>Amazon DynamoDB</strong> is a highly scalable, fully managed NoSQL database service from AWS. While it stores data in a document-based format, its native wire protocol uses a specialized version of JSON known as <strong>DynamoDB JSON</strong>. In this format, every value must be wrapped in a type descriptor (e.g., <code>"S"</code> for String, <code>"N"</code> for Number, <code>"BOOL"</code> for Boolean). For example, a simple <code>{"id": 1}</code> becomes <code>{"id": {"N": "1"}}</code>. Manually converting standard JSON payloads into this verbose and rigid format is one of the most frustrating and error-prone tasks for developers working with the AWS SDK.</p>
+<p>Amazon DynamoDB is the go-to NoSQL database for AWS developers. However, manually formatting standard JSON into <strong>DynamoDB JSON (Attribute Values)</strong> format (e.g., <code>{"S": "value"}</code>) can be a tedious and error-prone task. Our <strong>Professional JSON to DynamoDB JSON Converter</strong> provides a secure, local-first bridge to your AWS environment.</p>
 
-<h2>Eliminating Manual Data Marshalling</h2>
-<p>Attempting to write DynamoDB JSON by hand for a complex, deeply nested document is incredibly tedious. A single missing type descriptor or a misidentified data type will cause the AWS SDK to reject your request with a validation error. While the AWS SDK provides marshalling utilities, there are many scenarios—such as writing CloudFormation templates, AppSync resolvers, or debugging data in the AWS Console—where you need to quickly generate DynamoDB JSON from a standard JSON object. By automating this conversion, developers can eliminate syntax errors and dramatically speed up their AWS workflows.</p>
+<h2>Simplifying Serverless Data Ingestion</h2>
+<p>Whether you are using the AWS SDK, CLI, or CloudFormation, manually wrapping your data in DynamoDB's type-descriptor format is a bottleneck. Our tool automates this by taking your standard JSON data and generating valid DynamoDB JSON fragments instantly, including support for <code>S</code>, <code>N</code>, <code>BOOL</code>, <code>L</code> (List), and <code>M</code> (Map) types.</p>
 
-<h2>TypeFlow's AWS Marshalling Engine</h2>
-<p>TypeFlow intelligently analyzes your standard JSON structures to generate flawless, perfectly formatted DynamoDB JSON payloads.</p>
+<h2>Local-First Privacy: Mandatory for AWS Configs</h2>
+<p>Your database data often contains sensitive user information or internal system details. <strong>TypeFlow Pro executes all transformation logic locally in your browser.</strong> This means your data samples and potential secrets are never uploaded to a third-party server, maintaining the integrity of your AWS pipeline.</p>
+
+<h2>Key Features for DynamoDB Integration</h2>
 <ul>
-  <li><strong>Precise Type Mapping:</strong> We automatically map JSON primitives to the correct DynamoDB type descriptors (<code>S</code>, <code>N</code>, <code>BOOL</code>, <code>NULL</code>), ensuring your data is ready for ingestion by the AWS API.</li>
-  <li><strong>Complex Object &amp; List Handling:</strong> Deeply nested JSON objects and arrays are intelligently converted into DynamoDB's <code>M</code> (Map) and <code>L</code> (List) types, preserving your document hierarchy without zero data loss.</li>
-  <li><strong>Safe Browser-Side Execution:</strong> Your AWS data structures often contain sensitive business logic or internal identifiers. TypeFlow operates 100% locally, ensuring your proprietary data models never touch an external server.</li>
+    <li><strong>Automatic Type Wrapping:</strong> Intelligently identifies JSON types and wraps them in the required DynamoDB <code>{"T": "value"}</code> format.</li>
+    <li><strong>Recursive Mapping:</strong> Handles deeply nested JSON objects and arrays with ease, generating complex <code>M</code> and <code>L</code> structures.</li>
+    <li><strong>Ready-to-Use Output:</strong> Produces valid JSON that can be used directly with the AWS SDK or CLI commands.</li>
 </ul>
 
-<h2>Conclusion</h2>
-<p>Stop wrestling with verbose AWS data formats. Use TypeFlow to instantly and securely convert any standard JSON payload into perfectly structured DynamoDB JSON. Eliminate manual marshalling errors, accelerate your serverless development, and manage your DynamoDB data with absolute confidence.</p>
+<p>Supercharge your AWS development today with the world's most private <strong>JSON to DynamoDB</strong> converter.</p>

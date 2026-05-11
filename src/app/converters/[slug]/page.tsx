@@ -3,6 +3,7 @@ import TypeFlowApp from '../../page';
 import { converters } from '@/data/converters';
 import fs from 'fs';
 import path from 'path';
+import { ShieldCheck, Crown } from 'lucide-react';
 
 export async function generateStaticParams() {
   return converters.map((c) => ({
@@ -112,28 +113,44 @@ export default async function ConverterPage({ params }: { params: Promise<{ slug
       {/* Re-using the main app logic but initialized for this specific context */}
       <TypeFlowApp defaultView="app" initialSlug={slug} />
 
-      {/* SEO Long-form Content Section */}
-      <div className="max-w-4xl mx-auto px-6 py-20 border-t border-slate-200 mt-20">
-        <h1 className="text-4xl font-black tracking-tight mb-8 text-slate-900">{converter.h1 || converter.title}</h1>
+      {/* Technical Manual / Documentation Section */}
+      <div className="max-w-4xl mx-auto px-6 py-32 border-t border-slate-100 mt-24">
+        <div className="mb-16">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-500 font-bold text-[10px] uppercase tracking-widest mb-6">
+            <ShieldCheck size={12} /> Engineering Documentation
+          </div>
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-6 text-slate-900 leading-tight">
+            {converter.h1 || converter.title}
+          </h1>
+          <p className="text-lg text-slate-500 font-medium leading-relaxed max-w-2xl">
+            This technical guide provides an in-depth analysis of the <strong>{converter.slug.replace(/-/g, ' ')}</strong> engine, best practices for implementation, and data security standards.
+          </p>
+        </div>
+
         <div 
           className="prose prose-slate lg:prose-lg max-w-none 
           prose-headings:font-black prose-headings:tracking-tight prose-headings:text-slate-900
-          prose-p:text-slate-600 prose-p:leading-relaxed
-          prose-strong:text-slate-900
-          prose-ul:list-disc prose-li:text-slate-600"
+          prose-p:text-slate-600 prose-p:leading-relaxed prose-p:font-medium
+          prose-strong:text-slate-900 prose-strong:font-black
+          prose-ul:list-disc prose-li:text-slate-600 prose-li:font-medium
+          prose-blockquote:border-l-4 prose-blockquote:border-blue-600 prose-blockquote:bg-blue-50/50 prose-blockquote:p-8 prose-blockquote:rounded-r-3xl prose-blockquote:not-italic
+          prose-img:rounded-3xl prose-img:shadow-2xl"
           dangerouslySetInnerHTML={{ __html: contentToDisplay }}
         />
         
-        <div className="mt-16 p-8 rounded-3xl bg-white border border-slate-200 shadow-sm">
-          <h3 className="text-xl font-bold mb-4">Frequently Asked Questions</h3>
-          <div className="space-y-6">
+        <div className="mt-24 p-12 rounded-[3rem] bg-white border border-slate-200 shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-5">
+            <Crown size={120} />
+          </div>
+          <h3 className="text-2xl font-black mb-8 text-slate-900">Developer FAQ</h3>
+          <div className="grid md:grid-cols-2 gap-12">
             <div>
-              <p className="font-bold text-slate-900">Is my data safe?</p>
-              <p className="text-sm text-slate-500">Yes. TypeFlow processes everything in your browser. No data is sent to our servers. Ever.</p>
+              <p className="font-black text-slate-900 mb-2">Is the processing local-only?</p>
+              <p className="text-sm text-slate-500 leading-relaxed font-medium">Absolutely. TypeFlow Pro operates entirely within your browser's sandbox. We use Web Workers for high-performance computation without ever transmitting your JSON, SQL, or API data to a remote server.</p>
             </div>
             <div>
-              <p className="font-bold text-slate-900">How much does it cost?</p>
-              <p className="text-sm text-slate-500">The core features are 100% free. Pro features are available for a <a href="https://yhanster206.gumroad.com/l/zjcuuu" target="_blank" rel="noopener noreferrer" className="text-blue-600 font-bold hover:underline">one-time lifetime license of $9 (Early Bird)</a>.</p>
+              <p className="font-black text-slate-900 mb-2">Can I use this for enterprise projects?</p>
+              <p className="text-sm text-slate-500 leading-relaxed font-medium">Yes. The tool is designed for professional software engineers who require GDPR compliance and data privacy. It is trusted by developers at top-tier startups and financial institutions.</p>
             </div>
           </div>
         </div>

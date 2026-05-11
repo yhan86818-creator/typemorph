@@ -1,19 +1,16 @@
-<h2>Securing User Authentication with Clerk Webhooks</h2>
-<p><strong>Clerk</strong> is a powerful user management and authentication platform designed for modern web applications. To keep your application's database in sync with user events—such as when a user signs up, updates their profile, or deletes their account—Clerk utilizes <strong>Webhooks</strong>. These webhooks send JSON payloads to your server, which must be parsed and processed accurately. In a TypeScript environment, having strict type definitions for these payloads is essential to prevent logic errors and ensure that your user data is handled safely.</p>
+<p>Clerk is the modern standard for authentication in Next.js and React applications. However, handling <strong>Clerk Webhooks</strong> (like <code>user.created</code> or <code>session.ended</code>) requires strictly-typed interfaces to ensure your user sync logic is reliable. Our <strong>Professional Clerk Webhook Type Generator</strong> is built for the modern auth stack.</p>
 
-<h2>The Challenge of Manual Webhook Typing</h2>
-<p>Clerk webhook events have a specific structure that includes the event type and a nested data object. Manually writing TypeScript interfaces to match every possible event (like <code>user.created</code> or <code>session.removed</code>) is a tedious and error-prone process. A single typo in a field name can lead to unhandled events or silent data mismatches. By automating the conversion of sample Clerk webhook JSON directly into strict TypeScript interfaces, developers can ensure that their webhook handlers are robust and type-safe from the start.</p>
+<h2>Reliable User Synchronization</h2>
+<p>When you receive a webhook from Clerk, the payload is complex and deeply nested. Manually typing these interfaces is tedious and prone to errors that can break your user database sync. Our tool analyzes your Clerk webhook samples and generates perfect TypeScript interfaces, allowing you to handle events like <code>user.updated</code> with total confidence.</p>
 
-<h2>TypeFlow's Webhook Precision Engine</h2>
-<p>TypeFlow provides a highly precise engine designed specifically for the Clerk ecosystem's data structures.</p>
+<h2>Local-First Privacy for Auth Data</h2>
+<p>Authentication webhooks contain sensitive user data—email addresses, names, and unique identifiers. Sending these samples to a cloud-based converter is a significant privacy violation. <strong>TypeFlow Pro processes all data locally.</strong> Your user data and API structures remain private and secure on your local machine.</p>
+
+<h2>Key Features for Clerk Integration</h2>
 <ul>
-  <li><strong>Deep Event Mapping:</strong> We automatically extract and type the nested data structures within Clerk's event payloads, ensuring that properties like user IDs, emails, and metadata are correctly handled.</li>
-  <li><strong>Intelligent Type Inference:</strong> JSON primitives, timestamps, and nested objects are accurately mapped to their corresponding TypeScript types, including handling of optional or nullable user attributes.</li>
-  <li><strong>Standard Boilerplate Generation:</strong> In addition to the types, we provide a clean interface structure that you can easily drop into your Next.js API routes or serverless functions.</li>
+    <li><strong>Event-Specific Mapping:</strong> Generate types for specific Clerk events including <code>user.created</code>, <code>user.deleted</code>, and <code>organization.invitation.accepted</code>.</li>
+    <li><strong>Deep Nesting Mastery:</strong> Handles the complex metadata and private_metadata fields that are common in Clerk payloads.</li>
+    <li><strong>Ready-to-Use Interfaces:</strong> Produces clean, idiomatic TypeScript that fits perfectly into your Next.js API routes or Supabase Edge Functions.</li>
 </ul>
 
-<h2>Local-First: Securing Your User Data Models</h2>
-<p>User authentication payloads are highly sensitive, often containing email addresses, names, and user identifiers. Uploading these structures to a third-party cloud converter is a major privacy risk. <strong>TypeFlow is 100% Local-First.</strong> All parsing and code generation happen entirely within your browser's local memory. Your sensitive user data models never touch an external server.</p>
-
-<h2>Conclusion</h2>
-<p>Build secure and reliable user synchronization pipelines with Clerk. Use TypeFlow to instantly and securely convert Clerk webhook JSON payloads into production-ready TypeScript interfaces. Eliminate manual typing errors, protect your user data, and build robust authentication flows effortlessly.</p>
+<p>Master your user management today with the world's most secure <strong>Clerk Webhook Type</strong> generator.</p>

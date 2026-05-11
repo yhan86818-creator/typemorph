@@ -1,19 +1,17 @@
-<h2>The Node.js ORM Standard</h2>
-<p><strong>Sequelize</strong> is one of the most established and widely adopted Object-Relational Mappers (ORMs) in the Node.js ecosystem, providing robust support for PostgreSQL, MySQL, and SQLite. When building modern Express.js or Fastify backends from an API-first perspective, developers frequently start with a JSON mockup of the required data. Translating that JSON response into a strict Sequelize Model definition—carefully typing out <code>DataTypes.STRING</code>, <code>DataTypes.INTEGER</code>, and managing validation constraints—is a repetitive chore that slows down the database scaffolding process.</p>
+<p>Sequelize is a mature, feature-rich ORM for Node.js, supporting PostgreSQL, MySQL, MariaDB, SQLite, and SQL Server. However, defining models manually can be a significant time sink. Our <strong>Professional JSON to Sequelize Model Converter</strong> provides a secure, local-first path to generating robust relational models instantly.</p>
 
-<h2>Automating Sequelize Schema Definition</h2>
-<p>Manually creating Sequelize models requires absolute precision. If a developer maps a JSON float to <code>DataTypes.INTEGER</code> instead of <code>DataTypes.FLOAT</code>, or forgets to set <code>allowNull: true</code> for an optional field, the application will experience silent data truncation or throw <code>SequelizeValidationError</code>s during database inserts. Automating this conversion bridges the gap between your API contract and your relational database schema instantly. This ensures your Node.js backend perfectly understands the data it needs to persist, without writing a single line of boilerplate mapping code.</p>
+<h2>Rapid SQL Modeling for JavaScript & TypeScript</h2>
+<p>Our tool analyzes your JSON samples and generates idiomatic Sequelize model definitions using either the <code>init</code> or <code>define</code> methods. It includes proper type mapping for <code>DataTypes.STRING</code>, <code>DataTypes.INTEGER</code>, <code>DataTypes.BOOLEAN</code>, and more, ensuring your database schema is perfectly synced with your data samples.</p>
 
-<h2>TypeFlow's High-Precision Sequelize Engine</h2>
-<p>TypeFlow generates highly idiomatic, production-ready JavaScript or TypeScript code optimized specifically for Sequelize.</p>
+<h2>Local-First Privacy: Essential for DB Architecture</h2>
+<p>Your database schema is the blueprint of your system. Sending your JSON samples to a cloud-based converter is an unnecessary security risk. <strong>TypeFlow Pro operates 100% locally.</strong> Your data and model structures remain private, ensuring your compliance with strict data protection standards.</p>
+
+<h2>Key Features for Sequelize Integration</h2>
 <ul>
-  <li><strong>Accurate Data Type Mapping:</strong> We intelligently map JSON primitives to their exact Sequelize <code>DataTypes</code> equivalents, ensuring strict data validation at the ORM layer.</li>
-  <li><strong>Configuration Scaffolding:</strong> The generator automatically outputs the standard <code>sequelize.define()</code> syntax or ES6 Class extensions, fully configured with optimal defaults for timestamps and table naming.</li>
-  <li><strong>Nullability Detection:</strong> By analyzing your JSON payload, TypeFlow identifies missing fields and automatically sets the <code>allowNull</code> attribute, preventing unexpected database rejection errors during runtime.</li>
+    <li><strong>Multiple Dialect Support:</strong> Generates code compatible with all databases supported by Sequelize.</li>
+    <li><strong>Smart Attribute Inference:</strong> Automatically identifies <code>primaryKey</code>, <code>autoIncrement</code>, and <code>allowNull</code> properties.</li>
+    <li><strong>Recursive Mapping:</strong> Handles nested JSON objects by suggesting associations and foreign key structures.</li>
+    <li><strong>TypeScript Support:</strong> Generates typed models for use with Sequelize-TypeScript or standard TS projects.</li>
 </ul>
 
-<h2>Local-First: Securing Your Database Blueprints</h2>
-<p>Database models are the most sensitive architectural blueprints of any application. Using online formatters and cloud-based converters means transmitting your data models to unknown servers. <strong>TypeFlow is 100% Local-First.</strong> The generation of your Sequelize models happens entirely in your local browser instance. Your schema architecture never touches an external network, guaranteeing enterprise-level privacy.</p>
-
-<h2>Conclusion</h2>
-<p>Stop manually typing out <code>DataTypes</code>. With TypeFlow, you can instantly convert any JSON payload into a strict, production-ready Sequelize Model. Streamline your Node.js backend development, reduce SQL validation errors, and maintain perfect alignment between your API and your database.</p
+<p>Master your relational data modeling today with the world's most secure <strong>JSON to Sequelize</strong> model generator.</p>

@@ -1,19 +1,16 @@
-<h2>The Magic of Active Record</h2>
-<p><strong>Ruby on Rails</strong> revolutionized web development with its convention-over-configuration philosophy, and at the heart of this framework lies <strong>Active Record</strong>. Active Record is an incredibly powerful Object-Relational Mapping (ORM) system that seamlessly links Ruby classes to relational database tables. To modify the database schema, Rails developers use <strong>Migrations</strong>—Ruby classes that provide a database-independent DSL (Domain Specific Language) for creating tables and columns. However, when scaffolding a new application based on a complex JSON prototype or migrating data from a NoSQL JSON document store, manually writing the Rails migration files for dozens of tables is a tedious, error-prone chore.</p>
+<p>Ruby on Rails is the king of rapid web development, but manually writing migration files for complex JSON structures can be a bottleneck. Our <strong>Professional JSON to Rails Migration Generator</strong> provides a secure, local-first path to generating robust <code>ActiveRecord</code> schema changes instantly.</p>
 
-<h2>Accelerating Schema Creation</h2>
-<p>Writing a Rails migration by hand requires exact knowledge of Active Record data types. A JSON string must map to a <code>t.string</code> or <code>t.text</code>, a number to a <code>t.integer</code> or <code>t.float</code>, and boolean flags to <code>t.boolean</code>. If a developer mistakenly defines a long JSON string as a standard <code>t.string</code> (which has a 255-character limit in many databases), the application will crash during production data insertion. By automating the conversion of sample JSON payloads directly into correctly typed Rails migration files, backend developers can instantly scaffold their database architecture, ensuring perfect alignment between their data models and database schema.</p>
+<h2>Rapid Prototyping with Rails</h2>
+<p>Our tool analyzes your JSON samples and generates the precise Rails migration commands (<code>rails generate migration ...</code>) or the Ruby migration file content. It includes proper mapping for <code>t.string</code>, <code>t.integer</code>, <code>t.boolean</code>, and <code>t.jsonb</code>, ensuring your database is perfectly synced with your data samples.</p>
 
-<h2>TypeFlow's Active Record Scaffolding Engine</h2>
-<p>TypeFlow intelligently analyzes your JSON data to generate pristine, production-ready Ruby on Rails migration classes.</p>
+<h2>Local-First Privacy: Essential for Rails Backends</h2>
+<p>In high-performance Rails environments, your data models represent a critical part of your architecture. <strong>TypeFlow Pro's local-first architecture</strong> ensures your JSON samples and migration definitions are never uploaded to a cloud server. Your data stays on your machine, ensuring total privacy and security.</p>
+
+<h2>Key Features for Rails Integration</h2>
 <ul>
-  <li><strong>Precise Type Inference:</strong> JSON primitives are accurately translated into their optimal Rails column types (e.g., <code>t.string</code>, <code>t.integer</code>, <code>t.boolean</code>, <code>t.datetime</code>).</li>
-  <li><strong>Automatic Timestamps:</strong> We automatically inject the standard <code>t.timestamps</code> method at the end of the <code>create_table</code> block, ensuring your models automatically track <code>created_at</code> and <code>updated_at</code>.</li>
-  <li><strong>Idiomatic Ruby Syntax:</strong> The generated output includes the complete class definition (e.g., <code>class CreateUsers &lt; ActiveRecord::Migration[7.0]</code>) and the <code>change</code> method, ready to be executed via <code>rails db:migrate</code>.</li>
+    <li><strong>Smart Type Mapping:</strong> Correctly identifies and maps JSON types to Rails primitives, including <code>datetime</code> and <code>decimal</code>.</li>
+    <li><strong>Reference Inference:</strong> Handles nested JSON objects by suggesting <code>t.references</code> or <code>t.belongs_to</code> structures.</li>
+    <li><strong>Clean, Ready-to-Paste Code:</strong> Produces standards-compliant Rails migration code that fits perfectly into your <code>db/migrate/</code> directory.</li>
 </ul>
 
-<h2>Local-First: Protecting Your Database Architecture</h2>
-<p>Your database schema represents the foundational intellectual property of your Rails application. Uploading your proprietary JSON data models to a third-party cloud converter exposes your enterprise architecture to potential leaks. <strong>TypeFlow is a 100% Local-First tool.</strong> The semantic parsing of your JSON and the generation of your Ruby migration code execute entirely within your browser's local memory. Your database blueprints never leave your machine.</p>
-
-<h2>Conclusion</h2>
-<p>Stop writing database migrations by hand. Use TypeFlow to instantly and securely convert any JSON payload into robust, production-ready Ruby on Rails migration files. Accelerate your backend development, ensure perfect relational typing, and deploy your database schemas with absolute confidence.</p>
+<p>Experience the power of rapid database evolution today with our secure <strong>JSON to Rails Migration</strong> generator.</p>

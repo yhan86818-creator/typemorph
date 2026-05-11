@@ -1,19 +1,16 @@
-<h2>The Challenge of Connecting GraphQL to Data Sources</h2>
-<p>While writing a GraphQL schema defines the "shape" of your API, the actual heavy lifting happens in the <strong>Resolvers</strong>. Resolvers are the functions responsible for fetching the data for a specific field, whether that data comes from a database (like PostgreSQL or MongoDB), a third-party REST API, or an internal microservice. When wrapping an existing, complex REST API with GraphQL, developers must write dozens of resolver functions to map the incoming JSON REST responses into the exact shape expected by the GraphQL schema. Doing this manually is an incredibly repetitive, boilerplate-heavy process.</p>
+<p>GraphQL's power lies in its resolvers, but manually writing <strong>Resolver Functions</strong> for complex data structures can be a repetitive task. Our <strong>Professional JSON to GraphQL Resolver Generator</strong> provides a secure, local-first path to generating robust backend logic from your data samples instantly.</p>
 
-<h2>Automating Resolver Scaffolding</h2>
-<p>Manually mapping a massive, deeply nested JSON response from a legacy API into GraphQL resolver functions requires meticulous attention to detail. If a developer forgets to map a specific nested object, or incorrectly names a resolver function, the GraphQL client will receive <code>null</code> data. By automating the generation of GraphQL resolver templates directly from a JSON sample, backend developers can instantly scaffold the entire data-fetching layer. This ensures every field in the payload has a corresponding, correctly named resolver function ready to be filled with business logic.</p>
+<h2>Simplifying GraphQL API Development</h2>
+<p>Our tool analyzes your JSON samples and generates idiomatic resolver functions in JavaScript or TypeScript. It includes proper mapping for field resolvers and parent/args structures, ensuring your API implementation is perfectly synced with your schema designs.</p>
 
-<h2>TypeFlow's Intelligent Resolver Generation</h2>
-<p>TypeFlow analyzes JSON payloads and outputs clean, idiomatic resolver structures optimized for Apollo Server and modern Node.js GraphQL implementations.</p>
+<h2>Local-First Privacy for API Architects</h2>
+<p>Resolver logic reveals the internal details of how your system fetches and processes data. Sending your JSON samples to a cloud-based converter is an unnecessary security risk. <strong>TypeFlow Pro operates 100% locally.</strong> Your data and resolver designs remain private, ensuring your compliance with strict enterprise security standards.</p>
+
+<h2>Key Features for GraphQL Integration</h2>
 <ul>
-  <li><strong>Root and Field Resolvers:</strong> We intelligently generate both the top-level <code>Query</code> or <code>Mutation</code> resolvers and the specific field-level resolvers required for extracting nested objects or computing derived data.</li>
-  <li><strong>Type-Safe Scaffolding:</strong> If using TypeScript, the generated resolvers include standard type signatures for the <code>parent</code>, <code>args</code>, <code>context</code>, and <code>info</code> parameters, ensuring immediate compile-time safety.</li>
-  <li><strong>Mock Data Ready:</strong> TypeFlow can optionally inject the original JSON data directly into the resolver as a mock return value, allowing frontend teams to begin querying the GraphQL API immediately before the actual database connections are finalized.</li>
+    <li><strong>Integrated Logic Templates:</strong> Produces clean resolver templates ready to be filled with your database or service logic.</li>
+    <li><strong>Smart Type Mapping:</strong> Correctly identifies and maps JSON types to the appropriate resolver return values.</li>
+    <li><strong>Zero Latency:</strong> Local execution provides instant results, providing a seamless experience for rapid prototyping of your GraphQL backend.</li>
 </ul>
 
-<h2>Local-First: Protecting Your Backend Logic</h2>
-<p>Your GraphQL resolvers act as the crucial routing layer for your backend, exposing how your data sources are connected and accessed. Pasting your API payloads into a cloud-based converter to generate these resolvers is a massive security risk. <strong>TypeFlow is 100% Local-First.</strong> The generation of your resolver code happens entirely within your browser's local memory. Your internal API architecture never leaves your machine.</p>
-
-<h2>Conclusion</h2>
-<p>Stop writing boilerplate resolver mappings by hand. Use TypeFlow to instantly scaffold production-ready GraphQL resolvers directly from JSON payloads. Accelerate your backend development, ensure perfect data mapping, and build robust GraphQL APIs faster.</p
+<p>Master your GraphQL API implementation today with the world's most secure <strong>JSON to GraphQL Resolver</strong> generator.</p>

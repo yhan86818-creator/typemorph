@@ -1,19 +1,16 @@
-<h2>The Elegance of Ruby Structs</h2>
-<p><strong>Ruby</strong> is renowned for its developer happiness and expressive syntax. When processing API responses, parsing configuration files, or building internal data models in Ruby or Ruby on Rails applications, developers often deal with raw Hashes parsed from JSON. While Hashes are flexible, they lack the strict property access and method-like syntax that make Ruby code beautiful and maintainable. <code>Struct</code> (and the newer <code>Data</code> class in Ruby 3.2+) provides a lightweight, elegant way to create value objects. However, manually defining a <code>Struct</code> with dozens of attributes based on a massive JSON payload is a tedious, un-Ruby-like chore.</p>
+<p>Ruby is known for its elegant syntax and developer happiness. However, manually creating structs or classes for complex JSON responses can be a repetitive task. Our <strong>Professional JSON to Ruby Struct Converter</strong> provides a secure, local-first path to generating clean data models for your Rails or Sinatra applications.</p>
 
-<h2>Automating Ruby Value Object Generation</h2>
-<p>Manually transcribing JSON keys into <code>Struct.new(...)</code> arguments invites human error. A misspelled attribute will lead to <code>NoMethodError</code> exceptions deep within your application logic. Furthermore, when external APIs change, updating these Struct definitions manually is a slow process. By automating the conversion from JSON to Ruby Structs, you instantly upgrade your data layer from loosely-typed Hashes to strict, dot-notation-friendly value objects, making your codebase more robust and significantly easier to test.</p>
+<h2>Rapid Prototyping with Ruby</h2>
+<p>Our tool analyzes your JSON samples and generates idiomatic Ruby <code>Struct</code> or <code>OpenStruct</code> definitions, or even standard Ruby classes with <code>attr_accessor</code> methods. This provides a clean and concise way to handle data within your Ruby application with zero boilerplate.</p>
 
-<h2>TypeFlow's Idiomatic Ruby Engine</h2>
-<p>TypeFlow generates Ruby code that feels like it was written by a seasoned Rails developer.</p>
+<h2>Local-First Privacy for Ruby Backends</h2>
+<p>When building web applications with Ruby on Rails, your data structures often contain proprietary business logic. <strong>TypeFlow Pro processes all conversions locally in your browser.</strong> This ensures your JSON samples and Ruby models stay private, keeping you compliant with enterprise security standards.</p>
+
+<h2>Key Features</h2>
 <ul>
-  <li><strong>Idiomatic Snake Case:</strong> We automatically convert JSON keys (which are often camelCase) into Ruby's standard <code>snake_case</code>, ensuring your Struct attributes look and feel like native Ruby code.</li>
-  <li><strong>Nested Struct Extraction:</strong> If your JSON payload contains complex, nested objects, TypeFlow intelligently defines separate, clearly named Structs for the child objects, promoting clean, object-oriented design.</li>
-  <li><strong>Keyword Arguments Readiness:</strong> The generated Structs are optimized for modern Ruby usage, allowing you to easily initialize them using keyword arguments (<code>keyword_init: true</code>), which greatly improves code readability.</li>
+    <li><strong>Multiple Output Formats:</strong> Choose between <code>Struct</code>, <code>OpenStruct</code>, or standard class definitions.</li>
+    <li><strong>Recursive Structural Mapping:</strong> Handles deeply nested JSON with ease, generating nested model structures automatically.</li>
+    <li><strong>Idiomatic Naming:</strong> Automatically maps camelCase JSON keys to snake_case Ruby properties where appropriate.</li>
 </ul>
 
-<h2>Local-First: Protecting Your Business Logic</h2>
-<p>Your data models represent the core business logic of your Ruby application. Exposing the shape of your proprietary API payloads to online, cloud-based converters is a significant privacy risk. <strong>TypeFlow is a 100% Local-First utility.</strong> The generation of your Ruby Structs happens entirely in your browser. Your JSON data never touches a remote server, ensuring total compliance with enterprise security and privacy standards.</p>
-
-<h2>Conclusion</h2>
-<p>Write cleaner, more maintainable Ruby code instantly. With TypeFlow, you can effortlessly transform raw JSON payloads into elegant, production-ready Ruby Structs. Eliminate tedious mapping, avoid `NoMethodError` bugs, and embrace the joy of object-oriented Ruby development.</p>
+<p>Master your Ruby data handling today with the most secure <strong>JSON to Ruby Struct</strong> generator on the market.</p>

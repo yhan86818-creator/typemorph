@@ -13,7 +13,7 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: '#0F172A',
     icons: [
       {
-        src: 'https://cdn-icons-png.flaticon.com/512/3665/3665923.png',
+        src: '/favicon.png',
         sizes: '512x512',
         type: 'image/png',
       },

@@ -1,19 +1,20 @@
-<h2>The Complexity of Kubernetes Manifests</h2>
-<p><strong>Kubernetes (K8s)</strong> is the industry standard for container orchestration, powering everything from nimble microservices to massive enterprise architectures. The foundation of any Kubernetes deployment is the <strong>Manifest</strong>—a declarative configuration file traditionally written in YAML. While Kubernetes accepts JSON, YAML is preferred for its human-readability and support for comments. However, migrating legacy infrastructure configurations, importing cloud-provider API responses, or translating raw JSON infrastructure definitions into valid Kubernetes <code>ConfigMap</code>, <code>Deployment</code>, or <code>Service</code> manifests is a highly error-prone process that often leads to catastrophic deployment failures.</p>
+<p>Kubernetes has redefined how we deploy and scale applications, but managing its verbose YAML configurations is a constant challenge for SREs and DevOps engineers. Our <strong>Professional JSON to Kubernetes ConfigMap & Secret Generator</strong> provides a secure, local-first bridge between your application data and K8s manifests.</p>
 
-<h2>Automating Infrastructure as Code</h2>
-<p>Writing a Kubernetes manifest by hand requires strict adherence to the K8s API schema. If you manually convert a JSON object into a YAML manifest and mistakenly place the <code>replicas</code> field outside of the <code>spec</code> block, or incorrectly indent a <code>label</code> under the <code>metadata</code> section, the <code>kubectl apply</code> command will throw a validation error. By automating the conversion of raw JSON data directly into correctly indented, perfectly structured Kubernetes YAML configurations, DevOps engineers can dramatically accelerate their Infrastructure as Code (IaC) workflows and eliminate syntax-related downtime.</p>
+<h2>Simplifying Cloud-Native Configuration</h2>
+<p>Whether you are moving app settings into a <code>ConfigMap</code> or sensitive credentials into a <code>Secret</code>, manually formatting JSON into the required Kubernetes manifest structure is prone to indentation errors and typos. Our tool automates this by taking your JSON data and generating valid, production-ready Kubernetes YAML manifests instantly.</p>
 
-<h2>TypeFlow's DevOps Configuration Engine</h2>
-<p>TypeFlow provides a precise translation engine built specifically for modern cloud-native infrastructure.</p>
+<h2>Local-First: Essential for Secrets</h2>
+<p>When you are dealing with environment variables, API keys, or connection strings, data privacy is non-negotiable. <strong>TypeFlow Pro executes all manifest generation locally.</strong> This means your sensitive configuration data and potential secrets are never uploaded to a third-party server, maintaining the integrity of your security pipeline.</p>
+
+<h2>Key Kubernetes Features</h2>
 <ul>
-  <li><strong>Flawless YAML Indentation:</strong> We perfectly translate nested JSON objects and arrays into strictly indented YAML hierarchies, ensuring complete compatibility with the Kubernetes API server.</li>
-  <li><strong>Safe String Quoting:</strong> Kubernetes YAML is notoriously sensitive to unquoted strings that look like booleans or numbers (e.g., <code>"true"</code> vs <code>true</code>). TypeFlow intelligently quotes strings when necessary to prevent parsing ambiguity.</li>
-  <li><strong>Multi-Document Support:</strong> If your JSON represents an array of resources, TypeFlow cleanly outputs multiple YAML documents separated by <code>---</code>, allowing you to deploy entire architectures from a single file.</li>
+    <li><strong>Manifest Automation:</strong> Generate <code>kind: ConfigMap</code> or <code>kind: Secret</code> manifests directly from your JSON payload.</li>
+    <li><strong>Base64 Handling:</strong> For Secrets, our tool can automatically handle the required Base64 encoding of values, ensuring your manifests are ready for <code>kubectl apply</code>.</li>
+    <li><strong>Label and Metadata Support:</strong> Easily add standard labels and annotations to your generated manifests to fit your cluster's organizational standards.</li>
+    <li><strong>Clean YAML Output:</strong> Produces standards-compliant YAML that is easy to read and maintain within your GitOps repository.</li>
 </ul>
 
-<h2>Local-First: Securing Your Cluster Architecture</h2>
-<p>Kubernetes configurations are the blueprints of your entire backend infrastructure. They often contain internal routing rules, container image tags, and structural secrets. Uploading these blueprints to a third-party cloud converter is a massive security vulnerability. <strong>TypeFlow is completely Local-First.</strong> The parsing of your JSON and the generation of your Kubernetes YAML manifests happen exclusively within your browser. Your cluster architecture never touches the external internet, ensuring absolute DevOps security.</p>
+<h3>Streamlining GitOps Workflows</h3>
+<p>Integrating TypeFlow Pro into your CI/CD or local development workflow reduces the friction of manifest management. It is the perfect companion for engineers working with Helm, Kustomize, or raw <code>kubectl</code> commands.</p>
 
-<h2>Conclusion</h2>
-<p>Streamline your Kubernetes deployments effortlessly. Use TypeFlow to instantly and securely convert JSON data into flawless, ready-to-apply Kubernetes YAML configurations. Eliminate indentation errors, accelerate your GitOps workflows, and manage your clusters with confidence.</p
+<p>Secure your cloud-native deployments today with the world's most private <strong>JSON to Kubernetes</strong> manifest generator.</p>

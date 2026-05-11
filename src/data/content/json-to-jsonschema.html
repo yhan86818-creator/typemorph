@@ -1,19 +1,20 @@
-<h2>The Foundation of API Standardization</h2>
-<p><strong>JSON Schema</strong> is the foundational vocabulary for annotating and validating JSON documents. It powers OpenAPI specifications, configuration file validation in modern IDEs, and cross-language data integrity checks. However, writing a JSON Schema from scratch for a large, complex API response is an incredibly daunting task. Developers must manually define the <code>type</code>, <code>properties</code>, and <code>required</code> fields for every single nested object and array, a process that is both time-consuming and prone to human error.</p>
+<p>Standardizing data contracts is essential for building interoperable systems. Our <strong>Professional JSON to JSON Schema Generator</strong> provides a secure, local-first path to creating standards-compliant schema definitions (Draft 7, 2020-12) from your data samples.</p>
 
-<h2>From Data to Blueprint: Automated Schema Generation</h2>
-<p>When you define an API, your actual JSON payload is the absolute source of truth. Manually translating that truth into a JSON Schema often leads to mismatches—a field might be marked as a <code>string</code> when it should be an <code>integer</code>, or an optional field might be accidentally marked as <code>required</code>. By automating the extraction of a JSON Schema directly from a real JSON data sample, you instantly generate a high-fidelity blueprint. This blueprint can then be immediately used for contract testing, API gateway validation, or client-side generation, ensuring total ecosystem consistency.</p>
+<h2>The Foundation of Data Interoperability</h2>
+<p>JSON Schema is the industry standard for validating JSON data, but writing schemas manually for complex objects is a tedious and error-prone task. Our tool automates this process, generating detailed schemas that include type definitions, property requirements, and structural constraints directly from your JSON samples.</p>
 
-<h2>TypeFlow's Deep Schema Inference</h2>
-<p>TypeFlow doesn't just do shallow type mapping; it performs deep structural analysis to generate a comprehensive JSON Schema Draft-07 (or later) specification.</p>
+<h2>Local-First Privacy for Data Contracts</h2>
+<p>Data contracts reveal the internal details of your system's communication. Sending your JSON samples to a cloud-based converter is an unnecessary security risk. <strong>TypeFlow Pro executes all logic locally.</strong> Your data and schemas remain private, ensuring your compliance with strict data protection standards.</p>
+
+<h2>Key Features</h2>
 <ul>
-  <li><strong>Recursive Type Inference:</strong> We accurately identify all JSON primitives (string, number, boolean, null) and deeply parse nested objects and multi-dimensional arrays, outputting clean <code>type: "object"</code> and <code>items</code> definitions.</li>
-  <li><strong>Required Field Detection:</strong> By analyzing your payload, TypeFlow generates the <code>required: [...]</code> array, ensuring your schema strictly enforces the presence of critical keys.</li>
-  <li><strong>Polymorphism Handling:</strong> If an array contains multiple data types, TypeFlow intelligently constructs an <code>anyOf</code> or <code>oneOf</code> schema block, accurately reflecting polymorphic data structures.</li>
+    <li><strong>Multiple Draft Support:</strong> Generate schemas compatible with various JSON Schema versions, including Draft 7 and the latest 2020-12 spec.</li>
+    <li><strong>Recursive Structural Analysis:</strong> Handles deeply nested objects and arrays with ease, generating <code>definitions</code> or <code>$defs</code> for reusable components.</li>
+    <li><strong>Automatic Type Mapping:</strong> Correctly maps JSON types to their JSON Schema equivalents, including support for <code>integer</code>, <code>number</code>, <code>string</code>, <code>boolean</code>, <code>object</code>, and <code>array</code>.</li>
+    <li><strong>Required Field Inference:</strong> Intelligently suggests <code>required</code> property arrays based on the data present in your samples.</li>
 </ul>
 
-<h2>Local-First: Securing Your API Architecture</h2>
-<p>Your JSON Schema serves as the master blueprint for your data architecture. Exposing your raw data payloads to cloud-based converters in order to generate a schema risks leaking proprietary business models and sensitive structure layouts. <strong>TypeFlow operates 100% locally.</strong> Your data is parsed and your schema is generated entirely within your browser. Your API blueprint never touches our servers.</p>
+<h3>Streamlining API Documentation</h3>
+<p>JSON Schemas are the heart of professional API documentation (OpenAPI/Swagger). Use our tool to generate the schemas you need to power your docs and client libraries instantly.</p>
 
-<h2>Conclusion</h2>
-<p>Stop writing JSON Schema boilerplate by hand. Use TypeFlow to instantly reverse-engineer a precise, production-ready JSON Schema from any data sample. Accelerate your API documentation, enforce strict data validation, and build reliable systems with absolute confidence.</p>
+<p>Master your data standards today with the world's most secure <strong>JSON to JSON Schema</strong> generator.</p>

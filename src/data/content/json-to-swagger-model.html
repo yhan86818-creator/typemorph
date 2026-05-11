@@ -1,19 +1,16 @@
-<h2>Standardizing API Documentation</h2>
-<p><strong>Swagger (OpenAPI)</strong> is the global standard for documenting RESTful APIs. It provides a machine-readable specification that allows developers to generate interactive documentation, client SDKs, and server stubs automatically. The core of any OpenAPI specification is the <code>components/schemas</code> section, where the exact data models for requests and responses are defined. However, when a backend engineer finishes building an endpoint that returns a massive, deeply nested JSON payload, manually writing the verbose, highly structured OpenAPI/Swagger schema definition for that payload is a soul-crushing chore.</p>
+<p>Swagger (OpenAPI) is the industry standard for API documentation and data contracts. However, manually defining <code>components/schemas</code> for complex JSON payloads is a tedious and error-prone task. Our <strong>Professional JSON to Swagger Model Generator</strong> provides a secure, local-first path to generating robust API specifications from your samples.</p>
 
-<h2>Eliminating OpenAPI Boilerplate</h2>
-<p>Writing an OpenAPI schema by hand requires mapping every JSON key to an explicit <code>type</code> (e.g., <code>string</code>, <code>integer</code>, <code>boolean</code>), defining the <code>items</code> for arrays, and recursively defining <code>properties</code> for nested objects. If a developer forgets a required field, or mistypes an array definition, the generated SDKs will be broken, and the documentation will be inaccurate. By automating the conversion of raw JSON data directly into a pristine, specification-compliant OpenAPI/Swagger schema, backend teams can keep their documentation perfectly synchronized with their actual API outputs without manual effort.</p>
+<h2>Building Enterprise-Grade API Documentation</h2>
+<p>Defining a Swagger schema correctly is essential for maintaining data compatibility and generating high-quality client libraries. Our tool analyzes your JSON samples and generates the official OpenAPI 3.0 specification format, including support for <code>object</code> types, <code>array</code> fields, and proper type mapping for <code>string</code>, <code>integer</code>, <code>number</code>, and <code>boolean</code>.</p>
 
-<h2>TypeFlow's OpenAPI Scaffolding Engine</h2>
-<p>TypeFlow intelligently analyzes your JSON payloads to generate flawless, production-ready OpenAPI (Swagger) schema components.</p>
+<h2>Local-First Privacy: Mandatory for API Specs</h2>
+<p>API specifications reveal the internal details of your system's communication. Sending your JSON samples to a cloud-based converter is an unnecessary security risk. <strong>TypeFlow Pro executes all logic locally.</strong> Your data and schemas remain private, ensuring your compliance with strict data protection standards.</p>
+
+<h2>Key Features for OpenAPI Integration</h2>
 <ul>
-  <li><strong>Precise Type Inference:</strong> JSON primitives are accurately mapped to standard OpenAPI types and formats (e.g., mapping a JSON number to <code>type: integer, format: int32</code> or <code>type: number, format: float</code>).</li>
-  <li><strong>Recursive Object Mapping:</strong> Complex, nested JSON objects are cleanly parsed into the required <code>type: object</code> and <code>properties</code> hierarchy, perfectly documenting your data structure.</li>
-  <li><strong>JSON or YAML Output:</strong> Because Swagger accepts both formats, TypeFlow can generate the schema definition as a clean, nested JSON object, ready to be pasted directly into your <code>swagger.json</code> or YAML specification.</li>
+    <li><strong>Recursive Structural Mapping:</strong> Handles deeply nested JSON with ease, generating nested <code>properties</code> within the schema.</li>
+    <li><strong>Required Field Inference:</strong> Intelligently suggests <code>required</code> property arrays based on the data present in your samples.</li>
+    <li><strong>Standards Compliance:</strong> Produces valid OpenAPI 3.0 YAML or JSON that can be used directly with Swagger UI or Redoc.</li>
 </ul>
 
-<h2>Local-First: Protecting Your API Blueprints</h2>
-<p>The JSON responses from your endpoints represent your proprietary API contracts. Uploading these payloads to a third-party cloud converter exposes your internal data architecture to the public internet. <strong>TypeFlow is 100% Local-First.</strong> The semantic parsing of your JSON and the generation of your OpenAPI schema execute entirely within your browser's local memory. Your API blueprints never leave your machine.</p>
-
-<h2>Conclusion</h2>
-<p>Stop writing Swagger documentation by hand. Use TypeFlow to instantly and securely convert any JSON payload into a strict, specification-ready OpenAPI schema model. Accelerate your documentation process, ensure perfect SDK generation, and maintain flawless API contracts effortlessly.</p>
+<p>Master your API standards today with the world's most secure <strong>JSON to Swagger</strong> schema generator.</p>

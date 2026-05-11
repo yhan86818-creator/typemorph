@@ -1,19 +1,17 @@
-<h2>The Relational Challenge of JSON Data</h2>
-<p><strong>MySQL</strong> powers a massive portion of the world's relational databases. While modern versions of MySQL offer a <code>JSON</code> data type, the most performant and scalable way to store data is still within strictly typed relational columns. When developers are tasked with persisting data from a new third-party API or a frontend JSON mockup, they must design a schema. Manually writing the <code>CREATE TABLE</code> Data Definition Language (DDL) statements—choosing between <code>VARCHAR</code>, <code>INT</code>, and <code>DATETIME</code> for dozens of nested fields—is a slow, error-prone task that delays backend development.</p>
+<p>Designing relational databases from unstructured data samples is a common but tedious task. Our <strong>Professional JSON to MySQL Schema Generator</strong> automates this process, turning your JSON objects into production-ready <code>CREATE TABLE</code> statements optimized for MySQL 8.0 and MariaDB.</p>
 
-<h2>Automating DDL Generation</h2>
-<p>Database schema design requires precision. If a developer mistakenly assigns a <code>TINYINT</code> to a JSON field that occasionally returns large numbers, the application will experience catastrophic data truncation in production. By automatically generating MySQL <code>CREATE TABLE</code> statements directly from realistic JSON samples, you eliminate guesswork. The automated engine analyzes the data to suggest the most appropriate column types and sizes, ensuring that your database migrations are robust, scalable, and ready for deployment on day one.</p>
+<h2>Rapid Relational Database Design</h2>
+<p>Our tool analyzes your JSON payloads and suggests the most appropriate MySQL data types—mapping strings to <code>VARCHAR</code>, numbers to <code>INT</code> or <code>DECIMAL</code>, and booleans to <code>TINYINT(1)</code>. It also handles nested structures by suggesting a relational schema with foreign key possibilities.</p>
 
-<h2>TypeFlow's High-Fidelity MySQL Engine</h2>
-<p>TypeFlow performs deep semantic analysis on your JSON to output highly optimized MySQL DDL.</p>
+<h2>Local-First Privacy for System Architects</h2>
+<p>Database schemas represent the core architecture of your application. Sending your data samples to a web-based converter exposes your system's design. <strong>TypeFlow Pro processes every byte locally in your browser.</strong> This ensures that your table structures and field names remain strictly confidential.</p>
+
+<h2>Key Feature Set</h2>
 <ul>
-  <li><strong>Intelligent Type Mapping:</strong> JSON primitives are accurately mapped to their optimal MySQL counterparts. Strings become <code>VARCHAR(255)</code> or <code>TEXT</code> based on length, while numbers are mapped to <code>INT</code>, <code>BIGINT</code>, or <code>DECIMAL</code> depending on precision requirements.</li>
-  <li><strong>Handling Nested Structures:</strong> Complex nested JSON objects are intelligently identified. TypeFlow can either serialize them into a native MySQL <code>JSON</code> column or suggest secondary relational tables linked by foreign keys, promoting proper database normalization.</li>
-  <li><strong>Constraints and Nullability:</strong> By analyzing your JSON payload, the generator identifies fields that are consistently present and automatically applies <code>NOT NULL</code> constraints, ensuring strict data integrity at the database level.</li>
+    <li><strong>Smart Type Mapping:</strong> Correctly identifies JSON types and suggests optimal MySQL counterparts like <code>BIGINT</code>, <code>DOUBLE</code>, or <code>DATETIME</code>.</li>
+    <li><strong>DDL Generation:</strong> Produces clean, ready-to-run <code>CREATE TABLE</code> scripts with proper indexing and character set definitions.</li>
+    <li><strong>JSON Column Support:</strong> For modern MySQL versions, our tool can suggest using the <code>JSON</code> data type for semi-structured fields.</li>
+    <li><strong>Nullability Inference:</strong> Automatically detects when a field should be <code>NOT NULL</code> based on your data sample.</li>
 </ul>
 
-<h2>Local-First: Securing Your Database Blueprints</h2>
-<p>Your <code>CREATE TABLE</code> statements constitute the architectural blueprint of your entire business. Exposing your database structures, column names, and relational logic to cloud-based converters is a severe security vulnerability. <strong>TypeFlow operates entirely locally.</strong> The semantic parsing of your JSON and generation of MySQL DDL executes exclusively within your browser. Your database schema never touches an external server, guaranteeing compliance with enterprise security protocols.</p>
-
-<h2>Conclusion</h2>
-<p>Bridge the gap between raw JSON APIs and relational storage instantly. With TypeFlow, you can automatically generate optimized, production-ready MySQL <code>CREATE TABLE</code> statements from any payload. Eliminate manual DDL typing, prevent data truncation, and accelerate your backend architecture design.</p
+<p>Master your database modeling today with the world's most secure <strong>JSON to MySQL</strong> DDL generator.</p>

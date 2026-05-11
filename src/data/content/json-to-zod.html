@@ -1,38 +1,41 @@
-<h2>The Missing Link: Why TypeScript Types Alone Are Not Enough</h2>
-      <p>TypeScript has transformed web development by providing powerful compile-time safety. However, for many developers, there is a dangerous misunderstanding of what that safety actually covers. TypeScript's type system is <strong>erased at runtime</strong>. This means that if your API returns a string where you expected a number, or if a mandatory field is missing, your compiled JavaScript will proceed blindly, leading to the dreaded <code>undefined is not a function</code> errors or, worse, silent data corruption.</p>
-      
-      <p>To build truly resilient applications, you must move beyond "static types" and implement <strong>Runtime Validation</strong>. This is where <strong>Zod</strong> shines. TypeFlow bridges the gap between your raw data and your validation layer by automating the generation of complex Zod schemas from your JSON samples.</p>
+<p>Runtime data validation is the backbone of defensive programming in the modern JavaScript ecosystem. Our <strong>Professional JSON to Zod Schema Generator</strong> provides a seamless path from raw data to robust, type-safe validation logic. If you are building with TypeScript, Zod is your best defense against "lying" APIs and corrupted state.</p>
 
-      <h2>Defensive Programming: Validating at the Edge</h2>
-      <p>The most effective strategy for building stable systems is to validate data as soon as it enters your application—at the "Edge" of your system. This includes data from API responses, user inputs, and local storage. By using TypeFlow to generate Zod schemas, you establish a <strong>Defensive Barrier</strong> that ensures only valid data ever reaches your application logic.</p>
+<h2>The Power of "Parse, Don't Validate"</h2>
+<p>The philosophy of <strong>Zod</strong> is centered around the idea that validation should happen at the boundaries of your system. By converting your JSON samples into Zod schemas, you ensure that any data entering your application matches the expected shape perfectly. If the data is wrong, Zod catches it early, providing detailed error reports instead of silent failures deep in your logic.</p>
 
-      <h3>The "Shift-Left" Approach to Data Integrity</h3>
-      <p>By automating schema generation, TypeFlow allows you to "Shift-Left" your data integrity efforts. Instead of debugging runtime errors in production, you define the "Shape of Truth" using Zod schemas early in the development cycle. If an API response deviates from your schema, Zod will catch it immediately, providing detailed error messages that make debugging trivial.</p>
+<h2>Local-First Privacy for Enterprise Schemas</h2>
+<p>In many enterprise environments, the schemas themselves are considered sensitive information. They reveal the internal structure of your data models and business logic. <strong>TypeFlow Pro's local-first architecture</strong> ensures that your JSON payloads and the resulting Zod schemas are never uploaded to a cloud server. This is the only way to perform schema generation while maintaining total data sovereignty.</p>
 
-      <h2>TypeFlow: The Intelligent Zod Architect</h2>
-      <p>Generating a Zod schema manually for a deeply nested JSON object with 50+ fields is a recipe for developer burnout. TypeFlow's Zod engine is designed to handle the heavy lifting for you, ensuring your schemas are idiomatic and high-performance.</p>
-      
-      <h3>1. Seamless Type Synchronization</h3>
-      <p>The primary benefit of Zod is its ability to serve as a single source of truth. When TypeFlow generates a <code>z.object()</code>, it is designed to work perfectly with <code>z.infer<typeof schema></code>. This means you no longer have to manually maintain both a TypeScript interface and a validation schema. Your types are automatically derived from your validation logic, ensuring they are always in sync.</p>
+<h2>Advanced Zod Generation Features</h2>
+<ul>
+    <li><strong>Recursive Object Mapping:</strong> The generator intelligently handles nested objects, generating <code>z.object()</code> chains that match your data's depth.</li>
+    <li><strong>Array Type Inference:</strong> Whether you have a simple array of strings or a complex array of polymorphic objects, our engine infers the correct <code>z.array()</code> structure.</li>
+    <li><strong>Optional and Nullable Handling:</strong> Automatically detects <code>null</code> values and missing properties to apply <code>.nullable()</code> or <code>.optional()</code> modifiers correctly.</li>
+    <li><strong>Runtime Type Extraction:</strong> The generated code includes the <code>z.infer&lt;typeof Schema&gt;</code> helper, so you get the TypeScript interfaces for free along with your validation logic.</li>
+</ul>
 
-      <h3>2. Intelligent Optionality and Coercion</h3>
-      <p>Real-world data is messy. APIs often return numbers as strings, or dates in various formats. TypeFlow's engine detects these patterns and can suggest <strong>Zod Coercion</strong> (e.g., <code>z.coerce.number()</code>) to make your application more resilient to minor data inconsistencies. It also identifies optional fields across large datasets, marking them with <code>.optional()</code> or <code>.nullable()</code> based on actual data behavior.</p>
+<h2>Why Automation Matters for Zod</h2>
+<p>Writing Zod schemas by hand for a 50-field API response is tedious and error-prone. One missed property or incorrect type can lead to a <code>ZodError</code> that halts your application. TypeFlow Pro automates this process, allowing you to generate 100% accurate schemas in milliseconds. This speed is essential for rapid prototyping and staying in sync with evolving backend APIs.</p>
 
-      <h3>3. Recursive Schema Extraction</h3>
-      <p>For complex JSON structures, TypeFlow doesn't just output a single long string of code. It intelligently identifies nested objects and extracts them into <strong>Named Sub-Schemas</strong>. This promotes reusability across your codebase—for example, a <code>UserSchema</code> inferred from a nested object can be easily reused in other parts of your application.</p>
+<h2>Refining Your Generated Schemas</h2>
+<p>While our tool provides a perfect starting point, Zod allows for even deeper validation. We recommend enhancing your generated schemas with:</p>
+<ul>
+    <li><strong>String Refinements:</strong> Add <code>.email()</code>, <code>.url()</code>, or <code>.uuid()</code> to string fields for stricter validation.</li>
+    <li><strong>Number Constraints:</strong> Add <code>.min()</code>, <code>.max()</code>, or <code>.int()</code> to ensure your numeric data falls within acceptable ranges.</li>
+    <li><strong>Custom Descriptions:</strong> Use <code>.describe()</code> to add documentation directly to your schema, which can be useful for automatic documentation tools.</li>
+</ul>
 
-      <h2>Local-First: Protecting Your Application Blueprint</h2>
-      <p>Your validation schemas and API response patterns represent the internal architecture of your product. Sharing these samples with "Cloud-based" converters is a security liability. In an era where <strong>Data Sovereignty</strong> is paramount, you cannot afford to leak your API structures to third-party servers.</p>
+<h2>Security Audit: Browser-Only Processing</h2>
+<p>TypeFlow Pro is an "Air-Gapped" friendly tool. It requires no network connection once loaded and stores nothing in any database. For teams working in fintech, healthcare, or government sectors, this is the standard for secure developer tooling.</p>
 
-      <p><strong>TypeFlow's Zod generator is 100% Local-First.</strong> The conversion happens entirely in your browser using high-performance JavaScript logic. Your data stays on your machine. This makes TypeFlow the only choice for developers working on sensitive enterprise systems, financial platforms, or health-tech applications that must comply with strict privacy regulations.</p>
+<h3>Frequently Asked Questions</h3>
+<div class="faq-item">
+    <strong>Q: Does this tool support Zod v3?</strong>
+    <p>A: Yes, all generated schemas are optimized for Zod v3, utilizing the most efficient syntax and method chaining available in the latest version.</p>
+</div>
+<div class="faq-item">
+    <strong>Q: Can I generate schemas for multi-variant JSON arrays?</strong>
+    <p>A: Our 'Smart Parse' feature analyzes multiple items in an array to create a union schema (<code>z.union()</code>) that covers all possible variations of the data.</p>
+</div>
 
-      <h2>Use Cases: Where TypeFlow + Zod Wins</h2>
-      <ul>
-        <li><strong>API Integration:</strong> Turn any JSON response from a legacy system into a strictly validated Zod schema in seconds.</li>
-        <li><strong>Configuration Management:</strong> Validate your <code>config.json</code> files at startup to prevent "Invalid Configuration" crashes.</li>
-        <li><strong>Form Validation:</strong> Use JSON samples of successful form submissions to generate the validation logic for your frontend forms.</li>
-        <li><strong>Legacy Migration:</strong> Quickly add type-safety to existing JavaScript projects by generating Zod schemas from your current data samples.</li>
-      </ul>
-
-      <h2>Conclusion: Building Infallible TypeScript Systems</h2>
-      <p>TypeFlow is not just a tool; it's a component of a professional engineering workflow. By automating the generation of Zod schemas, we allow you to focus on building features while ensuring your application is protected against the unpredictability of external data. Move from "vulnerable types" to "total runtime safety" with TypeFlow.</p>
+<p>Master your runtime safety today with the most advanced <strong>JSON to Zod</strong> generator on the market.</p>

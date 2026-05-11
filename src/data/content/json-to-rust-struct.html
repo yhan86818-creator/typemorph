@@ -1,32 +1,41 @@
-<h2>The Rust Paradigm: Memory Safety and Zero-Cost Abstractions</h2>
-      <p><strong>Rust</strong> is redefining systems programming by providing the performance of C++ with the memory safety of high-level languages. One of the most powerful features of the Rust ecosystem is <strong>Serde</strong>—the framework for serializing and deserializing Rust data structures efficiently and generically. However, for Rustaceans, the bridge between raw JSON and strictly typed <code>structs</code> involves writing significant amounts of boilerplate, including <code>#[derive(Serialize, Deserialize)]</code> attributes and <code>#[serde(rename = "...")]</code> tags.</p>
-      
-      <p>TypeFlow provides a professional-grade solution for this workflow. By automating the generation of idiomatic Rust structs from your JSON samples, we enable you to build high-performance, memory-safe services with unprecedented velocity.</p>
+<p>In the world of systems programming, Rust is celebrated for its memory safety and performance. However, handling JSON in Rust requires a precise and often verbose set of struct definitions and <strong>Serde</strong> attributes. Our <strong>Professional JSON to Rust Struct Converter</strong> is engineered to deliver production-ready code for the modern Rustacean.</p>
 
-      <h2>Idiomatic Rust: Beyond Simple Translation</h2>
-      <p>Writing Rust structs manually requires deep knowledge of the language's ownership model and the Serde ecosystem. TypeFlow's Rust engine is designed to follow the community's strict standards.</p>
+<h2>Idiomatic Rust with Serde Power</h2>
+<p>Unlike basic converters that produce generic structs, TypeFlow Pro's engine is deeply integrated with the <strong>Serde ecosystem</strong>. It automatically generates <code>#[derive(Debug, Serialize, Deserialize)]</code> attributes, handles proper <strong>PascalCase</strong> for struct names, and uses <code>#[serde(rename = "...")]</code> tags to map non-idiomatic JSON keys to clean, snake_case Rust fields.</p>
 
-      <h3>1. Automatic PascalCase and Serde Tagging</h3>
-      <p>In Rust, the standard naming convention for structs is <strong>PascalCase</strong>, while fields are typically <strong>snake_case</strong>. TypeFlow intelligently handles these conversions, providing the necessary <code>#[serde(rename_all = "camelCase")]</code> or individual <code>#[serde(rename = "...")]</code> attributes to ensure your structs perfectly match your API payloads while remaining idiomatic.</p>
+<h2>Local-First: Safety for Systems Engineers</h2>
+<p>Systems engineering often involves handling extremely sensitive configuration data or internal API schemas. Sending this information to a cloud-based converter is a risk that most professional Rust developers are not willing to take. <strong>TypeFlow Pro processes every byte of data locally in your browser.</strong> This ensures that your schemas and intellectual property never touch a third-party server.</p>
 
-      <h3>2. Intelligent Type Inference and Nullability</h3>
-      <p>Rust has a rich set of numeric types (<code>i32</code>, <code>u64</code>, <code>f64</code>, etc.). TypeFlow's engine analyzes your JSON values to suggest the most appropriate and efficient type. Crucially, it handles nullability using the <code>Option<T></code> type. By analyzing JSON array samples, it identifies fields that may be missing or null and automatically wraps them in <code>Option</code>, ensuring your application handles data unpredictability safely.</p>
+<h2>Advanced Rust Generation Features</h2>
+<ul>
+    <li><strong>Smart Option&lt;T&gt; Inference:</strong> Intelligently identifies nullable or missing JSON fields and wraps them in <code>Option&lt;T&gt;</code> to prevent runtime deserialization errors.</li>
+    <li><strong>Comprehensive Primitive Mapping:</strong> Maps JSON numbers to the most appropriate Rust type, from <code>i32</code> and <code>f64</code> to <code>u64</code>, based on the sample data's range and type.</li>
+    <li><strong>Deep Nesting Mastery:</strong> Recursively generates the entire hierarchy of structs required for complex, multi-level JSON payloads.</li>
+    <li><strong>Enum Support:</strong> When your JSON includes strings that act as variants, our Pro workbench can help you generate idiomatic Rust enums with the correct Serde tagging.</li>
+</ul>
 
-      <h3>3. Zero-Cost Code Generation</h3>
-      <p>The generated Rust structs are designed to leverage Rust's zero-cost abstractions. We provide the necessary <code>derive</code> attributes (e.g., <code>Debug</code>, <code>Clone</code>, <code>Serialize</code>, <code>Deserialize</code>) to ensure your data models are feature-rich and ready for use in production-grade systems.</p>
+<h2>Optimizing the Rust Workflow</h2>
+<p>Rust's compiler is famously helpful, but it cannot write your boilerplate for you. Manually typing a 50-field struct with its associated derives and renaming tags is a significant time sink. TypeFlow Pro automates this, allowing you to move from a raw JSON sample to a compiled <code>serde_json::from_str</code> call in seconds. This allows you to focus on your core business logic rather than boilerplate management.</p>
 
-      <h2>Local-First: Privacy for Systems Architects</h2>
-      <p>Your Rust structs represent the internal data architecture of your highest-performance services. Sharing these models with cloud-based converters is a significant security liability. It reveals your field names, internal logic, and systems engineering patterns to third-party servers.</p>
+<h3>Fine-Tuning for Performance</h3>
+<p>Professional Rust development often requires specific optimizations. Our workbench supports:</p>
+<ul>
+    <li><strong>Default and Skip Attributes:</strong> Add <code>#[serde(default)]</code> or <code>#[serde(skip_serializing_if = "Option::is_none")]</code> to keep your JSON outputs clean and minimal.</li>
+    <li><strong>Crate-Specific Customization:</strong> Generate code compatible with common Rust web frameworks like Actix, Axum, or Rocket.</li>
+    <li><strong>Documentation Integration:</strong> Convert JSON comments into <code>///</code> doc comments for your generated structs, maintaining context for your entire team.</li>
+</ul>
 
-      <p><strong>TypeFlow is 100% Local-First.</strong> The struct generation happens entirely in your browser using high-performance JavaScript logic. Your data <strong>never leaves your machine</strong>. This architecture makes TypeFlow the only secure choice for developers working on proprietary systems, blockchain protocols, or high-security cloud infrastructure.</p>
+<h2>Security Audit: Your Data, Your Browser</h2>
+<p>TypeFlow Pro is an "Air-Gapped" friendly utility. It requires no network once the app is loaded and stores zero data in any external database. For developers in high-compliance sectors (Defense, Fintech, Core Infrastructure), it is the only acceptable choice for schema conversion.</p>
 
-      <h2>Use Cases: Scaling with Rust</h2>
-      <ul>
-        <li><strong>Cloud-Native Services:</strong> Quickly generate data models for high-performance microservices and CLI tools.</li>
-        <li><strong>Wasm Development:</strong> Create the necessary structs for passing data between JavaScript and WebAssembly modules.</li>
-        <li><strong>API Clients:</strong> Generate the request and response models for your Rust-based API clients using <code>reqwest</code> or <code>axum</code>.</li>
-        <li><strong>Configuration Management:</strong> Define structs that match your <code>settings.json</code> files for use with the <code>config</code> crate.</li>
-      </ul>
+<h3>Frequently Asked Questions</h3>
+<div class="faq-item">
+    <strong>Q: Does this support camelCase to snake_case conversion?</strong>
+    <p>A: Yes. By default, it follows Rust's naming conventions and uses Serde's renaming attributes to maintain compatibility with the original JSON structure.</p>
+</div>
+<div class="faq-item">
+    <strong>Q: Can I generate Vec&lt;T&gt; for JSON arrays?</strong>
+    <p>A: Absolutely. It correctly identifies arrays and generates the appropriate <code>Vec&lt;T&gt;</code> or <code>HashMap&lt;String, T&gt;</code> depending on the structure.</p>
+</div>
 
-      <h2>Conclusion: Building Unstoppable Rust Applications</h2>
-      <p>TypeFlow's JSON-to-Rust Struct converter is an essential tool in any professional Rustacean's toolkit. By automating the repetitive task of struct definition, we allow you to focus on the complex logic and performance optimizations that make Rust great. Bridge the gap between your data and your Rust services with TypeFlow.</p>
+<p>Master your data modeling in Rust today with the most advanced <strong>JSON to Rust Struct</strong> generator in the industry.</p>

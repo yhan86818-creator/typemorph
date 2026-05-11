@@ -1,32 +1,17 @@
-<h2>The cURL-to-Fetch Transition: Why Modernize?</h2>
-      <p><strong>cURL</strong> is the universal language of the command line, used by developers everywhere to test APIs and debug network requests. However, when it's time to integrate those same requests into a modern web application (React, Vue, Next.js), manually translating a complex cURL command with multiple headers, auth tokens, and body parameters into a clean JavaScript <code>fetch()</code> call is a tedious and error-prone process. Missing a single header or incorrectly formatting the JSON body can lead to frustrating debugging sessions.</p>
-      
-      <p>TypeFlow's cURL-to-Fetch converter is designed to eliminate this friction. By automating the transformation of terminal-based commands into high-quality, production-ready JavaScript code, we allow you to focus on building features instead of wrestling with request syntax.</p>
+<p>In the world of web development, testing APIs with cURL is standard practice. However, translating those terminal commands into modern <strong>JavaScript Fetch</strong> or <strong>Axios</strong> calls can be repetitive. Our <strong>Professional cURL to Fetch Converter</strong> automates this transformation with precision.</p>
 
-      <h2>Intelligent cURL Parsing and Fetch Generation</h2>
-      <p>Our conversion engine doesn't just perform simple string replacement; it understands the structure of HTTP requests to provide the best possible output.</p>
+<h2>Modernize Your API Consumption</h2>
+<p>Our tool parses complex cURL commands—including headers, cookies, POST data, and authentication—and generates clean, idiomatic JavaScript <code>fetch()</code> or TypeScript code. It handles various body formats like <code>application/json</code>, <code>multipart/form-data</code>, and <code>application/x-www-form-urlencoded</code> automatically.</p>
 
-      <h3>1. Robust Header and Method Extraction</h3>
-      <p>TypeFlow intelligently parses cURL flags (<code>-X</code>, <code>-H</code>, <code>--header</code>) to identify the HTTP method and all associated headers. Whether you're dealing with <code>Bearer</code> tokens, <code>Content-Type</code>, or custom organization headers, the generated <code>fetch()</code> call correctly encapsulates them in a clean <code>headers</code> object.</p>
+<h2>Local-First Privacy for API Keys</h2>
+<p>cURL commands often contain sensitive information like <strong>Bearar Tokens</strong>, <strong>API Keys</strong>, and <strong>Session Cookies</strong>. Sending these to a cloud-based converter is a major security risk. <strong>TypeFlow Pro operates 100% locally in your browser.</strong> Your credentials never leave your machine, ensuring your API security remains intact.</p>
 
-      <h3>2. Smart Body and URL Parameter Handling</h3>
-      <p>Handling POST data (<code>-d</code>, <code>--data</code>) is where many manual conversions fail. TypeFlow identifies JSON bodies, form data, and URL-encoded parameters, correctly formatting them for the <code>body</code> property of the <code>fetch()</code> call. We also clean up the target URL, ensuring that query parameters are handled gracefully.</p>
+<h2>Key Transformation Features</h2>
+<ul>
+    <li><strong>Header Mapping:</strong> Correctly translates <code>-H</code> or <code>--header</code> flags into a clean Headers object.</li>
+    <li><strong>Request Method Detection:</strong> Automatically identifies <code>GET</code>, <code>POST</code>, <code>PUT</code>, <code>DELETE</code>, and other HTTP verbs.</li>
+    <li><strong>Body Parser:</strong> Intelligently handles <code>-d</code>, <code>--data</code>, and <code>--data-raw</code>, formatting them as JSON strings or URLSearchParams as needed.</li>
+    <li><strong>Async/Await Output:</strong> Generates modern, clean <code>async/await</code> code ready to be pasted into your project.</li>
+</ul>
 
-      <h3>3. TypeScript and Async/Await Readiness</h3>
-      <p>The generated code uses modern <code>async/await</code> syntax and is fully compatible with TypeScript. We provide a clean, modular structure that can be easily integrated into your application's API service layer or custom hooks. This ensures your API consumption logic is readable, maintainable, and modern.</p>
-
-      <h2>Local-First: Privacy for Your API Credentials</h2>
-      <p>cURL commands often contain sensitive information, including **API Keys, Auth Tokens, and Proprietary Endpoints**. Sharing these commands with cloud-based converters is a significant security liability, as it exposes your secrets to third-party servers.</p>
-
-      <p><strong>TypeFlow is 100% Local-First.</strong> The cURL-to-Fetch conversion happens entirely in your browser. Your sensitive tokens and commands <strong>never leave your machine</strong>. This architecture ensures your API credentials remain private and secure, meeting the strict requirements of professional enterprise development and individual privacy.</p>
-
-      <h2>Use Cases: Modernizing Your Workflow</h2>
-      <ul>
-        <li><strong>Frontend Integration:</strong> Quickly turn a working cURL command from your backend team into a functional frontend request.</li>
-        <li><strong>API Documentation Porting:</strong> Convert examples from API documentation (which are often provided as cURL) into your application code.</li>
-        <li><strong>Rapid Prototyping:</strong> Move from a successful terminal test to a working browser feature in seconds.</li>
-        <li><strong>Debugging:</strong> Compare your application's request logic with a known-working cURL command by seeing the exact Fetch equivalent.</li>
-      </ul>
-
-      <h2>Conclusion: Bridging the Terminal and the Browser</h2>
-      <p>TypeFlow's cURL-to-Fetch converter is an essential tool for any modern web developer. By automating the transition between command-line testing and application code, we allow you to build better APIs with less effort. Experience the speed and security of modern API consumption with TypeFlow.</p>
+<p>Save time and stay secure by converting your <strong>cURL to Fetch</strong> locally with TypeFlow Pro.</p>

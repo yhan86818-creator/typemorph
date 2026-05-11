@@ -1,19 +1,16 @@
-<h2>Strict Typing in Pure Functional Programming</h2>
-<p><strong>Haskell</strong> is a purely functional programming language renowned for its incredibly powerful and rigorous static type system. Unlike languages that rely on runtime checks, Haskell ensures that if a program compiles, it is mathematically sound. However, this strictness means that consuming dynamic external data—like JSON from a REST API—requires a perfectly defined <code>data</code> type and corresponding Aeson <code>FromJSON</code> and <code>ToJSON</code> instances. Manually writing these algebraic data types (ADTs) and dealing with deeply nested JSON structures is notoriously tedious and prone to boilerplate.</p>
+<p>Haskell is the ultimate language for developers who value advanced type systems and mathematical correctness. However, manually defining data types and <strong>Aeson</strong> instances for complex JSON can be tedious. Our <strong>Professional JSON to Haskell Type Generator</strong> provides a secure, local-first path to generating robust data models for your functional applications.</p>
 
-<h2>Automating Aeson Data Types</h2>
-<p>In the Haskell ecosystem, the <code>Aeson</code> library is the undisputed standard for JSON serialization and deserialization. When you receive a JSON payload, you must define a Haskell <code>data</code> record that matches the exact keys and types of the JSON. If a single field is missing or incorrectly typed (e.g., specifying an <code>Int</code> instead of a <code>Double</code>), Aeson will refuse to parse the payload at runtime. Automating the generation of these data types directly from a sample JSON payload eliminates the manual transcription process, ensuring that your types are perfectly aligned with the external data contract from day one.</p>
+<h2>Advanced Type-Safe Data Engineering</h2>
+<p>Our tool analyzes your JSON samples and generates idiomatic Haskell <code>data</code> types, including support for <strong>Deriving Generic</strong> and generating <code>FromJSON</code>/<code>ToJSON</code> instances automatically. This ensures your data ingestion layer is as mathematically sound as the rest of your Haskell code.</p>
 
-<h2>TypeFlow's Functional Generation Engine</h2>
-<p>TypeFlow provides a highly precise engine designed specifically for Haskell's unique syntax and typing rules.</p>
+<h2>Local-First Privacy: Mandatory for Functional Systems</h2>
+<p>In high-security functional programming environments, your data models represent a critical part of your architecture. <strong>TypeFlow Pro's local-first architecture</strong> ensures your JSON samples and Haskell data types never leave your machine, providing the security required for professional development.</p>
+
+<h2>Key Features for Haskell Integration</h2>
 <ul>
-  <li><strong>Idiomatic Record Syntax:</strong> We automatically generate clean, idiomatic Haskell record types (e.g., <code>data User = User { ... } deriving (Show, Generic)</code>) that perfectly mirror your JSON structure.</li>
-  <li><strong>Intelligent Type Inference:</strong> JSON primitives are accurately mapped to Haskell types like <code>Text</code>, <code>Int</code>, <code>Double</code>, and <code>Bool</code>. Nested JSON objects are automatically extracted into their own distinct data types.</li>
-  <li><strong>Maybe Types for Optionality:</strong> By analyzing your payload, TypeFlow detects missing or optional fields across JSON arrays and automatically wraps the corresponding Haskell fields in a <code>Maybe</code> type, ensuring total safety against null values.</li>
+    <li><strong>Recursive Type Generation:</strong> Automatically handles deeply nested JSON by creating a hierarchy of modular data types.</li>
+    <li><strong>Smart Type Mapping:</strong> Correctly identifies and maps JSON types to Haskell's primitives like <code>Text</code>, <code>Int</code>, <code>Double</code>, <code>Bool</code>, and <code>Maybe a</code>.</li>
+    <li><strong>Aeson Compatibility:</strong> Produces code that works perfectly with the industry-standard Aeson library.</li>
 </ul>
 
-<h2>Local-First: Protecting Your Data Structures</h2>
-<p>The JSON payloads you process often contain sensitive business logic, user data, or proprietary API definitions. Pasting these structures into a cloud-based converter exposes your application's internal data models to external servers. <strong>TypeFlow operates 100% locally.</strong> The semantic parsing of your JSON and the generation of your Haskell data types execute entirely within your browser's memory. Your data never leaves your machine.</p>
-
-<h2>Conclusion</h2>
-<p>Embrace the power of Haskell's type system without the boilerplate. Use TypeFlow to instantly generate strictly typed, Aeson-compatible data records from any JSON payload. Accelerate your backend development, eliminate parsing errors, and write robust, purely functional applications with absolute confidence.</p>
+<p>Experience the power of advanced type-safe modeling today with our secure <strong>JSON to Haskell Type</strong> generator.</p>

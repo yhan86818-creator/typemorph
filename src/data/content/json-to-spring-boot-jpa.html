@@ -1,19 +1,16 @@
-<h2>The Heavy Lifting of Java Enterprise Development</h2>
-<p>In the Java enterprise ecosystem, <strong>Spring Boot</strong> and <strong>JPA (Java Persistence API)</strong> are the gold standard for backend data management. To map database tables to Java objects, developers use JPA Entities. However, in modern API-first development, you often receive a JSON payload specification before the database schema even exists. Manually writing Java POJOs, applying the correct <code>@Entity</code>, <code>@Id</code>, and <code>@Column</code> annotations, and generating getters/setters for massive JSON payloads is the definition of tedious enterprise boilerplate.</p>
+<p>Spring Boot and JPA (Java Persistence API) are the backbone of enterprise Java development. However, manually adding Hibernate annotations and defining entity classes for complex data can be a significant time sink. Our <strong>Professional JSON to Spring Boot JPA Entity Converter</strong> provides a secure, local-first path to automating your database layer.</p>
 
-<h2>Automating the Entity Mapping Process</h2>
-<p>Writing JPA entities by hand for deeply nested JSON data is not only slow but heavily prone to human error. A misspelled column name or a mismatched data type will cause Hibernate to fail during application startup. By automating the conversion from JSON directly into annotated Spring Boot JPA Entities, you skip hours of structural plumbing. You ensure that your Java models are instantly ready for repositories, controllers, and database migrations, strictly matching the required data shape.</p>
+<h2>Enterprise-Grade Java Data Engineering</h2>
+<p>Our tool analyzes your JSON samples and generates clean JPA entity classes with the necessary decorators like <code>@Entity</code>, <code>@Table</code>, and <code>@Column</code>. This ensures your database models are perfectly synced with your Java logic with zero manual boilerplate, optimized for Hibernate and Spring Data JPA.</p>
 
-<h2>TypeFlow: The Enterprise Java Architect</h2>
-<p>TypeFlow provides high-fidelity Java code generation that adheres to strict enterprise conventions.</p>
+<h2>Local-First Privacy: Mandatory for Enterprise Backend</h2>
+<p>In high-compliance Java environments, your database models represent a critical part of your architecture. <strong>TypeFlow Pro's local-first architecture</strong> ensures your JSON samples and entity definitions are never uploaded to a cloud server. Your data stays on your machine, ensuring total privacy and security.</p>
+
+<h2>Key Features for Spring Boot Integration</h2>
 <ul>
-  <li><strong>Smart Annotation Injection:</strong> We automatically add the necessary <code>@Entity</code> and <code>@Table</code> annotations, and intelligently guess the Primary Key field (e.g., <code>id</code>), decorating it with <code>@Id</code> and <code>@GeneratedValue</code>.</li>
-  <li><strong>Relationship Scaffolding:</strong> Nested objects within your JSON are extracted into separate Entity classes, giving you the perfect structural foundation to add <code>@OneToMany</code> or <code>@ManyToOne</code> relationship mappings.</li>
-  <li><strong>Lombok Support:</strong> We optionally inject <code>@Data</code>, <code>@NoArgsConstructor</code>, and <code>@AllArgsConstructor</code> annotations to keep your Java files clean, modern, and free of noisy getter/setter boilerplate.</li>
+    <li><strong>Comprehensive Annotation Support:</strong> Automatically adds <code>@Id</code>, <code>@GeneratedValue</code>, and <code>@Column</code> with proper types.</li>
+    <li><strong>Recursive Mapping:</strong> Handles nested JSON objects by suggesting <code>@OneToOne</code> or <code>@ManyToOne</code> relations.</li>
+    <li><strong>Lombok Support:</strong> Optionally adds <code>@Data</code>, <code>@NoArgsConstructor</code>, and <code>@AllArgsConstructor</code> to keep your classes lean.</li>
 </ul>
 
-<h2>Local-First: Securing Your Corporate Data Models</h2>
-<p>Your JPA entities map directly to your corporate database schema. Exposing this information to third-party cloud tools violates strict enterprise security and compliance standards (such as SOC2). <strong>TypeFlow is a 100% Local-First tool.</strong> Your JSON parsing and Java code generation are executed entirely within your local browser environment. Your database blueprint never leaves your network.</p>
-
-<h2>Conclusion</h2>
-<p>Eliminate Java boilerplate and accelerate your Spring Boot development. With TypeFlow, you can instantly turn JSON payloads into production-ready JPA Entities, ensuring strict type safety and a rapid transition from API design to database persistence.</p>
+<p>Experience the fastest way to build enterprise Java apps with our secure <strong>JSON to JPA Entity</strong> generator.</p>

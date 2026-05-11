@@ -1,19 +1,16 @@
-<h2>Orchestrating Local Environments</h2>
-<p><strong>Docker Compose</strong> is the absolute standard for defining and running multi-container Docker applications. By using a declarative YAML file (<code>docker-compose.yml</code>), developers can spin up their entire local stack—databases, caching layers, and backend services—with a single command. However, when migrating configuration data from a legacy JSON orchestration tool, or when programmatically generating environments from an API response, manually translating a massive, deeply nested JSON hierarchy into perfectly indented Docker Compose YAML is highly error-prone.</p>
+<p>Docker Compose has revolutionized local development and microservices orchestration. However, manually translating complex JSON configurations into <code>environment</code> variables or service settings in a <code>docker-compose.yml</code> file can be a repetitive task. Our <strong>Professional JSON to Docker Compose Generator</strong> provides a secure, local-first bridge to your containerized environment.</p>
 
-<h2>The Sensitivity of YAML Indentation</h2>
-<p>Docker Compose relies strictly on correct YAML indentation and schema validation. If you manually convert a JSON object defining a PostgreSQL service and mistakenly indent the <code>environment</code> variables under <code>ports</code> instead of the service root, the <code>docker-compose up</code> command will instantly crash with a validation error. Furthermore, mapping JSON arrays to YAML lists (using the <code>-</code> syntax) requires meticulous attention. Automating the conversion of raw JSON infrastructure data directly into flawless, structurally sound Docker Compose YAML eliminates syntax-related downtime entirely.</p>
+<h2>Simplifying Containerized Orchestration</h2>
+<p>Whether you are moving app settings into a <code>service</code> definition or complex environment configurations into a YAML file, manually formatting JSON into the required Docker Compose structure is prone to indentation errors. Our tool automates this by taking your JSON data and generating valid, production-ready Docker Compose YAML fragments instantly.</p>
 
-<h2>TypeFlow's Infrastructure Orchestration Engine</h2>
-<p>TypeFlow provides a precise translation engine built specifically for modern container orchestration.</p>
+<h2>Local-First Privacy: Mandatory for Container Configs</h2>
+<p>Container configurations often contain sensitive information about your architecture, internal system names, or deployment strategies. <strong>TypeFlow Pro operates 100% locally.</strong> Your configuration data and manifest designs never touch our servers, ensuring your business intelligence and data architecture remain confidential.</p>
+
+<h2>Key Features for DevOps Integration</h2>
 <ul>
-  <li><strong>Flawless YAML Indentation:</strong> We perfectly translate nested JSON service definitions, volume mappings, and network configurations into strictly indented YAML hierarchies, ensuring complete compatibility with the Docker daemon.</li>
-  <li><strong>Array to List Mapping:</strong> JSON arrays (commonly used for <code>ports</code>, <code>environment</code>, and <code>depends_on</code>) are accurately mapped to idiomatic YAML lists, guaranteeing proper configuration parsing.</li>
-  <li><strong>Safe String Quoting:</strong> Docker Compose YAML is notoriously sensitive to unquoted strings that look like booleans or numbers (e.g., a port mapping like <code>"80:80"</code>). TypeFlow intelligently quotes strings when necessary to prevent parsing ambiguity.</li>
+    <li><strong>Environment Variable Mapping:</strong> Automatically translates JSON keys and values into the <code>environment:</code> block format.</li>
+    <li><strong>Clean YAML Output:</strong> Produces standards-compliant YAML that is easy to read and maintain within your repository.</li>
+    <li><strong>Service Template Generation:</strong> Generate basic service blocks with proper configuration mapping directly from your JSON payload.</li>
 </ul>
 
-<h2>Local-First: Securing Your Container Architecture</h2>
-<p>Docker Compose files are the blueprints of your local and staging environments. They often contain internal routing rules, database passwords, and structural secrets. Uploading these blueprints to a third-party cloud converter is a massive security vulnerability. <strong>TypeFlow is completely Local-First.</strong> The parsing of your JSON and the generation of your Docker Compose YAML happen exclusively within your browser. Your environment architecture never touches the external internet, ensuring absolute DevOps security.</p>
-
-<h2>Conclusion</h2>
-<p>Streamline your local development environments effortlessly. Use TypeFlow to instantly and securely convert JSON data into flawless, ready-to-run Docker Compose YAML configurations. Eliminate indentation errors, accelerate your container orchestration, and manage your dev stacks with total confidence.</p>
+<p>Supercharge your containerized development today with the world's most private <strong>JSON to Docker Compose</strong> generator.</p>

@@ -1,16 +1,17 @@
-<h2>Modern Backend-as-a-Service with Supabase</h2>
-<p><strong>Supabase</strong> has rapidly become the leading open-source alternative to Firebase, offering a powerful combination of PostgreSQL, real-time subscriptions, authentication, and edge functions. One of its greatest strengths is its deep integration with **TypeScript**. When you query your Supabase database using the official client library, you want your response data to be strictly typed to avoid runtime errors and enjoy full IDE autocomplete. However, manually maintaining TypeScript interfaces that mirror your database tables or complex JSON responses from edge functions is a tedious and error-prone task.</p>
+<p>Supabase is the leading open-source Firebase alternative, providing a powerful PostgreSQL backend with automatic API generation. Our <strong>Professional JSON to Supabase Type Generator</strong> is designed for developers who need to sync their frontend TypeScript types with their Supabase database schema instantly.</p>
 
-<h2>Eliminating Boilerplate in the Supabase Ecosystem</h2>
-<p>While Supabase provides a CLI to generate types directly from your database schema, there are many scenarios—such as processing custom JSON payloads in Edge Functions or handling complex joins—where you need to quickly generate types from a sample JSON object. Manually transcribing a nested JSON structure into a TypeScript interface takes valuable development time and often leads to subtle mismatches. By automating this conversion, developers can instantly ensure their frontend and edge logic are perfectly synchronized with the actual data being processed.</p>
+<h2>Type-Safe Serverless Development</h2>
+<p>Supabase provides excellent TypeScript support, but manually maintaining types for your tables and functions can be tedious. Our tool analyzes your JSON data samples and generates the precise TypeScript definitions required to work with the Supabase client, ensuring full type safety for your <code>.from('table').select()</code> queries.</p>
 
-<h2>TypeFlow's Precision Supabase Engine</h2>
-<p>TypeFlow intelligently analyzes your JSON structures to generate pristine, production-ready TypeScript interfaces optimized for Supabase projects.</p>
+<h2>Local-First Privacy for Database Schemas</h2>
+<p>Your database schema and sample data represent the core architecture of your application. <strong>TypeFlow Pro processes all data locally in your browser.</strong> This ensures your Supabase table structures and proprietary data never touch our servers, maintaining the security and privacy required for professional development.</p>
+
+<h2>Key Supabase Integration Features</h2>
 <ul>
-  <li><strong>Strict Type Inference:</strong> JSON primitives are accurately mapped to TypeScript types, including handling of nullables and optional fields frequently found in relational database responses.</li>
-  <li><strong>Nested Relationship Handling:</strong> Complex JSON objects resulting from foreign key joins or nested JSONB columns are cleanly extracted into distinct, reusable interfaces.</li>
-  <li><strong>Safe Browser-Side Execution:</strong> Like all TypeFlow tools, the conversion happens entirely in your browser. Your sensitive database structures and API keys never touch our servers, ensuring absolute security.</li>
+    <li><strong>Table to Type Mapping:</strong> Automatically generates interfaces that match your Supabase table structures from JSON exports.</li>
+    <li><strong>Nullable and Optional Detection:</strong> Correctly identifies optional columns and nullable fields to prevent runtime errors in your frontend.</li>
+    <li><strong>Database-to-Frontend Sync:</strong> Bridges the gap between your PostgreSQL backend and your React/Next.js frontend with 100% accuracy.</li>
+    <li><strong>Clean Code Output:</strong> Produces idiomatic TypeScript that fits perfectly into your <code>types/supabase.ts</code> file.</li>
 </ul>
 
-<h2>Conclusion</h2>
-<p>Stop wasting time on manual type definitions. Use TypeFlow to instantly and securely convert any JSON payload into strict TypeScript interfaces for your Supabase application. Accelerate your development, eliminate type errors, and build robust full-stack applications with ease.</p>
+<p>Experience the fastest way to build type-safe serverless apps with our <strong>JSON to Supabase</strong> type generator.</p>

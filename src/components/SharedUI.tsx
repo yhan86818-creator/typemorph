@@ -67,11 +67,11 @@ export const JsonVisualizer = ({ data, name = "root", depth = 0 }: { data: any, 
     const color = type === 'string' ? 'text-green-500' : type === 'number' ? 'text-blue-500' : type === 'boolean' ? 'text-orange-500' : 'text-slate-400';
     return (
       <div className="flex items-center gap-2 py-0.5 ml-4 group hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded px-1 transition-colors">
-        <span className="text-slate-400 dark:text-slate-500 font-mono text-[10px]">{name}:</span>
+        <span className="text-slate-400 dark:text-slate-400 font-mono text-[10px]">{name}:</span>
         <span className={`${color} font-mono text-[10px] font-bold`}>
           {type === 'string' ? `"${data}"` : String(data)}
         </span>
-        <span className="text-[8px] text-slate-300 dark:text-slate-700 opacity-0 group-hover:opacity-100 transition-opacity uppercase font-black">{type}</span>
+        <span className="text-[8px] text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity uppercase font-black">{type}</span>
       </div>
     );
   }
@@ -83,8 +83,8 @@ export const JsonVisualizer = ({ data, name = "root", depth = 0 }: { data: any, 
         <div className={`w-4 h-4 rounded flex items-center justify-center ${isArr ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-500' : 'bg-purple-50 dark:bg-purple-900/30 text-purple-500'}`}>
           {isArr ? <Table size={10} /> : <Layers size={10} />}
         </div>
-        <span className="text-slate-900 dark:text-slate-200 font-bold font-mono text-[10px]">{name}</span>
-        <span className="text-slate-300 dark:text-slate-600 text-[9px] font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-full">
+        <span className="text-slate-900 dark:text-white font-bold font-mono text-[10px]">{name}</span>
+        <span className="text-slate-300 dark:text-slate-500 text-[9px] font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-full">
           {isArr ? `${data.length} items` : `${Object.keys(data).length} props`}
         </span>
       </div>

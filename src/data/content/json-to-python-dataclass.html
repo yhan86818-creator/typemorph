@@ -1,19 +1,16 @@
-<h2>Modernizing Python Object Modeling</h2>
-<p>Since the introduction of PEP 557 in Python 3.7, <strong>Dataclasses</strong> have become the modern standard for creating structured data objects in Python. They eliminate the boilerplate of writing <code>__init__</code>, <code>__repr__</code>, and <code>__eq__</code> methods manually. When interacting with web APIs or parsing complex JSON files, developers often need to map raw dictionary data into strict, type-hinted Dataclasses to ensure code reliability and IDE autocomplete support. However, manually defining a Dataclass for a massive, deeply nested JSON response is a tedious chore that breaks developer focus.</p>
+<p>Modern Python development relies heavily on <strong>Dataclasses</strong> for clean, type-hinted data modeling. Our <strong>Professional JSON to Python Dataclass Converter</strong> automates the generation of boilerplate-free classes from your JSON samples, compatible with Python 3.7+.</p>
 
-<h2>Bridging Raw Dictionaries and Strict Types</h2>
-<p>While Python allows you to easily parse JSON into a standard <code>dict</code>, working with deeply nested dictionaries relies on fragile string keys (e.g., <code>data['user']['address']['city']</code>). A single typo results in a <code>KeyError</code> at runtime. By automating the conversion from JSON to Python Dataclasses, you instantly upgrade your application's data layer. You gain dot-notation access (e.g., <code>data.user.address.city</code>), robust type hints for your IDE, and a self-documenting code structure that is much easier to test and maintain.</p>
+<h2>Type-Safe Data Modeling in Python</h2>
+<p>Dataclasses provide a concise way to store data with built-in support for comparison, representation, and initialization. Our tool analyzes your JSON structure and generates idiomatic Python classes with the <code>@dataclass</code> decorator, including proper type hints like <code>List[str]</code>, <code>Optional[int]</code>, and nested dataclass definitions.</p>
 
-<h2>TypeFlow's Idiomatic Dataclass Generator</h2>
-<p>TypeFlow generates clean, PEP-8 compliant Python code that leverages modern type hinting.</p>
+<h2>Local-First Privacy for Backend Devs</h2>
+<p>When developing backend services, the JSON data you work with often contains proprietary logic or sensitive schemas. <strong>TypeFlow Pro's local-first architecture</strong> means your data is never uploaded to the cloud, ensuring your intellectual property stays on your machine.</p>
+
+<h2>Core Features</h2>
 <ul>
-  <li><strong>Automatic Type Hinting:</strong> JSON primitives are perfectly mapped to Python types (<code>str</code>, <code>int</code>, <code>float</code>, <code>bool</code>). We also utilize the <code>typing</code> module for complex structures (<code>List[...]</code>, <code>Dict[...]</code>).</li>
-  <li><strong>Intelligent Optionality:</strong> By analyzing your JSON payload, TypeFlow detects fields that might be null or missing and automatically wraps them in <code>Optional[...]</code>, ensuring your code handles incomplete data gracefully.</li>
-  <li><strong>Nested Class Extraction:</strong> Deeply nested JSON objects are automatically extracted into separate, cleanly named Dataclasses, promoting modularity and clean object-oriented architecture.</li>
+    <li><strong>Recursive Class Generation:</strong> Automatically creates multiple dataclasses for nested JSON structures.</li>
+    <li><strong>Smart Type Inference:</strong> Intelligently maps JSON values to Python's <code>str</code>, <code>int</code>, <code>float</code>, <code>bool</code>, and <code>Any</code>.</li>
+    <li><strong>Compatibility First:</strong> Generates code that works with standard Python dataclasses, <code>typing</code> module, and modern IDEs for perfect autocompletion.</li>
 </ul>
 
-<h2>Local-First: Protecting Your Python Blueprints</h2>
-<p>Your Python data models often represent the internal architecture of your machine learning pipelines, backend services, or web scrapers. Sending your JSON samples to cloud-based converters exposes your proprietary data structures to third-party servers. <strong>TypeFlow is 100% Local-First.</strong> The generation of your Python Dataclasses happens entirely within your browser. Your data never leaves your machine, guaranteeing absolute privacy and security.</p>
-
-<h2>Conclusion</h2>
-<p>Upgrade from fragile dictionaries to robust, type-hinted objects instantly. Use TypeFlow to securely translate any JSON payload into a production-ready Python Dataclass. Eliminate <code>KeyError</code>s, improve IDE autocomplete, and write cleaner, more maintainable Python code today.</p
+<p>Streamline your Python backend engineering today with the most secure <strong>JSON to Dataclass</strong> generator.</p>

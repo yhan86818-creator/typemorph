@@ -1,19 +1,16 @@
-<h2>The Evolution of Schema Validation</h2>
-<p><strong>Valibot</strong> is a next-generation, modular, and type-safe schema validation library for TypeScript and JavaScript. In an era where bundle size is critical, Valibot stands out by being incredibly lightweight—up to 98% smaller than other popular validation libraries like Zod. It achieves this through a functional API design that allows for efficient tree-shaking. However, when you're dealing with complex JSON data from an external API, manually writing the validation schema using Valibot's modular functions can be a repetitive and time-consuming process.</p>
+<p>Valibot is the next generation of schema validation, optimized for ultra-small bundle sizes and high performance. Our <strong>Professional JSON to Valibot Schema Generator</strong> provides a seamless path to generating modular, tree-shakable validation logic from your JSON samples.</p>
 
-<h2>Simplifying Type Safety with Valibot</h2>
-<p>Writing a validation schema by hand involves mapping every field of a JSON object to functions like <code>string()</code>, <code>number()</code>, <code>boolean()</code>, and <code>object()</code>. For deeply nested structures, this boilerplate can quickly become unmanageable. If your schema doesn't perfectly match the incoming data, your application might fail at runtime. By automating the generation of Valibot schemas directly from a sample JSON payload, developers can ensure total type safety while maintaining the smallest possible bundle footprint.</p>
+<h2>Minimalist and Modular Validation</h2>
+<p>Unlike traditional validation libraries, Valibot is designed to be as small as possible by allowing you to import only the functions you need. Our tool analyzes your JSON samples and generates idiomatic Valibot schemas using functions like <code>object()</code>, <code>string()</code>, <code>number()</code>, and <code>array()</code>. This is the perfect choice for modern, performance-critical frontend applications.</p>
 
-<h2>TypeFlow's Modular Validation Engine</h2>
-<p>TypeFlow provides a precise generation engine designed specifically for Valibot's unique modular architecture.</p>
+<h2>Local-First Privacy for Modern Apps</h2>
+<p>In high-performance environments, your data structures are often proprietary. <strong>TypeFlow Pro's local-first architecture</strong> ensures that your JSON payloads and the resulting Valibot schemas are never uploaded to a cloud server. Your data stays on your machine, ensuring total privacy and security.</p>
+
+<h2>Key Features</h2>
 <ul>
-  <li><strong>Modular Schema Generation:</strong> We automatically generate the schema using Valibot's idiomatic functional style (e.g., <code>object({ ... })</code>), ensuring your code is ready for optimal tree-shaking.</li>
-  <li><strong>Strict Type Accuracy:</strong> JSON primitives and complex nested arrays or objects are mapped to the correct Valibot validation functions, providing robust runtime checks and inferred TypeScript types.</li>
-  <li><strong>Intelligent Optionality:</strong> Our engine detects missing or null fields in your JSON sample and automatically applies the <code>optional()</code> or <code>nullable()</code> wrappers where appropriate.</li>
+    <li><strong>Tree-Shakable Output:</strong> Generates code that uses Valibot's modular API, ensuring your final bundle size remains minimal.</li>
+    <li><strong>Recursive Structural Mapping:</strong> Handles deeply nested JSON structures with ease, generating nested <code>object()</code> and <code>array()</code> chains.</li>
+    <li><strong>Type Extraction:</strong> The generated code includes <code>Input</code> and <code>Output</code> type helpers, giving you the TypeScript interfaces for free along with your validation logic.</li>
 </ul>
 
-<h2>Local-First: Protecting Your Schema Definitions</h2>
-<p>Your validation schemas define the structural contract of your application's data. Uploading these structures to a cloud-based converter is a security risk. <strong>TypeFlow operates 100% locally.</strong> The semantic parsing of your JSON and the generation of your Valibot code execute entirely within your browser's memory. Your data contracts never leave your machine.</p>
-
-<h2>Conclusion</h2>
-<p>Embrace the future of lightweight validation without the manual overhead. Use TypeFlow to instantly generate strictly typed Valibot schemas from any JSON payload. Accelerate your development, optimize your bundle size, and build rock-solid, type-safe applications with absolute confidence.</p>
+<p>Supercharge your app's performance today with the most secure <strong>JSON to Valibot</strong> generator.</p>

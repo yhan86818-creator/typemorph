@@ -1,19 +1,39 @@
-<h2>The Disconnect Between Relational Databases and the Frontend</h2>
-<p>In full-stack TypeScript development, maintaining synchronization between the <strong>SQL database schema</strong> (PostgreSQL, MySQL, SQLite) and the application's data models is a persistent challenge. When a database column is added, renamed, or changes its nullability, developers must manually hunt down and update the corresponding TypeScript interfaces. Failing to do so results in silent data mismatches, where the application logic assumes a field exists that the database no longer provides, leading to catastrophic runtime crashes.</p>
+<p>Synchronizing your database schema with your frontend type definitions is one of the most persistent challenges in full-stack engineering. Our <strong>Professional SQL to TypeScript Converter</strong> automates this process, turning standard SQL DDL (Data Definition Language) into perfectly mapped TypeScript interfaces.</p>
 
-<h2>Establishing a Unified Data Contract</h2>
-<p>To build truly robust systems, your database definition (DDL) must act as the absolute source of truth. Manually writing TypeScript interfaces that mirror your <code>CREATE TABLE</code> statements is not only tedious but guarantees eventual inconsistency. By automatically translating raw SQL schemas into strict TypeScript interfaces, you create an unbreakable data contract. This ensures that your frontend and backend code inherently understand the exact shape of your database, drastically reducing bugs and accelerating feature development.</p>
+<h2>Eliminating the "Silent Breakdown"</h2>
+<p>When a database column is renamed or its type is changed, the failure often happens silently until a frontend component tries to access a property that no longer exists. By converting your <code>CREATE TABLE</code> statements directly into TypeScript, you ensure that your frontend code is always a "mirror image" of your database layer, catching discrepancies at compile time rather than runtime.</p>
 
-<h2>TypeFlow's High-Fidelity SQL Parsing Engine</h2>
-<p>TypeFlow goes beyond simple regex. It semantically parses your SQL Data Definition Language (DDL) to generate idiomatic, production-ready TypeScript types.</p>
+<h2>Enterprise-Grade SQL Parsing</h2>
+<p>Our engine supports standard SQL syntax as well as dialect-specific features from PostgreSQL, MySQL, and SQLite. Whether you are dealing with complex <code>ENUM</code> types, <code>JSONB</code> columns, or specific numeric precisions, the converter maps them to the most appropriate TypeScript primitive or custom type.</p>
+
+<h2>Local-First: Your Schema, Your Business</h2>
+<p>Database schemas are the blueprint of your entire business model. Sending your SQL DDL to a web-based converter is an unnecessary exposure of your system's architecture. <strong>TypeFlow Pro processes SQL locally in your browser.</strong> This ensures that your table structures, foreign key relationships, and naming conventions remain strictly confidential.</p>
+
+<h2>Key Feature Set for SQL-to-TS</h2>
 <ul>
-  <li><strong>Precise Type Mapping:</strong> We translate specific database types (e.g., <code>VARCHAR</code>, <code>TEXT</code> to <code>string</code>; <code>INT</code>, <code>DECIMAL</code>, <code>BIGINT</code> to <code>number</code>; <code>BOOLEAN</code> to <code>boolean</code>) ensuring perfect alignment with TypeScript primitives.</li>
-  <li><strong>Nullability Enforcement:</strong> TypeFlow analyzes your SQL for <code>NOT NULL</code> constraints. Columns without this constraint are automatically marked with the optional modifier (<code>?</code>) or united with <code>null</code>, forcing developers to handle empty states safely.</li>
-  <li><strong>JSON and Advanced Types:</strong> Modern databases utilize advanced types like <code>JSONB</code> or <code>ARRAY</code>. TypeFlow intelligently maps these to <code>Record&lt;string, any&gt;</code> or arrays in TypeScript, providing a solid foundation for complex data handling.</li>
+    <li><strong>Automatic Nullability Mapping:</strong> Columns marked with <code>NOT NULL</code> are generated as required properties, while nullable columns are automatically given the <code>| null</code> type or marked as optional.</li>
+    <li><strong>Smart Type Mapping:</strong> <code>VARCHAR</code>, <code>TEXT</code>, and <code>UUID</code> map to <code>string</code>; <code>INTEGER</code>, <code>DECIMAL</code>, and <code>SERIAL</code> map to <code>number</code>; <code>BOOLEAN</code> and <code>TINYINT(1)</code> map to <code>boolean</code>.</li>
+    <li><strong>Comment Extraction:</strong> If your SQL includes inline comments or <code>COMMENT ON COLUMN</code> statements, our tool can extract these and turn them into JSDoc comments for your TypeScript interfaces.</li>
+    <li><strong>Primary Key Awareness:</strong> Identifies primary keys and can optionally mark them as <code>readonly</code> in the generated interfaces.</li>
 </ul>
 
-<h2>Local-First: Securing Your Database Architecture</h2>
-<p>Your SQL schema is the literal blueprint of your business. It contains sensitive column names, relational logic, and internal architecture secrets. Exposing your <code>CREATE TABLE</code> statements to online converters is a massive security vulnerability. <strong>TypeFlow is 100% Local-First.</strong> The SQL parsing and TypeScript generation occur entirely within your browser's memory. Your database structure never leaves your machine, ensuring total compliance with strict enterprise security protocols.</p>
+<h2>Workflow Optimization: From Migration to Interface</h2>
+<p>The standard workflow for many teams involves running a database migration and then manually updating a <code>types.ts</code> file. With TypeFlow Pro, this becomes a single step. Paste the SQL migration script, copy the generated interfaces, and you are done. This ensures 100% fidelity between your data storage and data consumption layers.</p>
 
-<h2>Conclusion</h2>
-<p>Bridge the gap between your relational database and your TypeScript application. By using TypeFlow to automatically convert SQL to TypeScript, you eliminate manual syncing, prevent data mismatch bugs, and ensure a rock-solid foundation for your full-stack architecture.</p>
+<h3>Advanced Relational Mapping</h3>
+<p>While standard tools only convert single tables, TypeFlow Pro's engine is designed to handle multiple related tables. If you paste a schema with foreign keys, the tool can suggest "Joined" interfaces that represent common query results, saving you the time of manual type composition.</p>
+
+<h2>Browser-Side Security & Audit</h2>
+<p>TypeFlow Pro is built for teams that value security above all else. With no backend, no trackers, and no data persistence, it is the ideal workbench for high-security environments where data leakage is not an option.</p>
+
+<h3>Frequently Asked Questions</h3>
+<div class="faq-item">
+    <strong>Q: Which SQL dialects are supported?</strong>
+    <p>A: We support standard ANSI SQL as well as specific extensions for PostgreSQL, MySQL, MariaDB, and SQLite. Most standard DDL scripts will work perfectly.</p>
+</div>
+<div class="faq-item">
+    <strong>Q: Can I customize the type mapping?</strong>
+    <p>A: Yes. The Pro workbench allows you to override default mappings (e.g., mapping <code>BIGINT</code> to <code>string</code> for safe handling of large numbers in JS).</p>
+</div>
+
+<p>Bridge the gap between SQL and TypeScript today with the world's most secure <strong>SQL DDL to Type</strong> converter.</p>

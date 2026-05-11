@@ -1,19 +1,20 @@
-<h2>The Beast of Real-Time Analytics</h2>
-<p><strong>ClickHouse</strong> is a blazing-fast, open-source columnar database management system designed specifically for Online Analytical Processing (OLAP). It is the backbone of modern data-intensive applications, capable of scanning billions of rows per second to generate real-time analytics. While ClickHouse can ingest JSON data rapidly using formats like <code>JSONEachRow</code>, you must first define a highly optimized database table schema. Manually translating a massive, deeply nested JSON event payload into a proper ClickHouse <code>CREATE TABLE</code> statement is a complex task that requires deep knowledge of ClickHouse's specific data types and table engines.</p>
+<p>ClickHouse is the fastest OLAP database on the market, but to achieve its legendary performance, you need perfectly typed tables. Our <strong>Professional JSON to ClickHouse Schema Generator</strong> automates the generation of <code>CREATE TABLE</code> statements, utilizing the most efficient ClickHouse engines and data types.</p>
 
-<h2>Automating Columnar Schema Design</h2>
-<p>Designing a ClickHouse schema by hand is notoriously unforgiving. If you map a JSON string to a standard <code>String</code> when it should be a <code>LowCardinality(String)</code>, or if you mistake a floating-point number for an integer, your analytics queries will suffer massive performance degradations or outright fail. Furthermore, writing the boilerplate for ClickHouse's <code>MergeTree</code> engine and defining proper sorting keys takes meticulous effort. By automating the conversion of sample JSON data directly into an optimized ClickHouse DDL statement, data engineers can instantly scaffold high-performance analytics tables without the guesswork.</p>
+<h2>Optimizing Real-Time Analytics</h2>
+<p>In high-throughput environments, every byte counts. Our tool analyzes your JSON samples and suggests the most efficient ClickHouse types—mapping strings to <code>String</code> or <code>FixedString</code>, and numbers to specific <code>Int8/16/32/64</code> or <code>Float32/64</code> types. This ensures your tables are optimized for ClickHouse's columnar storage from day one.</p>
 
-<h2>TypeFlow's OLAP Scaffolding Engine</h2>
-<p>TypeFlow intelligently analyzes your JSON data to generate pristine, production-ready ClickHouse table definitions.</p>
+<h2>Local-First Privacy for Big Data</h2>
+<p>When dealing with high-volume log samples or analytics data, privacy is critical. <strong>TypeFlow Pro processes all data locally.</strong> Your data samples and schema designs are never transmitted over the network, providing the security required for modern, data-driven enterprises.</p>
+
+<h2>Key ClickHouse Integration Features</h2>
 <ul>
-  <li><strong>Precise Type Mapping:</strong> JSON primitives are accurately mapped to ClickHouse's strict columnar types, such as <code>Int64</code>, <code>Float64</code>, <code>String</code>, and <code>DateTime</code>.</li>
-  <li><strong>Handling Nullability:</strong> By default, ClickHouse types are non-nullable for performance. TypeFlow detects missing or null fields in your JSON and automatically wraps the corresponding ClickHouse types in <code>Nullable(Type)</code>, preventing ingestion crashes.</li>
-  <li><strong>MergeTree Engine Setup:</strong> We automatically append the foundational <code>ENGINE = MergeTree()</code> configuration to the generated DDL, providing a ready-to-execute starting point for your high-throughput analytics pipeline.</li>
+    <li><strong>Engine Suggestion:</strong> Automatically generates scripts using the <code>MergeTree</code> family of engines, the standard for production ClickHouse environments.</li>
+    <li><strong>Nullable Type Support:</strong> Correctly maps optional JSON fields to ClickHouse's <code>Nullable(T)</code> types.</li>
+    <li><strong>Array and Nested Mastery:</strong> Intelligently handles JSON arrays by mapping them to ClickHouse <code>Array(T)</code> types.</li>
+    <li><strong>Production-Ready DDL:</strong> Produces clean, standards-compliant SQL ready to be executed in your ClickHouse cluster.</li>
 </ul>
 
-<h2>Local-First: Securing Your Telemetry Blueprints</h2>
-<p>The JSON event payloads destined for ClickHouse often represent your company's most valuable telemetry—user behavior logs, financial transaction streams, and proprietary metrics. Uploading these payloads to a cloud-based converter exposes your analytical infrastructure to severe security risks. <strong>TypeFlow operates 100% locally.</strong> The semantic parsing of your JSON and the generation of your ClickHouse schema execute entirely within your browser's memory. Your data never touches an external server.</p>
+<h3>Supercharging Data Ingestion</h3>
+<p>Integrating this utility into your data pipeline allows you to move from raw event data to a high-performance ClickHouse table in seconds. It is the essential tool for engineers building real-time dashboards and monitoring systems.</p>
 
-<h2>Conclusion</h2>
-<p>Accelerate your real-time analytics pipeline. Use TypeFlow to instantly and securely convert JSON event payloads into highly optimized ClickHouse table schemas. Eliminate manual DDL errors, ensure perfect columnar typing, and unlock the full speed of ClickHouse effortlessly.</p
+<p>Experience the speed of <strong>JSON to ClickHouse</strong> schema generation with our secure, local-first workbench.</p>

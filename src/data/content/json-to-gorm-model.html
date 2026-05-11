@@ -1,19 +1,17 @@
-<h2>Go's Premier Object-Relational Mapper</h2>
-<p>In the <strong>Go (Golang)</strong> ecosystem, developers prize simplicity, performance, and strong static typing. While many Go developers write raw SQL using the standard <code>database/sql</code> package, <strong>GORM</strong> has become the most popular ORM for teams looking to accelerate backend development. GORM allows developers to map Go structs directly to database tables, handling migrations and complex relational queries effortlessly. However, when building a new service based on an existing JSON API payload, manually writing the Go structs and annotating them with the exact GORM struct tags (like <code>gorm:"primaryKey"</code>) is a highly repetitive and error-prone chore.</p>
+<p>GORM is the most popular ORM library for Golang, known for its developer-friendly API and robust feature set. However, manually adding GORM tags and defining structs for complex data can be a repetitive task. Our <strong>Professional JSON to GORM Model Converter</strong> provides a secure, local-first path to automating your Go data layer.</p>
 
-<h2>Automating Struct Tag Generation</h2>
-<p>Go relies heavily on "Struct Tags" to provide metadata to libraries like GORM and the standard <code>encoding/json</code> package. If you manually transcribe a JSON object into a Go struct and mistype a tag—for example, writing <code>json:"userId"</code> instead of <code>json:"user_id"</code>, or forgetting the <code>gorm:"column:user_id"</code> annotation—your API will fail to parse incoming data, and your database will save null values. Automating the generation of Go structs, complete with perfectly formatted JSON and GORM tags, eliminates these silent errors and drastically speeds up the creation of your data access layer.</p>
+<h2>High-Performance Go Data Modeling</h2>
+<p>Our tool analyzes your JSON samples and generates idiomatic Go structs with the necessary <code>gorm</code> tags. It includes proper mapping for primary keys, foreign keys, and indexes, ensuring your models are ready for GORM's powerful automigration and querying features.</p>
 
-<h2>TypeFlow's Precision Go Struct Engine</h2>
-<p>TypeFlow analyzes your JSON data and outputs pristine, idiomatic Go code designed specifically for the GORM ecosystem.</p>
+<h2>Local-First Privacy for Go Backend Devs</h2>
+<p>When building high-concurrency Go services, your data models represent a critical part of your architecture. <strong>TypeFlow Pro processes all logic locally in your browser.</strong> This ensures your proprietary models and data structures never leave your machine, providing the security required for professional backend development.</p>
+
+<h2>Key Features for GORM Integration</h2>
 <ul>
-  <li><strong>Dual Tag Injection:</strong> We automatically generate both standard JSON tags (<code>json:"field_name"</code>) for API serialization and GORM tags (<code>gorm:"column:field_name"</code>) for precise database mapping, giving you a full-stack data model instantly.</li>
-  <li><strong>Intelligent Type Inference:</strong> JSON primitives are accurately mapped to Go types like <code>string</code>, <code>int</code>, <code>float64</code>, and <code>bool</code>, ensuring strict memory safety and correct database column allocation.</li>
-  <li><strong>Pointer Types for Nulls:</strong> TypeFlow detects fields that may be null or missing in your JSON, automatically assigning them Go pointer types (e.g., <code>*string</code> instead of <code>string</code>) to seamlessly handle database <code>NULL</code> values without crashing.</li>
+    <li><strong>Comprehensive Tag Generation:</strong> Automatically adds <code>gorm:"primaryKey"</code>, <code>gorm:"index"</code>, and other essential tags.</li>
+    <li><strong>Smart Type Mapping:</strong> Correctly identifies and maps JSON types to Go's primitives, optimized for GORM.</li>
+    <li><strong>Nested Relation Support:</strong> Handles complex JSON objects by generating nested structs and suggesting GORM relationships.</li>
+    <li><strong>Ready-to-Use Code:</strong> Produces standards-compliant Go code that can be dropped directly into your <code>models/</code> package.</li>
 </ul>
 
-<h2>Local-First: Protecting Your Database Architecture</h2>
-<p>Your GORM models represent the absolute core of your backend database schema. Exposing these data structures to an external, cloud-based converter is a massive security risk that could leak your proprietary architecture. <strong>TypeFlow operates 100% locally.</strong> The semantic parsing of your JSON and the generation of your Go code execute entirely within your browser's memory. Your database blueprints never leave your machine.</p>
-
-<h2>Conclusion</h2>
-<p>Stop wrestling with Go struct tags. Use TypeFlow to instantly convert any JSON payload into production-ready GORM models, complete with perfect JSON and database annotations. Accelerate your Golang backend development, ensure flawless data persistence, and build high-performance APIs with confidence.</p
+<p>Experience the fastest way to build Go backends with our secure <strong>JSON to GORM</strong> model generator.</p>

@@ -1,19 +1,16 @@
-<h2>Data Modeling in the Elixir Ecosystem</h2>
-<p><strong>Elixir</strong>, running on the highly concurrent Erlang VM (BEAM), has become a dominant language for building scalable, real-time web applications, particularly with the Phoenix framework. In Elixir, incoming JSON data is typically parsed into generic Maps. However, when you need strict pattern matching, compile-time checks for keys, and a clear data contract, you must convert these dynamic Maps into <strong>Structs</strong> (<code>defstruct</code>). Manually writing the module definitions, defining the struct keys, and writing the decoding logic for a massive, deeply nested JSON payload is a slow, error-prone chore that disrupts the functional flow.</p>
+<p>Elixir is the language of choice for building scalable, fault-tolerant applications on the Erlang VM (BEAM). However, manually defining <strong>Structs</strong> and <strong>Ecto Schemas</strong> for complex JSON responses can be a significant time sink. Our <strong>Professional JSON to Elixir Struct Converter</strong> provides a secure, local-first path to generating clean data models for your Phoenix applications.</p>
 
-<h2>Why Automated Struct Generation is Essential</h2>
-<p>A generic Elixir Map allows any key, making it difficult to maintain robust internal APIs. If a developer accidentally relies on a misspelled key in a generic Map, the error might only surface at runtime. By transforming JSON payloads directly into strict Elixir Structs, you enable absolute safety through pattern matching. Automating this process saves hours of manual typing and prevents typos from creeping into your <code>defstruct</code> definitions, ensuring that your data layer perfectly mirrors external API contracts or database structures.</p>
+<h2>Rapid Prototyping with Elixir & Phoenix</h2>
+<p>Our tool analyzes your JSON samples and generates idiomatic Elixir <code>defstruct</code> definitions and <code>Ecto.Schema</code> blocks. This provides a clean and concise way to handle data within your Elixir application with zero boilerplate, ensuring your data ingestion logic is air-tight.</p>
 
-<h2>TypeFlow's Elixir Generation Engine</h2>
-<p>TypeFlow provides idiomatic, clean Elixir code that fits perfectly into Phoenix or standard Mix projects.</p>
+<h2>Local-First Privacy: Mandatory for Backend Engineering</h2>
+<p>In high-performance Elixir environments, your data models represent a critical part of your architecture. <strong>TypeFlow Pro's local-first architecture</strong> ensures your JSON samples and struct definitions never leave your machine, providing the security required for professional backend development.</p>
+
+<h2>Key Features for Elixir Integration</h2>
 <ul>
-  <li><strong>Idiomatic Snake Case:</strong> We automatically convert JSON keys (often camelCase) into Elixir's strict <code>snake_case</code> convention, ensuring your Struct fields look and feel like native Elixir code.</li>
-  <li><strong>Nested Module Extraction:</strong> Complex, multi-level JSON structures are intelligently parsed. TypeFlow automatically generates separate, modular <code>defmodule</code> blocks for nested objects, keeping your codebase clean and organized.</li>
-  <li><strong>TypeSpec Generation:</strong> Beyond just the <code>defstruct</code>, TypeFlow optionally generates the corresponding <code>@type t :: %__MODULE__{...}</code> typespecs, providing immediate value for Dialyzer static analysis and better IDE autocomplete.</li>
+    <li><strong>Ecto Schema Support:</strong> Generates <code>embedded_schema</code> or standard <code>schema</code> blocks with proper field mapping for Ecto.</li>
+    <li><strong>Recursive Structural Mapping:</strong> Handles deeply nested JSON with ease, generating modular structs for every level of your data.</li>
+    <li><strong>Idiomatic Naming:</strong> Automatically maps camelCase JSON keys to snake_case Elixir properties where appropriate.</li>
 </ul>
 
-<h2>Local-First: Privacy for Your Concurrent Systems</h2>
-<p>Elixir applications often handle high-volume, sensitive data streams, such as real-time messaging or financial transactions. The JSON payloads representing this data are highly proprietary. Transmitting them to external, cloud-based converters poses a severe security risk. <strong>TypeFlow is 100% Local-First.</strong> The generation of your Elixir Structs occurs entirely within your browser. Your sensitive architectural blueprints never touch an external server.</p>
-
-<h2>Conclusion</h2>
-<p>Embrace the safety of strict pattern matching without the boilerplate. With TypeFlow, you can instantly turn any JSON payload into a robust, idiomatic Elixir Struct. Speed up your Phoenix development and build safer, more reliable concurrent applications today.</p>
+<p>Experience the power of fault-tolerant data modeling today with our secure <strong>JSON to Elixir Struct</strong> generator.</p>

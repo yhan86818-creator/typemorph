@@ -1,4 +1,7 @@
-import { tsGen, zodGen, goGen, rustGen, javaGen, prismaGen, uiGen } from './generators';
+import { 
+  tsGen, zodGen, goGen, rustGen, javaGen, prismaGen, uiGen,
+  dartGen, phpGen, pythonGen, protoGen, gqlGen 
+} from './generators';
 import { Schema } from './types';
 
 export { type Schema };
@@ -26,9 +29,11 @@ export const runEngine = (json: any, lang: string, slug: string = ""): any => {
       case 'java': return javaGen.generate(schema);
       case 'sql': return prismaGen.generate(schema);
       case 'ui': return uiGen.generate(schema);
-      case 'python': 
-        return `from pydantic import BaseModel\n\nclass Root(BaseModel):\n` + 
-          Object.keys(json).map(k => `    ${k}: ${typeof json[k] === 'number' ? 'float' : 'str'}`).join('\n');
+      case 'dart': return dartGen.generate(schema);
+      case 'php': return `<?php\n\n` + phpGen.generate(schema);
+      case 'python': return `from pydantic import BaseModel\n\n` + pythonGen.generate(schema);
+      case 'protobuf': return `syntax = "proto3";\n\n` + protoGen.generate(schema);
+      case 'graphql': return gqlGen.generate(schema);
       case 'csharp':
         return `public class Root\n{\n` + 
           Object.keys(json).map(k => `    public ${typeof json[k] === 'number' ? 'double' : 'string'} ${k} { get; set; }`).join('\n') + `\n}`;
@@ -39,7 +44,11 @@ export const runEngine = (json: any, lang: string, slug: string = ""): any => {
         return `data class Root(\n` + 
           Object.keys(json).map(k => `    val ${k}: ${typeof json[k] === 'number' ? 'Double' : 'String'}`).join(',\n') + `\n)`;
       case 'jsonschema':
-        return { $schema: "http://json-schema.org/draft-07/schema#", type: "object", properties: {} };
+        return JSON.stringify({ 
+          $schema: "http://json-schema.org/draft-07/schema#", 
+          type: "object", 
+          properties: Object.keys(json).reduce((acc, k) => ({ ...acc, [k]: { type: typeof json[k] } }), {})
+        }, null, 2);
       default: return JSON.stringify(json, null, 2);
     }
   } catch (e) { return "// Error: " + String(e); }

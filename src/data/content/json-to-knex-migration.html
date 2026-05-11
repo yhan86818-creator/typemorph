@@ -1,19 +1,16 @@
-<h2>Programmatic SQL with Knex.js</h2>
-<p><strong>Knex.js</strong> is a powerful, flexible, and widely-used SQL query builder for Node.js. It allows developers to interact with PostgreSQL, MySQL, SQLite, and other relational databases using a fluent JavaScript API instead of raw SQL strings. One of its most critical features is its Migration system, which enables teams to version-control their database schema. However, when migrating a complex JSON document store or prototyping a new service from a frontend JSON mockup, manually translating that JSON hierarchy into Knex.js <code>table.string()</code>, <code>table.integer()</code>, and relational foreign keys is highly repetitive and error-prone.</p>
+<p>Knex.js is the most versatile SQL query builder for Node.js, supporting PostgreSQL, MySQL, SQLite3, and more. However, manually writing migration files from JSON data samples can be a repetitive task. Our <strong>Professional JSON to Knex Migration Generator</strong> provides a secure, local-first path to generating robust database schema changes instantly.</p>
 
-<h2>Automating Schema Migrations</h2>
-<p>Writing a Knex migration by hand requires a solid understanding of database normalization and exact type mapping. If you look at a JSON payload and manually define a migration, you might accidentally omit a crucial field, misassign a boolean as a string, or forget to add timestamps. These human errors lead to failed migrations or corrupted data states that are painful to roll back. By automating the conversion of sample JSON data directly into a pristine Knex.js <code>up</code> and <code>down</code> migration file, backend engineers can scaffold their relational databases instantly and accurately.</p>
+<h2>Automating Database Schema Evolution</h2>
+<p>Our tool analyzes your JSON structure and generates idiomatic Knex <code>up</code> and <code>down</code> migration functions. It includes proper column mapping for <code>table.string()</code>, <code>table.integer()</code>, <code>table.boolean()</code>, and <code>table.timestamps()</code>, ensuring your database schema is perfectly synced with your data samples.</p>
 
-<h2>TypeFlow's Relational Scaffolding Engine</h2>
-<p>TypeFlow intelligently analyzes your JSON payload and outputs highly optimized Knex.js migration code.</p>
+<h2>Local-First Privacy for System Architects</h2>
+<p>Database migrations represent the core evolution of your system. Sending your JSON samples to a cloud-based converter is an unnecessary security risk. <strong>TypeFlow Pro operates 100% locally.</strong> Your data and migration structures remain private, keeping you compliant with enterprise security standards.</p>
+
+<h2>Key Features for Knex.js Integration</h2>
 <ul>
-  <li><strong>Accurate Type Mapping:</strong> JSON primitives are automatically translated into precise Knex column definitions (e.g., <code>table.string('name')</code>, <code>table.integer('age')</code>, <code>table.boolean('is_active')</code>), ensuring database integrity.</li>
-  <li><strong>Automatic Primary Keys &amp; Timestamps:</strong> We automatically inject the standard <code>table.increments('id')</code> and <code>table.timestamps(true, true)</code> boilerplate, setting up your table structure perfectly.</li>
-  <li><strong>Ready-to-Run Migrations:</strong> The generated output includes both the <code>exports.up</code> table creation logic and the corresponding <code>exports.down</code> drop logic, allowing you to run the migration immediately.</li>
+    <li><strong>Comprehensive Dialect Support:</strong> Generates code compatible with all databases supported by Knex.js.</li>
+    <li><strong>Smart Attribute Inference:</strong> Automatically identifies <code>increments</code>, <code>nullable</code>, and <code>unique</code> constraints.</li>
+    <li><strong>Clean, Ready-to-Paste Code:</strong> Produces standards-compliant Knex migration files ready to be added to your <code>migrations/</code> directory.</li>
 </ul>
 
-<h2>Local-First: Protecting Your Database Architecture</h2>
-<p>Your database schema represents the foundational intellectual property of your backend architecture. Uploading proprietary JSON data models to a third-party cloud converter exposes your database structure to potential leaks. <strong>TypeFlow is a 100% Local-First tool.</strong> The semantic parsing of your JSON and the generation of your Knex.js migration code execute entirely within your browser's local memory. Your database blueprints never leave your machine.</p>
-
-<h2>Conclusion</h2>
-<p>Stop writing database migrations by hand. Use TypeFlow to instantly and securely convert JSON payloads into robust, production-ready Knex.js migration scripts. Accelerate your Node.js backend development, ensure perfect relational typing, and deploy schema changes with absolute confidence.</p>
+<p>Master your database evolution today with the world's most secure <strong>JSON to Knex Migration</strong> generator.</p>

@@ -1,19 +1,20 @@
-<h2>Modern Object-Oriented PHP</h2>
-<p>In modern <strong>PHP</strong> development (especially within frameworks like Symfony or Laravel), strict typing and object-oriented design are standard practices. Instead of passing around loosely structured associative arrays, developers use <strong>Data Transfer Objects (DTOs)</strong> to encapsulate data retrieved from external APIs or frontend requests. However, when a developer is handed a massive JSON payload, manually writing the corresponding PHP classes—defining private properties, adding strict type hints (<code>string</code>, <code>int</code>, <code>?array</code>), and creating getters/setters—is a tedious and error-prone chore that slows down the entire development cycle.</p>
+<p>Modern PHP development (PHP 8.0+) has embraced strict typing and clean data structures. Our <strong>Professional JSON to PHP DTO (Data Transfer Object) Converter</strong> is designed for Laravel and Symfony developers who need to generate type-safe, boilerplate-free DTOs from JSON data samples.</p>
 
-<h2>Why PHP 8+ Demands Strict DTOs</h2>
-<p>With the advent of PHP 8, features like constructor property promotion and union types have made DTOs much cleaner, but the necessity for strict data contracts has only increased. If a developer manually transcribes a JSON object and incorrectly maps a numeric ID to a <code>string</code> instead of an <code>int</code>, the application will throw a <code>TypeError</code> at runtime. By automating the conversion from JSON to strict PHP DTOs, you guarantee structural accuracy. This allows you to leverage modern PHP serializers (like Symfony Serializer or spatie/data-transfer-object) to seamlessly cast incoming JSON directly into strongly typed objects.</p>
+<h2>Modernizing PHP Data Handling</h2>
+<p>Gone are the days of untyped associative arrays. Modern PHP developers use DTOs to ensure data integrity across their applications. Our tool generates clean PHP classes using <strong>Constructor Promotion</strong> and <strong>Readonly Properties</strong>, ensuring your data layer is both modern and highly performant.</p>
 
-<h2>TypeFlow's High-Fidelity PHP Engine</h2>
-<p>TypeFlow generates pristine, modern PHP code that takes full advantage of the latest language features.</p>
+<h2>Local-First Privacy for Backend Engineering</h2>
+<p>Backend data structures often contain proprietary business logic. <strong>TypeFlow Pro's local-first architecture</strong> ensures your JSON samples and DTO definitions are never uploaded to a cloud server. Your data stays on your machine, keeping your enterprise systems secure and compliant.</p>
+
+<h2>Key Feature Set for PHP Developers</h2>
 <ul>
-  <li><strong>PHP 8 Constructor Promotion:</strong> We generate incredibly concise DTOs utilizing PHP 8 constructor property promotion, eliminating the need for redundant property declarations and assignment blocks.</li>
-  <li><strong>Strict Type Declaration:</strong> JSON primitives are accurately mapped to PHP's scalar type hints (<code>string</code>, <code>int</code>, <code>float</code>, <code>bool</code>).</li>
-  <li><strong>Intelligent Nullability:</strong> By analyzing your payload, TypeFlow automatically detects missing or optional fields and prefixes the type hint with a question mark (e.g., <code>?string</code>), preventing fatal type errors on missing data.</li>
+    <li><strong>PHP 8.2+ Compatibility:</strong> Generates <code>readonly</code> classes and properties to leverage the latest language features.</li>
+    <li><strong>Smart Type Mapping:</strong> Correctly maps JSON types to PHP's <code>string</code>, <code>int</code>, <code>float</code>, <code>bool</code>, and <code>array</code>.</li>
+    <li><strong>DocBlock Integration:</strong> Automatically adds <code>@property</code> or <code>@param</code> tags to handle complex array types (e.g., <code>User[]</code>) for better IDE support.</li>
+    <li><strong>Recursive Model Generation:</strong> Handles nested JSON by creating a hierarchy of modular DTO classes.</li>
 </ul>
 
-<h2>Local-First: Securing Your Application Architecture</h2>
-<p>Your PHP DTOs represent the internal business logic and data contracts of your application. Uploading your proprietary JSON API payloads to a third-party cloud converter exposes your internal structures to the public internet. <strong>TypeFlow operates 100% locally.</strong> The semantic parsing of your JSON and the generation of your PHP classes execute exclusively within your browser. Your corporate data never touches an external server, ensuring absolute privacy.</p>
+<h3>Boosting Laravel and Symfony Productivity</h3>
+<p>Whether you are building a Laravel API or a Symfony microservice, our generator saves you from the repetitive task of manual class creation. Move from an API response to a functional DTO in seconds.</p>
 
-<h2>Conclusion</h2>
-<p>Embrace modern, strictly typed PHP without the boilerplate. With TypeFlow, you can instantly turn any JSON payload into a robust, production-ready PHP Data Transfer Object. Accelerate your Symfony and Laravel development, eliminate <code>TypeError</code>s, and maintain flawless data contracts.</p
+<p>Experience the future of PHP engineering with our secure <strong>JSON to PHP DTO</strong> generator.</p>

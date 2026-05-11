@@ -1,32 +1,22 @@
-<h2>Prisma: The Modern Foundation for Type-Safe Databases</h2>
-      <p><strong>Prisma</strong> has fundamentally changed how developers interact with databases. By providing a declarative schema language (PSL) and a type-safe client, it has become the de facto standard for Node.js and TypeScript applications. However, at the start of a new feature or project, you often have a JSON data mockup from a frontend designer or a third-party API before you have a database schema. Manually translating that JSON into <code>model</code> blocks in your <code>schema.prisma</code> file is a repetitive, low-value task.</p>
-      
-      <p>TypeFlow's JSON-to-Prisma converter automates this "Schema-First" workflow. By inferring database models directly from your data samples, we allow you to move from prototype to production in a fraction of the time.</p>
+<p>Modern data modeling requires tools that understand the speed of iteration. Our <strong>Professional JSON to Prisma Schema Generator</strong> is designed for full-stack developers who need to move from raw API responses to a production-ready database schema in seconds. Prisma is the gold standard for type-safe database access, and our tool is the fastest way to get started.</p>
 
-      <h2>Intelligent Schema Inference: The TypeFlow Advantage</h2>
-      <p>Our Prisma engine is designed for high-fidelity schema generation, ensuring your <code>schema.prisma</code> file is clean, idiomatic, and migration-ready.</p>
+<h2>Rapid Prototyping with Type Safety</h2>
+<p>In the early stages of development, your data models are often shaped by the APIs you consume or the data your frontend needs. Instead of manually mapping these fields to a Prisma schema, TypeFlow Pro analyzes your JSON samples and suggests a complete <code>model</code> definition, including intelligent guesses for primary keys and unique constraints.</p>
 
-      <h3>1. Relational Mapping and Type Inference</h3>
-      <p>We map JSON types to their most appropriate Prisma equivalents. <code>string</code> becomes <code>String</code>, <code>number</code> becomes <code>Int</code> or <code>Float</code>, and <code>boolean</code> becomes <code>Boolean</code>. For complex nested objects, TypeFlow identifies potential <strong>Relation Patterns</strong> and suggests separate models connected by foreign keys, following database normalization best practices.</p>
+<h2>Advanced Prisma Features</h2>
+<ul>
+    <li><strong>Intelligent Relation Inference:</strong> When you provide nested JSON, the generator suggests potential relations, helping you structure your <code>@relation</code> tags correctly.</li>
+    <li><strong>Automatic Type Mapping:</strong> JSON strings map to <code>String</code>, numbers to <code>Int</code> or <code>Float</code>, and booleans to <code>Boolean</code>. Complex nested objects are suggested as separate models or JSON types.</li>
+    <li><strong>Attribute Automation:</strong> Automatically adds <code>@id</code>, <code>@default(autoincrement())</code>, or <code>@default(uuid())</code> to your primary keys for a ready-to-migrate experience.</li>
+    <li><strong>Local-First Privacy:</strong> Your database architecture is a blueprint of your application. TypeFlow Pro ensures your SQL/JSON schemas never leave your browser, maintaining 100% confidentiality.</li>
+</ul>
 
-      <h3>2. Attribute and Constraint Detection</h3>
-      <p>A great Prisma model needs more than just types; it needs constraints. TypeFlow analyzes your JSON data to identify fields that should be marked as <code>@id</code>, <code>@default(now())</code>, or <code>@unique</code>. We also detect nullable fields across your samples and apply the <code>?</code> modifier to your Prisma fields accordingly.</p>
+<h3>Best Practices for Prisma Models</h3>
+<p>While our tool generates perfect starting points, we recommend refining your models for production:</p>
+<ul>
+    <li><strong>Index Optimization:</strong> Add <code>@@index</code> or <code>@@unique</code> to fields frequently used in queries.</li>
+    <li><strong>Default Values:</strong> Use <code>@default(now())</code> for timestamp fields to handle data creation at the database level.</li>
+    <li><strong>Custom Enums:</strong> Replace generic string types with Prisma <code>enum</code> definitions for stricter data integrity.</li>
+</ul>
 
-      <h3>3. Multi-Database Compatibility</h3>
-      <p>Whether you are using PostgreSQL, MySQL, SQLite, or MongoDB, the generated models are designed to be compatible with Prisma's cross-database abstraction. You can easily adapt the generated schema to your specific database provider.</p>
-
-      <h2>Local-First: Security for Your Database Blueprints</h2>
-      <p>Your <code>schema.prisma</code> file is the literal architectural blueprint of your application. It reveals your table structures, relationship logic, and data validation rules. Sharing your JSON samples with cloud-based converters exposes your internal system design to unnecessary risks.</p>
-
-      <p><strong>TypeFlow is 100% Local-First.</strong> The Prisma model generation happens entirely in your browser's memory. Your data samples <strong>never leave your machine</strong>. This ensures that your database architecture remains private and secure, meeting the strict requirements of enterprise-grade security and compliance (SOC2, HIPAA, GDPR).</p>
-
-      <h2>Use Cases: Accelerating Prisma Workflows</h2>
-      <ul>
-        <li><strong>API-First Prototyping:</strong> Paste a response from a mock API and instantly generate the Prisma models needed to persist that data.</li>
-        <li><strong>Legacy Database Integration:</strong> Quickly build a Prisma schema for an existing dataset by importing JSON exports of your tables.</li>
-        <li><strong>Rapid Feature Development:</strong> Move from a designer's JSON mockup to a functional database schema in seconds, not hours.</li>
-        <li><strong>Team Collaboration:</strong> Share generated models with your team as a starting point for architectural discussions.</li>
-      </ul>
-
-      <h2>Conclusion: Mastering the Data Lifecycle with Prisma</h2>
-      <p>TypeFlow's JSON-to-Prisma converter is the essential tool for modern full-stack engineers. By unifying your data samples with your database schema, you reduce the "Plumbing" overhead of your project and focus on what matters: building great products. Experience the future of schema-first development with TypeFlow.</p>
+<p>Start building your next-gen backend faster with the most secure <strong>JSON to Prisma</strong> generator.</p>

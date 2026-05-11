@@ -1,19 +1,17 @@
-<h2>Securing Serverless Databases</h2>
-<p><strong>Firebase Firestore</strong> is a powerful, flexible NoSQL document database built for global scaling. Because Firestore enables mobile and web clients to query the database directly without a traditional backend, security is entirely dependent on <strong>Firestore Security Rules</strong>. These rules determine exactly who can read or write data and validate the schema of incoming documents. However, writing custom <code>match</code> blocks and <code>allow</code> statements to validate a complex JSON document hierarchy is a notoriously difficult and unforgiving task. A single mistake can either lock users out of their data or expose your entire database to the public.</p>
+<p>Firebase Firestore offers incredible scalability, but securing your data with <strong>Firestore Security Rules</strong> is often a complex and error-prone task. Our <strong>Professional JSON to Firestore Rules Generator</strong> provides a secure, local-first way to draft your security logic from your data structures.</p>
 
-<h2>Automating Schema Validation Rules</h2>
-<p>Unlike SQL databases, Firestore does not enforce a rigid schema by default. To prevent malicious users from injecting arbitrary data, developers must manually write Security Rules that verify the data type of every incoming JSON field (e.g., <code>request.resource.data.age is number</code>). Doing this by hand for a document with dozens of nested fields takes hours and is highly susceptible to human error. Automating the generation of strict Firestore Security Rules directly from a sample JSON document instantly locks down your database schema and guarantees robust data integrity.</p>
+<h2>Securing Your Serverless Database</h2>
+<p>Writing Firestore rules requires a deep understanding of your data's shape and access patterns. Our tool analyzes your JSON samples and suggests <code>allow read, write: if ...</code> blocks that enforce data integrity and user authorization based on your object properties. This eliminates the "wide open" security risks common in early-stage development.</p>
 
-<h2>TypeFlow's Firebase Security Engine</h2>
-<p>TypeFlow deeply analyzes your JSON structures to generate impregnable, schema-validating Firestore Security Rules.</p>
+<h2>Local-First Privacy: Mandatory for Security Logic</h2>
+<p>Security rules define exactly who can access what in your database. Sending your data samples or rule drafts to an online converter is a massive security risk. <strong>TypeFlow Pro operates 100% locally.</strong> Your data and your security logic stay on your machine, ensuring your Firebase project's integrity is never compromised.</p>
+
+<h2>Key Features</h2>
 <ul>
-  <li><strong>Granular Type Validation:</strong> JSON strings, numbers, and booleans are automatically mapped to Firestore Rule types (<code>is string</code>, <code>is number</code>, <code>is bool</code>), ensuring that clients can only write exactly the data you expect.</li>
-  <li><strong>Nested Map Validation:</strong> Complex JSON objects are intelligently parsed into nested Firestore <code>Map</code> validations, allowing you to enforce strict schemas even deep within your document tree.</li>
-  <li><strong>Required Field Enforcement:</strong> We automatically generate rules to check for the existence of critical keys (using <code>hasAll()</code>), preventing incomplete documents from polluting your database.</li>
+    <li><strong>Structure-Based Rule Suggestions:</strong> Automatically suggests field-level validation logic (e.g., <code>request.resource.data.name is string</code>) directly from your JSON samples.</li>
+    <li><strong>Collection Mapping:</strong> Generate rules for multiple collections and sub-collections in a single view.</li>
+    <li><strong>Authorization Logic Templates:</strong> Includes templates for common scenarios like 'Owner-Only Access' or 'Authenticated Read-Only'.</li>
+    <li><strong>Clean, Indented Rules:</strong> Produces valid Firestore security rules ready to be pasted into the Firebase Console or <code>firestore.rules</code> file.</li>
 </ul>
 
-<h2>Local-First: Protecting Your Access Controls</h2>
-<p>Your database schema and security rules are the final line of defense for your application's data. Uploading proprietary JSON models to a cloud-based converter exposes your database architecture to potential attackers. <strong>TypeFlow operates 100% locally.</strong> The semantic parsing of your JSON and the generation of your Firestore Security Rules execute entirely within your browser's local memory. Your security blueprints never touch an external server.</p>
-
-<h2>Conclusion</h2>
-<p>Secure your serverless architecture effortlessly. Use TypeFlow to instantly convert any JSON document into ironclad Firestore Security Rules. Eliminate manual validation errors, enforce strict NoSQL schemas, and protect your Firebase database with absolute confidence.</p>
+<p>Secure your Firestore database today with the world's most private <strong>JSON to Security Rules</strong> generator.</p>

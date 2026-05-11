@@ -732,4 +732,256 @@ export const converters: Converter[] = [
     description: "Transform animation data into Framer Motion variants.",
     h1: "Framer Motion Variant Generator"
   },
+  {
+    slug: "json-to-pytorch",
+    title: "Convert JSON to PyTorch Tensors - ML Engineering",
+    description: "Generate PyTorch tensor initialization code from JSON data samples. The guide to modern AI data preprocessing.",
+    h1: "PyTorch Mastery: Automating Tensor Generation"
+  },
+  {
+    slug: "json-to-tensorflow",
+    title: "Convert JSON to TensorFlow Features - AI Guide",
+    description: "Generate TensorFlow feature column definitions from JSON. The guide to scalable machine learning.",
+    h1: "TensorFlow Mastery: Automating Feature Engineering"
+  },
+  {
+    slug: "json-to-solidity",
+    title: "Convert JSON to Solidity Structs - Web3 Engineering",
+    description: "Generate Ethereum Solidity structs and mappings from JSON samples. The guide to secure smart contract design.",
+    h1: "Solidity Mastery: Automating Smart Contract Data Models"
+  },
+  {
+    slug: "json-to-mermaid",
+    title: "Convert JSON to Mermaid Class Diagrams - Documentation",
+    description: "Transform your JSON data structures into visual Mermaid.js class diagrams. The guide to automated architecture docs.",
+    h1: "Mermaid.js Mastery: Visualizing Data Structures"
+  },
+  {
+    slug: "json-to-jest-mock",
+    title: "Convert JSON to Jest Mocks - Testing Guide",
+    description: "Generate typed Jest mocks and snapshots from JSON API responses. The guide to reliable unit testing.",
+    h1: "Jest Mastery: Automating Test Mock Generation"
+  },
+  {
+    slug: "json-to-cypress-fixture",
+    title: "Convert JSON to Cypress Fixtures - E2E Testing",
+    description: "Transform JSON data into optimized Cypress fixture files. The guide to robust end-to-end testing.",
+    h1: "Cypress Mastery: Automating Fixture Management"
+  },
+  {
+    slug: "json-to-playwright-mock",
+    title: "Convert JSON to Playwright Mocks - Modern Testing",
+    description: "Generate Playwright route mocks from JSON samples for faster E2E tests. The guide to modern testing automation.",
+    h1: "Playwright Mastery: Automating Network Mocks"
+  },
+  {
+    slug: "json-to-arduino",
+    title: "Convert JSON to Arduino (C++) Constants - Embedded",
+    description: "Transform JSON data into C++ structs and arrays for Arduino/ESP32. The guide to IoT data handling.",
+    h1: "Arduino Mastery: Automating Embedded Data Models"
+  },
+  {
+    slug: "json-to-rust-embedded",
+    title: "Convert JSON to Rust no_std Structs - Systems",
+    description: "Generate Rust structs for embedded systems (no_std) from JSON. The guide to high-performance IoT.",
+    h1: "Embedded Rust Mastery: Memory-Safe Data Models"
+  },
+  {
+    slug: "json-to-latex-table",
+    title: "Convert JSON to LaTeX Tables - Academic Writing",
+    description: "Generate professional LaTeX table code from JSON data arrays. The guide to academic data presentation.",
+    h1: "LaTeX Mastery: Automating Scientific Data Tables"
+  },
+  {
+    slug: "json-to-bibtex",
+    title: "Convert JSON to BibTeX - Reference Management",
+    description: "Transform JSON metadata into standard BibTeX citation entries. The guide to automated bibliographies.",
+    h1: "BibTeX Mastery: Automating Academic Citations"
+  },
+  {
+    slug: "json-to-alpine-data",
+    title: "Convert JSON to Alpine.js x-data - Lightweight Web",
+    description: "Generate Alpine.js component data from JSON objects. The guide to lean, reactive web design.",
+    h1: "Alpine.js Mastery: Automating Reactive Data"
+  },
+  {
+    slug: "json-to-htmx-trigger",
+    title: "Convert JSON to HTMX Triggers - Hypermedia Guide",
+    description: "Generate HTMX custom events and headers from JSON data. The guide to modern hypermedia-driven apps.",
+    h1: "HTMX Mastery: Automating Server-Driven Interactions"
+  },
+  {
+    slug: "json-to-docusaurus-mdx",
+    title: "Convert JSON to Docusaurus MDX - Tech Docs",
+    description: "Transform JSON data into Docusaurus-compatible MDX pages. The guide to automated technical documentation.",
+    h1: "Docusaurus Mastery: Automating Documentation"
+  },
+  {
+    slug: "json-to-jekyll-yaml",
+    title: "Convert JSON to Jekyll Frontmatter",
+    description: "Transform your JSON into Jekyll-compatible YAML frontmatter.",
+    h1: "Jekyll Mastery: Automating Static Site Metadata"
+  },
+  {
+    slug: "json-to-hugo-toml",
+    title: "Convert JSON to Hugo Frontmatter (TOML)",
+    description: "Transform JSON into Hugo-compatible TOML frontmatter.",
+    h1: "Hugo Mastery: Automating Static Site Config"
+  },
+  {
+    slug: "json-to-pocketbase-schema",
+    title: "Convert JSON to PocketBase Schema - Go Backend",
+    description: "Generate PocketBase collection definitions from JSON samples.",
+    h1: "PocketBase Mastery: Automated Backend Design"
+  },
+  {
+    slug: "json-to-directus-schema",
+    title: "Convert JSON to Directus Collections - Headless CMS",
+    description: "Generate Directus collection and field schemas from JSON.",
+    h1: "Directus Mastery: Automating Headless CMS Design"
+  },
+  {
+    slug: "json-to-strapi-model",
+    title: "Convert JSON to Strapi Content Types",
+    description: "Generate Strapi content-type schemas from JSON samples.",
+    h1: "Strapi Mastery: Automating Content Modeling"
+  },
+  {
+    slug: "json-to-ghost-theme-data",
+    title: "Convert JSON to Ghost Theme Helpers",
+    description: "Transform JSON into Ghost-compatible Handlebars helpers.",
+    h1: "Ghost Mastery: Automating CMS Theming"
+  },
+  {
+    slug: "json-to-wordpress-metadata",
+    title: "Convert JSON to WordPress Custom Fields",
+    description: "Generate ACF or WordPress metadata code from JSON.",
+    h1: "WordPress Mastery: Automating Custom Metadata"
+  },
+  {
+    slug: "json-to-unity-csharp",
+    title: "Convert JSON to Unity C# Classes - Game Dev Guide",
+    description: "Generate Unity-friendly C# classes with [Serializable] attributes from JSON. The guide to efficient game data handling.",
+    h1: "Unity Mastery: Automating Game Data Models"
+  },
+  {
+    slug: "json-to-godot-gdscript",
+    title: "Convert JSON to Godot GDScript - Indie Game Guide",
+    description: "Transform JSON data into Godot-compatible GDScript dictionaries and classes. The guide to modern indie game development.",
+    h1: "Godot Mastery: Automating GDScript Data Structures"
+  },
+  {
+    slug: "json-to-r-dataframe",
+    title: "Convert JSON to R Dataframes - Statistical Computing",
+    description: "Generate R code to load and structure JSON data into dataframes. The definitive guide to R data analysis.",
+    h1: "R Mastery: From JSON to Statistical Analysis"
+  },
+  {
+    slug: "json-to-pandas",
+    title: "Convert JSON to Pandas Code - Data Science Guide",
+    description: "Generate Python Pandas code for loading and cleaning JSON datasets. The guide to modern data science workflows.",
+    h1: "Pandas Mastery: Automating Data Ingestion"
+  },
+  {
+    slug: "json-to-owasp-checklist",
+    title: "Convert JSON to OWASP Security Checklist",
+    description: "Transform your API responses into a structured OWASP security verification checklist.",
+    h1: "Security Mastery: Automating Compliance Checks"
+  },
+  {
+    slug: "json-to-aws-iam-policy",
+    title: "Convert JSON to AWS IAM Policy - Cloud Security",
+    description: "Generate strictly-formatted AWS IAM policies from JSON data samples. The guide to secure cloud infrastructure.",
+    h1: "IAM Mastery: Automating Cloud Security Policies"
+  },
+  {
+    slug: "json-to-kubernetes-network-policy",
+    title: "Convert JSON to K8s Network Policies",
+    description: "Generate Kubernetes network security policies from JSON data definitions.",
+    h1: "Kubernetes Security: Automating Network Traffic Control"
+  },
+  {
+    slug: "json-to-terraform-resource",
+    title: "Convert JSON to Terraform Resources - Cloud IaC",
+    description: "Generate HCL resource definitions from JSON data samples for AWS, GCP, and Azure.",
+    h1: "Terraform Mastery: Automating Resource Generation"
+  },
+  {
+    slug: "json-to-graphql-mutation",
+    title: "Generate GraphQL Mutations from JSON",
+    description: "Create GraphQL mutation strings and input types from existing JSON objects.",
+    h1: "GraphQL Mastery: Automating Mutation Design"
+  },
+  {
+    slug: "json-to-openapi-3",
+    title: "Convert JSON to OpenAPI 3.0 (Swagger)",
+    description: "Generate professional OpenAPI 3.0 specifications from JSON response samples.",
+    h1: "OpenAPI Mastery: Automating API Documentation"
+  },
+  {
+    slug: "json-to-asyncapi",
+    title: "Convert JSON to AsyncAPI - Event-Driven Guide",
+    description: "Generate AsyncAPI specifications for event-driven architectures from JSON payloads.",
+    h1: "AsyncAPI Mastery: Automating Event Documentation"
+  },
+  {
+    slug: "json-to-storybook-args",
+    title: "Convert JSON to Storybook Args - Frontend Docs",
+    description: "Generate Storybook args and ArgTypes from JSON component data. The guide to professional component documentation.",
+    h1: "Storybook Mastery: Automating Component Docs"
+  },
+  {
+    slug: "json-to-tailwind-theme",
+    title: "Convert JSON to Tailwind Theme Config",
+    description: "Transform your design tokens in JSON into a Tailwind CSS theme extension. The guide to automated design systems.",
+    h1: "Tailwind Mastery: Automating Theme Extensions"
+  },
+  {
+    slug: "json-to-nestjs-dto",
+    title: "Convert JSON to NestJS DTOs - Professional Backend",
+    description: "Generate NestJS DTOs with class-validator decorators from JSON. The guide to robust enterprise APIs.",
+    h1: "NestJS Mastery: Automating DTO Generation"
+  },
+  {
+    slug: "json-to-go-fiber-schema",
+    title: "Convert JSON to Go Fiber Schema",
+    description: "Generate Go structs optimized for the Fiber web framework from JSON samples.",
+    h1: "Go Fiber Mastery: Automating Data Structs"
+  },
+  {
+    slug: "json-to-swiftui-preview",
+    title: "Convert JSON to SwiftUI Preview Data",
+    description: "Generate Swift mock data for SwiftUI previews from JSON samples. The guide to rapid iOS UI development.",
+    h1: "SwiftUI Mastery: Automating Preview Data"
+  },
+  {
+    slug: "json-to-jetpack-compose-preview",
+    title: "Convert JSON to Jetpack Compose Previews",
+    description: "Generate Kotlin mock data for Android Jetpack Compose previews from JSON.",
+    h1: "Compose Mastery: Automating Android UI Previews"
+  },
+  {
+    slug: "json-to-markdown-table",
+    title: "Convert JSON to Markdown Table Online",
+    description: "Transform your JSON data arrays into clean, GitHub-flavored Markdown tables.",
+    h1: "Markdown Mastery: Automating Data Documentation"
+  },
+  {
+    slug: "json-to-asciidoc-table",
+    title: "Convert JSON to AsciiDoc Table - Tech Writing",
+    description: "Transform JSON data into professional AsciiDoc table format. The guide to enterprise documentation.",
+    h1: "AsciiDoc Mastery: Automating Technical Tables"
+  },
+  {
+    slug: "json-to-pwa-manifest",
+    title: "Convert JSON to PWA Manifest Online",
+    description: "Generate a valid webmanifest file from your JSON app metadata.",
+    h1: "PWA Mastery: Automating App Manifests"
+  },
+  {
+    slug: "json-to-vscode-snippet",
+    title: "Convert JSON to VS Code Snippet Online",
+    description: "Transform your JSON data or code into a reusable VS Code snippet definition.",
+    h1: "VS Code Mastery: Automating Snippet Generation"
+  }
 ];
