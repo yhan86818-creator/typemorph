@@ -5,6 +5,7 @@ const posts = [
   {
     slug: 'security-risks-of-online-converters',
     title: 'The Hidden Security Risks of Online JSON Converters',
+    excerpt: 'Why pasting proprietary company data into third-party web tools is a major liability, and how to stay safe.',
     date: '2026-05-10',
     author: 'TypeFlow Security Team',
     content: `
@@ -35,6 +36,7 @@ const posts = [
   {
     slug: 'nextjs-type-safety-workflow',
     title: 'Ultimate Type-Safe Workflow for Next.js 15',
+    excerpt: 'A deep dive into combining Zod, React Query, and TypeScript for bulletproof API integration.',
     date: '2026-05-12',
     author: 'TypeFlow Engineering',
     content: `
@@ -74,9 +76,22 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const post = posts.find((p) => p.slug === slug);
+  const baseUrl = 'https://typeflow-pro.pages.dev';
   return {
     title: `${post?.title} | TypeFlow Blog`,
-    description: post?.title,
+    description: post?.excerpt || post?.title,
+    alternates: {
+      canonical: `${baseUrl}/blog/${slug}`,
+    },
+    openGraph: {
+      title: post?.title,
+      description: post?.excerpt,
+      url: `${baseUrl}/blog/${slug}`,
+      siteName: 'TypeFlow Pro',
+      type: 'article',
+      publishedTime: post?.date,
+      authors: [post?.author || 'TypeFlow Team'],
+    }
   };
 }
 
