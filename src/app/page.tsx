@@ -25,7 +25,15 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
   const [licenseKey, setLicenseKey] = useState("");
   const [geminiKey, setGeminiKey] = useState("");
   const [selectedSlug, setSelectedSlug] = useState(initialSlug || 'json-to-typescript');
-  const [outputTab, setOutputTab] = useState('typescript');
+  const getInitialTab = (s: string) => {
+    if (s.includes('zod')) return 'zod';
+    if (s.includes('go')) return 'go';
+    if (s.includes('rust')) return 'rust';
+    if (s.includes('python')) return 'python';
+    if (s.includes('dart')) return 'dart';
+    return 'typescript';
+  };
+  const [outputTab, setOutputTab] = useState(getInitialTab(initialSlug || 'json-to-typescript'));
   const [isVerifying, setIsVerifying] = useState(false);
   const [vMsg, setVMsg] = useState({ type: '', text: '' });
   const [showLicenseModal, setShowLicenseModal] = useState(false);
@@ -77,6 +85,7 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
 
   const handleSelectTool = (slug: string) => {
     setSelectedSlug(slug);
+    setOutputTab(getInitialTab(slug));
     setView('app');
   };
 
@@ -106,9 +115,9 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
   };
 
   return (
-    <div className={`min-h-screen flex flex-col ${isDark ? 'dark' : ''} bg-white dark:bg-[#020617] transition-colors duration-500`}>
+    <div className={`${initialSlug ? '' : 'min-h-screen'} flex flex-col ${isDark ? 'dark' : ''} bg-white dark:bg-[#020617] transition-colors duration-500`}>
       {/* Top Navigation Cockpit */}
-      <nav className="fixed top-0 left-0 right-0 h-20 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#020617]/80 backdrop-blur-xl z-[100] px-6">
+      <nav className={`${initialSlug ? 'sticky' : 'fixed'} top-0 left-0 right-0 h-20 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#020617]/80 backdrop-blur-xl z-[100] px-6`}>
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between">
           <div className="flex items-center gap-10">
             <button onClick={() => setView('landing')} className="flex items-center gap-3 group text-left">
@@ -175,7 +184,7 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
       </nav>
 
       {/* Main Layout Body */}
-      <div className="flex-1 flex overflow-hidden pt-20">
+      <div className={`flex-1 flex ${initialSlug ? '' : 'overflow-hidden'} pt-20`}>
         {view !== 'landing' && (
           <Sidebar 
             selectedSlug={selectedSlug} 
@@ -186,42 +195,11 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
           />
         )}
 
-        <main className="flex-1 overflow-y-auto relative no-scrollbar">
+        <main className={`flex-1 ${initialSlug ? '' : 'overflow-y-auto'} relative no-scrollbar`}>
           <AnimatePresence mode="wait">
             {view === 'landing' && (
               <motion.div key="landing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
                 <LandingView onSelect={handleSelectTool} />
-                <footer className="bg-slate-50 dark:bg-slate-900/50 py-20 border-t border-slate-100 dark:border-slate-800 mt-20">
-                  <div className="max-w-7xl mx-auto px-6">
-                    <div className="grid md:grid-cols-4 gap-12 mb-20">
-                      <div className="col-span-2">
-                        <div className="flex items-center gap-3 mb-6">
-                          <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg"><ShieldCheck size={18} /></div>
-                          <span className="text-xl font-black tracking-tighter dark:text-white">TypeFlow <span className="text-blue-600 italic">Pro</span></span>
-                        </div>
-                        <p className="text-slate-500 max-w-sm mb-8 leading-relaxed font-medium">The most secure, local-first data transformation engine for professional software engineers.</p>
-                      </div>
-                      <div>
-                        <h4 className="font-black text-xs uppercase tracking-[0.2em] text-slate-400 mb-6">Product</h4>
-                        <ul className="space-y-4 text-sm font-bold text-slate-600 dark:text-slate-400">
-                          <li><button onClick={() => setView('app')} className="hover:text-blue-600">Workbench</button></li>
-                          <li><a href="https://yhanster206.gumroad.com/l/zjcuuu" target="_blank" className="hover:text-blue-600">Pricing</a></li>
-                        </ul>
-                      </div>
-                      <div>
-                        <h4 className="font-black text-xs uppercase tracking-[0.2em] text-slate-400 mb-6">Resources</h4>
-                        <ul className="space-y-4 text-sm font-bold text-slate-600 dark:text-slate-400">
-                          <li><a href="/blog" className="hover:text-blue-600 flex items-center gap-2">Engineering Blog <ExternalLink size={14} /></a></li>
-                          <li><a href="https://twitter.com/intent/tweet?text=@vuazggItHF38912" target="_blank" className="hover:text-blue-600">Contact</a></li>
-                        </ul>
-                      </div>
-                    </div>
-                    <div className="pt-8 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      <p>© {new Date().getFullYear()} TypeFlow Pro Engine. ALL RIGHTS RESERVED.</p>
-                      <div className="flex gap-8"><span>GDPR COMPLIANT</span><span>LOCAL PROCESSING</span></div>
-                    </div>
-                  </div>
-                </footer>
               </motion.div>
             )}
             {view === 'app' && (

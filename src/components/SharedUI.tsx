@@ -105,3 +105,30 @@ export const JsonVisualizer = ({ data, name = "root", depth = 0 }: { data: any, 
     </div>
   );
 };
+
+// --- Toast Component ---
+export function Toast({ message, isVisible, type = 'success' }: { message: string, isVisible: boolean, type?: 'success' | 'error' | 'info' }) {
+  return (
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div
+          initial={{ opacity: 0, y: 50, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 50, scale: 0.9 }}
+          className="fixed bottom-10 right-10 z-[500] pointer-events-none"
+        >
+          <div className={`px-6 py-4 rounded-3xl shadow-2xl backdrop-blur-xl border flex items-center gap-4 ${
+            type === 'success' ? 'bg-green-500/90 border-green-400 text-white' : 
+            type === 'error' ? 'bg-red-500/90 border-red-400 text-white' :
+            'bg-slate-900/90 border-slate-700 text-white'
+          }`}>
+            <div className="w-6 h-6 bg-white/20 rounded-lg flex items-center justify-center">
+              {type === 'success' ? '✓' : '!'}
+            </div>
+            <span className="text-xs font-black uppercase tracking-widest">{message}</span>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}

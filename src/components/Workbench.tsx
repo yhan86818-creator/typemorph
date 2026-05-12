@@ -9,7 +9,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   runEngine, parseYAML, parseXML, parseCurl, curlToTypeScript, parseSQLToZod 
 } from '@/lib/engine';
-import { JsonVisualizer } from './SharedUI';
+import { JsonVisualizer, Toast } from './SharedUI';
+import { History as HistoryIcon, Clock } from 'lucide-react';
 
 interface WorkbenchProps {
   slug: string;
@@ -27,16 +28,29 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab }: 
   const [isCopied, setIsCopied] = useState(false);
   const [outputs, setOutputs] = useState<any>({});
   const [jsonData, setJsonData] = useState<any>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [showToast, setShowToast] = useState(false);
 
-  // Initial Sample Data
-  useEffect(() => {
-    const samples: any = {
-      'json-to-typescript': `{ "user": { "id": 1, "name": "Kouki" } }`,
-      'curl-to-fetch': `curl -X GET 'https://api.example.com'`,
-      'sql-to-zod': `CREATE TABLE users (id INT, name TEXT);`
-    };
-    setInput(samples[slug] || `{\n  "status": "ready",\n  "tool": "${slug}"\n}`);
-  }, [slug]);
+  const inputRef = useRef(input);
+  useEffect(() => { inputRef.current = input; }, [input]);
+
+  const handleAiSmartParse = useCallback(async () => {
+    if (!geminiKey) return;
+    setIsAiLoading(true);
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `Clean this input into valid minified JSON: ${inputRef.current}` }] }]
+        })
+      });
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) setInput(text.replace(/```json/g, '').replace(/```/g, '').trim());
+    } catch (e) { console.error(e); }
+    finally { setIsAiLoading(false); }
+  }, [geminiKey]); // Only depend on geminiKey
 
   const processInput = useCallback(() => {
     const trimmed = input.trim();
@@ -75,41 +89,72 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab }: 
 
   useEffect(() => { processInput(); }, [processInput]);
 
-  const handleAiSmartParse = async () => {
-    if (!geminiKey) return;
-    setIsAiLoading(true);
-    try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: `Clean this input into valid minified JSON: ${input}` }] }]
-        })
-      });
-      const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) setInput(text.replace(/```json/g, '').replace(/```/g, '').trim());
-    } catch (e) { console.error(e); }
-    finally { setIsAiLoading(false); }
-  };
+  // History Management
+  useEffect(() => {
+    const saved = localStorage.getItem('typeflow_history');
+    if (saved) setHistory(JSON.parse(saved));
+  }, []);
+
+  const saveToHistory = useCallback((content: string) => {
+    if (!content || content.length < 10) return;
+    setHistory(prev => {
+      const filtered = prev.filter(h => h.content !== content);
+      const next = [{ content, timestamp: new Date().toISOString() }, ...filtered].slice(0, 5);
+      localStorage.setItem('typeflow_history', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  // Auto-save history after idle
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (input && input.length > 20) saveToHistory(input);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [input, saveToHistory]);
+
+  // Initial Sample Data & Magic Data Handling
+  const lastSlug = useRef('');
+  useEffect(() => {
+    const magicData = localStorage.getItem('typeflow_magic_data');
+    if (magicData) {
+      setInput(magicData);
+      localStorage.removeItem('typeflow_magic_data');
+      if (geminiKey) {
+        setTimeout(() => handleAiSmartParse(), 500);
+      }
+    } else if (lastSlug.current !== slug && !input) {
+      const samples: any = {
+        'json-to-typescript': `{ "user": { "id": 1, "name": "Kouki" } }`,
+        'curl-to-fetch': `curl -X GET 'https://api.example.com'`,
+        'sql-to-zod': `CREATE TABLE users (id INT, name TEXT);`
+      };
+      setInput(samples[slug] || `{\n  "status": "ready",\n  "tool": "${slug}"\n}`);
+    }
+    lastSlug.current = slug;
+  }, [slug, geminiKey]); // Removed handleAiSmartParse from dependency
 
   const tabs = [
     { id: 'typescript', label: 'TS' },
     { id: 'zod', label: 'Zod' },
     { id: 'go', label: 'Go' },
-    { id: 'python', label: 'Python' },
     { id: 'rust', label: 'Rust' },
+    { id: 'python', label: 'Python' },
     { id: 'dart', label: 'Dart' },
     { id: 'php', label: 'PHP' },
-    { id: 'graphql', label: 'GQL' },
+    { id: 'java', label: 'Java' },
+    { id: 'kotlin', label: 'Kotlin' },
+    { id: 'swift', label: 'Swift' },
     { id: 'protobuf', label: 'Proto' },
+    { id: 'graphql', label: 'GQL' },
     { id: 'sql', label: 'SQL' },
+    { id: 'jsonschema', label: 'Schema' },
     { id: 'ui', label: 'UI' },
     { id: 'json', label: 'JSON' }
   ];
 
   return (
-    <div className="flex flex-col md:flex-row h-full p-6 gap-6 bg-slate-50 dark:bg-[#020617]">
+    <div className="flex flex-col md:flex-row min-h-[calc(100vh-80px)] p-6 gap-6 bg-slate-50 dark:bg-[#020617]">
       <div className="flex-1 flex flex-col min-w-0">
         <div className="flex justify-between items-center mb-3">
           <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
@@ -128,6 +173,26 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab }: 
             </button>
           </div>
         </div>
+
+        {/* Recent History Chips */}
+        {history.length > 0 && (
+          <div className="flex items-center gap-2 mb-4 overflow-x-auto no-scrollbar pb-1">
+            <span className="flex items-center gap-1 text-[8px] font-black uppercase text-slate-300 tracking-tighter shrink-0">
+              <Clock size={10} /> History:
+            </span>
+            {history.map((h, i) => (
+              <button 
+                key={i}
+                onClick={() => setInput(h.content)}
+                className="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-[9px] font-bold text-slate-500 hover:text-blue-600 border border-transparent hover:border-blue-200 transition-all truncate max-w-[120px]"
+                title={h.content.slice(0, 100)}
+              >
+                {h.content.trim().slice(0, 15)}...
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="flex-1 bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
           <Editor
             height="100%"
@@ -141,13 +206,13 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab }: 
       </div>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex justify-between items-center mb-3 overflow-x-auto no-scrollbar">
-          <div className="flex items-center gap-1">
-            {tabs.slice(0, 8).map(tab => (
+        <div className="flex justify-between items-center mb-3">
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1 max-w-[calc(100%-100px)]">
+            {tabs.map(tab => (
               <button 
                 key={tab.id}
                 onClick={() => setOutputTab(tab.id)}
-                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${outputTab === tab.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${outputTab === tab.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
               >
                 {tab.label}
               </button>
@@ -157,7 +222,11 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab }: 
             onClick={() => {
               navigator.clipboard.writeText(outputs[outputTab] || "");
               setIsCopied(true);
-              setTimeout(() => setIsCopied(false), 2000);
+              setShowToast(true);
+              setTimeout(() => {
+                setIsCopied(false);
+                setShowToast(false);
+              }, 2000);
             }}
             className="flex items-center gap-2 text-[10px] font-black uppercase text-white bg-[#0F172A] dark:bg-blue-600 px-4 py-1.5 rounded-lg shadow-lg hover:scale-[1.02] transition-all ml-4 shrink-0"
           >
@@ -180,6 +249,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab }: 
           )}
         </div>
       </div>
+      <Toast isVisible={showToast} message={`${outputTab.toUpperCase()} Copied to Clipboard!`} />
     </div>
   );
 }

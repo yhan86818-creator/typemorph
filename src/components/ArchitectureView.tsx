@@ -40,6 +40,18 @@ CREATE TABLE posts (
   const [showPaywall, setShowPaywall] = useState(false);
   const mermaidRef = useRef<HTMLDivElement>(null);
 
+  // Initial Magic Data Handling
+  useEffect(() => {
+    const magicData = localStorage.getItem('typeflow_magic_data');
+    if (magicData) {
+      setInput(magicData);
+      localStorage.removeItem('typeflow_magic_data');
+      if (geminiKey && isPro) {
+        setTimeout(() => generateDiagram(), 500);
+      }
+    }
+  }, [geminiKey, isPro]);
+
   const generateDiagram = async () => {
     if (!isPro && trialCount <= 0) {
       setShowPaywall(true);
@@ -55,9 +67,13 @@ CREATE TABLE posts (
     try {
       const prompt = `
         Transform the following input into a valid Mermaid.js diagram code.
-        If it is SQL, generate an Entity Relationship (ER) Diagram (erDiagram).
-        If it is JSON, generate a Class Diagram (classDiagram) showing the structure.
-        Only output the raw mermaid code, no markdown, no explanations.
+        Determine the best diagram type:
+        - For SQL DDL: generate an erDiagram.
+        - For JSON/Classes: generate a classDiagram.
+        - For logic flows or processes: generate a flowchart (graph TD).
+        - For interactions between components/users: generate a sequenceDiagram.
+        
+        Only output the raw mermaid code (e.g., 'erDiagram ...' or 'sequenceDiagram ...'), no markdown backticks, no explanations.
         
         INPUT:
         ${input}
@@ -74,7 +90,7 @@ CREATE TABLE posts (
       const data = await res.json();
       let code = data.candidates[0].content.parts[0].text.replace(/```mermaid\n/g, '').replace(/```/g, '').trim();
       
-      // Basic cleanup for erDiagram common issues
+      // Basic cleanup for common issues
       if (code.startsWith('erDiagram')) {
         code = code.replace(/\"/g, '');
       }
@@ -94,20 +110,44 @@ CREATE TABLE posts (
     }
   };
 
+  const handleDownloadSVG = () => {
+    if (!svg) return;
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `architecture-${Date.now()}.svg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   useEffect(() => {
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: isDark ? 'dark' : 'default',
+      securityLevel: 'loose',
+      fontFamily: 'var(--font-jetbrains-mono)',
+      themeVariables: {
+        primaryColor: '#2563eb',
+        primaryTextColor: isDark ? '#fff' : '#000',
+        lineColor: '#3b82f6',
+      }
+    });
+    
     if (mermaidCode) {
       const render = async () => {
         try {
-          const { svg } = await mermaid.render('mermaid-svg', mermaidCode);
+          const { svg } = await mermaid.render('mermaid-svg-' + Date.now(), mermaidCode);
           setSvg(svg);
         } catch (e) {
           console.error("Mermaid Render Error", e);
-          setSvg('<div className="p-8 text-red-500 font-bold">Failed to render diagram. Please check the AI output.</div>');
         }
       };
       render();
     }
-  }, [mermaidCode]);
+  }, [mermaidCode, isDark]);
 
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC] dark:bg-[#020617] transition-colors duration-500 relative">
@@ -223,11 +263,15 @@ CREATE TABLE posts (
           {/* Tools Overlay */}
           {svg && (
             <div className="absolute top-10 right-10 flex flex-col gap-2">
-              <button className="p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-blue-600 transition-colors">
-                <Maximize2 size={18} />
+              <button 
+                onClick={handleDownloadSVG}
+                className="p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-blue-600 transition-colors"
+                title="Download SVG"
+              >
+                <Download size={18} />
               </button>
               <button className="p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-blue-600 transition-colors">
-                <ZoomIn size={18} />
+                <Maximize2 size={18} />
               </button>
             </div>
           )}

@@ -984,4 +984,605 @@ export const converters: Converter[] = [
     description: "Transform your JSON data or code into a reusable VS Code snippet definition.",
     h1: "VS Code Mastery: Automating Snippet Generation"
   }
+,
+  {
+  "slug": "yaml-to-go",
+  "title": "Convert YAML to Go Structs Online",
+  "description": "Transform YAML configurations into idiomatic Go structs instantly.",
+  "h1": "YAML to Go Struct Generator"
+},
+  {
+  "slug": "yaml-to-rust",
+  "title": "Convert YAML to Rust Structs",
+  "description": "Generate Rust structs with Serde support from YAML.",
+  "h1": "YAML to Rust Struct Converter"
+},
+  {
+  "slug": "yaml-to-java",
+  "title": "Convert YAML to Java Classes",
+  "description": "Transform YAML into production-ready Java POJOs.",
+  "h1": "YAML to Java Class Generator"
+},
+  {
+  "slug": "yaml-to-python",
+  "title": "Convert YAML to Python Dataclasses",
+  "description": "Generate type-hinted Python dataclasses from YAML.",
+  "h1": "YAML to Python Dataclass Converter"
+},
+  {
+  "slug": "yaml-to-typescript",
+  "title": "Convert YAML to TypeScript Interfaces",
+  "description": "Transform YAML into type-safe TypeScript definitions.",
+  "h1": "YAML to TypeScript Generator"
+},
+  {
+  "slug": "yaml-to-zod",
+  "title": "Convert YAML to Zod Schemas",
+  "description": "Generate runtime validation schemas from YAML configs.",
+  "h1": "YAML to Zod Schema Converter"
+},
+  {
+  "slug": "toml-to-go",
+  "title": "Convert TOML to Go Structs",
+  "description": "Transform TOML settings into clean Go structs.",
+  "h1": "TOML to Go Struct Generator"
+},
+  {
+  "slug": "toml-to-rust",
+  "title": "Convert TOML to Rust Structs",
+  "description": "Generate Rust data structures from TOML files.",
+  "h1": "TOML to Rust Struct Converter"
+},
+  {
+  "slug": "toml-to-python",
+  "title": "Convert TOML to Python Models",
+  "description": "Transform TOML into type-hinted Python structures.",
+  "h1": "TOML to Python Model Generator"
+},
+  {
+  "slug": "toml-to-typescript",
+  "title": "Convert TOML to TypeScript",
+  "description": "Generate TypeScript interfaces from TOML configuration.",
+  "h1": "TOML to TypeScript Generator"
+},
+  {
+  "slug": "csv-to-json",
+  "title": "Convert CSV to JSON Online",
+  "description": "Transform your CSV datasets into structured JSON arrays.",
+  "h1": "CSV to JSON Converter"
+},
+  {
+  "slug": "csv-to-sql",
+  "title": "Convert CSV to SQL INSERTs",
+  "description": "Generate SQL migration scripts from your CSV data.",
+  "h1": "CSV to SQL Script Generator"
+},
+  {
+  "slug": "csv-to-typescript",
+  "title": "Convert CSV to TypeScript Types",
+  "description": "Generate type-safe interfaces for your CSV datasets.",
+  "h1": "CSV to TypeScript Generator"
+},
+  {
+  "slug": "csv-to-markdown",
+  "title": "Convert CSV to Markdown Table",
+  "description": "Transform CSV data into clean Markdown tables.",
+  "h1": "CSV to Markdown Formatter"
+},
+  {
+  "slug": "xml-to-typescript",
+  "title": "Convert XML to TypeScript Online",
+  "description": "Transform legacy XML into modern TypeScript interfaces.",
+  "h1": "XML to TypeScript Generator"
+},
+  {
+  "slug": "xml-to-go",
+  "title": "Convert XML to Go Structs",
+  "description": "Generate idiomatic Go structs from XML schemas.",
+  "h1": "XML to Go Struct Converter"
+},
+  {
+  "slug": "xml-to-java",
+  "title": "Convert XML to Java Classes",
+  "description": "Transform XML into enterprise Java POJOs.",
+  "h1": "XML to Java Class Generator"
+},
+  {
+  "slug": "xml-to-csharp",
+  "title": "Convert XML to C# Classes",
+  "description": "Generate C# models from XML definitions.",
+  "h1": "XML to C# Class Converter"
+},
+  {
+  "slug": "xml-to-python",
+  "title": "Convert XML to Python Classes",
+  "description": "Generate type-hinted Python models from XML.",
+  "h1": "XML to Python Class Generator"
+},
+  {
+  "slug": "xml-to-yaml",
+  "title": "Convert XML to YAML Online",
+  "description": "Transform verbose XML into readable YAML format.",
+  "h1": "XML to YAML Converter"
+},
+  {
+  "slug": "typescript-to-zod",
+  "title": "Convert TypeScript to Zod Online",
+  "description": "Generate runtime Zod schemas from your TypeScript interfaces.",
+  "h1": "TypeScript to Zod Generator"
+},
+  {
+  "slug": "typescript-to-json-schema",
+  "title": "Convert TypeScript to JSON Schema",
+  "description": "Generate standard JSON Schema from TypeScript types.",
+  "h1": "TypeScript to JSON Schema Converter"
+},
+  {
+  "slug": "typescript-to-sql",
+  "title": "Convert TypeScript to SQL DDL",
+  "description": "Generate database CREATE TABLE statements from TypeScript.",
+  "h1": "TypeScript to SQL Generator"
+},
+  {
+  "slug": "zod-to-typescript",
+  "title": "Convert Zod to TypeScript Online",
+  "description": "Extract TypeScript types from your Zod schemas.",
+  "h1": "Zod to TypeScript Converter"
+},
+  {
+  "slug": "zod-to-json-schema",
+  "title": "Convert Zod to JSON Schema",
+  "description": "Transform Zod validation into standard JSON Schema.",
+  "h1": "Zod to JSON Schema Generator"
+},
+  {
+  "slug": "sql-to-json",
+  "title": "Convert SQL Result to JSON",
+  "description": "Transform SQL query results into clean JSON arrays.",
+  "h1": "SQL to JSON Converter"
+},
+  {
+  "slug": "sql-to-csv",
+  "title": "Convert SQL Result to CSV",
+  "description": "Export your SQL data as standard CSV files.",
+  "h1": "SQL to CSV Exporter"
+},
+  {
+  "slug": "sql-to-xml",
+  "title": "Convert SQL Result to XML",
+  "description": "Transform SQL data into hierarchical XML format.",
+  "h1": "SQL to XML Converter"
+},
+  {
+  "slug": "sql-to-markdown",
+  "title": "Convert SQL to Markdown Table",
+  "description": "Generate clean documentation tables from SQL data.",
+  "h1": "SQL to Markdown Formatter"
+},
+  {
+  "slug": "json-to-hono",
+  "title": "Convert JSON to Hono Types",
+  "description": "Generate type-safe data models for Hono.js applications.",
+  "h1": "JSON to Hono.js Generator"
+},
+  {
+  "slug": "json-to-fastify",
+  "title": "Convert JSON to Fastify Schemas",
+  "description": "Generate JSON Schema for Fastify validation from samples.",
+  "h1": "JSON to Fastify Schema Tool"
+},
+  {
+  "slug": "json-to-bun",
+  "title": "Convert JSON to Bun Server Types",
+  "description": "Generate optimized types for Bun-native APIs.",
+  "h1": "JSON to Bun.js Generator"
+},
+  {
+  "slug": "json-to-elysia",
+  "title": "Convert JSON to Elysia.js Types",
+  "description": "Generate type-safe models for Elysia.js frameworks.",
+  "h1": "JSON to Elysia.js Generator"
+},
+  {
+  "slug": "json-to-edgedb",
+  "title": "Convert JSON to EdgeDB Schema",
+  "description": "Transform JSON data into EdgeDB SDL definitions.",
+  "h1": "JSON to EdgeDB Schema Converter"
+},
+  {
+  "slug": "json-to-surrealdb",
+  "title": "Convert JSON to SurrealDB Schema",
+  "description": "Generate SurrealQL schema definitions from JSON.",
+  "h1": "JSON to SurrealDB Tool"
+},
+  {
+  "slug": "json-to-valibot",
+  "title": "Convert JSON to Valibot Online",
+  "description": "Generate ultra-lightweight Valibot schemas from JSON.",
+  "h1": "JSON to Valibot Generator"
+},
+  {
+  "slug": "json-to-arktype",
+  "title": "Convert JSON to ArkType Online",
+  "description": "Generate high-performance ArkType definitions from JSON.",
+  "h1": "JSON to ArkType Converter"
+},
+  {
+  "slug": "json-to-effect-schema",
+  "title": "Convert JSON to Effect Schema",
+  "description": "Generate Effect-TS schema definitions from JSON.",
+  "h1": "JSON to Effect Schema Generator"
+},
+  {
+  "slug": "json-to-typebox",
+  "title": "Convert JSON to TypeBox Online",
+  "description": "Generate high-performance TypeBox schemas from JSON.",
+  "h1": "JSON to TypeBox Converter"
+},
+  {
+  "slug": "json-to-io-ts",
+  "title": "Convert JSON to io-ts Definitions",
+  "description": "Generate functional io-ts schemas from JSON data.",
+  "h1": "JSON to io-ts Generator"
+},
+  {
+  "slug": "json-to-runtypes",
+  "title": "Convert JSON to Runtypes Online",
+  "description": "Generate runtime validation types with Runtypes.",
+  "h1": "JSON to Runtypes Converter"
+},
+  {
+  "slug": "json-to-superstruct",
+  "title": "Convert JSON to Superstruct",
+  "description": "Generate simple, robust Superstruct schemas from JSON.",
+  "h1": "JSON to Superstruct Generator"
+},
+  {
+  "slug": "json-to-yup",
+  "title": "Convert JSON to Yup Schemas",
+  "description": "Generate Yup form validation schemas from JSON samples.",
+  "h1": "JSON to Yup Converter"
+},
+  {
+  "slug": "json-to-joi",
+  "title": "Convert JSON to Joi Definitions",
+  "description": "Generate Joi validation logic for Node.js apps.",
+  "h1": "JSON to Joi Generator"
+},
+  {
+  "slug": "json-to-ajv",
+  "title": "Convert JSON to AJV Logic",
+  "description": "Generate high-performance AJV validation functions.",
+  "h1": "JSON to AJV Generator"
+},
+  {
+  "slug": "json-to-graphql-sdl",
+  "title": "Convert JSON to GraphQL SDL",
+  "description": "Infer GraphQL Schema Definition Language from JSON.",
+  "h1": "JSON to GraphQL SDL Generator"
+},
+  {
+  "slug": "json-to-protobuf-v3",
+  "title": "Convert JSON to Protobuf v3",
+  "description": "Generate modern Proto3 definitions from JSON samples.",
+  "h1": "JSON to Protobuf v3 Converter"
+},
+  {
+  "slug": "json-to-avro-avsc",
+  "title": "Convert JSON to Avro .avsc",
+  "description": "Generate Apache Avro schema files from JSON data.",
+  "h1": "JSON to Avro Schema Generator"
+},
+  {
+  "slug": "json-to-thrift",
+  "title": "Convert JSON to Apache Thrift",
+  "description": "Transform JSON data into Thrift IDL definitions.",
+  "h1": "JSON to Apache Thrift Converter"
+},
+  {
+  "slug": "json-to-flatbuffers",
+  "title": "Convert JSON to FlatBuffers",
+  "description": "Generate FlatBuffers schema (.fbs) from JSON data.",
+  "h1": "JSON to FlatBuffers Converter"
+},
+  {
+  "slug": "json-to-capn-proto",
+  "title": "Convert JSON to Cap n Proto",
+  "description": "Generate Cap n Proto schema definitions from JSON.",
+  "h1": "JSON to Cap n Proto Converter"
+},
+  {
+  "slug": "json-to-msgpack",
+  "title": "Convert JSON to MessagePack Info",
+  "description": "Transform JSON into optimized MessagePack payloads.",
+  "h1": "JSON to MessagePack Tool"
+},
+  {
+  "slug": "json-to-bson",
+  "title": "Convert JSON to BSON (MongoDB)",
+  "description": "Transform standard JSON into binary BSON for MongoDB.",
+  "h1": "JSON to BSON Converter"
+},
+  {
+  "slug": "json-to-toml-config",
+  "title": "Convert JSON to TOML Online",
+  "description": "Transform JSON configurations into human-readable TOML.",
+  "h1": "JSON to TOML Converter"
+},
+  {
+  "slug": "json-to-ini",
+  "title": "Convert JSON to INI Format",
+  "description": "Transform structured JSON into flat INI config files.",
+  "h1": "JSON to INI Converter"
+},
+  {
+  "slug": "json-to-properties",
+  "title": "Convert JSON to .properties",
+  "description": "Transform JSON into Java properties file format.",
+  "h1": "JSON to Properties Converter"
+},
+  {
+  "slug": "json-to-env-file",
+  "title": "Convert JSON to .env Online",
+  "description": "Transform nested JSON into flat environment variables.",
+  "h1": "JSON to .env Converter"
+},
+  {
+  "slug": "json-to-xml-schema",
+  "title": "Convert JSON to XML Schema (XSD)",
+  "description": "Generate professional XSD definitions from JSON samples.",
+  "h1": "JSON to XSD Generator"
+},
+  {
+  "slug": "json-to-soap-xml",
+  "title": "Convert JSON to SOAP XML",
+  "description": "Transform JSON data into enterprise SOAP envelopes.",
+  "h1": "JSON to SOAP XML Converter"
+},
+  {
+  "slug": "json-to-plist",
+  "title": "Convert JSON to Apple PList",
+  "description": "Transform JSON into Apple Property List (XML) format.",
+  "h1": "JSON to PList Converter"
+},
+  {
+  "slug": "json-to-c-struct",
+  "title": "Convert JSON to C Structs",
+  "description": "Generate idiomatic C language structs from JSON data.",
+  "h1": "JSON to C Struct Generator"
+},
+  {
+  "slug": "json-to-cpp-struct",
+  "title": "Convert JSON to C++ Structs",
+  "description": "Generate modern C++ structs and classes from JSON.",
+  "h1": "JSON to C++ Struct Converter"
+},
+  {
+  "slug": "json-to-objectivec-model",
+  "title": "Convert JSON to Objective-C",
+  "description": "Generate legacy Objective-C models from JSON data.",
+  "h1": "JSON to Objective-C Generator"
+},
+  {
+  "slug": "json-to-csharp-dto",
+  "title": "Convert JSON to C# DTOs",
+  "description": "Generate professional .NET Data Transfer Objects.",
+  "h1": "JSON to C# DTO Generator"
+},
+  {
+  "slug": "json-to-vb-net-class",
+  "title": "Convert JSON to VB.NET Classes",
+  "description": "Transform JSON into clean VB.NET class definitions.",
+  "h1": "JSON to VB.NET Generator"
+},
+  {
+  "slug": "json-to-fsharp-type",
+  "title": "Convert JSON to F# Types",
+  "description": "Generate functional F# records and types from JSON.",
+  "h1": "JSON to F# Type Generator"
+},
+  {
+  "slug": "json-to-scala-case",
+  "title": "Convert JSON to Scala Case Classes",
+  "description": "Generate Scala data models from JSON samples.",
+  "h1": "JSON to Scala Generator"
+},
+  {
+  "slug": "json-to-kotlin-data",
+  "title": "Convert JSON to Kotlin Data Classes",
+  "description": "Generate modern Kotlin data classes from JSON.",
+  "h1": "JSON to Kotlin Generator"
+},
+  {
+  "slug": "json-to-dart-class",
+  "title": "Convert JSON to Dart Classes",
+  "description": "Generate null-safe Dart classes for Flutter and Web.",
+  "h1": "JSON to Dart Generator"
+},
+  {
+  "slug": "json-to-php-dto-class",
+  "title": "Convert JSON to PHP DTOs",
+  "description": "Generate modern PHP 8.2+ DTOs from JSON data.",
+  "h1": "JSON to PHP DTO Generator"
+},
+  {
+  "slug": "json-to-ruby-model",
+  "title": "Convert JSON to Ruby Models",
+  "description": "Transform JSON into Ruby classes or OpenStructs.",
+  "h1": "JSON to Ruby Generator"
+},
+  {
+  "slug": "json-to-crystal-struct",
+  "title": "Convert JSON to Crystal Structs",
+  "description": "Generate high-performance Crystal data structures.",
+  "h1": "JSON to Crystal Generator"
+},
+  {
+  "slug": "json-to-nim-type",
+  "title": "Convert JSON to Nim Types",
+  "description": "Generate efficient Nim language types from JSON.",
+  "h1": "JSON to Nim Generator"
+},
+  {
+  "slug": "json-to-zig-struct",
+  "title": "Convert JSON to Zig Structs",
+  "description": "Generate manual-memory-safe Zig structs from JSON.",
+  "h1": "JSON to Zig Generator"
+},
+  {
+  "slug": "json-to-odin-struct",
+  "title": "Convert JSON to Odin Structs",
+  "description": "Generate Odin language data structures from JSON.",
+  "h1": "JSON to Odin Generator"
+},
+  {
+  "slug": "json-to-v-struct",
+  "title": "Convert JSON to V Language Structs",
+  "description": "Generate V language data structures from JSON data.",
+  "h1": "JSON to V Struct Generator"
+},
+  {
+  "slug": "json-to-lua-table",
+  "title": "Convert JSON to Lua Tables",
+  "description": "Transform structured JSON into native Lua tables.",
+  "h1": "JSON to Lua Table Converter"
+},
+  {
+  "slug": "json-to-r-list",
+  "title": "Convert JSON to R Lists",
+  "description": "Transform JSON data into R language list structures.",
+  "h1": "JSON to R List Converter"
+},
+  {
+  "slug": "json-to-julia-struct",
+  "title": "Convert JSON to Julia Structs",
+  "description": "Generate Julia language data models from JSON.",
+  "h1": "JSON to Julia Struct Generator"
+},
+  {
+  "slug": "json-to-perl-hash",
+  "title": "Convert JSON to Perl Hashes",
+  "description": "Transform structured JSON into native Perl hash maps.",
+  "h1": "JSON to Perl Hash Converter"
+},
+  {
+  "slug": "json-to-elixir-map",
+  "title": "Convert JSON to Elixir Maps",
+  "description": "Transform structured JSON into idiomatic Elixir maps.",
+  "h1": "JSON to Elixir Map Converter"
+},
+  {
+  "slug": "json-to-erlang-record",
+  "title": "Convert JSON to Erlang Records",
+  "description": "Transform structured JSON into Erlang records.",
+  "h1": "JSON to Erlang Record Converter"
+},
+  {
+  "slug": "json-to-clojure-map",
+  "title": "Convert JSON to Clojure Maps",
+  "description": "Transform structured JSON into native Clojure maps.",
+  "h1": "JSON to Clojure Map Converter"
+},
+  {
+  "slug": "json-to-elm-type-alias",
+  "title": "Convert JSON to Elm Type Aliases",
+  "description": "Generate functional Elm types from JSON samples.",
+  "h1": "JSON to Elm Type Generator"
+},
+  {
+  "slug": "json-to-haskell-data",
+  "title": "Convert JSON to Haskell Data",
+  "description": "Generate advanced Haskell data types from JSON.",
+  "h1": "JSON to Haskell Data Generator"
+},
+  {
+  "slug": "json-to-ocaml-type",
+  "title": "Convert JSON to OCaml Types",
+  "description": "Generate functional OCaml data types from JSON.",
+  "h1": "JSON to OCaml Type Generator"
+},
+  {
+  "slug": "json-to-reasonml-type",
+  "title": "Convert JSON to ReasonML Types",
+  "description": "Generate ReasonML types and decoders from JSON.",
+  "h1": "JSON to ReasonML Type Generator"
+},
+  {
+  "slug": "json-to-rescript-type",
+  "title": "Convert JSON to ReScript Types",
+  "description": "Generate modern ReScript types from JSON data.",
+  "h1": "JSON to ReScript Type Generator"
+},
+  {
+  "slug": "json-to-d-struct",
+  "title": "Convert JSON to D Structs",
+  "description": "Generate D language data structures from JSON.",
+  "h1": "JSON to D Struct Generator"
+},
+  {
+  "slug": "json-to-pascal-record",
+  "title": "Convert JSON to Pascal Records",
+  "description": "Transform JSON data into Object Pascal records.",
+  "h1": "JSON to Pascal Record Converter"
+},
+  {
+  "slug": "json-to-fortran-type",
+  "title": "Convert JSON to Fortran Types",
+  "description": "Generate modern Fortran derived types from JSON.",
+  "h1": "JSON to Fortran Type Generator"
+},
+  {
+  "slug": "json-to-cobol-copybook",
+  "title": "Convert JSON to COBOL Copybooks",
+  "description": "Transform JSON data into enterprise COBOL structures.",
+  "h1": "JSON to COBOL Copybook Converter"
+},
+  {
+  "slug": "json-to-swagger-2",
+  "title": "Convert JSON to Swagger 2.0",
+  "description": "Generate legacy Swagger 2.0 schemas from JSON samples.",
+  "h1": "JSON to Swagger 2.0 Generator"
+},
+  {
+  "slug": "json-to-openapi-3-1",
+  "title": "Convert JSON to OpenAPI 3.1",
+  "description": "Generate modern OpenAPI 3.1 specs from JSON data.",
+  "h1": "JSON to OpenAPI 3.1 Generator"
+},
+  {
+  "slug": "json-to-raml-type",
+  "title": "Convert JSON to RAML Types",
+  "description": "Generate RAML 1.0 data types from JSON samples.",
+  "h1": "JSON to RAML Type Generator"
+},
+  {
+  "slug": "json-to-json-api-spec",
+  "title": "Convert JSON to JSON:API Spec",
+  "description": "Transform data into standards-compliant JSON:API format.",
+  "h1": "JSON to JSON:API Spec Converter"
+},
+  {
+  "slug": "json-to-hal-json",
+  "title": "Convert JSON to HAL+JSON",
+  "description": "Transform standard JSON into hypermedia-ready HAL.",
+  "h1": "JSON to HAL+JSON Converter"
+},
+  {
+  "slug": "json-to-siren-json",
+  "title": "Convert JSON to Siren JSON",
+  "description": "Transform data into hypermedia-driven Siren format.",
+  "h1": "JSON to Siren JSON Converter"
+},
+  {
+  "slug": "json-to-hydra-jsonld",
+  "title": "Convert JSON to Hydra JSON-LD",
+  "description": "Transform data into linked Hydra JSON-LD format.",
+  "h1": "JSON to Hydra JSON-LD Converter"
+},
+  {
+  "slug": "json-to-jsonp",
+  "title": "Convert JSON to JSONP Online",
+  "description": "Wrap your JSON data in a legacy JSONP callback.",
+  "h1": "JSON to JSONP Wrapper"
+}
 ];

@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Wand2, ArrowRight, Zap, Loader2, Save, Copy, Check, Crown } from 'lucide-react';
@@ -30,6 +30,18 @@ function fetchUsers(callback) {
   const [copied, setCopied] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
 
+  // Initial Magic Data Handling
+  useEffect(() => {
+    const magicData = localStorage.getItem('typeflow_magic_data');
+    if (magicData) {
+      setInput(magicData);
+      localStorage.removeItem('typeflow_magic_data');
+      if (geminiKey && isPro) {
+        setTimeout(() => processLogic(), 500);
+      }
+    }
+  }, [geminiKey, isPro]);
+
   const processLogic = async () => {
     if (!isPro && trialCount <= 0) {
       setShowPaywall(true);
@@ -44,13 +56,15 @@ function fetchUsers(callback) {
     setIsProcessing(true);
     try {
       const prompt = `
-        You are an expert software architect. 
-        Analyze the following code and refactor it into clean, modern, high-performance code.
-        Focus on:
-        - Modern patterns (ESNext, TypeScript, Hooks, etc.)
-        - Type safety
-        - Performance optimization
-        - Readability
+        You are a world-class senior software architect. 
+        Analyze the following code and refactor it into clean, modern, high-performance TypeScript/JavaScript.
+        
+        Rules:
+        1. Use modern patterns (ESNext, Async/Await instead of callbacks, Hooks if React).
+        2. Ensure strict type safety.
+        3. Optimize for performance and memory efficiency.
+        4. Add helpful but concise JSDoc comments explaining the improvements.
+        5. Follow SOLID and Clean Code principles.
         
         INPUT CODE:
         ${input}
