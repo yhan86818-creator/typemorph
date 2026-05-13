@@ -61,7 +61,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
             The Multi-Tool for<br /><span className="text-blue-600">Modern Engineers.</span>
           </h1>
           <p className="text-xl text-slate-500 dark:text-slate-400 font-medium max-w-2xl mx-auto">
-            Search 170+ tools or paste raw data (logs, JSON, SQL) to extract structures instantly.
+            Search 300+ tools or paste raw data (logs, JSON, SQL) to extract structures instantly.
           </p>
         </motion.div>
 
@@ -211,7 +211,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
           <Sparkles size={14} className="text-blue-500" /> AI Enhanced
         </div>
         <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-          <Zap size={14} className="text-yellow-500" /> 170+ Tools
+          <Zap size={14} className="text-yellow-500" /> 300+ Tools
         </div>
       </div>
       <GlobalFooter />
