@@ -6,6 +6,7 @@ export const dynamic = 'force-static';
 const blogPosts = [
   'security-risks-of-online-converters',
   'nextjs-type-safety-workflow',
+  'schema-first-engineering-future',
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

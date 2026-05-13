@@ -30,6 +30,8 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab }: 
   const [jsonData, setJsonData] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [showToast, setShowToast] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
+  const [aiStatus, setAiStatus] = useState("");
 
   const inputRef = useRef(input);
   useEffect(() => { inputRef.current = input; }, [input]);
@@ -38,18 +40,31 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab }: 
     if (!geminiKey) return;
     setIsAiLoading(true);
     try {
+      setAiStatus("Analyzing structure...");
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: `Clean this input into valid minified JSON: ${inputRef.current}` }] }]
+          contents: [{ parts: [{ text: `Clean this input into valid minified JSON. If it's a log, extract the primary object. Return ONLY the JSON: ${inputRef.current}` }] }]
         })
       });
+      setAiStatus("Extracting logic...");
       const data = await response.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) setInput(text.replace(/```json/g, '').replace(/```/g, '').trim());
-    } catch (e) { console.error(e); }
-    finally { setIsAiLoading(false); }
+      if (text) {
+        setAiStatus("Success!");
+        setInput(text.replace(/```json/g, '').replace(/```/g, '').trim());
+      }
+    } catch (e) { 
+      setAiStatus("Failed.");
+      console.error(e); 
+    }
+    finally { 
+      setTimeout(() => {
+        setIsAiLoading(false);
+        setAiStatus("");
+      }, 1000);
+    }
   }, [geminiKey]); // Only depend on geminiKey
 
   const processInput = useCallback(() => {
@@ -165,8 +180,17 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab }: 
               onClick={handleAiSmartParse}
               className="flex items-center gap-2 text-[10px] font-black uppercase text-blue-600 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900"
             >
-              {isAiLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-              AI Smart Parse
+              {isAiLoading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 size={12} className="animate-spin" />
+                  <span>{aiStatus}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Sparkles size={12} />
+                  <span>AI Smart Parse</span>
+                </div>
+              )}
             </button>
             <button onClick={() => setInput("")} className="text-slate-400 hover:text-red-500 transition-colors">
               <Trash2 size={16}/>
@@ -218,20 +242,36 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab }: 
               </button>
             ))}
           </div>
-          <button 
-            onClick={() => {
-              navigator.clipboard.writeText(outputs[outputTab] || "");
-              setIsCopied(true);
-              setShowToast(true);
-              setTimeout(() => {
-                setIsCopied(false);
-                setShowToast(false);
-              }, 2000);
-            }}
-            className="flex items-center gap-2 text-[10px] font-black uppercase text-white bg-[#0F172A] dark:bg-blue-600 px-4 py-1.5 rounded-lg shadow-lg hover:scale-[1.02] transition-all ml-4 shrink-0"
-          >
-            <Copy size={12} /> {isCopied ? 'Copied' : 'Copy'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => {
+                const code = outputs[outputTab] || "";
+                const prompt = `Here is a ${outputTab} definition. Please write a production-ready React component or service that utilizes this structure:\n\n\`\`\`${outputTab}\n${code}\n\`\`\``;
+                navigator.clipboard.writeText(prompt);
+                setToastMsg("Prompt Copied!");
+                setShowToast(true);
+                setTimeout(() => setShowToast(false), 2000);
+              }}
+              className="hidden sm:flex items-center gap-2 text-[10px] font-black uppercase text-blue-600 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900 hover:bg-blue-600 hover:text-white transition-all"
+            >
+              <Zap size={12} /> AI Prompt
+            </button>
+            <button 
+              onClick={() => {
+                navigator.clipboard.writeText(outputs[outputTab] || "");
+                setIsCopied(true);
+                setToastMsg(`${outputTab.toUpperCase()} Copied!`);
+                setShowToast(true);
+                setTimeout(() => {
+                  setIsCopied(false);
+                  setShowToast(false);
+                }, 2000);
+              }}
+              className="flex items-center gap-2 text-[10px] font-black uppercase text-white bg-[#0F172A] dark:bg-blue-600 px-4 py-1.5 rounded-lg shadow-lg hover:scale-[1.02] transition-all shrink-0"
+            >
+              <Copy size={12} /> {isCopied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
         </div>
         <div className="flex-1 bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden relative group">
           <Editor
@@ -249,7 +289,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab }: 
           )}
         </div>
       </div>
-      <Toast isVisible={showToast} message={`${outputTab.toUpperCase()} Copied to Clipboard!`} />
+      <Toast isVisible={showToast} message={toastMsg} />
     </div>
   );
 }

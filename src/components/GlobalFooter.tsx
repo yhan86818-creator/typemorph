@@ -30,7 +30,7 @@ export default function GlobalFooter() {
             <h4 className="font-black text-xs uppercase tracking-[0.2em] text-slate-400 mb-6">Product</h4>
             <ul className="space-y-4 text-sm font-bold text-slate-600 dark:text-slate-400">
               <li><a href="/?view=app" className="hover:text-blue-600 transition-colors">Workbench</a></li>
-              <li><a href="#" className="hover:text-blue-600 transition-colors">Pricing</a></li>
+              <li><a href="/pricing" className="hover:text-blue-600 transition-colors">Pricing</a></li>
               <li><a href="#" className="hover:text-blue-600 transition-colors">PWA Guide</a></li>
               <li><a href="#" className="hover:text-blue-600 transition-colors">Security Audit</a></li>
             </ul>

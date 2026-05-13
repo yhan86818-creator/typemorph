@@ -192,12 +192,12 @@ export function LandingView({ onSelect }: LandingViewProps) {
               </div>
             </Link>
             
-            <Link href="/blog/nextjs-type-safety-workflow" className="group bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-200 dark:border-slate-800 hover:border-blue-600 transition-all shadow-xl hover:shadow-blue-500/10">
-              <div className="text-[10px] font-black uppercase text-purple-600 mb-6 tracking-widest">Engineering Guide</div>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-4 group-hover:text-blue-600 transition-colors">Ultimate Type-Safe Workflow for Next.js 15</h3>
-              <p className="text-slate-500 dark:text-slate-400 font-medium mb-8 line-clamp-2">A deep dive into combining Zod, React Query, and TypeScript for bulletproof API integration.</p>
+            <Link href="/blog/schema-first-engineering-future" className="group bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-200 dark:border-slate-800 hover:border-blue-600 transition-all shadow-xl hover:shadow-blue-500/10">
+              <div className="text-[10px] font-black uppercase text-purple-600 mb-6 tracking-widest">Architectural Insight</div>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-4 group-hover:text-blue-600 transition-colors">Beyond Code Generation: Why Schema-First Engineering is the Future</h3>
+              <p className="text-slate-500 dark:text-slate-400 font-medium mb-8 line-clamp-2">Why code generation is just the beginning of building scalable, bulletproof data infrastructures.</p>
               <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-400">
-                Read Full Guide <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                Read Full Analysis <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
               </div>
             </Link>
           </div>

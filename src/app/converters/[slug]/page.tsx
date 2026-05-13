@@ -22,6 +22,14 @@ const blogPosts = [
     categoryColor: 'text-purple-600',
     keywords: ['typescript', 'zod', 'react', 'nextjs', 'query', 'prisma', 'graphql'],
   },
+  {
+    slug: 'schema-first-engineering-future',
+    title: 'Beyond Code Generation: Why Schema-First Engineering is the Future',
+    excerpt: 'Code generation is just the beginning. Discover how a schema-first approach can eliminate 90% of your integration bugs.',
+    category: 'Architectural Insight',
+    categoryColor: 'text-blue-600',
+    keywords: ['architecture', 'schema', 'zod', 'typescript', 'automation'],
+  },
 ];
 
 export async function generateStaticParams() {
@@ -135,8 +143,17 @@ export default async function ConverterPage({ params }: { params: Promise<{ slug
       {/* Technical Manual / Documentation Section */}
       <div className="max-w-4xl mx-auto px-6 py-32 border-t border-slate-100 mt-24">
         <div className="mb-16">
+          {/* Breadcrumbs */}
+          <nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-8">
+            <a href="/" className="hover:text-blue-600">Home</a>
+            <span>/</span>
+            <a href="/converters" className="hover:text-blue-600">Converters</a>
+            <span>/</span>
+            <span className="text-blue-600">{converter.category}</span>
+          </nav>
+          
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-500 font-bold text-[10px] uppercase tracking-widest mb-6">
-            <ShieldCheck size={12} /> Engineering Documentation
+            <ShieldCheck size={12} /> {converter.category} • Engineering Documentation
           </div>
           <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-6 text-slate-900 leading-tight">
             {converter.h1 || converter.title}
