@@ -11,6 +11,8 @@ import {
 } from '@/lib/engine';
 import { JsonVisualizer, Toast } from './SharedUI';
 import { History as HistoryIcon, Clock } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { User } from '@supabase/supabase-js';
 
 interface WorkbenchProps {
   slug: string;
@@ -22,9 +24,10 @@ interface WorkbenchProps {
   setShowLicenseModal?: (show: boolean) => void;
   trialCount?: number;
   setTrialCount?: (c: number) => void;
+  user: User | null;
 }
 
-export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, isPro, setShowLicenseModal, trialCount = 3, setTrialCount }: WorkbenchProps) {
+export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, isPro, setShowLicenseModal, trialCount = 3, setTrialCount, user }: WorkbenchProps) {
   const [input, setInput] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [showAiSettings, setShowAiSettings] = useState(false);
@@ -67,7 +70,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     setIsAiLoading(true);
     try {
       setAiStatus("Analyzing structure...");
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey.trim()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -136,15 +139,31 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     if (saved) setHistory(JSON.parse(saved));
   }, []);
 
-  const saveToHistory = useCallback((content: string) => {
+  const saveToHistory = useCallback(async (content: string) => {
     if (!content || content.length < 10) return;
+    
+    // Save to local storage (for guests)
     setHistory(prev => {
       const filtered = prev.filter(h => h.content !== content);
       const next = [{ content, timestamp: new Date().toISOString() }, ...filtered].slice(0, 5);
       localStorage.setItem('typeflow_history', JSON.stringify(next));
       return next;
     });
-  }, []);
+
+    // Save to Supabase (for logged in users)
+    if (user) {
+      const { error } = await supabase
+        .from('conversion_history')
+        .insert([{ 
+          user_id: user.id, 
+          tool_slug: slug, 
+          input_data: content, 
+          output_data: JSON.stringify(outputs) 
+        }]);
+      
+      if (error) console.error('Error saving to Supabase:', error);
+    }
+  }, [user, slug, outputs]);
 
   // Auto-save history after idle
   useEffect(() => {
@@ -277,7 +296,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                 }}
                 className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${outputTab === tab.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
               >
-                {tab.label} {tab.id === 'mock' && !isPro && <Crown size={10} className="inline ml-1 mb-0.5 text-amber-500" />}
+                <span>{tab.label}</span> {tab.id === 'mock' && !isPro && <Crown size={10} className="inline ml-1 mb-0.5 text-amber-500" />}
               </button>
             ))}
           </div>
@@ -298,7 +317,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
               }}
               className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:text-blue-600 transition-all"
             >
-              <Settings size={12} /> Config {!isPro && <Crown size={10} className="text-amber-500" />}
+              <Settings size={12} /> <span>Config</span> {!isPro && <Crown size={10} className="text-amber-500" />}
             </button>
             <button 
               onClick={() => {
@@ -311,7 +330,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
               }}
               className="hidden sm:flex items-center gap-2 text-[10px] font-black uppercase text-blue-600 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900 hover:bg-blue-600 hover:text-white transition-all"
             >
-              <Zap size={12} /> AI Prompt
+              <Zap size={12} /> <span>AI Prompt</span>
             </button>
             <button 
               onClick={() => {
@@ -326,7 +345,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
               }}
               className="flex items-center gap-2 text-[10px] font-black uppercase text-white bg-[#0F172A] dark:bg-blue-600 px-4 py-1.5 rounded-lg shadow-lg hover:scale-[1.02] transition-all shrink-0"
             >
-              <Copy size={12} /> {isCopied ? 'Copied' : 'Copy'}
+              <Copy size={12} /> <span>{isCopied ? 'Copied' : 'Copy'}</span>
             </button>
           </div>
         </div>

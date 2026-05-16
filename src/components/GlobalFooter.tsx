@@ -18,14 +18,14 @@ export default function GlobalFooter() {
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <a 
-                href="https://twitter.com/intent/tweet?text=@vuazggItHF38912%20I%20have%20a%20feature%20request%20for%20TypeFlow%20Pro:%20" 
+                href="https://x.com/jopnuk9" 
                 target="_blank"
-                className="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-100 dark:border-blue-900 hover:bg-blue-600 hover:text-white transition-all flex items-center gap-2"
+                className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all flex items-center gap-2"
               >
-                <MessageSquare size={14} /> Request Feature
+                X @jopnuk9
               </a>
               <a 
-                href="https://discord.gg/typeflow" 
+                href="https://discord.gg/dQHqsa8g8J" 
                 target="_blank"
                 className="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-indigo-100 dark:border-indigo-900 hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-2"
               >
@@ -46,9 +46,9 @@ export default function GlobalFooter() {
             <h4 className="font-black text-xs uppercase tracking-[0.2em] text-slate-400 mb-6">Resources</h4>
             <ul className="space-y-4 text-sm font-bold text-slate-600 dark:text-slate-400">
               <li><a href="/blog" className="hover:text-blue-600 transition-colors flex items-center gap-2">Engineering Blog <ExternalLink size={14} /></a></li>
-              <li><a href="https://discord.gg/typeflow" target="_blank" className="hover:text-blue-600 transition-colors">Community Discord</a></li>
-              <li><a href="#" className="hover:text-blue-600 transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-blue-600 transition-colors">Terms of Service</a></li>
+              <li><a href="https://discord.gg/dQHqsa8g8J" target="_blank" className="hover:text-blue-600 transition-colors">Community Discord</a></li>
+              <li><a href="/privacy/" className="hover:text-blue-600 transition-colors">Privacy Policy</a></li>
+              <li><a href="/terms/" className="hover:text-blue-600 transition-colors">Terms of Service</a></li>
               <li><a href="/converters" className="hover:text-blue-600 transition-colors">All Converters Directory</a></li>
             </ul>
           </div>

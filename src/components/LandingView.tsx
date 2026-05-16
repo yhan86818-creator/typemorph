@@ -91,7 +91,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
               <Sparkles size={12} className="text-blue-500" /> Neural Engineering Engine
             </div>
             <a 
-              href="https://discord.gg/typeflow" 
+              href="https://discord.gg/dQHqsa8g8J" 
               target="_blank"
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-900 text-indigo-600 dark:text-indigo-400 font-black text-[10px] uppercase tracking-[0.2em] shadow-sm hover:scale-105 transition-transform"
             >
@@ -215,13 +215,13 @@ export function LandingView({ onSelect }: LandingViewProps) {
           {[
             { 
               icon: <ShieldCheck className="text-blue-600" />, 
-              title: "100% Local-First", 
-              desc: "Zero-Trace Privacy. Your proprietary schemas and API payloads never leave your browser. Built for high-security enterprise environments." 
+              title: "100% Local Engine", 
+              desc: "Zero-Trace Privacy. All standard 300+ conversions execute entirely within your browser's sandbox. No backend databases, no data harvesting." 
             },
             { 
               icon: <Cpu className="text-indigo-600" />, 
-              title: "Neural Structural Repair", 
-              desc: "Don't worry about broken JSON or incomplete logs. Our AI-enhanced synthesis fills the gaps and infers types with surgical precision." 
+              title: "Opt-In AI Repair", 
+              desc: "Got broken JSON or messy logs? Explicitly opt-in to use our Gemini 1.5 engine for surgical structural repair. Your data, your control." 
             },
             { 
               icon: <Layers className="text-purple-600" />, 
@@ -244,53 +244,114 @@ export function LandingView({ onSelect }: LandingViewProps) {
           ))}
         </div>
 
-        {/* Category Header */}
-        <div className="flex items-center justify-between mb-12">
-          <div className="flex items-center gap-4">
-            <div className="w-2 h-8 bg-blue-600 rounded-full" />
-            <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Tool <span className="text-blue-600">Registry</span></h2>
+        {/* Use Cases Section */}
+        <div className="mb-40">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white mb-4">Built for <span className="text-blue-600">Modern Architects</span></h2>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">Solving real-world bottlenecks for every engineering role.</p>
           </div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Showing Top Utilities</p>
-        </div>
-
-        {/* Grid Results */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {filtered.map((tool, i) => (
-            <Link
-              key={tool.slug}
-              href={`/converters/${tool.slug}`}
-              className="group block"
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.98 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                className="p-6 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 hover:border-blue-600 transition-all hover:shadow-2xl hover:shadow-blue-500/5 h-full flex flex-col justify-between"
-              >
+          <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+            {/* Frontend */}
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/10 p-10 rounded-[3rem] border border-blue-100 dark:border-blue-900/30 shadow-lg shadow-blue-500/5 hover:scale-[1.02] transition-transform">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-blue-600/20"><FileCode size={24} /></div>
                 <div>
-                  <h3 className="text-sm font-black mb-2 text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors">
-                    {tool.title.split(' - ')[0]}
-                  </h3>
-                  <p className="text-[10px] text-slate-400 line-clamp-2 font-bold uppercase tracking-wider mb-4">
-                    {tool.category}
-                  </p>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white leading-tight">Frontend Engineers</h3>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Type Safety & UI</p>
                 </div>
-                <div className="flex items-center justify-between pt-4 border-t border-slate-50 dark:border-slate-800">
-                  <span className="text-[9px] font-black uppercase text-slate-300 group-hover:text-blue-500 tracking-widest transition-colors">Launch Utility</span>
-                  <ArrowRight size={14} className="text-slate-300 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
+              </div>
+              <div className="bg-white/60 dark:bg-slate-900/60 p-4 rounded-2xl mb-6 border border-slate-200/50 dark:border-slate-700/50">
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-300 italic">"The API docs are outdated and the JSON response is massive. I need Zod schemas right now."</p>
+              </div>
+              <ul className="space-y-4">
+                <li className="flex items-start gap-3 text-sm font-medium text-slate-600 dark:text-slate-400">
+                  <CheckCircle2 size={18} className="text-blue-500 mt-0.5 shrink-0" /> 
+                  <span>Paste any raw, nested, or <span className="font-bold text-slate-900 dark:text-white">even broken JSON</span> payload.</span>
+                </li>
+                <li className="flex items-start gap-3 text-sm font-medium text-slate-600 dark:text-slate-400">
+                  <CheckCircle2 size={18} className="text-blue-500 mt-0.5 shrink-0" /> 
+                  <span>AI automatically infers optional fields and complex nested arrays.</span>
+                </li>
+                <li className="flex items-start gap-3 text-sm font-medium text-slate-600 dark:text-slate-400">
+                  <CheckCircle2 size={18} className="text-blue-500 mt-0.5 shrink-0" /> 
+                  <span>Instantly export production-ready Zod Schemas + TypeScript interfaces.</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Backend / DevOps */}
+            <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/10 p-10 rounded-[3rem] border border-purple-100 dark:border-purple-900/30 shadow-lg shadow-purple-500/5 hover:scale-[1.02] transition-transform">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 bg-purple-600 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-purple-600/20"><Database size={24} /></div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white leading-tight">Backend Architects</h3>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-purple-600 dark:text-purple-400">Data & Infrastructure</p>
                 </div>
-              </motion.div>
-            </Link>
-          ))}
+              </div>
+              <div className="bg-white/60 dark:bg-slate-900/60 p-4 rounded-2xl mb-6 border border-slate-200/50 dark:border-slate-700/50">
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-300 italic">"I need to visualize this 50-table legacy SQL dump to understand the actual relationships."</p>
+              </div>
+              <ul className="space-y-4">
+                <li className="flex items-start gap-3 text-sm font-medium text-slate-600 dark:text-slate-400">
+                  <CheckCircle2 size={18} className="text-purple-500 mt-0.5 shrink-0" /> 
+                  <span>Paste raw PostgreSQL, MySQL dumps, or Prisma schemas.</span>
+                </li>
+                <li className="flex items-start gap-3 text-sm font-medium text-slate-600 dark:text-slate-400">
+                  <CheckCircle2 size={18} className="text-purple-500 mt-0.5 shrink-0" /> 
+                  <span>AI extracts entities, keys, and relational maps automatically.</span>
+                </li>
+                <li className="flex items-start gap-3 text-sm font-medium text-slate-600 dark:text-slate-400">
+                  <CheckCircle2 size={18} className="text-purple-500 mt-0.5 shrink-0" /> 
+                  <span>Generate interactive, beautiful Mermaid.js ER diagrams to present to the team.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
 
-        {converters.length > filtered.length && (
-          <div className="mt-16 text-center">
-            <button className="px-8 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:scale-105 transition-all">
-              Load Full Toolchain ({converters.length})
-            </button>
+        {/* Competitor Comparison Section */}
+        <div className="mb-40">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white mb-4">Why TypeFlow <span className="text-blue-600">Pro?</span></h2>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">The ultimate balance of speed, privacy, and AI precision.</p>
           </div>
-        )}
+          
+          <div className="overflow-x-auto pb-8 custom-scrollbar">
+            <div className="min-w-[800px] grid grid-cols-4 gap-4 items-stretch">
+              {/* Header */}
+              <div className="col-span-1"></div>
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border-2 border-blue-600 relative shadow-2xl shadow-blue-500/10 flex flex-col items-center justify-center text-center">
+                <div className="absolute -top-4 bg-blue-600 text-white px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">TypeFlow Pro</div>
+                <ShieldCheck size={32} className="text-blue-600 mb-2" />
+                <h3 className="font-black text-slate-900 dark:text-white">TypeFlow Pro</h3>
+              </div>
+              <div className="bg-slate-100 dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center opacity-70">
+                <FileCode size={24} className="text-slate-400 mb-2" />
+                <h3 className="font-bold text-slate-600 dark:text-slate-400">Standard Converters</h3>
+              </div>
+              <div className="bg-slate-100 dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center opacity-70">
+                <Terminal size={24} className="text-slate-400 mb-2" />
+                <h3 className="font-bold text-slate-600 dark:text-slate-400">Raw AI (ChatGPT)</h3>
+              </div>
+
+              {/* Rows */}
+              {[
+                { label: 'Data Privacy', tf: 'Local Engine (Opt-in AI)', std: 'Unknown / Cloud', ai: 'Stored & Trained on' },
+                { label: 'Broken Data Handling', tf: 'AI Auto-Repair', std: 'Syntax Error (Fails)', ai: 'Manual Prompting' },
+                { label: 'Speed & Workflow', tf: 'Instant / 1-Click UI', std: 'Instant', ai: 'Slow typing / Copy-Paste' },
+                { label: 'Available Tools', tf: '300+ Dedicated UIs', std: 'Limited (10-20)', ai: 'Infinite (Needs context)' },
+                { label: 'Visual Architecture', tf: 'Automated Interactive SVGs', std: 'None', ai: 'Raw Code Only' }
+              ].map((row, i) => (
+                <React.Fragment key={i}>
+                  <div className="flex items-center justify-end pr-8 text-xs font-black uppercase tracking-widest text-slate-400 text-right">{row.label}</div>
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 flex items-center justify-center text-center text-sm font-bold text-blue-600 dark:text-blue-400 shadow-sm">{row.tf}</div>
+                  <div className="bg-slate-50 dark:bg-slate-900/20 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-center text-center text-xs font-medium text-slate-500">{row.std}</div>
+                  <div className="bg-slate-50 dark:bg-slate-900/20 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-center text-center text-xs font-medium text-slate-500">{row.ai}</div>
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+        </div>
 
         {/* Social Proof / Comparison Section */}
         <div className="mt-60 mb-40 text-center">

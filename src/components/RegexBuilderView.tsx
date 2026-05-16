@@ -46,7 +46,7 @@ export function RegexBuilderView({
       const prompt = `You are an expert developer. Generate ONLY a valid Regular Expression (regex) that does the following: "${intent}".
       Do not include any explanations, markdown backticks, or the wrapping / / characters. Just the raw pattern.`;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey.trim()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -137,7 +137,7 @@ export function RegexBuilderView({
                 className="px-6 py-3 bg-purple-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-purple-700 transition-all shadow-lg disabled:opacity-50 flex items-center gap-2"
               >
                 {isGenerating ? <Wand2 className="animate-spin" size={16} /> : <Play size={16} />}
-                Generate Regex
+                <span>Generate Regex</span>
               </button>
             </div>
           </div>
@@ -153,7 +153,7 @@ export function RegexBuilderView({
                 className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors disabled:opacity-50"
               >
                 {copied ? <CheckCircle2 size={14} className="text-green-500 dark:text-green-400" /> : <Copy size={14} />}
-                {copied ? 'Copied' : 'Copy'}
+                <span>{copied ? 'Copied' : 'Copy'}</span>
               </button>
             </div>
             <div className="p-6">

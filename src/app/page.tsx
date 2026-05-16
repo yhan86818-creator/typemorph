@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Sun, Moon, ShieldCheck, Download, Crown, 
   Search, ExternalLink, GitBranch, X, MessageSquare,
-  Wand2, LayoutTemplate, Settings, Home, Sparkles, Zap, Layers
+  Wand2, LayoutTemplate, Settings, Home, Sparkles, Zap, Layers, Key
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -16,11 +16,15 @@ import { LogicLabView } from '@/components/LogicLabView';
 import { SmartDiffView } from '@/components/SmartDiffView';
 import { RegexBuilderView } from '@/components/RegexBuilderView';
 import { ArchitectureView } from '@/components/ArchitectureView';
+import { useUser } from '@/hooks/useUser';
+import { AuthModal } from '@/components/AuthModal';
+import { supabase } from '@/lib/supabase';
+import { User as UserIcon, LogOut } from 'lucide-react';
 
 export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug = "" }) {
   const [view, setView] = useState<any>(initialSlug ? 'app' : defaultView);
   const [isPro, setIsPro] = useState(false);
-  const [trialCount, setTrialCount] = useState(3);
+  const [trialCount, setTrialCount] = useState(100);
   const [isDark, setIsDark] = useState(true);
   const [licenseKey, setLicenseKey] = useState("");
   const [geminiKey, setGeminiKey] = useState("");
@@ -39,6 +43,9 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
   const [showLicenseModal, setShowLicenseModal] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
+  const { user } = useUser();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -55,14 +62,14 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
     }
     const today = new Date().toDateString();
     const lastDate = localStorage.getItem('typeflow_last_date');
-    const savedCount = localStorage.getItem('typeflow_trial_count');
-    if (lastDate !== today) {
-      localStorage.setItem('typeflow_last_date', today);
-      localStorage.setItem('typeflow_trial_count', '3');
-      setTrialCount(3);
-    } else if (savedCount) {
-      setTrialCount(parseInt(savedCount));
-    }
+    // const savedCount = localStorage.getItem('typeflow_trial_count');
+    // if (lastDate !== today) {
+    //   localStorage.setItem('typeflow_last_date', today);
+    //   localStorage.setItem('typeflow_trial_count', '100');
+    //   setTrialCount(100);
+    // } else {
+    //   // setTrialCount(parseInt(savedCount));
+    // }
 
     // PWA Support
     window.addEventListener('beforeinstallprompt', (e) => {
@@ -130,7 +137,7 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
             </button>
             
             <div className="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-800">
-              {['landing', 'app', 'lab', 'visual'].map((v) => (
+              {['landing', 'app', 'lab', 'visual', 'smart-diff', 'regex-builder'].map((v) => (
                 <button 
                   key={v}
                   onClick={() => setView(v)} 
@@ -138,10 +145,13 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
                 >
                   {v === 'lab' && <Sparkles size={12} />}
                   {v === 'visual' && <Layers size={12} />}
-                  {v === 'landing' ? 'Explore' : v === 'app' ? 'Workbench' : v === 'lab' ? 'Labs' : 'Visuals'}
+                  {v === 'smart-diff' && <Wand2 size={12} />}
+                  {v === 'regex-builder' && <Search size={12} />}
+                  {v === 'landing' ? 'Explore' : v === 'app' ? 'Workbench' : v === 'lab' ? 'Labs' : v === 'visual' ? 'Visuals' : v === 'smart-diff' ? 'Diff' : 'Regex'}
                 </button>
               ))}
-              <a href="/blog" className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-all">Blog</a>
+              <a href="/converters/" className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:text-blue-700 bg-blue-50 dark:bg-blue-900/20 transition-all flex items-center gap-1.5"><Layers size={12}/> 300+ Tools</a>
+              <a href="/blog/" className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-all">Blog</a>
             </div>
 
             {/* Language Switcher */}
@@ -175,16 +185,32 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
               </button>
             )}
             
-            <input 
-              type="password" 
-              placeholder="Gemini API Key" 
-              value={geminiKey}
-              onChange={(e) => {
-                setGeminiKey(e.target.value);
-                localStorage.setItem('typeflow_gemini_key', e.target.value);
-              }}
-              className="hidden lg:block bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-xs outline-none focus:border-blue-500 w-44 dark:text-white"
-            />
+            {/* API Key Input */}
+            <div className="relative group flex flex-col items-end">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                  <Key size={14} className={geminiKey ? 'text-blue-500' : 'text-slate-400'} />
+                </div>
+                <input 
+                  type="password" 
+                  placeholder="Gemini API Key" 
+                  value={geminiKey}
+                  onChange={(e) => {
+                    setGeminiKey(e.target.value);
+                    localStorage.setItem('typeflow_gemini_key', e.target.value);
+                  }}
+                  className="w-48 bg-slate-100 dark:bg-slate-900 border-none outline-none pl-9 pr-4 py-2 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-400"
+                />
+              </div>
+              <a 
+                href="https://aistudio.google.com/app/apikey" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-[9px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-600 transition-colors mt-1 pr-1"
+              >
+                Get Free API Key
+              </a>
+            </div>
 
             <button onClick={toggleTheme} className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-all border border-slate-200 dark:border-slate-700">
               {isDark ? <Sun size={20} /> : <Moon size={20} />}
@@ -197,6 +223,7 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
                 <Crown size={14} /> PRO
               </div>
             )}
+
           </div>
         </div>
       </nav>
@@ -222,7 +249,7 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
             )}
             {view === 'app' && (
               <motion.div key="app" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                <Workbench slug={selectedSlug} isDark={isDark} geminiKey={geminiKey} outputTab={outputTab} setOutputTab={setOutputTab} isPro={isPro} setShowLicenseModal={setShowLicenseModal} trialCount={trialCount} setTrialCount={setTrialCount} />
+                <Workbench slug={selectedSlug} isDark={isDark} geminiKey={geminiKey} outputTab={outputTab} setOutputTab={setOutputTab} isPro={isPro} setShowLicenseModal={setShowLicenseModal} trialCount={trialCount} setTrialCount={setTrialCount} user={user} />
               </motion.div>
             )}
             {view === 'smart-diff' && (
@@ -278,6 +305,16 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
           </div>
         )}
       </AnimatePresence>
+
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+        isDark={isDark} 
+      />
+      {/* Deployment Verification Tag */}
+      <div className="fixed bottom-2 right-2 text-[8px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-700 pointer-events-none z-[500]">
+        v1.2.5-PRICING-19
+      </div>
     </div>
   );
 }

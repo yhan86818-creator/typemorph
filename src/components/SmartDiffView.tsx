@@ -44,7 +44,7 @@ export function SmartDiffView({ geminiKey, setGeminiKey, isPro, trialCount, setT
       ${jsonB}
       `;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey.trim()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -184,7 +184,7 @@ export function SmartDiffView({ geminiKey, setGeminiKey, isPro, trialCount, setT
               className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"
             >
               {copied ? <CheckCircle2 size={14} className="text-green-500 dark:text-green-400" /> : <Copy size={14} />}
-              {copied ? 'Copied' : 'Copy Code'}
+              <span>{copied ? 'Copied' : 'Copy Code'}</span>
             </button>
           </div>
           <div className="h-[400px]">

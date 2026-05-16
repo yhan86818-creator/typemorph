@@ -25,7 +25,7 @@ export default function NotFound() {
           <Link href="/" className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest flex items-center gap-2 shadow-xl shadow-blue-500/20 hover:scale-105 transition-all">
             <Home size={16} /> Back to Home
           </Link>
-          <Link href="/converters" className="px-8 py-4 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-2xl font-black uppercase text-xs tracking-widest border border-slate-200 dark:border-slate-800 hover:bg-slate-50 transition-all">
+          <Link href="/converters/" className="px-8 py-4 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-2xl font-black uppercase text-xs tracking-widest border border-slate-200 dark:border-slate-800 hover:bg-slate-50 transition-all">
             Browse All Tools
           </Link>
         </div>

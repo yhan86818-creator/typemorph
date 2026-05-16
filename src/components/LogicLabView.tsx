@@ -81,7 +81,7 @@ function fetchUsers(callback) {
         ${input}
       `;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey.trim()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -90,7 +90,12 @@ function fetchUsers(callback) {
       });
 
       const data = await response.json();
-      if (!data.candidates) throw new Error("API Limit reached or invalid key.");
+      if (!data.candidates || data.candidates.length === 0) {
+        if (data.promptFeedback?.blockReason) {
+          throw new Error(`AI blocked this content: ${data.promptFeedback.blockReason}`);
+        }
+        throw new Error(data.error?.message || "Invalid API Response or Key.");
+      }
       
       const result = data.candidates[0].content.parts[0].text
         .replace(/```[a-z]*\n/g, '')
@@ -104,9 +109,10 @@ function fetchUsers(callback) {
         setTrialCount(newCount);
         localStorage.setItem('typeflow_trial_count', String(newCount));
       }
-    } catch (err) {
-      console.error(err);
-      setOutput("// Error: Check API Key or try a smaller code block.");
+    } catch (err: any) {
+      console.error('LogicLab Error:', err);
+      const errorMsg = err.message || "Unknown error";
+      setOutput(`// Error: ${errorMsg}\n// 1. Check if your Gemini API Key starts with 'AIza'.\n// 2. Ensure you have an internet connection.\n// 3. The code might be too long or triggered a safety filter.`);
     } finally {
       setIsProcessing(false);
     }
@@ -175,7 +181,7 @@ function fetchUsers(callback) {
                 onClick={() => setActivePreset(p.id)}
                 className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${activePreset === p.id ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 bg-slate-100 dark:bg-slate-900/50'}`}
               >
-                {p.icon} {p.label}
+                {p.icon} <span>{p.label}</span>
               </button>
             ))}
           </div>
@@ -191,7 +197,7 @@ function fetchUsers(callback) {
             className="px-8 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl disabled:opacity-50 flex items-center gap-2"
           >
             {isProcessing ? <Loader2 className="animate-spin" size={16} /> : <Microscope size={16} />}
-            Execute Synthesis
+            <span>Execute Synthesis</span>
           </button>
         </div>
       </div>
@@ -241,7 +247,7 @@ function fetchUsers(callback) {
                   className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase text-slate-500 hover:text-purple-600 transition-colors shadow-sm"
                 >
                   {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                  {copied ? 'Copied' : 'Copy'}
+                  <span>{copied ? 'Copied' : 'Copy'}</span>
                 </motion.button>
               )}
             </AnimatePresence>

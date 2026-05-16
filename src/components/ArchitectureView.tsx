@@ -10,24 +10,54 @@ import {
 import mermaid from 'mermaid';
 
 // Initialize Mermaid with a premium look
-mermaid.initialize({
+const getMermaidConfig = (isDark: boolean) => ({
   startOnLoad: true,
-  theme: 'base',
+  theme: (isDark ? 'dark' : 'default') as any,
   securityLevel: 'loose',
-  fontFamily: 'Inter, system-ui, sans-serif',
-  themeVariables: {
+  fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+  themeVariables: isDark ? {
     primaryColor: '#3b82f6',
     primaryTextColor: '#fff',
-    primaryBorderColor: '#2563eb',
-    lineColor: '#64748b',
+    primaryBorderColor: '#60a5fa',
+    lineColor: '#6366f1',
     secondaryColor: '#1e293b',
     tertiaryColor: '#0f172a',
+    mainBkg: '#1e293b',
+    nodeBorder: '#334155',
+    clusterBkg: '#0f172a',
+    titleColor: '#f8fafc',
+    edgeLabelBackground: '#1e293b',
+  } : {
+    primaryColor: '#2563eb',
+    primaryTextColor: '#fff',
+    primaryBorderColor: '#1d4ed8',
+    lineColor: '#3b82f6',
+    secondaryColor: '#f1f5f9',
+    tertiaryColor: '#e2e8f0',
     mainBkg: '#ffffff',
-    nodeBorder: '#e2e8f0',
+    nodeBorder: '#cbd5e1',
     clusterBkg: '#f8fafc',
     titleColor: '#0f172a',
     edgeLabelBackground: '#ffffff',
-  }
+  },
+  themeCSS: `
+    .node rect, .node circle, .node polygon, .node path { 
+      stroke-width: 2px !important; 
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+    }
+    .edgePath .path { 
+      stroke-width: 2.5px !important; 
+      stroke: ${isDark ? '#6366f1' : '#3b82f6'} !important;
+      filter: drop-shadow(0 0 4px ${isDark ? 'rgba(99,102,241,0.6)' : 'rgba(59,130,246,0.4)'});
+    }
+    .marker { 
+      fill: ${isDark ? '#6366f1' : '#3b82f6'} !important; 
+      stroke: ${isDark ? '#6366f1' : '#3b82f6'} !important; 
+    }
+    .label foreignObject { overflow: visible; }
+    .node .label { font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px; }
+    .cluster rect { fill-opacity: 0.4 !important; stroke-width: 2px !important; stroke-dasharray: 5,5; }
+  `
 });
 
 interface ArchitectureViewProps {
@@ -98,28 +128,31 @@ CREATE TABLE comments (
     setIsGenerating(true);
     try {
       const prompt = `
-        As a lead software architect, transform the following technical input into a highly professional, idiomatic Mermaid.js diagram.
+        As an Elite Software Architect and System Designer, transform the following technical input into a high-fidelity, production-grade Mermaid.js diagram.
         
-        Rules:
-        1. Determine the best diagram type:
-           - SQL DDL / Database Schema -> erDiagram
-           - Classes / Types / Interfaces -> classDiagram
-           - Logic Flows / State Machines -> stateDiagram-v2 or flowchart TD
-           - Component Interactions / API Sequences -> sequenceDiagram
-           - System Overviews -> flowchart LR with grouped subgraphs
+        CRITICAL ARCHITECTURAL RULES:
+        1. DIAGRAM SELECTION:
+           - DB Schema/DDL -> erDiagram (Focus on relations and PK/FK).
+           - Code/Logic -> classDiagram (Focus on methods and inheritance).
+           - Flow/Processes -> flowchart TD (Use proper nodes: [Rect] for steps, {Hex} for decisions).
+           - Async/API -> sequenceDiagram (Focus on participants and timing).
+           - Cloud/Infra -> flowchart LR with subgraphs for clusters.
         
-        2. Styling:
-           - Use descriptive labels.
-           - For erDiagram, include field types if provided.
-           - For flowchart, use proper shapes (e.g., [ ] for process, { } for decision).
-           
-        3. Output ONLY the raw mermaid code starting with the diagram type identifier. No markdown backticks, no comments, no explanations.
+        2. VISUAL STANDARDS:
+           - Use UPPERCASE for Entity names.
+           - For erDiagram: types must be simple (e.g. UUID, STRING, INT). No spaces.
+           - For flowchart: Add descriptive labels to connectors (e.g. -->|on success|).
+           - Group related entities using subgraphs where possible to show system boundaries.
         
-        INPUT:
+        3. SYNTAX INTEGRITY:
+           - Ensure erDiagram entities have the format: ENTITY { type name }
+           - Ensure all blocks are closed. No markdown. Output ONLY the raw code.
+        
+        INPUT TO VISUALIZE:
         ${input}
       `;
 
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey.trim()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -128,16 +161,17 @@ CREATE TABLE comments (
       });
       
       const data = await res.json();
-      if (!data.candidates) throw new Error("Invalid API Response");
+      if (!data.candidates || data.candidates.length === 0) {
+        throw new Error("Invalid API Response or Key.");
+      }
       
       let code = data.candidates[0].content.parts[0].text
         .replace(/```mermaid\n/g, '')
         .replace(/```/g, '')
         .trim();
       
-      // Clean up common AI hallucinations in Mermaid
       if (code.startsWith('erDiagram')) {
-        code = code.replace(/\"/g, ''); // Mermaid ER doesn't like quotes around types
+        code = code.replace(/\"/g, ''); 
       }
       
       setMermaidCode(code);
@@ -148,9 +182,9 @@ CREATE TABLE comments (
         setTrialCount(newCount);
         localStorage.setItem('typeflow_trial_count', String(newCount));
       }
-    } catch (e) {
-      console.error(e);
-      alert("AI Generation failed. Check your API key or input format.");
+    } catch (e: any) {
+      console.error('ArchitectureView Error:', e);
+      alert(`AI Generation failed: ${e.message}`);
     } finally {
       setIsGenerating(false);
     }
@@ -170,45 +204,13 @@ CREATE TABLE comments (
   };
 
   useEffect(() => {
-    const themeVars = isDark ? {
-      primaryColor: '#3b82f6',
-      primaryTextColor: '#fff',
-      primaryBorderColor: '#60a5fa',
-      lineColor: '#94a3b8',
-      secondaryColor: '#334155',
-      tertiaryColor: '#1e293b',
-      mainBkg: '#0f172a',
-      nodeBorder: '#334155',
-      clusterBkg: '#1e293b',
-      titleColor: '#f8fafc',
-      edgeLabelBackground: '#1e293b',
-    } : {
-      primaryColor: '#2563eb',
-      primaryTextColor: '#fff',
-      primaryBorderColor: '#1d4ed8',
-      lineColor: '#64748b',
-      secondaryColor: '#f1f5f9',
-      tertiaryColor: '#e2e8f0',
-      mainBkg: '#ffffff',
-      nodeBorder: '#cbd5e1',
-      clusterBkg: '#f8fafc',
-      titleColor: '#0f172a',
-      edgeLabelBackground: '#ffffff',
-    };
-
-    mermaid.initialize({
-      startOnLoad: true,
-      theme: isDark ? 'dark' : 'default',
-      securityLevel: 'loose',
-      fontFamily: 'Inter, system-ui, sans-serif',
-      themeVariables: themeVars
-    });
+    mermaid.initialize(getMermaidConfig(isDark) as any);
     
     if (mermaidCode) {
       const render = async () => {
         try {
-          const { svg } = await mermaid.render('mermaid-render-' + Math.random().toString(36).substr(2, 9), mermaidCode);
-          setSvg(svg);
+          const { svg: renderedSvg } = await mermaid.render('mermaid-render-' + Math.random().toString(36).substr(2, 9), mermaidCode);
+          setSvg(renderedSvg);
         } catch (e) {
           console.error("Mermaid Render Error", e);
         }
@@ -282,7 +284,7 @@ CREATE TABLE comments (
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${activeTab === tab.id ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
               >
-                {tab.icon} {tab.label}
+                {tab.icon} <span>{tab.label}</span>
               </button>
             ))}
           </div>
@@ -303,7 +305,7 @@ CREATE TABLE comments (
             className="group px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-blue-600/20 disabled:opacity-50 flex items-center gap-2"
           >
             {isGenerating ? <Loader2 className="animate-spin" size={16} /> : <Wand2 size={16} className="group-hover:rotate-12 transition-transform" />}
-            Synthesize Architecture
+            <span>Synthesize Architecture</span>
           </button>
         </div>
       </div>
@@ -401,7 +403,7 @@ CREATE TABLE comments (
               <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="p-3 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-2xl transition-all"><ZoomIn size={18} /></button>
               <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
               <button onClick={handleDownloadSVG} className="flex items-center gap-3 px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all">
-                <Download size={14} /> Export SVG
+                <Download size={14} /> <span>Export SVG</span>
               </button>
               <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
               <button className="p-3 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-2xl transition-all"><Share2 size={18} /></button>

@@ -259,3 +259,67 @@ export const mockGen = {
     return JSON.stringify(generateMock(schema), null, 2);
   }
 };
+
+export const csharpGen = {
+  generate: (schema: Schema, name: string = 'Root'): string => {
+    if (schema.type === 'object' && schema.fields) {
+      let res = `public class ${name}\n{\n`;
+      for (const [k, v] of Object.entries(schema.fields)) {
+        const type = v.type === 'number' ? 'double' : v.type === 'boolean' ? 'bool' : 'string';
+        res += `    public ${type} ${k} { get; set; }\n`;
+      }
+      res += `}\n`;
+      return res;
+    }
+    return "";
+  }
+};
+
+export const swiftGen = {
+  generate: (schema: Schema, name: string = 'Root'): string => {
+    if (schema.type === 'object' && schema.fields) {
+      let res = `struct ${name}: Codable {\n`;
+      for (const [k, v] of Object.entries(schema.fields)) {
+        const type = v.type === 'number' ? 'Double' : v.type === 'boolean' ? 'Bool' : 'String';
+        res += `    let ${k}: ${type}\n`;
+      }
+      res += `}\n`;
+      return res;
+    }
+    return "";
+  }
+};
+
+export const kotlinGen = {
+  generate: (schema: Schema, name: string = 'Root'): string => {
+    if (schema.type === 'object' && schema.fields) {
+      let res = `data class ${name}(\n`;
+      res += Object.entries(schema.fields).map(([k, v]) => {
+        const type = v.type === 'number' ? 'Double' : v.type === 'boolean' ? 'Boolean' : 'String';
+        return `    val ${k}: ${type}`;
+      }).join(',\n');
+      res += `\n)\n`;
+      return res;
+    }
+    return "";
+  }
+};
+
+export const jsonSchemaGen = {
+  generate: (schema: Schema): string => {
+    const build = (s: Schema): any => {
+      if (s.type === 'object' && s.fields) {
+        return {
+          type: 'object',
+          properties: Object.keys(s.fields).reduce((acc, k) => ({ ...acc, [k]: build(s.fields![k]) }), {})
+        };
+      }
+      if (s.type === 'array') return { type: 'array', items: build(s.itemType!) };
+      return { type: s.type };
+    };
+    return JSON.stringify({ 
+      $schema: "http://json-schema.org/draft-07/schema#", 
+      ...build(schema)
+    }, null, 2);
+  }
+};

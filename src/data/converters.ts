@@ -260,13 +260,6 @@ export const converters: Converter[] = [
     h1: "JSON to MySQL Schema Generator"
   },
   {
-    category: "Database",
-    slug: "json-to-mongodb-schema",
-    title: "Convert JSON to MongoDB Schema - NoSQL",
-    description: "Generate MongoDB Mongoose schemas or validation rules.",
-    h1: "JSON to MongoDB Schema Converter"
-  },
-  {
     category: "Web & Frontend",
     slug: "jsonschema-to-zod",
     title: "Convert JSON Schema to Zod Online",
@@ -566,20 +559,6 @@ export const converters: Converter[] = [
     title: "Convert JSON to React Component Props - TS & Prop-Types",
     description: "Generate React prop interfaces or legacy Prop-Types from JSON data. The definitive guide to type-safe React components.",
     h1: "React Mastery: Mastering Prop Type Generation"
-  },
-  {
-    category: "Web & Frontend",
-    slug: "json-to-sequelize-model",
-    title: "Convert JSON to Sequelize Models",
-    description: "Generate Sequelize ORM models from JSON data.",
-    h1: "JSON to Sequelize Model Converter"
-  },
-  {
-    category: "Web & Frontend",
-    slug: "json-to-typeorm-entity",
-    title: "Convert JSON to TypeORM Entities",
-    description: "Generate TypeORM entity classes with decorators from JSON.",
-    h1: "JSON to TypeORM Entity Generator"
   },
   {
     category: "Web & Frontend",
@@ -1304,13 +1283,6 @@ export const converters: Converter[] = [
   "h1": "XML to Python Class Generator"
 },
   {
-    "category": "DevOps & Config",
-    "slug": "xml-to-yaml",
-  "title": "Convert XML to YAML Online",
-  "description": "Transform verbose XML into readable YAML format.",
-  "h1": "XML to YAML Converter"
-},
-  {
     "category": "Web & Frontend",
     "slug": "typescript-to-zod",
   "title": "Convert TypeScript to Zod Online",
@@ -1417,20 +1389,6 @@ export const converters: Converter[] = [
 },
   {
     "category": "Web & Frontend",
-    "slug": "json-to-valibot",
-  "title": "Convert JSON to Valibot Online",
-  "description": "Generate ultra-lightweight Valibot schemas from JSON.",
-  "h1": "JSON to Valibot Generator"
-},
-  {
-    "category": "Web & Frontend",
-    "slug": "json-to-arktype",
-  "title": "Convert JSON to ArkType Online",
-  "description": "Generate high-performance ArkType definitions from JSON.",
-  "h1": "JSON to ArkType Converter"
-},
-  {
-    "category": "Web & Frontend",
     "slug": "json-to-effect-schema",
   "title": "Convert JSON to Effect Schema",
   "description": "Generate Effect-TS schema definitions from JSON.",
@@ -1456,34 +1414,6 @@ export const converters: Converter[] = [
   "title": "Convert JSON to Runtypes Online",
   "description": "Generate runtime validation types with Runtypes.",
   "h1": "JSON to Runtypes Converter"
-},
-  {
-    "category": "Web & Frontend",
-    "slug": "json-to-superstruct",
-  "title": "Convert JSON to Superstruct",
-  "description": "Generate simple, robust Superstruct schemas from JSON.",
-  "h1": "JSON to Superstruct Generator"
-},
-  {
-    "category": "Web & Frontend",
-    "slug": "json-to-yup",
-  "title": "Convert JSON to Yup Schemas",
-  "description": "Generate Yup form validation schemas from JSON samples.",
-  "h1": "JSON to Yup Converter"
-},
-  {
-    "category": "Web & Frontend",
-    "slug": "json-to-joi",
-  "title": "Convert JSON to Joi Definitions",
-  "description": "Generate Joi validation logic for Node.js apps.",
-  "h1": "JSON to Joi Generator"
-},
-  {
-    "category": "Web & Frontend",
-    "slug": "json-to-ajv",
-  "title": "Convert JSON to AJV Logic",
-  "description": "Generate high-performance AJV validation functions.",
-  "h1": "JSON to AJV Generator"
 },
   {
     "category": "Web & Frontend",
@@ -1557,13 +1487,6 @@ export const converters: Converter[] = [
 },
   {
     "category": "Web & Frontend",
-    "slug": "json-to-properties",
-  "title": "Convert JSON to .properties",
-  "description": "Transform JSON into Java properties file format.",
-  "h1": "JSON to Properties Converter"
-},
-  {
-    "category": "Web & Frontend",
     "slug": "json-to-env-file",
   "title": "Convert JSON to .env Online",
   "description": "Transform nested JSON into flat environment variables.",
@@ -1610,13 +1533,6 @@ export const converters: Converter[] = [
   "title": "Convert JSON to Objective-C",
   "description": "Generate legacy Objective-C models from JSON data.",
   "h1": "JSON to Objective-C Generator"
-},
-  {
-    "category": "Web & Frontend",
-    "slug": "json-to-csharp-dto",
-  "title": "Convert JSON to C# DTOs",
-  "description": "Generate professional .NET Data Transfer Objects.",
-  "h1": "JSON to C# DTO Generator"
 },
   {
     "category": "Web & Frontend",
