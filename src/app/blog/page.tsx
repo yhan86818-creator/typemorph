@@ -16,6 +16,13 @@ const posts = [
     excerpt: 'A deep dive into combining Zod, React Query, and TypeScript for bulletproof API integration.',
     date: '2026-05-12',
     author: 'TypeFlow Engineering'
+  },
+  {
+    slug: 'schema-first-engineering-future',
+    title: 'Beyond Code Generation: Why Schema-First Engineering is the Future',
+    excerpt: 'Code generation is just the beginning. Discover how a schema-first approach can eliminate 90% of your integration bugs and revolutionize your team\'s velocity.',
+    date: '2026-05-13',
+    author: 'TypeFlow Architecture Team'
   }
 ];
 

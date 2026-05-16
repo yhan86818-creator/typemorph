@@ -1,5 +1,6 @@
 export interface Schema {
   type: string;
+  format?: 'email' | 'url' | 'uuid' | 'datetime';
   fields?: Record<string, Schema>;
   itemType?: Schema;
 }

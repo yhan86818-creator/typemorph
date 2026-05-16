@@ -3,7 +3,7 @@ import TypeFlowApp from '../../page';
 import { converters } from '@/data/converters';
 import fs from 'fs';
 import path from 'path';
-import { ShieldCheck, Crown, ArrowRight, BookOpen } from 'lucide-react';
+import { ShieldCheck, Crown, ArrowRight, BookOpen, Activity } from 'lucide-react';
 
 const blogPosts = [
   {
@@ -138,20 +138,22 @@ export default async function ConverterPage({ params }: { params: Promise<{ slug
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       {/* Re-using the main app logic but initialized for this specific context */}
+      {/* Breadcrumbs at top */}
+      <div className="max-w-7xl mx-auto px-6 pt-12 -mb-12 relative z-10">
+        <nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+          <a href="/" className="hover:text-blue-600">Home</a>
+          <span>/</span>
+          <a href="/converters" className="hover:text-blue-600">Converters</a>
+          <span>/</span>
+          <span className="text-blue-600">{converter.category}</span>
+        </nav>
+      </div>
+
       <TypeFlowApp defaultView="app" initialSlug={slug} />
 
       {/* Technical Manual / Documentation Section */}
       <div className="max-w-4xl mx-auto px-6 py-32 border-t border-slate-100 mt-24">
         <div className="mb-16">
-          {/* Breadcrumbs */}
-          <nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-8">
-            <a href="/" className="hover:text-blue-600">Home</a>
-            <span>/</span>
-            <a href="/converters" className="hover:text-blue-600">Converters</a>
-            <span>/</span>
-            <span className="text-blue-600">{converter.category}</span>
-          </nav>
-          
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-500 font-bold text-[10px] uppercase tracking-widest mb-6">
             <ShieldCheck size={12} /> {converter.category} • Engineering Documentation
           </div>
@@ -162,6 +164,30 @@ export default async function ConverterPage({ params }: { params: Promise<{ slug
             This technical guide provides an in-depth analysis of the <strong>{converter.slug.replace(/-/g, ' ')}</strong> engine, best practices for implementation, and data security standards.
           </p>
         </div>
+
+        {converter.category === "Financial Engineering" && (
+          <div className="mb-16 p-10 rounded-[3rem] bg-emerald-900 text-white relative overflow-hidden shadow-2xl shadow-emerald-900/20">
+            <div className="absolute top-0 right-0 p-12 opacity-10 rotate-12">
+              <Activity size={180} />
+            </div>
+            <div className="relative z-10">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-[10px] uppercase tracking-widest mb-6 border border-emerald-500/30">
+                <Crown size={12} /> Institutional Grade Utility
+              </div>
+              <h2 className="text-3xl font-black mb-4 tracking-tight">Need Advanced Financial Parsing?</h2>
+              <p className="text-emerald-100/70 font-medium text-lg mb-8 max-w-xl leading-relaxed">
+                Unlock the full power of the <strong>FinFlow Pro</strong> workbench. Specifically designed for FIX, SWIFT MT/MX, and ISO 20022 message inspection with industrial-grade accuracy.
+              </p>
+              <a 
+                href="https://finflow-pro.pages.dev" 
+                target="_blank"
+                className="inline-flex items-center gap-3 bg-emerald-500 text-emerald-950 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-white transition-all shadow-xl shadow-emerald-500/20"
+              >
+                Launch FinFlow Pro <ArrowRight size={16} />
+              </a>
+            </div>
+          </div>
+        )}
 
         <div 
           className="prose prose-slate lg:prose-lg max-w-none 

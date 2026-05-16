@@ -8,6 +8,27 @@ export interface Converter {
 
 export const converters: Converter[] = [
   {
+    category: "Financial Engineering",
+    slug: "fix-to-typescript",
+    title: "FIX Protocol to TypeScript Parser - Institutional Trading Guide",
+    description: "The professional workbench for FIX protocol data transformation. Decode tag-value pairs into type-safe TypeScript interfaces with high-precision validation.",
+    h1: "FIX Protocol Mastery: Turning Raw Trading Logs into Type-Safe Code"
+  },
+  {
+    category: "Financial Engineering",
+    slug: "swift-to-typescript",
+    title: "SWIFT MT/MX to TypeScript Generator - Modern Banking Guide",
+    description: "Transform legacy SWIFT messages into modern TypeScript structures. The definitive guide to ISO 20022 migration and payment data integrity.",
+    h1: "SWIFT Messaging: Modernizing Financial Data with Type-Safe Engineering"
+  },
+  {
+    category: "Financial Engineering",
+    slug: "iso-20022-to-typescript",
+    title: "ISO 20022 XML to TypeScript Schema - Global Standard Guide",
+    description: "Generate strictly-typed TypeScript interfaces from ISO 20022 XML payloads. Master the transition to the new global financial messaging standard.",
+    h1: "ISO 20022 Engineering: Automating Global Financial Message Parsing"
+  },
+  {
     category: "Web & Frontend",
     slug: "json-to-typescript",
     title: "Convert JSON to TypeScript Interfaces Online - Enterprise Engineering Guide",

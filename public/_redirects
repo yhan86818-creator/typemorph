@@ -1,0 +1,4 @@
+# TypeFlow Pro - URL Structure Migration Redirects
+# Mapping legacy root paths to the new /converters/ subdirectory to preserve SEO ranking.
+
+# /:slug  /converters/:slug  301

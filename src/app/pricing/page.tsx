@@ -73,12 +73,14 @@ export default function PricingPage() {
                   </li>
                 ))}
               </ul>
-              <button 
-                onClick={() => alert('Thanks for your interest! Stripe integration is coming in the next 24 hours. Check back soon!')}
+              <a 
+                href="https://yhanster206.gumroad.com/l/zjcuuu"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-full py-4 rounded-2xl bg-blue-600 text-white font-black uppercase text-xs tracking-widest text-center shadow-xl shadow-blue-500/40 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2"
               >
                 Get Lifetime Access <ArrowRight size={16} />
-              </button>
+              </a>
             </div>
           </div>
         </div>

@@ -24,6 +24,13 @@ export default function GlobalFooter() {
               >
                 <MessageSquare size={14} /> Request Feature
               </a>
+              <a 
+                href="https://discord.gg/typeflow" 
+                target="_blank"
+                className="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-indigo-100 dark:border-indigo-900 hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-2"
+              >
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Community Discord
+              </a>
             </div>
           </div>
           <div>
@@ -39,6 +46,7 @@ export default function GlobalFooter() {
             <h4 className="font-black text-xs uppercase tracking-[0.2em] text-slate-400 mb-6">Resources</h4>
             <ul className="space-y-4 text-sm font-bold text-slate-600 dark:text-slate-400">
               <li><a href="/blog" className="hover:text-blue-600 transition-colors flex items-center gap-2">Engineering Blog <ExternalLink size={14} /></a></li>
+              <li><a href="https://discord.gg/typeflow" target="_blank" className="hover:text-blue-600 transition-colors">Community Discord</a></li>
               <li><a href="#" className="hover:text-blue-600 transition-colors">Privacy Policy</a></li>
               <li><a href="#" className="hover:text-blue-600 transition-colors">Terms of Service</a></li>
               <li><a href="/converters" className="hover:text-blue-600 transition-colors">All Converters Directory</a></li>

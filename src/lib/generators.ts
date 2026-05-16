@@ -4,16 +4,17 @@ const toPascalCase = (str: string) => str.replace(/(^\w|_\w)/g, m => m.replace(/
 
 // Existing Generators (Improved)
 export const tsGen = {
-  generate: (schema: Schema, name: string = 'Root'): string => {
+  generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
     if (schema.type === 'object' && schema.fields) {
-      let res = `export interface ${name} {\n`;
+      let res = options.exportDefault && name === 'Root' ? `export default interface ${name} {\n` : `export interface ${name} {\n`;
+      const optionalMark = options.optionalFields ? '?' : '';
       for (const [k, v] of Object.entries(schema.fields)) {
-        res += `  ${k}: ${v.type === 'object' ? toPascalCase(k) : v.type === 'array' ? (v.itemType?.type === 'object' ? `${toPascalCase(k)}Item[]` : `${v.itemType?.type}[]`) : v.type};\n`;
+        res += `  ${k}${optionalMark}: ${v.type === 'object' ? toPascalCase(k) : v.type === 'array' ? (v.itemType?.type === 'object' ? `${toPascalCase(k)}Item[]` : `${v.itemType?.type}[]`) : v.type};\n`;
       }
       res += `}\n\n`;
       for (const [k, v] of Object.entries(schema.fields)) {
-        if (v.type === 'object') res += tsGen.generate(v, toPascalCase(k));
-        if (v.type === 'array' && v.itemType?.type === 'object') res += tsGen.generate(v.itemType, toPascalCase(k) + 'Item');
+        if (v.type === 'object') res += tsGen.generate(v, toPascalCase(k), options);
+        if (v.type === 'array' && v.itemType?.type === 'object') res += tsGen.generate(v.itemType, toPascalCase(k) + 'Item', options);
       }
       return res;
     }
@@ -22,16 +23,30 @@ export const tsGen = {
 };
 
 export const zodGen = {
-  generate: (schema: Schema, name: string = 'root'): string => {
+  generate: (schema: Schema, name: string = 'root', options: any = {}): string => {
     if (schema.type === 'object' && schema.fields) {
       let res = `export const ${name}Schema = z.object({\n`;
       for (const [k, v] of Object.entries(schema.fields)) {
-        res += `  ${k}: ${v.type === 'object' ? `${k}Schema` : v.type === 'array' ? `z.array(${v.itemType?.type === 'object' ? `${k}ItemSchema` : `z.${v.itemType?.type}()`})` : `z.${v.type}()`},\n`;
+        const isOpt = options.optionalFields ? '.optional()' : '';
+        let zType = '';
+        if (v.type === 'object') zType = `${k}Schema`;
+        else if (v.type === 'array') zType = `z.array(${v.itemType?.type === 'object' ? `${k}ItemSchema` : `z.${v.itemType?.type}()`})`;
+        else if (v.type === 'string') {
+          zType = 'z.string()';
+          if (v.format === 'uuid') zType += '.uuid()';
+          else if (v.format === 'email') zType += '.email()';
+          else if (v.format === 'url') zType += '.url()';
+          else if (v.format === 'datetime') zType += '.datetime()';
+          else if (options.useUUID && k.toLowerCase().endsWith('id')) zType += '.uuid()';
+        } else {
+          zType = `z.${v.type}()`;
+        }
+        res += `  ${k}: ${zType}${isOpt},\n`;
       }
       res += `});\n\n`;
       for (const [k, v] of Object.entries(schema.fields)) {
-        if (v.type === 'object') res += zodGen.generate(v, k);
-        if (v.type === 'array' && v.itemType?.type === 'object') res += zodGen.generate(v.itemType, k + 'Item');
+        if (v.type === 'object') res += zodGen.generate(v, k, options);
+        if (v.type === 'array' && v.itemType?.type === 'object') res += zodGen.generate(v.itemType, k + 'Item', options);
       }
       return res;
     }
@@ -204,5 +219,43 @@ export const uiGen = {
     });
     res += `    </div>\n  </div>\n);\n`;
     return res;
+  }
+};
+
+export const mockGen = {
+  generate: (schema: Schema): string => {
+    const generateMock = (s: Schema, key: string = ""): any => {
+      if (s.type === 'object' && s.fields) {
+        const obj: any = {};
+        for (const [k, v] of Object.entries(s.fields)) {
+          obj[k] = generateMock(v, k);
+        }
+        return obj;
+      }
+      if (s.type === 'array') {
+        return [generateMock(s.itemType || { type: 'string' }, key), generateMock(s.itemType || { type: 'string' }, key), generateMock(s.itemType || { type: 'string' }, key)];
+      }
+      if (s.type === 'number') return key.toLowerCase().includes('id') ? 1 : 42;
+      if (s.type === 'boolean') return true;
+      if (s.type === 'string') {
+        if (s.format === 'uuid') return 'uuid-1234-5678-9012';
+        if (s.format === 'email') return 'test@example.com';
+        if (s.format === 'url') return 'https://example.com/api';
+        if (s.format === 'datetime') return new Date().toISOString();
+
+        const k = key.toLowerCase();
+        if (k.includes('name')) return 'John Doe';
+        if (k.includes('email')) return 'john@example.com';
+        if (k.includes('url') || k.includes('link')) return 'https://example.com';
+        if (k.includes('id')) return 'uuid-1234-5678-9012';
+        if (k.includes('date') || k.includes('time')) return new Date().toISOString();
+        if (k.includes('city')) return 'Tokyo';
+        if (k.includes('phone')) return '+81-90-1234-5678';
+        if (k.includes('desc') || k.includes('memo') || k.includes('text')) return 'This is a sample generated text to simulate a realistic description or content block.';
+        return 'sample_' + key;
+      }
+      return null;
+    };
+    return JSON.stringify(generateMock(schema), null, 2);
   }
 };

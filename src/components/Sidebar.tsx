@@ -13,11 +13,18 @@ interface SidebarProps {
 
 export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView }: SidebarProps) {
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('All');
   
-  const filtered = converters.filter(c => 
-    c.title.toLowerCase().includes(search.toLowerCase()) || 
-    c.slug.toLowerCase().includes(search.toLowerCase())
-  );
+  const categories = ['All', 'JSON', 'SQL', 'XML', 'YAML', 'CSV', 'React', 'TS'];
+
+  const filtered = converters.filter(c => {
+    const searchMatch = c.title.toLowerCase().includes(search.toLowerCase()) || 
+      c.slug.toLowerCase().includes(search.toLowerCase());
+    const categoryMatch = categoryFilter === 'All' || 
+      c.title.toLowerCase().includes(categoryFilter.toLowerCase()) ||
+      c.slug.toLowerCase().includes(categoryFilter.toLowerCase());
+    return searchMatch && categoryMatch;
+  });
 
   return (
     <div className="w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 hidden xl:flex flex-col h-full">
@@ -60,7 +67,19 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView }
           />
         </div>
 
-        <div className="space-y-1 overflow-y-auto max-h-[calc(100vh-350px)] no-scrollbar pr-2">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mb-4 pb-2">
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setCategoryFilter(cat)}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${categoryFilter === cat ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-blue-500'}`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        <div className="space-y-1 overflow-y-auto flex-1 max-h-[calc(100vh-420px)] no-scrollbar pr-2">
           {filtered.map(tab => (
             <button 
               key={tab.slug} 

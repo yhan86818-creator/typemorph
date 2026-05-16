@@ -38,8 +38,10 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
   const [vMsg, setVMsg] = useState({ type: '', text: '' });
   const [showLicenseModal, setShowLicenseModal] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     if (localStorage.getItem('typeflow_pro') === 'true') setIsPro(true);
     const savedKey = localStorage.getItem('typeflow_gemini_key');
     if (savedKey) setGeminiKey(savedKey);
@@ -115,7 +117,7 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
   };
 
   return (
-    <div className={`${initialSlug ? '' : 'min-h-screen'} flex flex-col ${isDark ? 'dark' : ''} bg-white dark:bg-[#020617] transition-colors duration-500`}>
+    <div className={`${initialSlug ? 'w-full overflow-x-hidden' : 'min-h-screen overflow-hidden'} flex flex-col ${isDark ? 'dark' : ''} bg-white dark:bg-[#020617] transition-colors duration-500`}>
       {/* Top Navigation Cockpit */}
       <nav className={`${initialSlug ? 'sticky' : 'fixed'} top-0 left-0 right-0 h-20 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#020617]/80 backdrop-blur-xl z-[100] px-6`}>
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between">
@@ -127,7 +129,7 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
               <span className="text-xl font-black tracking-tighter dark:text-white">TypeFlow <span className="text-blue-600 italic">Pro</span></span>
             </button>
             
-            <div className="hidden xl:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-800">
+            <div className="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-800">
               {['landing', 'app', 'lab', 'visual'].map((v) => (
                 <button 
                   key={v}
@@ -140,6 +142,22 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
                 </button>
               ))}
               <a href="/blog" className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-all">Blog</a>
+            </div>
+
+            {/* Language Switcher */}
+            <div className="hidden sm:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200/50 dark:border-slate-800 ml-4">
+              <a 
+                href={initialSlug ? `/converters/${initialSlug}` : '/'}
+                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${mounted && !window.location.pathname.includes('/jp/') ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-400'}`}
+              >
+                EN
+              </a>
+              <a 
+                href={initialSlug ? `/jp/converters/${initialSlug}` : '/jp'}
+                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${mounted && window.location.pathname.includes('/jp/') ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-400'}`}
+              >
+                JP
+              </a>
             </div>
           </div>
 
@@ -184,7 +202,7 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
       </nav>
 
       {/* Main Layout Body */}
-      <div className={`flex-1 flex ${initialSlug ? '' : 'overflow-hidden'} pt-20`}>
+      <div className={`flex-1 flex min-w-0 w-full overflow-x-hidden ${initialSlug ? 'min-h-[600px]' : 'overflow-hidden pt-20'}`}>
         {view !== 'landing' && (
           <Sidebar 
             selectedSlug={selectedSlug} 
@@ -195,7 +213,7 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
           />
         )}
 
-        <main className={`flex-1 ${initialSlug ? '' : 'overflow-y-auto'} relative no-scrollbar`}>
+        <main className={`flex-1 min-w-0 ${initialSlug ? '' : 'overflow-y-auto'} relative no-scrollbar`}>
           <AnimatePresence mode="wait">
             {view === 'landing' && (
               <motion.div key="landing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
@@ -204,7 +222,7 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
             )}
             {view === 'app' && (
               <motion.div key="app" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                <Workbench slug={selectedSlug} isDark={isDark} geminiKey={geminiKey} outputTab={outputTab} setOutputTab={setOutputTab} />
+                <Workbench slug={selectedSlug} isDark={isDark} geminiKey={geminiKey} outputTab={outputTab} setOutputTab={setOutputTab} isPro={isPro} setShowLicenseModal={setShowLicenseModal} trialCount={trialCount} setTrialCount={setTrialCount} />
               </motion.div>
             )}
             {view === 'smart-diff' && (

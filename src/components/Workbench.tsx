@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import LZString from 'lz-string';
 import { 
-  Terminal, Share2, Copy, FileJson, Sparkles, Settings, Loader2, Monitor, Trash2, Code2, Zap 
+  Terminal, Share2, Copy, FileJson, Sparkles, Settings, Loader2, Monitor, Trash2, Code2, Zap, Crown 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -18,9 +18,13 @@ interface WorkbenchProps {
   geminiKey: string;
   outputTab: string;
   setOutputTab: (tab: string) => void;
+  isPro?: boolean;
+  setShowLicenseModal?: (show: boolean) => void;
+  trialCount?: number;
+  setTrialCount?: (c: number) => void;
 }
 
-export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab }: WorkbenchProps) {
+export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, isPro, setShowLicenseModal, trialCount = 3, setTrialCount }: WorkbenchProps) {
   const [input, setInput] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [showAiSettings, setShowAiSettings] = useState(false);
@@ -32,6 +36,28 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab }: 
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
   const [aiStatus, setAiStatus] = useState("");
+
+  const [showGenSettings, setShowGenSettings] = useState(false);
+  const [genSettings, setGenSettings] = useState({
+    exportDefault: false,
+    optionalFields: false,
+    useUUID: true,
+  });
+
+  // Load settings
+  useEffect(() => {
+    const saved = localStorage.getItem('typeflow_gen_settings');
+    if (saved) {
+      try {
+        setGenSettings(JSON.parse(saved));
+      } catch(e) {}
+    }
+  }, []);
+
+  // Save settings
+  useEffect(() => {
+    localStorage.setItem('typeflow_gen_settings', JSON.stringify(genSettings));
+  }, [genSettings]);
 
   const inputRef = useRef(input);
   useEffect(() => { inputRef.current = input; }, [input]);
@@ -93,14 +119,14 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab }: 
 
       if (jsonObj) {
         setJsonData(jsonObj);
-        ['typescript', 'zod', 'go', 'rust', 'java', 'python', 'dart', 'php', 'protobuf', 'graphql', 'swift', 'kotlin', 'sql', 'jsonschema'].forEach(lang => {
-          res[lang] = runEngine(jsonObj, lang, slug);
+        ['typescript', 'zod', 'go', 'rust', 'java', 'python', 'dart', 'php', 'protobuf', 'graphql', 'swift', 'kotlin', 'sql', 'jsonschema', 'mock', 'ui'].forEach(lang => {
+          res[lang] = runEngine(jsonObj, lang, slug, genSettings);
         });
         res.json = JSON.stringify(jsonObj, null, 2);
       }
     }
     setOutputs(res);
-  }, [input, slug]);
+  }, [input, slug, genSettings]);
 
   useEffect(() => { processInput(); }, [processInput]);
 
@@ -164,13 +190,14 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab }: 
     { id: 'graphql', label: 'GQL' },
     { id: 'sql', label: 'SQL' },
     { id: 'jsonschema', label: 'Schema' },
+    { id: 'mock', label: 'Mock Data' },
     { id: 'ui', label: 'UI' },
     { id: 'json', label: 'JSON' }
   ];
 
   return (
-    <div className="flex flex-col md:flex-row min-h-[calc(100vh-80px)] p-6 gap-6 bg-slate-50 dark:bg-[#020617]">
-      <div className="flex-1 flex flex-col min-w-0">
+    <div className="flex flex-col md:flex-row h-[calc(100vh-80px)] p-6 gap-6 bg-slate-50 dark:bg-[#020617]">
+      <div className="flex-1 flex flex-col min-w-0 h-full">
         <div className="flex justify-between items-center mb-3">
           <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
             <Terminal size={14}/> Input Source
@@ -229,20 +256,50 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab }: 
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-full">
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1 max-w-[calc(100%-100px)]">
             {tabs.map(tab => (
               <button 
                 key={tab.id}
-                onClick={() => setOutputTab(tab.id)}
+                onClick={() => {
+                  if (tab.id === 'mock' && !isPro) {
+                    if (trialCount <= 0) {
+                      setShowLicenseModal?.(true);
+                      return;
+                    }
+                    if (setTrialCount) {
+                      setTrialCount(trialCount - 1);
+                      localStorage.setItem('typeflow_trial_count', String(trialCount - 1));
+                    }
+                  }
+                  setOutputTab(tab.id);
+                }}
                 className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${outputTab === tab.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
               >
-                {tab.label}
+                {tab.label} {tab.id === 'mock' && !isPro && <Crown size={10} className="inline ml-1 mb-0.5 text-amber-500" />}
               </button>
             ))}
           </div>
           <div className="flex items-center gap-2">
+            <button 
+              onClick={() => {
+                if (!isPro && !showGenSettings) {
+                  if (trialCount <= 0) {
+                    setShowLicenseModal?.(true);
+                    return;
+                  }
+                  if (setTrialCount) {
+                    setTrialCount(trialCount - 1);
+                    localStorage.setItem('typeflow_trial_count', String(trialCount - 1));
+                  }
+                }
+                setShowGenSettings(!showGenSettings);
+              }}
+              className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:text-blue-600 transition-all"
+            >
+              <Settings size={12} /> Config {!isPro && <Crown size={10} className="text-amber-500" />}
+            </button>
             <button 
               onClick={() => {
                 const code = outputs[outputTab] || "";
@@ -274,6 +331,34 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab }: 
           </div>
         </div>
         <div className="flex-1 bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden relative group">
+          
+          <AnimatePresence>
+            {showGenSettings && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute top-4 right-4 z-[60] bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-64"
+              >
+                <h4 className="text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest">Code Generation Rules</h4>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 text-xs font-bold dark:text-white cursor-pointer">
+                    <input type="checkbox" checked={genSettings.exportDefault} onChange={e => setGenSettings(s => ({...s, exportDefault: e.target.checked}))} className="rounded text-blue-600" />
+                    Use `export default` (TS)
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-bold dark:text-white cursor-pointer">
+                    <input type="checkbox" checked={genSettings.optionalFields} onChange={e => setGenSettings(s => ({...s, optionalFields: e.target.checked}))} className="rounded text-blue-600" />
+                    Make all fields optional
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-bold dark:text-white cursor-pointer">
+                    <input type="checkbox" checked={genSettings.useUUID} onChange={e => setGenSettings(s => ({...s, useUUID: e.target.checked}))} className="rounded text-blue-600" />
+                    Infer UUIDs for `*id` (Zod)
+                  </label>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <Editor
             height="100%"
             theme={isDark ? "vs-dark" : "light"}
