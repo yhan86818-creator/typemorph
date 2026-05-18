@@ -4,7 +4,7 @@ import { ShieldCheck, ArrowLeft, Lock } from 'lucide-react';
 import GlobalFooter from '@/components/GlobalFooter';
 
 export const metadata = {
-  title: 'Privacy Manifesto - TypeFlow Pro',
+  title: 'Privacy Manifesto - SchemaForge Pro',
   description: 'Our commitment to zero-trace, local-first engineering.',
 };
 
@@ -12,32 +12,32 @@ export default function PrivacyPolicy() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#020617] transition-colors duration-500">
       <div className="max-w-4xl mx-auto px-6 py-24">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-12 hover:gap-3 transition-all">
+        <Link href="/" className="inline-flex items-center gap-2 text-sm font-mono text-blue-700 dark:text-blue-400 uppercase tracking-widest mb-12 hover:gap-3 transition-all">
           <ArrowLeft size={16} /> Back to Hub
         </Link>
 
         <div className="mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold text-[10px] uppercase tracking-widest mb-6 border border-blue-100 dark:border-blue-900">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 font-bold text-[10px] uppercase tracking-widest mb-6 border border-blue-100 dark:border-blue-900">
             <Lock size={12} /> The Zero-Trace Promise
           </div>
           <h1 className="text-5xl md:text-6xl font-black tracking-tight mb-8 text-slate-900 dark:text-white leading-[1.1]">
             Privacy <span className="text-blue-600">Manifesto.</span>
           </h1>
           <p className="text-xl text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-            We built TypeFlow Pro because we were tired of risking proprietary schemas by pasting them into random online converters.
+            We built SchemaForge Pro because we were tired of risking proprietary schemas by pasting them into random online converters.
           </p>
         </div>
 
         <div className="prose prose-slate lg:prose-lg max-w-none dark:prose-invert
-          prose-headings:font-black prose-headings:tracking-tight
+          prose-headings:font-mono prose-headings:tracking-tight
           prose-p:font-medium prose-p:leading-relaxed
-          prose-strong:text-blue-600 dark:prose-strong:text-blue-400 prose-strong:font-black
-          prose-a:text-blue-600 hover:prose-a:text-blue-700
-          prose-blockquote:border-l-4 prose-blockquote:border-blue-600 prose-blockquote:bg-blue-50 dark:prose-blockquote:bg-blue-900/10 prose-blockquote:p-6 prose-blockquote:rounded-r-2xl prose-blockquote:not-italic">
+          prose-strong:text-blue-700 dark:prose-strong:text-blue-400 prose-strong:font-bold
+          prose-a:text-blue-700 hover:prose-a:text-blue-700
+          prose-blockquote:border-l-4 prose-blockquote:border-blue-600 prose-blockquote:bg-blue-50 dark:prose-blockquote:bg-blue-950/10 prose-blockquote:p-6 prose-blockquote:rounded-r-2xl prose-blockquote:not-italic">
           
           <h2>1. 100% Local-First Execution</h2>
           <p>
-            When you paste a 10,000-line JSON payload or a highly confidential PostgreSQL dump into TypeFlow Pro, <strong>it never leaves your machine.</strong> All parsing, AST generation, and AI inference happens strictly within the secure sandbox of your web browser. We do not have a backend database to store your inputs.
+            When you paste a 10,000-line JSON payload or a highly confidential PostgreSQL dump into SchemaForge Pro, <strong>it never leaves your machine.</strong> All parsing, AST generation, and AI inference happens strictly within the secure sandbox of your web browser. We do not have a backend database to store your inputs.
           </p>
 
           <h2>2. What We Actually Collect</h2>

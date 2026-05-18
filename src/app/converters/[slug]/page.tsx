@@ -104,7 +104,7 @@ export default async function ConverterPage({ params }: { params: Promise<{ slug
       <h2>Advanced Features of the ${name} Workbench</h2>
       <ul>
         <li><strong>Zero-Latency Processing:</strong> Unlike server-side alternatives, our local engine provides instant feedback. As you type, the ${tech} output is generated in real-time, allowing for rapid iteration and debugging.</li>
-        <li><strong>AI-Powered Structural Cleaning:</strong> Integrated with Google Gemini 1.5, the 'Smart Parse' feature can take messy, broken, or deeply nested inputs and flatten them into clean, convertible structures before the ${tech} generation even begins.</li>
+        <li><strong>AI-Powered Structural Cleaning:</strong> Integrated with Google Gemini 2.5, the 'Smart Parse' feature can take messy, broken, or deeply nested inputs and flatten them into clean, convertible structures before the ${tech} generation even begins.</li>
         <li><strong>Enterprise-Grade Syntax Highlighting:</strong> Powered by the Monaco Editor (the same core as VS Code), giving you familiar shortcuts, auto-indentation, and a professional-grade workspace.</li>
         <li><strong>Comprehensive Export Options:</strong> Beyond basic types, Pro users can generate advanced Zod schemas, React Query hooks, and Prisma models in a single click.</li>
       </ul>

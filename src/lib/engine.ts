@@ -1,7 +1,7 @@
 import { 
   tsGen, zodGen, goGen, rustGen, javaGen, prismaGen, uiGen,
   dartGen, phpGen, pythonGen, protoGen, gqlGen, mockGen,
-  csharpGen, swiftGen, kotlinGen, jsonSchemaGen
+  csharpGen, swiftGen, kotlinGen, jsonSchemaGen, docGen
 } from './generators';
 import { Schema } from './types';
 import { parseYAML, parseXML, parseCurl, parseSQLToZod, curlToTypeScript } from './parsers';
@@ -85,6 +85,7 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
       case 'swift': return swiftGen.generate(schema);
       case 'kotlin': return kotlinGen.generate(schema);
       case 'jsonschema': return jsonSchemaGen.generate(schema);
+      case 'doc': return docGen.generate(schema);
       default: return JSON.stringify(json, null, 2);
     }
   } catch (e) { return "// Error: " + String(e); }

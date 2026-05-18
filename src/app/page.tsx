@@ -124,47 +124,47 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
   };
 
   return (
-    <div className={`${initialSlug ? 'w-full overflow-x-hidden' : 'min-h-screen overflow-hidden'} flex flex-col ${isDark ? 'dark' : ''} bg-white dark:bg-[#020617] transition-colors duration-500`}>
+    <div className={`${initialSlug ? 'w-full overflow-x-hidden' : 'min-h-screen overflow-hidden'} flex flex-col ${isDark ? 'dark' : ''} bg-white dark:bg-[#030712] transition-colors duration-500`}>
       {/* Top Navigation Cockpit */}
-      <nav className={`${initialSlug ? 'sticky' : 'fixed'} top-0 left-0 right-0 h-20 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#020617]/80 backdrop-blur-xl z-[100] px-6`}>
+      <nav className={`${initialSlug ? 'sticky' : 'fixed'} top-0 left-0 right-0 h-20 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#030712]/80 backdrop-blur-xl z-[100] px-6`}>
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between">
           <div className="flex items-center gap-10">
             <button onClick={() => setView('landing')} className="flex items-center gap-3 group text-left">
-              <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-all">
-                <ShieldCheck size={24} />
+              <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-slate-950 shadow-md shadow-blue-600/10 group-hover:scale-105 transition-all">
+                <ShieldCheck size={20} />
               </div>
-              <span className="text-xl font-black tracking-tighter dark:text-white">TypeFlow <span className="text-blue-600 italic">Pro</span></span>
+              <span className="text-lg font-black tracking-tighter dark:text-white">SchemaForge <span className="text-blue-600 italic">Pro</span></span>
             </button>
             
-            <div className="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-800">
+            <div className="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200/50 dark:border-slate-800/80">
               {['landing', 'app', 'lab', 'visual', 'smart-diff', 'regex-builder'].map((v) => (
                 <button 
                   key={v}
                   onClick={() => setView(v)} 
-                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${view === v ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                  className={`px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${view === v ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
                 >
-                  {v === 'lab' && <Sparkles size={12} />}
-                  {v === 'visual' && <Layers size={12} />}
-                  {v === 'smart-diff' && <Wand2 size={12} />}
-                  {v === 'regex-builder' && <Search size={12} />}
+                  {v === 'lab' && <Sparkles size={11} />}
+                  {v === 'visual' && <Layers size={11} />}
+                  {v === 'smart-diff' && <Wand2 size={11} />}
+                  {v === 'regex-builder' && <Search size={11} />}
                   {v === 'landing' ? 'Explore' : v === 'app' ? 'Workbench' : v === 'lab' ? 'Labs' : v === 'visual' ? 'Visuals' : v === 'smart-diff' ? 'Diff' : 'Regex'}
                 </button>
               ))}
-              <a href="/converters/" className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:text-blue-700 bg-blue-50 dark:bg-blue-900/20 transition-all flex items-center gap-1.5"><Layers size={12}/> 300+ Tools</a>
-              <a href="/blog/" className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-all">Blog</a>
+              <a href="/converters/" className="px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-400 hover:text-blue-600 bg-blue-600/10 dark:bg-blue-600/10 transition-all flex items-center gap-1.5"><Layers size={11}/> 300+ Tools</a>
+              <a href="/blog/" className="px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-blue-600 transition-all">Blog</a>
             </div>
 
             {/* Language Switcher */}
-            <div className="hidden sm:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200/50 dark:border-slate-800 ml-4">
+            <div className="hidden sm:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200/50 dark:border-slate-800/80 ml-4">
               <a 
                 href={initialSlug ? `/converters/${initialSlug}` : '/'}
-                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${mounted && !window.location.pathname.includes('/jp/') ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-400'}`}
+                className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mounted && !window.location.pathname.includes('/jp/') ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-400'}`}
               >
                 EN
               </a>
               <a 
                 href={initialSlug ? `/jp/converters/${initialSlug}` : '/jp'}
-                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${mounted && window.location.pathname.includes('/jp/') ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-400'}`}
+                className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mounted && window.location.pathname.includes('/jp/') ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-400'}`}
               >
                 JP
               </a>
@@ -173,15 +173,15 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
 
           <div className="flex items-center gap-4">
             {deferredPrompt && (
-              <button onClick={handleInstall} className="hidden md:flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-700 transition-all">
-                <Download size={14} /> Install App
+              <button onClick={handleInstall} className="hidden md:flex items-center gap-2 px-3.5 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-[9px] font-black uppercase tracking-wider border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-700 transition-all">
+                <Download size={12} /> Install App
               </button>
             )}
 
             {!isPro && (
-              <button onClick={() => setShowLicenseModal(true)} className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-100 dark:border-amber-900 hover:scale-105 transition-all">
-                <Crown size={12} className="text-amber-500" />
-                <span className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase">{trialCount} Trials</span>
+              <button onClick={() => setShowLicenseModal(true)} className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/10 rounded-xl border border-blue-600/20 hover:scale-102 transition-all">
+                <Crown size={12} className="text-blue-600" />
+                <span className="text-[9px] font-black text-blue-700 dark:text-blue-400 uppercase">{trialCount} Trials</span>
               </button>
             )}
             
@@ -189,7 +189,7 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
             <div className="relative group flex flex-col items-end">
               <div className="relative">
                 <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                  <Key size={14} className={geminiKey ? 'text-blue-500' : 'text-slate-400'} />
+                  <Key size={12} className={geminiKey ? 'text-blue-600' : 'text-slate-400'} />
                 </div>
                 <input 
                   type="password" 
@@ -199,28 +199,28 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
                     setGeminiKey(e.target.value);
                     localStorage.setItem('typeflow_gemini_key', e.target.value);
                   }}
-                  className="w-48 bg-slate-100 dark:bg-slate-900 border-none outline-none pl-9 pr-4 py-2 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-400"
+                  className="w-40 bg-slate-100 dark:bg-slate-900 border-none outline-none pl-8 pr-3 py-1.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:ring-1 focus:ring-blue-600 transition-all placeholder:text-slate-400"
                 />
               </div>
               <a 
                 href="https://aistudio.google.com/app/apikey" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-[9px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-600 transition-colors mt-1 pr-1"
+                className="text-[8px] font-black uppercase tracking-wider text-blue-600 hover:text-blue-700 transition-colors mt-1 pr-1"
               >
                 Get Free API Key
               </a>
             </div>
 
-            <button onClick={toggleTheme} className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-all border border-slate-200 dark:border-slate-700">
-              {isDark ? <Sun size={20} /> : <Moon size={20} />}
+            <button onClick={toggleTheme} className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800/80 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-all border border-slate-200 dark:border-slate-700">
+              {isDark ? <Sun size={16} /> : <Moon size={16} />}
             </button>
             
             {!isPro ? (
-              <a href="https://yhanster206.gumroad.com/l/zjcuuu" target="_blank" className="bg-[#0F172A] dark:bg-blue-600 text-white px-6 py-2.5 rounded-xl text-xs font-black hover:scale-105 transition-all shadow-xl">Upgrade</a>
+              <a href="https://yhanster206.gumroad.com/l/zjcuuu" target="_blank" className="bg-[#0F172A] dark:bg-blue-600 text-white dark:text-white px-5 py-2 rounded-xl text-xs font-black hover:scale-102 transition-all shadow-md shadow-blue-600/10">Upgrade</a>
             ) : (
-              <div className="flex items-center gap-2 text-green-600 font-black text-xs bg-green-50 dark:bg-green-900/20 px-4 py-2.5 rounded-xl border border-green-100 dark:border-green-900">
-                <Crown size={14} /> PRO
+              <div className="flex items-center gap-1.5 text-blue-600 font-black text-[10px] bg-blue-600/10 px-3.5 py-2 rounded-xl border border-blue-600/20">
+                <Crown size={12} /> PRO
               </div>
             )}
 

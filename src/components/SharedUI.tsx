@@ -11,7 +11,7 @@ export function ToolLink({ tool, isPro = false }: { tool: any, isPro?: boolean }
       className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-300 transition-all group flex flex-col justify-between h-full relative"
     >
       {isPro && (
-        <span className="absolute -top-2 -right-2 px-2 py-1 bg-amber-500 text-white text-[8px] font-black rounded-lg shadow-lg shadow-amber-200 border border-amber-600 uppercase tracking-widest z-10">
+        <span className="absolute -top-2 -right-2 px-2 py-1 bg-blue-600 text-white text-[8px] font-black rounded-lg shadow-lg shadow-blue-200 border border-blue-700 uppercase tracking-widest z-10">
           Pro
         </span>
       )}
@@ -35,13 +35,13 @@ export function FeatureCard({ icon, title, desc, color, isPro = false }: { icon:
   const colorMap: any = {
     blue: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-900',
     slate: 'bg-slate-50 dark:bg-slate-800/20 text-slate-600 dark:text-slate-400 border-slate-100 dark:border-slate-800',
-    amber: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900'
+    amber: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-100 dark:border-blue-900'
   };
   return (
     <div className="p-10 rounded-[3rem] relative overflow-hidden bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800 transition-all">
       {isPro && (
         <div className="absolute top-6 right-6 flex flex-col items-end gap-1">
-          <div className="bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-[8px] font-black px-2 py-1 rounded-full uppercase border border-amber-200 dark:border-amber-900">
+          <div className="bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-[8px] font-black px-2 py-1 rounded-full uppercase border border-blue-200 dark:border-blue-900">
             Pro
           </div>
           <div className="text-[7px] font-black text-slate-400 uppercase tracking-tighter">

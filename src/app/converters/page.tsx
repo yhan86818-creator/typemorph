@@ -64,11 +64,11 @@ export default function ConvertersDirectory() {
                 <Zap size={14} /> AI Powered
               </div>
               <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                Leverage Gemini 1.5 Pro to refactor, clean, and architect your data structures with unmatched precision.
+                Leverage Gemini 2.5 Flash to refactor, clean, and architect your data structures with unmatched precision.
               </p>
             </div>
             <div>
-              <div className="flex items-center gap-2 text-amber-600 font-black text-[10px] uppercase tracking-widest mb-4">
+              <div className="flex items-center gap-2 text-blue-700 font-black text-[10px] uppercase tracking-widest mb-4">
                 <Layers size={14} /> 170+ Formats
               </div>
               <p className="text-xs text-slate-500 leading-relaxed font-medium">

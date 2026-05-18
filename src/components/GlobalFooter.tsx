@@ -8,13 +8,13 @@ export default function GlobalFooter() {
         <div className="grid md:grid-cols-4 gap-12 mb-20">
           <div className="col-span-2">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+              <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center text-slate-950 shadow-md">
                 <ShieldCheck size={18} />
               </div>
-              <span className="text-xl font-black tracking-tighter dark:text-white">TypeFlow <span className="text-blue-600 italic">Pro</span></span>
+              <span className="text-xl font-black tracking-tighter dark:text-white">SchemaForge <span className="text-blue-600 italic">Pro</span></span>
             </div>
             <p className="text-slate-500 max-w-sm mb-8 leading-relaxed font-medium">
-              The most secure, local-first data transformation engine for professional software engineers. Built with privacy in our DNA.
+              The most secure, local-first schema and data engineering workbench for professional software developers. Built with privacy in our DNA.
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <a 
@@ -27,9 +27,9 @@ export default function GlobalFooter() {
               <a 
                 href="https://discord.gg/dQHqsa8g8J" 
                 target="_blank"
-                className="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-indigo-100 dark:border-indigo-900 hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-2"
+                className="bg-blue-600/5 dark:bg-blue-600/5 text-blue-700 dark:text-blue-400 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-600/10 hover:bg-blue-600 hover:text-slate-950 transition-all flex items-center gap-2"
               >
-                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Community Discord
+                <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse" /> Community Discord
               </a>
             </div>
           </div>
@@ -54,7 +54,7 @@ export default function GlobalFooter() {
           </div>
         </div>
         <div className="pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-          <p>© 2026 TypeFlow Pro Engine. ALL RIGHTS RESERVED.</p>
+          <p>© 2026 SchemaForge Pro Engine. ALL RIGHTS RESERVED.</p>
           <div className="flex gap-8">
             <span>GDPR COMPLIANT</span>
             <span>100% LOCAL PROCESSING</span>

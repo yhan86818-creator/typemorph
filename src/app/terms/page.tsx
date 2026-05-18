@@ -4,15 +4,15 @@ import { ShieldCheck, ArrowLeft, Scale } from 'lucide-react';
 import GlobalFooter from '@/components/GlobalFooter';
 
 export const metadata = {
-  title: 'Terms of Service - TypeFlow Pro',
-  description: 'Rules and guidelines for using the TypeFlow Pro engineering workbench.',
+  title: 'Terms of Service - SchemaForge Pro',
+  description: 'Rules and guidelines for using the SchemaForge Pro engineering workbench.',
 };
 
 export default function TermsOfService() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#020617] transition-colors duration-500">
       <div className="max-w-4xl mx-auto px-6 py-24">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-12 hover:gap-3 transition-all">
+        <Link href="/" className="inline-flex items-center gap-2 text-sm font-mono text-blue-700 dark:text-blue-400 uppercase tracking-widest mb-12 hover:gap-3 transition-all">
           <ArrowLeft size={16} /> Back to Hub
         </Link>
 
@@ -24,24 +24,24 @@ export default function TermsOfService() {
             Terms of <span className="text-slate-500">Service.</span>
           </h1>
           <p className="text-xl text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-            By accessing or using TypeFlow Pro, you agree to be bound by these terms. We keep it simple: use the tools responsibly, and don't sue us if your code breaks.
+            By accessing or using SchemaForge Pro, you agree to be bound by these terms. We keep it simple: use the tools responsibly, and don't sue us if your code breaks.
           </p>
         </div>
 
         <div className="prose prose-slate lg:prose-lg max-w-none dark:prose-invert
-          prose-headings:font-black prose-headings:tracking-tight
+          prose-headings:font-mono prose-headings:tracking-tight
           prose-p:font-medium prose-p:leading-relaxed
-          prose-strong:font-black
+          prose-strong:font-bold text-blue-700 dark:text-blue-400
           prose-ul:font-medium">
           
           <h2>1. Acceptance of Terms</h2>
           <p>
-            By accessing TypeFlow Pro, you agree to these Terms of Service. If you disagree with any part of the terms, then you do not have permission to access the Service.
+            By accessing SchemaForge Pro, you agree to these Terms of Service. If you disagree with any part of the terms, then you do not have permission to access the Service.
           </p>
 
           <h2>2. Use of Service & Generated Code</h2>
           <p>
-            TypeFlow Pro provides utility functions that transform data (JSON, SQL, code, etc.). <strong>You own all the code you generate using our tools.</strong> You are free to use the output in commercial applications, open-source projects, and enterprise environments without attribution.
+            SchemaForge Pro provides utility functions that transform data (JSON, SQL, code, etc.). <strong>You own all the code you generate using our tools.</strong> You are free to use the output in commercial applications, open-source projects, and enterprise environments without attribution.
           </p>
 
           <h2>3. Disclaimer of Warranties (The "No Guarantees" Clause)</h2>
@@ -55,7 +55,7 @@ export default function TermsOfService() {
 
           <h2>4. Limitation of Liability</h2>
           <p>
-            In no event shall TypeFlow Pro, nor its directors, employees, or partners, be liable for any indirect, incidental, special, consequential, or punitive damages—including but not limited to <strong>loss of profits, server downtime, data corruption, or security breaches</strong>—resulting from your use of the generated code or the service itself.
+            In no event shall SchemaForge Pro, nor its directors, employees, or partners, be liable for any indirect, incidental, special, consequential, or punitive damages—including but not limited to <strong>loss of profits, server downtime, data corruption, or security breaches</strong>—resulting from your use of the generated code or the service itself.
           </p>
 
           <h2>5. Acceptable Use</h2>

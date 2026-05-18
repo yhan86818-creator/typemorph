@@ -323,3 +323,54 @@ export const jsonSchemaGen = {
     }, null, 2);
   }
 };
+
+export const docGen = {
+  generate: (schema: Schema, name: string = 'Root'): string => {
+    if (schema.type === 'object' && schema.fields) {
+      let res = `# API Field Specifications: ${name}\n\n`;
+      res += `| Field | Type | Required | Description |\n`;
+      res += `| :--- | :--- | :--- | :--- |\n`;
+      for (const [k, v] of Object.entries(schema.fields)) {
+        const type = v.type === 'object' ? 'Object' : v.type === 'array' ? `${v.itemType?.type || 'any'}[]` : v.type;
+        const required = 'Yes';
+        
+        // Intelligent descriptions based on field names
+        let desc = 'No description provided.';
+        const keyLower = k.toLowerCase();
+        if (keyLower === 'id' || keyLower.endsWith('id')) desc = 'Unique identifier for the record.';
+        else if (keyLower === 'username') desc = 'User\'s unique display name.';
+        else if (keyLower === 'name' || keyLower === 'fullname') desc = 'Full name of the user or entity.';
+        else if (keyLower === 'email') desc = 'Primary email address.';
+        else if (keyLower === 'status') desc = 'Operational or lifecycle state.';
+        else if (keyLower === 'role') desc = 'User privilege role or system role.';
+        else if (keyLower === 'avatarurl' || keyLower === 'avatar') desc = 'Public URL to the user\'s avatar image.';
+        else if (keyLower === 'stats') desc = 'Statistical metrics and counters.';
+        else if (keyLower === 'preferences') desc = 'User preference flags and custom configurations.';
+        else if (keyLower.startsWith('is') || keyLower.startsWith('has')) desc = 'Boolean flag representing status.';
+        else if (keyLower === 'createdat' || keyLower === 'created_at') desc = 'Timestamp representing record creation time.';
+        else if (keyLower === 'updatedat' || keyLower === 'updated_at') desc = 'Timestamp representing the last update time.';
+        else if (keyLower === 'lastlogin' || keyLower === 'last_login') desc = 'Timestamp of the user\'s most recent session activity.';
+        else if (v.format === 'uuid') desc = 'Universally Unique Identifier (UUID) format string.';
+        else if (v.format === 'email') desc = 'Validated email format string.';
+        else if (v.format === 'url') desc = 'Fully-qualified web URL (HTTP/HTTPS).';
+        else if (v.format === 'datetime') desc = 'ISO 8601 compliant UTC date-time string.';
+        
+        res += `| \`${k}\` | \`${type}\` | ${required} | ${desc} |\n`;
+      }
+      res += `\n`;
+      
+      for (const [k, v] of Object.entries(schema.fields)) {
+        if (v.type === 'object') {
+          res += `\n---\n\n`;
+          res += docGen.generate(v, k.charAt(0).toUpperCase() + k.slice(1));
+        }
+        if (v.type === 'array' && v.itemType?.type === 'object') {
+          res += `\n---\n\n`;
+          res += docGen.generate(v.itemType, k.charAt(0).toUpperCase() + k.slice(1) + 'Item');
+        }
+      }
+      return res;
+    }
+    return "";
+  }
+};

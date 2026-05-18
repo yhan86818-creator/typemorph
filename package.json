@@ -11,6 +11,7 @@
     "deploy": "next build && npx wrangler pages deploy out --project-name typeflow-pro --branch main"
   },
   "dependencies": {
+    "@codesandbox/sandpack-react": "^2.20.0",
     "@monaco-editor/react": "^4.7.0",
     "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/auth-ui-react": "^0.4.7",

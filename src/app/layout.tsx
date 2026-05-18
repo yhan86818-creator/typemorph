@@ -20,26 +20,26 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "TypeFlow Pro | 300+ Local-First Developer Tools & Converters",
-    template: "%s | TypeFlow Pro"
+    default: "SchemaForge Pro | 300+ Local-First Developer Tools & Schema Generators",
+    template: "%s | SchemaForge Pro"
   },
-  description: "The ultimate secure engineering workbench. 307+ local-first tools for TypeScript, Zod, Go, Rust, and SQL. 100% private data transformation.",
-  metadataBase: new URL('https://typeflow-pro.pages.dev'),
+  description: "The ultimate secure engineering workbench. 307+ local-first tools for database schemas, validation schemas, TypeScript, and SQL. 100% private.",
+  metadataBase: new URL('https://schemaforge.pro'),
   icons: {
     icon: '/favicon.png',
     apple: '/favicon.png',
   },
   openGraph: {
-    title: "TypeFlow Pro | 300+ Local-First Developer Tools & Converters",
-    description: "The ultimate secure engineering workbench. 307+ local-first tools for TypeScript, Zod, Go, Rust, and SQL.",
-    url: 'https://typeflow-pro.pages.dev',
-    siteName: 'TypeFlow Pro',
+    title: "SchemaForge Pro | 300+ Local-First Developer Tools & Schema Generators",
+    description: "The ultimate secure engineering workbench. 307+ local-first tools for database schemas, validation schemas, TypeScript, and SQL.",
+    url: 'https://schemaforge.pro',
+    siteName: 'SchemaForge Pro',
     images: [
       {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'TypeFlow Pro - The Local-First Developer Workbench'
+        alt: 'SchemaForge Pro - The Local-First Developer Workbench'
       },
     ],
     locale: 'en_US',
@@ -47,8 +47,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TypeFlow Pro | Local-First Developer Workspace',
-    description: '307+ local-first tools for engineers. Securely generate types and schemas from any data.',
+    title: 'SchemaForge Pro | Local-First Developer Workspace',
+    description: '307+ local-first schema and code generators for modern architects. 100% private.',
     images: ['/og-image.png'],
   },
   verification: {
@@ -64,12 +64,12 @@ export default function RootLayout({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": "TypeFlow Pro",
-    "alternateName": "TypeFlow",
-    "url": "https://typeflow-pro.pages.dev",
+    "name": "SchemaForge Pro",
+    "alternateName": "SchemaForge",
+    "url": "https://schemaforge.pro",
     "potentialAction": {
       "@type": "SearchAction",
-      "target": "https://typeflow-pro.pages.dev/?q={search_term_string}",
+      "target": "https://schemaforge.pro/?q={search_term_string}",
       "query-input": "required name=search_term_string"
     }
   };

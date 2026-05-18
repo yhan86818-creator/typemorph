@@ -20,7 +20,13 @@ const PRESETS = [
   { id: 'refactor', label: 'Clean Refactor', icon: <Wand2 size={14} />, prompt: 'Refactor into clean, modern TypeScript following SOLID principles.' },
   { id: 'tests', label: 'Gen Vitest', icon: <ShieldCheck size={14} />, prompt: 'Generate comprehensive Vitest unit tests for this code.' },
   { id: 'perf', label: 'Optimize Perf', icon: <Zap size={14} />, prompt: 'Optimize this code for maximum performance and memory efficiency.' },
-  { id: 'docs', label: 'Add JSDoc', icon: <History size={14} />, prompt: 'Add detailed JSDoc comments and explain the architecture.' }
+  { id: 'docs', label: 'Add JSDoc', icon: <History size={14} />, prompt: 'Add detailed JSDoc comments and explain the architecture.' },
+  { 
+    id: 'nextjs-api', 
+    label: 'Prisma ➡ Next.js API', 
+    icon: <Sparkles size={14} className="text-blue-600" />, 
+    prompt: 'Generate highly optimized, production-ready Next.js 15/16 App Router API routes (GET, POST, PUT, DELETE) utilizing Prisma Client for this Prisma Schema or model definition. CRITICAL: For dynamic routes like [userId] or [postId], implement Next.js 15/16 asynchronous params: define parameter types as Promise<{ userId: string }> and perform `const { userId } = await params;` to prevent runtime errors. Implement robust input validation, Prisma transactions, correct relational query includes, strict error handling with appropriate HTTP status codes, and return beautifully structured JSON responses. Output ONLY the Next.js API route code with clear directory layout comments.' 
+  }
 ];
 
 export function LogicLabView({ isDark, geminiKey, isPro, trialCount, setTrialCount }: LogicLabViewProps) {
@@ -53,6 +59,21 @@ function fetchUsers(callback) {
       }
     }
   }, [geminiKey, isPro]);
+
+  // Sync sample inputs when switching presets to guide users
+  useEffect(() => {
+    const samples: any = {
+      refactor: `// Legacy JavaScript to Modern TypeScript\nfunction fetchUsers(callback) {\n  $.ajax({\n    url: '/api/users',\n    success: function(data) {\n      callback(null, data);\n    },\n    error: function(err) {\n      callback(err);\n    }\n  });\n}`,
+      tests: `// Add Tests for this Math utility\nexport function calculateDiscount(price: number, discount: number, member: boolean) {\n  if (price < 0) return 0;\n  let rate = discount;\n  if (member) rate += 0.1;\n  return price * (1 - Math.min(rate, 0.9));\n}`,
+      perf: `// Optimize this nested loop and memoization bottleneck\nexport function fibonacci(n: number): number {\n  if (n <= 1) return n;\n  return fibonacci(n - 1) + fibonacci(n - 2);\n}`,
+      docs: `// Add JSDoc to this Auth Handler\nexport async function handleSession(req: Request, db: any) {\n  const token = req.headers.get('Authorization')?.split(' ')[1];\n  if (!token) return { status: 401, error: 'Unauthorized' };\n  const user = await db.user.findFirst({ where: { token } });\n  return { status: 200, user };\n}`,
+      'nextjs-api': `// Prisma Schema: User & Post relationship\nmodel User {\n  id        String   @id @default(uuid())\n  email     String   @unique\n  name      String?\n  role      Role     @default(USER)\n  posts     Post[]\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n}\n\nmodel Post {\n  id        String   @id @default(uuid())\n  title     String\n  content   String?\n  published Boolean  @default(false)\n  authorId  String\n  author    User     @relation(fields: [authorId], references: [id])\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n}\n\nenum Role {\n  USER\n  ADMIN\n}`
+    };
+
+    if (samples[activePreset]) {
+      setInput(samples[activePreset]);
+    }
+  }, [activePreset]);
 
   const processLogic = async (customPrompt?: string) => {
     if (!isPro && trialCount <= 0) {
@@ -194,10 +215,12 @@ function fetchUsers(callback) {
           <button
             onClick={() => processLogic()}
             disabled={isProcessing}
+            title="Ctrl + Enter to Execute Synthesis"
             className="px-8 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl disabled:opacity-50 flex items-center gap-2"
           >
             {isProcessing ? <Loader2 className="animate-spin" size={16} /> : <Microscope size={16} />}
             <span>Execute Synthesis</span>
+            <span className="text-[8px] opacity-60 border border-current px-1 py-0.5 rounded ml-1 tracking-tighter">Ctrl+↵</span>
           </button>
         </div>
       </div>
@@ -215,23 +238,30 @@ function fetchUsers(callback) {
             <Editor
               height="100%"
               theme={isDark ? "vs-dark" : "light"}
-              language="javascript"
+              language={activePreset === 'nextjs-api' ? 'prisma' : 'typescript'}
               value={input}
               onChange={(v) => setInput(v || "")}
+              onMount={(editor, monaco) => {
+                // Add Ctrl+Enter or Cmd+Enter trigger for AI Smart Parse
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+                  processLogic();
+                });
+              }}
               options={{ 
                 minimap: { enabled: false }, 
                 fontSize: 13, 
                 fontFamily: "'JetBrains Mono', monospace",
-                padding: { top: 30 },
+                padding: { top: 16, bottom: 16 },
                 automaticLayout: true,
                 lineNumbers: 'on',
                 renderLineHighlight: 'none',
-                scrollbar: { vertical: 'hidden' }
+                scrollbar: { vertical: 'auto', horizontal: 'auto' },
+                wordWrap: 'on'
               }}
             />
           </div>
         </div>
-
+ 
         {/* Workspace - Refined */}
         <div className="flex-1 bg-slate-50 dark:bg-[#020617] flex flex-col relative">
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 flex items-center justify-between backdrop-blur-md">
@@ -244,10 +274,14 @@ function fetchUsers(callback) {
                 <motion.button 
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                   onClick={copyToClipboard}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase text-slate-500 hover:text-purple-600 transition-colors shadow-sm"
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase shadow-sm transition-all duration-300 ${
+                    copied 
+                      ? 'bg-emerald-600 dark:bg-emerald-500 text-white shadow-emerald-500/20 animate-pulse' 
+                      : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-purple-600'
+                  }`}
                 >
-                  {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                  <span>{copied ? 'Copied' : 'Copy'}</span>
+                  {copied ? <Check size={14} className="text-white animate-bounce" /> : <Copy size={14} />}
+                  <span>{copied ? 'Copied!' : 'Copy'}</span>
                 </motion.button>
               )}
             </AnimatePresence>
@@ -263,9 +297,11 @@ function fetchUsers(callback) {
                 minimap: { enabled: false }, 
                 fontSize: 13, 
                 fontFamily: "'JetBrains Mono', monospace",
-                padding: { top: 30 },
+                padding: { top: 16, bottom: 16 },
                 automaticLayout: true,
-                renderLineHighlight: 'none'
+                renderLineHighlight: 'none',
+                scrollbar: { vertical: 'auto', horizontal: 'auto' },
+                wordWrap: 'on'
               }}
             />
             {!output && !isProcessing && (

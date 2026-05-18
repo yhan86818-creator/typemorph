@@ -122,7 +122,15 @@ export function SmartDiffView({ geminiKey, setGeminiKey, isPro, trialCount, setT
             value={jsonA}
             onChange={(v) => setJsonA(v || '')}
             theme={isDark ? "vs-dark" : "light"}
-            options={{ minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false, padding: { top: 16 } }}
+            options={{ 
+              minimap: { enabled: false }, 
+              fontSize: 13, 
+              scrollBeyondLastLine: false, 
+              padding: { top: 16, bottom: 16 },
+              automaticLayout: true,
+              wordWrap: 'on',
+              scrollbar: { vertical: 'auto', horizontal: 'auto' }
+            }}
           />
         </div>
 
@@ -139,7 +147,15 @@ export function SmartDiffView({ geminiKey, setGeminiKey, isPro, trialCount, setT
             value={jsonB}
             onChange={(v) => setJsonB(v || '')}
             theme={isDark ? "vs-dark" : "light"}
-            options={{ minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false, padding: { top: 16 } }}
+            options={{ 
+              minimap: { enabled: false }, 
+              fontSize: 13, 
+              scrollBeyondLastLine: false, 
+              padding: { top: 16, bottom: 16 },
+              automaticLayout: true,
+              wordWrap: 'on',
+              scrollbar: { vertical: 'auto', horizontal: 'auto' }
+            }}
           />
         </div>
       </div>
@@ -193,7 +209,16 @@ export function SmartDiffView({ geminiKey, setGeminiKey, isPro, trialCount, setT
               defaultLanguage="typescript"
               value={result}
               theme={isDark ? "vs-dark" : "light"}
-              options={{ minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false, padding: { top: 16 }, readOnly: true }}
+              options={{ 
+                minimap: { enabled: false }, 
+                fontSize: 13, 
+                scrollBeyondLastLine: false, 
+                padding: { top: 16, bottom: 16 }, 
+                readOnly: true,
+                automaticLayout: true,
+                wordWrap: 'on',
+                scrollbar: { vertical: 'auto', horizontal: 'auto' }
+              }}
             />
           </div>
         </motion.div>
