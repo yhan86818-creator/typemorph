@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, Sparkles, Zap, ShieldCheck, Layers, 
   ArrowRight, X, Command, Cpu, Terminal, ChevronRight,
-  Database, FileCode, CheckCircle2, FolderOpen
+  Database, FileCode, CheckCircle2, FolderOpen, Key, Trash2, EyeOff
 } from 'lucide-react';
 import { converters } from '@/data/converters';
 import GlobalFooter from '@/components/GlobalFooter';
@@ -360,35 +360,82 @@ export function LandingView({ onSelect }: LandingViewProps) {
           </div>
         </div>
 
-        {/* Privacy & Infrastructure Disclosure Section (Security Disclosure Policy) */}
-        <div className="max-w-4xl mx-auto -mt-20 mb-40 p-8 rounded-2xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200/50 dark:border-slate-800/80 backdrop-blur-sm">
-          <div className="flex flex-col md:flex-row items-start gap-5">
-            <div className="w-10 h-10 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center shrink-0 shadow-inner">
-              <ShieldCheck size={20} />
+        {/* Privacy Manifesto Section */}
+        <div className="max-w-5xl mx-auto -mt-20 mb-40 p-10 rounded-3xl bg-white dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-700/50 shadow-2xl dark:shadow-black/40">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-600/10 text-blue-700 dark:text-blue-400 font-mono text-[9px] uppercase tracking-wider mb-4 border border-blue-600/20 shadow-sm">
+              <ShieldCheck size={12} className="animate-pulse" /> Privacy Manifesto
             </div>
-            <div className="flex-1">
-              <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider mb-2 flex items-center gap-2">
-                Privacy &amp; AI Data Flow Policy
-                <span className="px-2.5 py-0.5 bg-blue-600/10 text-blue-700 dark:text-blue-400 rounded-lg text-[8px] font-mono uppercase tracking-normal">Fully Disclosed</span>
-              </h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold leading-relaxed mb-6">
-                SchemaForge Pro values corporate code privacy above all. We clearly separate standard client-side processing from opt-in advanced AI neural syntheses:
-              </p>
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="p-5 bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800/60 shadow-sm">
-                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-[8px] font-black uppercase tracking-wider mb-3">100% Local Sandbox</span>
-                  <h5 className="text-xs font-black text-slate-900 dark:text-white mb-2">Standard 300+ Converters</h5>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
-                    All base conversions (JSON to Typescript, YAML to Go, etc.) are executed <span className="text-slate-900 dark:text-white">100% entirely inside your browser's sandboxed client-side memory</span>. Zero network traffic, zero external transmission. Your code never leaves your device.
-                  </p>
-                </div>
-                <div className="p-5 bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800/60 shadow-sm">
-                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-blue-600/10 text-blue-700 dark:text-blue-400 text-[8px] font-mono uppercase tracking-wider mb-3">Secure Direct Request (BYOK)</span>
-                  <h5 className="text-xs font-black text-slate-900 dark:text-white mb-2">Advanced AI Workbenches</h5>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
-                    Advanced features (Labs, Architecture, Diff) connect directly from your browser to <span className="text-slate-900 dark:text-white">Google Gemini's official API endpoints</span> using your own Gemini API Key. SchemaForge's servers never store, proxy, or intercept your keys or codebase.
-                  </p>
-                </div>
+            <h3 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-3">
+              100% Privacy-First Architecture
+            </h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm font-semibold max-w-xl mx-auto">
+              Your code never leaves your browser. We clearly separate secure local-only conversions from transparent client-to-Google direct AI operations.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Card 1 */}
+            <div className="p-6 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-200/50 dark:border-slate-800/80 shadow-sm flex gap-4">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 shadow-inner">
+                <Cpu size={20} />
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider mb-2 flex items-center gap-2">
+                  1. Local-First Engine
+                  <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-[8px] font-mono uppercase tracking-normal font-bold">100% Private</span>
+                </h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
+                  Standard code conversions (JSON to TS/Go/Rust, etc.) are executed 100% entirely inside your browser via local client-side memory. Zero network traffic, zero external transmission. Your sensitive corporate payloads remain strictly secure on your machine.
+                </p>
+              </div>
+            </div>
+
+            {/* Card 2 */}
+            <div className="p-6 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-200/50 dark:border-slate-800/80 shadow-sm flex gap-4">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/20 shadow-inner">
+                <Key size={20} />
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider mb-2 flex items-center gap-2">
+                  2. BYOK AI Model
+                  <span className="px-2.5 py-0.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-lg text-[8px] font-mono uppercase tracking-normal font-bold">Zero Proxy</span>
+                </h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
+                  For advanced synthesis like AI Smart Parse and UI Generation, requests connect directly to Google's official Gemini API. SchemaForge never proxies, stores, or inspects your API keys or data payloads. You maintain absolute control over your key and logic.
+                </p>
+              </div>
+            </div>
+
+            {/* Card 3 */}
+            <div className="p-6 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-200/50 dark:border-slate-800/80 shadow-sm flex gap-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/20 shadow-inner">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider mb-2 flex items-center gap-2">
+                  3. Zero Data Retention
+                  <span className="px-2.5 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-lg text-[8px] font-mono uppercase tracking-normal font-bold">User-Controlled</span>
+                </h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
+                  Guest sessions are kept exclusively inside your local storage. Conversion history cloud syncing (Supabase) is entirely optional and only active when you explicitly sign up and log in. You can wipe all history or URL state parameters at any moment with one click.
+                </p>
+              </div>
+            </div>
+
+            {/* Card 4 */}
+            <div className="p-6 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-200/50 dark:border-slate-800/80 shadow-sm flex gap-4">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/20 shadow-inner">
+                <EyeOff size={20} />
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider mb-2 flex items-center gap-2">
+                  4. Open &amp; Transparent
+                  <span className="px-2.5 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg text-[8px] font-mono uppercase tracking-normal font-bold">100% Ethical</span>
+                </h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
+                  We will never sell or monetize your data. SchemaForge does not run third-party advertising, does not track your private structural operations, and absolutely never uses your source code to train AI models.
+                </p>
               </div>
             </div>
           </div>

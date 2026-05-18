@@ -3,24 +3,63 @@
  * Handles extraction of data from various formats (YAML, XML, CURL, SQL)
  */
 
-export const parseYAML = (str: string) => {
-  const obj: any = {};
-  str.split('\n').forEach(line => {
-    const [k, v] = line.split(':').map(s => s.trim());
-    if (k && v) obj[k] = isNaN(Number(v)) ? v : Number(v);
-  });
+import yaml from 'js-yaml';
+import { XMLParser } from 'fast-xml-parser';
+
+// ---------------------------------------------------------------------------
+// YAML Parser — uses js-yaml for full spec compliance
+// (nested objects, arrays, anchors, multi-line strings, etc.)
+// ---------------------------------------------------------------------------
+export const parseYAML = (str: string): any => {
+  try {
+    const parsed = yaml.load(str);
+    if (parsed === null || parsed === undefined) return {};
+    if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+      // Wrap primitive / array results so callers always get a plain object
+      return { value: parsed };
+    }
+    return parsed as Record<string, unknown>;
+  } catch (err: any) {
+    // Return a structured error so the UI can display it
+    return { _parseError: err?.message ?? 'YAML parse failed' };
+  }
+};
+
+// ---------------------------------------------------------------------------
+// XML Parser — uses fast-xml-parser for full XML support
+// (nested elements, attributes, CDATA, namespaces, etc.)
+// ---------------------------------------------------------------------------
+
+/** Recursively coerce numeric strings to numbers */
+const coerceNumbers = (obj: any): any => {
+  if (Array.isArray(obj)) return obj.map(coerceNumbers);
+  if (obj !== null && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj).map(([k, v]) => [k, coerceNumbers(v)])
+    );
+  }
+  if (typeof obj === 'string' && obj.trim() !== '' && !isNaN(Number(obj))) {
+    return Number(obj);
+  }
   return obj;
 };
 
-export const parseXML = (str: string) => {
-  const match = str.match(/<(\w+)>([^<]+)<\/\1>/g);
-  const obj: any = {};
-  match?.forEach(m => {
-    const k = m.match(/<(\w+)>/)?.[1];
-    const v = m.match(/>([^<]+)</)?.[1];
-    if (k && v) obj[k] = isNaN(Number(v)) ? v : Number(v);
-  });
-  return obj;
+export const parseXML = (str: string): any => {
+  try {
+    const parser = new XMLParser({
+      ignoreAttributes: false,       // preserve attributes (e.g. id="1")
+      attributeNamePrefix: '@_',     // attributes prefixed with @_
+      allowBooleanAttributes: true,
+      parseAttributeValue: true,     // auto-cast attribute values
+      parseTagValue: true,           // auto-cast tag text content
+      trimValues: true,
+      cdataPropName: '__cdata',
+    });
+    const raw = parser.parse(str);
+    return coerceNumbers(raw);
+  } catch (err: any) {
+    return { _parseError: err?.message ?? 'XML parse failed' };
+  }
 };
 
 export const parseCurl = (curl: string) => {

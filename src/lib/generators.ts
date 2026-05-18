@@ -4,17 +4,50 @@ const toPascalCase = (str: string) => str.replace(/(^\w|_\w)/g, m => m.replace(/
 
 // Existing Generators (Improved)
 export const tsGen = {
-  generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
+  generate: (schema: Schema, name: string = 'Root', options: any = {}, _seen: Set<string> = new Set()): string => {
     if (schema.type === 'object' && schema.fields) {
+      // Guard against infinite loops on circular refs
+      if (_seen.has(name)) return '';
+      _seen.add(name);
       let res = options.exportDefault && name === 'Root' ? `export default interface ${name} {\n` : `export interface ${name} {\n`;
-      const optionalMark = options.optionalFields ? '?' : '';
+      // optionalMark: from UI config OR data-driven inference (field.optional)
+      const forceOptional = options.optionalFields;
       for (const [k, v] of Object.entries(schema.fields)) {
-        res += `  ${k}${optionalMark}: ${v.type === 'object' ? toPascalCase(k) : v.type === 'array' ? (v.itemType?.type === 'object' ? `${toPascalCase(k)}Item[]` : `${v.itemType?.type}[]`) : v.type};\n`;
+        const optMark = (forceOptional || v.optional) ? '?' : '';
+        // Use parent-qualified child name to avoid collisions (e.g. UserMetadata vs OrderMetadata)
+        const childName = name + toPascalCase(k);
+        const childItemName = childName + 'Item';
+        let tsType: string;
+        if (v.type === 'union' && v.unionTypes) {
+          tsType = v.unionTypes.join(' | ');
+        } else if (v.type === 'string' && v.enumValues) {
+          tsType = v.enumValues.map(ev => `"${ev}"`).join(' | ');
+        } else if (v.type === 'object') {
+          tsType = childName;
+        } else if (v.type === 'array') {
+          const it = v.itemType;
+          if (it?.type === 'union' && it.unionTypes) {
+            tsType = `(${it.unionTypes.join(' | ')})[]`;
+          } else if (it?.type === 'string' && it.enumValues) {
+            tsType = `(${it.enumValues.map(ev => `"${ev}"`).join(' | ')})[]`;
+          } else {
+            tsType = it?.type === 'object' ? `${childItemName}[]` : `${it?.type ?? 'any'}[]`;
+          }
+        } else {
+          tsType = v.type;
+        }
+
+        if (v.nullable) {
+          tsType = `(${tsType}) | null`;
+        }
+
+        res += `  ${k}${optMark}: ${tsType};\n`;
       }
       res += `}\n\n`;
       for (const [k, v] of Object.entries(schema.fields)) {
-        if (v.type === 'object') res += tsGen.generate(v, toPascalCase(k), options);
-        if (v.type === 'array' && v.itemType?.type === 'object') res += tsGen.generate(v.itemType, toPascalCase(k) + 'Item', options);
+        const childName = name + toPascalCase(k);
+        if (v.type === 'object') res += tsGen.generate(v, childName, options, _seen);
+        if (v.type === 'array' && v.itemType?.type === 'object') res += tsGen.generate(v.itemType, childName + 'Item', options, _seen);
       }
       return res;
     }
@@ -23,15 +56,39 @@ export const tsGen = {
 };
 
 export const zodGen = {
-  generate: (schema: Schema, name: string = 'root', options: any = {}): string => {
+  generate: (schema: Schema, name: string = 'root', options: any = {}, _seen: Set<string> = new Set()): string => {
     if (schema.type === 'object' && schema.fields) {
+      if (_seen.has(name)) return '';
+      _seen.add(name);
       let res = `export const ${name}Schema = z.object({\n`;
       for (const [k, v] of Object.entries(schema.fields)) {
-        const isOpt = options.optionalFields ? '.optional()' : '';
+        // optional: from UI config OR data-driven inference
+        const isOpt = (options.optionalFields || v.optional) ? '.optional()' : '';
+        const isNull = v.nullable ? '.nullable()' : '';
+        // Use parent-qualified child schema names to avoid collisions
+        const childSchemaName = name + toPascalCase(k);
         let zType = '';
-        if (v.type === 'object') zType = `${k}Schema`;
-        else if (v.type === 'array') zType = `z.array(${v.itemType?.type === 'object' ? `${k}ItemSchema` : `z.${v.itemType?.type}()`})`;
-        else if (v.type === 'string') {
+        if (v.type === 'union' && v.unionTypes) {
+          // e.g. z.union([z.string(), z.number()])
+          zType = `z.union([${v.unionTypes.map(t => `z.${t}()`).join(', ')}])`;
+        } else if (v.type === 'string' && v.enumValues) {
+          zType = `z.enum([${v.enumValues.map(ev => `"${ev}"`).join(', ')}])`;
+        } else if (v.type === 'object') {
+          zType = `${childSchemaName}Schema`;
+        } else if (v.type === 'array') {
+          const it = v.itemType;
+          let itemZ: string;
+          if (it?.type === 'union' && it.unionTypes) {
+            itemZ = `z.union([${it.unionTypes.map(t => `z.${t}()`).join(', ')}])`;
+          } else if (it?.type === 'string' && it.enumValues) {
+            itemZ = `z.enum([${it.enumValues.map(ev => `"${ev}"`).join(', ')}])`;
+          } else if (it?.type === 'object') {
+            itemZ = `${childSchemaName}ItemSchema`;
+          } else {
+            itemZ = `z.${it?.type ?? 'any'}()`;
+          }
+          zType = `z.array(${itemZ})`;
+        } else if (v.type === 'string') {
           zType = 'z.string()';
           if (v.format === 'uuid') zType += '.uuid()';
           else if (v.format === 'email') zType += '.email()';
@@ -41,12 +98,13 @@ export const zodGen = {
         } else {
           zType = `z.${v.type}()`;
         }
-        res += `  ${k}: ${zType}${isOpt},\n`;
+        res += `  ${k}: ${zType}${isNull}${isOpt},\n`;
       }
       res += `});\n\n`;
       for (const [k, v] of Object.entries(schema.fields)) {
-        if (v.type === 'object') res += zodGen.generate(v, k, options);
-        if (v.type === 'array' && v.itemType?.type === 'object') res += zodGen.generate(v.itemType, k + 'Item', options);
+        const childName = name + toPascalCase(k);
+        if (v.type === 'object') res += zodGen.generate(v, childName, options, _seen);
+        if (v.type === 'array' && v.itemType?.type === 'object') res += zodGen.generate(v.itemType, childName + 'Item', options, _seen);
       }
       return res;
     }
@@ -61,13 +119,18 @@ export const dartGen = {
     if (schema.type === 'object' && schema.fields) {
       let res = `class ${name} {\n`;
       for (const [k, v] of Object.entries(schema.fields)) {
-        const type = v.type === 'object' ? toPascalCase(k) : v.type === 'array' ? `List<${v.itemType?.type === 'object' ? toPascalCase(k) : 'dynamic'}>` : v.type === 'number' ? 'double' : v.type === 'boolean' ? 'bool' : 'String';
+        const type = v.type === 'object' ? toPascalCase(k) : v.type === 'array' ? `List<${v.itemType?.type === 'object' ? toPascalCase(k) + 'Item' : 'dynamic'}>` : v.type === 'number' ? 'double' : v.type === 'boolean' ? 'bool' : 'String';
         res += `  final ${type} ${k};\n`;
       }
-      res += `\n  ${name}({required this.fields...}); // Generated Constructor\n`;
+      res += `\n  ${name}({\n`;
+      for (const k of Object.keys(schema.fields)) {
+        res += `    required this.${k},\n`;
+      }
+      res += `  });\n`;
       res += `}\n\n`;
       for (const [k, v] of Object.entries(schema.fields)) {
         if (v.type === 'object') res += dartGen.generate(v, toPascalCase(k));
+        if (v.type === 'array' && v.itemType?.type === 'object') res += dartGen.generate(v.itemType, toPascalCase(k) + 'Item');
       }
       return res;
     }
@@ -80,10 +143,19 @@ export const phpGen = {
     if (schema.type === 'object' && schema.fields) {
       let res = `class ${name} {\n`;
       for (const [k, v] of Object.entries(schema.fields)) {
-        const type = v.type === 'number' ? 'float' : v.type === 'boolean' ? 'bool' : 'string';
+        let type: string;
+        if (v.type === 'object') type = toPascalCase(k);
+        else if (v.type === 'array') type = 'array';
+        else if (v.type === 'number') type = 'float';
+        else if (v.type === 'boolean') type = 'bool';
+        else type = 'string';
         res += `    public ${type} $${k};\n`;
       }
       res += `}\n\n`;
+      for (const [k, v] of Object.entries(schema.fields)) {
+        if (v.type === 'object') res += phpGen.generate(v, toPascalCase(k));
+        if (v.type === 'array' && v.itemType?.type === 'object') res += phpGen.generate(v.itemType, toPascalCase(k) + 'Item');
+      }
       return res;
     }
     return "";
@@ -95,10 +167,24 @@ export const pythonGen = {
     if (schema.type === 'object' && schema.fields) {
       let res = `class ${name}(BaseModel):\n`;
       for (const [k, v] of Object.entries(schema.fields)) {
-        const type = v.type === 'number' ? 'float' : v.type === 'boolean' ? 'bool' : 'str';
+        let type: string;
+        if (v.type === 'object') type = toPascalCase(k);
+        else if (v.type === 'array') {
+          if (v.itemType?.type === 'object') type = `List[${toPascalCase(k)}Item]`;
+          else if (v.itemType?.type === 'number') type = 'List[float]';
+          else if (v.itemType?.type === 'boolean') type = 'List[bool]';
+          else type = 'List[str]';
+        }
+        else if (v.type === 'number') type = 'float';
+        else if (v.type === 'boolean') type = 'bool';
+        else type = 'str';
         res += `    ${k}: ${type}\n`;
       }
       res += `\n`;
+      for (const [k, v] of Object.entries(schema.fields)) {
+        if (v.type === 'object') res += pythonGen.generate(v, toPascalCase(k));
+        if (v.type === 'array' && v.itemType?.type === 'object') res += pythonGen.generate(v.itemType, toPascalCase(k) + 'Item');
+      }
       return res;
     }
     return "";
@@ -111,10 +197,26 @@ export const protoGen = {
       let res = `message ${name} {\n`;
       let i = 1;
       for (const [k, v] of Object.entries(schema.fields)) {
-        const type = v.type === 'number' ? 'double' : v.type === 'boolean' ? 'bool' : 'string';
+        let type: string;
+        if (v.type === 'object') type = toPascalCase(k);
+        else if (v.type === 'array') {
+          const itemType = v.itemType?.type === 'object' ? toPascalCase(k) + 'Item'
+            : v.itemType?.type === 'number' ? 'double'
+            : v.itemType?.type === 'boolean' ? 'bool'
+            : 'string';
+          res += `  repeated ${itemType} ${k} = ${i++};\n`;
+          continue;
+        }
+        else if (v.type === 'number') type = 'double';
+        else if (v.type === 'boolean') type = 'bool';
+        else type = 'string';
         res += `  ${type} ${k} = ${i++};\n`;
       }
       res += `}\n\n`;
+      for (const [k, v] of Object.entries(schema.fields)) {
+        if (v.type === 'object') res += protoGen.generate(v, toPascalCase(k));
+        if (v.type === 'array' && v.itemType?.type === 'object') res += protoGen.generate(v.itemType, toPascalCase(k) + 'Item');
+      }
       return res;
     }
     return "";
@@ -126,10 +228,25 @@ export const gqlGen = {
     if (schema.type === 'object' && schema.fields) {
       let res = `type ${name} {\n`;
       for (const [k, v] of Object.entries(schema.fields)) {
-        const type = v.type === 'number' ? 'Float' : v.type === 'boolean' ? 'Boolean' : 'String';
+        let type: string;
+        if (v.type === 'object') type = toPascalCase(k);
+        else if (v.type === 'array') {
+          const itemType = v.itemType?.type === 'object' ? toPascalCase(k) + 'Item'
+            : v.itemType?.type === 'number' ? 'Float'
+            : v.itemType?.type === 'boolean' ? 'Boolean'
+            : 'String';
+          type = `[${itemType}]`;
+        }
+        else if (v.type === 'number') type = 'Float';
+        else if (v.type === 'boolean') type = 'Boolean';
+        else type = 'String';
         res += `  ${k}: ${type}\n`;
       }
       res += `}\n\n`;
+      for (const [k, v] of Object.entries(schema.fields)) {
+        if (v.type === 'object') res += gqlGen.generate(v, toPascalCase(k));
+        if (v.type === 'array' && v.itemType?.type === 'object') res += gqlGen.generate(v.itemType, toPascalCase(k) + 'Item');
+      }
       return res;
     }
     return "";
@@ -141,12 +258,25 @@ export const rustGen = {
     if (schema.type === 'object' && schema.fields) {
       let res = `#[derive(Serialize, Deserialize)]\npub struct ${name} {\n`;
       for (const [k, v] of Object.entries(schema.fields)) {
-        const type = v.type === 'object' ? toPascalCase(k) : v.type === 'array' ? `Vec<${v.itemType?.type === 'object' ? toPascalCase(k) + 'Item' : v.itemType?.type === 'number' ? 'f64' : 'String'}>` : v.type === 'number' ? 'f64' : v.type === 'boolean' ? 'bool' : 'String';
+        let type: string;
+        if (v.type === 'object') type = toPascalCase(k);
+        else if (v.type === 'array') {
+          const it = v.itemType?.type;
+          const inner = it === 'object' ? toPascalCase(k) + 'Item'
+            : it === 'number' ? 'f64'
+            : it === 'boolean' ? 'bool'
+            : 'String';
+          type = `Vec<${inner}>`;
+        }
+        else if (v.type === 'number') type = 'f64';
+        else if (v.type === 'boolean') type = 'bool';
+        else type = 'String';
         res += `  pub ${k}: ${type},\n`;
       }
       res += `}\n\n`;
       for (const [k, v] of Object.entries(schema.fields)) {
         if (v.type === 'object') res += rustGen.generate(v, toPascalCase(k));
+        if (v.type === 'array' && v.itemType?.type === 'object') res += rustGen.generate(v.itemType, toPascalCase(k) + 'Item');
       }
       return res;
     }
@@ -159,12 +289,25 @@ export const goGen = {
     if (schema.type === 'object' && schema.fields) {
       let res = `type ${name} struct {\n`;
       for (const [k, v] of Object.entries(schema.fields)) {
-        const type = v.type === 'object' ? toPascalCase(k) : v.type === 'array' ? `[]${v.itemType?.type === 'object' ? toPascalCase(k) + 'Item' : v.itemType?.type}` : v.type === 'number' ? 'float64' : v.type === 'boolean' ? 'bool' : 'string';
+        let type: string;
+        if (v.type === 'object') type = toPascalCase(k);
+        else if (v.type === 'array') {
+          const it = v.itemType?.type;
+          const inner = it === 'object' ? toPascalCase(k) + 'Item'
+            : it === 'number' ? 'float64'
+            : it === 'boolean' ? 'bool'
+            : 'string';
+          type = `[]${inner}`;
+        }
+        else if (v.type === 'number') type = 'float64';
+        else if (v.type === 'boolean') type = 'bool';
+        else type = 'string';
         res += `  ${toPascalCase(k)} ${type} \`json:"${k}"\`\n`;
       }
       res += `}\n\n`;
       for (const [k, v] of Object.entries(schema.fields)) {
         if (v.type === 'object') res += goGen.generate(v, toPascalCase(k));
+        if (v.type === 'array' && v.itemType?.type === 'object') res += goGen.generate(v.itemType, toPascalCase(k) + 'Item');
       }
       return res;
     }
@@ -265,10 +408,26 @@ export const csharpGen = {
     if (schema.type === 'object' && schema.fields) {
       let res = `public class ${name}\n{\n`;
       for (const [k, v] of Object.entries(schema.fields)) {
-        const type = v.type === 'number' ? 'double' : v.type === 'boolean' ? 'bool' : 'string';
+        let type: string;
+        if (v.type === 'object') type = toPascalCase(k);
+        else if (v.type === 'array') {
+          const it = v.itemType?.type;
+          const inner = it === 'object' ? toPascalCase(k) + 'Item'
+            : it === 'number' ? 'double'
+            : it === 'boolean' ? 'bool'
+            : 'string';
+          type = `List<${inner}>`;
+        }
+        else if (v.type === 'number') type = 'double';
+        else if (v.type === 'boolean') type = 'bool';
+        else type = 'string';
         res += `    public ${type} ${k} { get; set; }\n`;
       }
-      res += `}\n`;
+      res += `}\n\n`;
+      for (const [k, v] of Object.entries(schema.fields)) {
+        if (v.type === 'object') res += csharpGen.generate(v, toPascalCase(k));
+        if (v.type === 'array' && v.itemType?.type === 'object') res += csharpGen.generate(v.itemType, toPascalCase(k) + 'Item');
+      }
       return res;
     }
     return "";
@@ -280,10 +439,26 @@ export const swiftGen = {
     if (schema.type === 'object' && schema.fields) {
       let res = `struct ${name}: Codable {\n`;
       for (const [k, v] of Object.entries(schema.fields)) {
-        const type = v.type === 'number' ? 'Double' : v.type === 'boolean' ? 'Bool' : 'String';
+        let type: string;
+        if (v.type === 'object') type = toPascalCase(k);
+        else if (v.type === 'array') {
+          const it = v.itemType?.type;
+          const inner = it === 'object' ? toPascalCase(k) + 'Item'
+            : it === 'number' ? 'Double'
+            : it === 'boolean' ? 'Bool'
+            : 'String';
+          type = `[${inner}]`;
+        }
+        else if (v.type === 'number') type = 'Double';
+        else if (v.type === 'boolean') type = 'Bool';
+        else type = 'String';
         res += `    let ${k}: ${type}\n`;
       }
-      res += `}\n`;
+      res += `}\n\n`;
+      for (const [k, v] of Object.entries(schema.fields)) {
+        if (v.type === 'object') res += swiftGen.generate(v, toPascalCase(k));
+        if (v.type === 'array' && v.itemType?.type === 'object') res += swiftGen.generate(v.itemType, toPascalCase(k) + 'Item');
+      }
       return res;
     }
     return "";
@@ -293,12 +468,29 @@ export const swiftGen = {
 export const kotlinGen = {
   generate: (schema: Schema, name: string = 'Root'): string => {
     if (schema.type === 'object' && schema.fields) {
+      const entries = Object.entries(schema.fields);
       let res = `data class ${name}(\n`;
-      res += Object.entries(schema.fields).map(([k, v]) => {
-        const type = v.type === 'number' ? 'Double' : v.type === 'boolean' ? 'Boolean' : 'String';
+      res += entries.map(([k, v]) => {
+        let type: string;
+        if (v.type === 'object') type = toPascalCase(k);
+        else if (v.type === 'array') {
+          const it = v.itemType?.type;
+          const inner = it === 'object' ? toPascalCase(k) + 'Item'
+            : it === 'number' ? 'Double'
+            : it === 'boolean' ? 'Boolean'
+            : 'String';
+          type = `List<${inner}>`;
+        }
+        else if (v.type === 'number') type = 'Double';
+        else if (v.type === 'boolean') type = 'Boolean';
+        else type = 'String';
         return `    val ${k}: ${type}`;
       }).join(',\n');
-      res += `\n)\n`;
+      res += `\n)\n\n`;
+      for (const [k, v] of entries) {
+        if (v.type === 'object') res += kotlinGen.generate(v, toPascalCase(k));
+        if (v.type === 'array' && v.itemType?.type === 'object') res += kotlinGen.generate(v.itemType, toPascalCase(k) + 'Item');
+      }
       return res;
     }
     return "";

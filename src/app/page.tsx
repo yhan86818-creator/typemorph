@@ -11,11 +11,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 // Components
 import { LandingView } from '@/components/LandingView';
 import { Sidebar } from '@/components/Sidebar';
-import { Workbench } from '@/components/Workbench';
-import { LogicLabView } from '@/components/LogicLabView';
-import { SmartDiffView } from '@/components/SmartDiffView';
-import { RegexBuilderView } from '@/components/RegexBuilderView';
-import { ArchitectureView } from '@/components/ArchitectureView';
+import dynamic from 'next/dynamic';
+
+// Heavy Components (Lazy Loaded)
+const Workbench = dynamic(() => import('@/components/Workbench').then(mod => mod.Workbench), { ssr: false });
+const LogicLabView = dynamic(() => import('@/components/LogicLabView').then(mod => mod.LogicLabView), { ssr: false });
+const SmartDiffView = dynamic(() => import('@/components/SmartDiffView').then(mod => mod.SmartDiffView), { ssr: false });
+const RegexBuilderView = dynamic(() => import('@/components/RegexBuilderView').then(mod => mod.RegexBuilderView), { ssr: false });
+const ArchitectureView = dynamic(() => import('@/components/ArchitectureView').then(mod => mod.ArchitectureView), { ssr: false });
+const MicroSaaSView = dynamic(() => import('@/components/MicroSaaSView').then(mod => mod.MicroSaaSView), { ssr: false });
+const I18nView = dynamic(() => import('@/components/I18nView').then(mod => mod.I18nView), { ssr: false });
+
 import { useUser } from '@/hooks/useUser';
 import { AuthModal } from '@/components/AuthModal';
 import { supabase } from '@/lib/supabase';
@@ -270,6 +276,16 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
             {view === 'visual' && (
               <motion.div key="visual" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
                 <ArchitectureView isDark={isDark} geminiKey={geminiKey} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
+              </motion.div>
+            )}
+            {view === 'micro-saas' && (
+              <motion.div key="micro-saas" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
+                <MicroSaaSView isDark={isDark} geminiKey={geminiKey} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
+              </motion.div>
+            )}
+            {view === 'i18n' && (
+              <motion.div key="i18n" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
+                <I18nView isDark={isDark} geminiKey={geminiKey} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
               </motion.div>
             )}
           </AnimatePresence>

@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { Layout, Search, Code2, Crown, History, Wand2, Zap, Sparkles, Layers, ShieldCheck } from 'lucide-react';
+import { Layout, Search, Code2, Crown, History, Wand2, Zap, Sparkles, Layers, ShieldCheck, AppWindow, Globe2 } from 'lucide-react';
 import { converters } from '@/data/converters';
 
 interface SidebarProps {
@@ -36,6 +36,8 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView }
         <div className="space-y-1 mb-8">
           {[
             { id: 'app', label: 'Workbench', icon: <Layout size={14}/> },
+            { id: 'micro-saas', label: 'Micro-SaaS', icon: <AppWindow size={14}/> },
+            { id: 'i18n', label: 'i18n Auto-Gen', icon: <Globe2 size={14}/> },
             { id: 'lab', label: 'Logic Lab', icon: <Zap size={14}/> },
             { id: 'visual', label: 'Architecture', icon: <Layers size={14}/> },
             { id: 'smart-diff', label: 'Smart Diff', icon: <Wand2 size={14}/> },
