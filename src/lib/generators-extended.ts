@@ -80,14 +80,34 @@ export const mysqlGen = {
   generate: (schema: Schema, name: string = 'Root'): string => {
     const f = getFields(schema);
     if (!Object.keys(f).length) return '';
+    
+    const hasId = 'id' in f;
+    const hasCreatedAt = 'created_at' in f || 'createdAt' in f;
+    const hasUpdatedAt = 'updated_at' in f || 'updatedAt' in f;
+
     let res = `CREATE TABLE \`${toSnakeCase(name)}\` (\n`;
-    res += `  \`id\` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,\n`;
+    
+    if (!hasId) {
+      res += `  \`id\` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,\n`;
+    }
+
     for (const [k, v] of Object.entries(f)) {
       const nullable = v.optional ? ' NULL' : ' NOT NULL';
-      res += `  \`${toSnakeCase(k)}\` ${sqlType(v, 'mysql')}${nullable},\n`;
+      const isId = k.toLowerCase() === 'id';
+      const pk = isId ? ' PRIMARY KEY' : '';
+      res += `  \`${toSnakeCase(k)}\` ${sqlType(v, 'mysql')}${nullable}${pk},\n`;
     }
-    res += `  \`created_at\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n`;
-    res += `  \`updated_at\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n`;
+
+    if (!hasCreatedAt) {
+      res += `  \`created_at\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n`;
+    }
+    if (!hasUpdatedAt) {
+      res += `  \`updated_at\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n`;
+    } else {
+      // Remove trailing comma from last field if we didn't add updated_at
+      res = res.trimEnd().replace(/,$/, '') + '\n';
+    }
+    
     res += `) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;\n`;
     return res;
   }
@@ -98,15 +118,34 @@ export const postgresGen = {
   generate: (schema: Schema, name: string = 'Root'): string => {
     const f = getFields(schema);
     if (!Object.keys(f).length) return '';
+    
+    const hasId = 'id' in f;
+    const hasCreatedAt = 'created_at' in f || 'createdAt' in f;
+    const hasUpdatedAt = 'updated_at' in f || 'updatedAt' in f;
+    
     const table = toSnakeCase(name);
     let res = `CREATE TABLE "${table}" (\n`;
-    res += `  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n`;
+    
+    if (!hasId) {
+      res += `  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n`;
+    }
+
     for (const [k, v] of Object.entries(f)) {
       const nullable = v.optional ? '' : ' NOT NULL';
-      res += `  "${toSnakeCase(k)}" ${sqlType(v, 'postgres')}${nullable},\n`;
+      const isId = k.toLowerCase() === 'id';
+      const pk = isId ? ' PRIMARY KEY' : '';
+      res += `  "${toSnakeCase(k)}" ${sqlType(v, 'postgres')}${nullable}${pk},\n`;
     }
-    res += `  "created_at" TIMESTAMP NOT NULL DEFAULT NOW(),\n`;
-    res += `  "updated_at" TIMESTAMP NOT NULL DEFAULT NOW()\n`;
+
+    if (!hasCreatedAt) {
+      res += `  "created_at" TIMESTAMP NOT NULL DEFAULT NOW(),\n`;
+    }
+    if (!hasUpdatedAt) {
+      res += `  "updated_at" TIMESTAMP NOT NULL DEFAULT NOW()\n`;
+    } else {
+      res = res.trimEnd().replace(/,$/, '') + '\n';
+    }
+
     res += `);\n`;
     return res;
   }
@@ -117,14 +156,33 @@ export const sqliteGen = {
   generate: (schema: Schema, name: string = 'Root'): string => {
     const f = getFields(schema);
     if (!Object.keys(f).length) return '';
+    
+    const hasId = 'id' in f;
+    const hasCreatedAt = 'created_at' in f || 'createdAt' in f;
+    const hasUpdatedAt = 'updated_at' in f || 'updatedAt' in f;
+
     let res = `CREATE TABLE IF NOT EXISTS "${toSnakeCase(name)}" (\n`;
-    res += `  "id" INTEGER PRIMARY KEY AUTOINCREMENT,\n`;
+    
+    if (!hasId) {
+      res += `  "id" INTEGER PRIMARY KEY AUTOINCREMENT,\n`;
+    }
+
     for (const [k, v] of Object.entries(f)) {
       const nullable = v.optional ? '' : ' NOT NULL';
-      res += `  "${toSnakeCase(k)}" ${sqlType(v, 'sqlite')}${nullable},\n`;
+      const isId = k.toLowerCase() === 'id';
+      const pk = isId ? ' PRIMARY KEY' : '';
+      res += `  "${toSnakeCase(k)}" ${sqlType(v, 'sqlite')}${nullable}${pk},\n`;
     }
-    res += `  "created_at" TEXT NOT NULL DEFAULT (datetime('now')),\n`;
-    res += `  "updated_at" TEXT NOT NULL DEFAULT (datetime('now'))\n`;
+
+    if (!hasCreatedAt) {
+      res += `  "created_at" TEXT NOT NULL DEFAULT (datetime('now')),\n`;
+    }
+    if (!hasUpdatedAt) {
+      res += `  "updated_at" TEXT NOT NULL DEFAULT (datetime('now'))\n`;
+    } else {
+      res = res.trimEnd().replace(/,$/, '') + '\n';
+    }
+
     res += `);\n`;
     return res;
   }
