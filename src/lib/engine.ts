@@ -1003,11 +1003,16 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
         case 'java': out = javaGen.generate(schema, 'Root', options); break;
         case 'sql':
         case 'prisma': out = prismaGen.generate(schema, 'Root', options); break;
+        case 'mysql': out = mysqlGen.generate(schema, 'Root'); break;
+        case 'postgres':
+        case 'postgresql': out = postgresGen.generate(schema, 'Root'); break;
+        case 'sqlite': out = sqliteGen.generate(schema, 'Root'); break;
         case 'ui': out = uiGen.generate(schema, 'Component'); break;
         case 'mock': out = mockGen.generate(schema); break;
         case 'dart': out = dartGen.generate(schema, 'Root', options); break;
         case 'php': out = `<?php\n\n` + phpGen.generate(schema, 'Root', options); break;
         case 'python': out = `from pydantic import BaseModel\n\n` + pythonGen.generate(schema, 'Root', options); break;
+        case 'proto':
         case 'protobuf': out = `// Protocol Buffers v3 specification\n\nsyntax = "proto3";\n\n` + protoGen.generate(schema, 'Root', options); break;
         case 'graphql': out = gqlGen.generate(schema, 'Root', options); break;
         case 'csharp': out = csharpGen.generate(schema); break;

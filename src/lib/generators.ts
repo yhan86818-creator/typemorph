@@ -257,7 +257,7 @@ export const phpGen = {
   }
 };
 
-const printPythonASTType = (type: any): string => {
+const printPythonASTType = (type: ASTType): string => {
   switch (type.kind) {
     case 'union': return 'Any';
     case 'enum': return 'str';
@@ -270,7 +270,7 @@ const printPythonASTType = (type: any): string => {
       }
       return 'List[Any]';
     case 'string': return 'str';
-    case 'number': return 'float';
+    case 'number': return type.format === 'int' ? 'int' : 'float';
     case 'boolean': return 'bool';
     default: return 'Any';
   }
@@ -415,6 +415,9 @@ const toSnakeCase = (str: string): string => {
     .toLowerCase();
 };
 
+const RUST_RESERVED = new Set(['type', 'struct', 'enum', 'match', 'use', 'mod', 'fn', 'let', 'pub', 'impl', 'trait', 'for', 'loop', 'while', 'if', 'else', 'return', 'break', 'continue', 'as', 'async', 'await', 'const', 'crate', 'dyn', 'extern', 'false', 'true', 'in', 'move', 'mut', 'ref', 'self', 'Self', 'static', 'super', 'unsafe', 'where']);
+const escapeRust = (s: string) => RUST_RESERVED.has(s) ? `r#${s}` : s;
+
 const printRustASTType = (type: ASTType): string => {
   switch (type.kind) {
     case 'union':
@@ -434,7 +437,7 @@ const printRustASTType = (type: ASTType): string => {
     case 'string':
       return 'String';
     case 'number':
-      return 'f64';
+      return type.format === 'int' ? 'i64' : 'f64';
     case 'boolean':
       return 'bool';
     default:
@@ -445,13 +448,13 @@ const printRustASTType = (type: ASTType): string => {
 export const rustGen = {
   generate: (schema: Schema, name: string = 'Root', _options = {}): string => {
     const astClasses = schemaToAST(schema, toPascalCase(name));
-    let res = "";
+    let res = "use serde::{Serialize, Deserialize};\n\n";
 
     for (const cls of astClasses) {
       const extendsAnn = cls.annotations?.find(a => a.startsWith('extends '));
       const baseStruct = extendsAnn ? extendsAnn.replace('extends ', '') : null;
 
-      res += `#[derive(Serialize, Deserialize)]\npub struct ${cls.name} {\n`;
+      res += `#[derive(Serialize, Deserialize, Debug, Clone)]\npub struct ${cls.name} {\n`;
       if (baseStruct) {
         const fieldName = toSnakeCase(baseStruct);
         res += `  #[serde(flatten)]\n  pub ${fieldName}: ${baseStruct},\n`;
@@ -462,8 +465,8 @@ export const rustGen = {
         if (field.isOptional || field.isNullable) {
           rustType = `Option<${rustType}>`;
         }
-        const snakeFieldName = toSnakeCase(field.name);
-        
+        const snakeFieldName = escapeRust(toSnakeCase(field.name));
+
         if (snakeFieldName !== field.name) {
           res += `  #[serde(rename = "${field.name}")]\n`;
         }
@@ -494,7 +497,7 @@ const printGoASTType = (type: ASTType): string => {
     case 'string':
       return 'string';
     case 'number':
-      return 'float64';
+      return type.format === 'int' ? 'int64' : 'float64';
     case 'boolean':
       return 'bool';
     default:
@@ -505,7 +508,7 @@ const printGoASTType = (type: ASTType): string => {
 export const goGen = {
   generate: (schema: Schema, name: string = 'Root', _options = {}): string => {
     const astClasses = schemaToAST(schema, toPascalCase(name));
-    let res = "";
+    let res = "package main\n\nimport \"time\"\n\n";
 
     for (const cls of astClasses) {
       const extendsAnn = cls.annotations?.find(a => a.startsWith('extends '));
@@ -529,7 +532,7 @@ export const goGen = {
   }
 };
 
-const printJavaASTType = (type: any): string => {
+const printJavaASTType = (type: ASTType): string => {
   switch (type.kind) {
     case 'union': return 'Object';
     case 'enum': return 'String';
@@ -542,7 +545,7 @@ const printJavaASTType = (type: any): string => {
       }
       return 'List<Object>';
     case 'string': return 'String';
-    case 'number': return 'Double';
+    case 'number': return type.format === 'int' ? 'Long' : 'Double';
     case 'boolean': return 'Boolean';
     default: return 'Object';
   }

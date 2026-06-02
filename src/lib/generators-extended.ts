@@ -18,7 +18,10 @@ const sqlType = (
   dialect: 'mysql' | 'postgres' | 'sqlite' = 'postgres'
 ): string => {
   if (s.type === 'number') {
-    return dialect === 'sqlite' ? 'REAL' : 'DOUBLE PRECISION';
+    const isInt = s.format === 'int';
+    if (dialect === 'sqlite') return isInt ? 'INTEGER' : 'REAL';
+    if (dialect === 'mysql') return isInt ? 'BIGINT' : 'DOUBLE';
+    return isInt ? 'BIGINT' : 'DOUBLE PRECISION';
   }
   if (s.type === 'boolean') {
     return dialect === 'mysql' ? 'TINYINT(1)' : 'BOOLEAN';
