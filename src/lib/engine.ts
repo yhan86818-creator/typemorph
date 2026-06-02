@@ -996,7 +996,7 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     // Fallback to JSON if still not processed
     if (!out) {
       matchedKey = 'json';
-      out = JSON.stringify(val, null, 2);
+      out = JSON.stringify(json, null, 2);
     }
 
     // 3. Find dependencies comment

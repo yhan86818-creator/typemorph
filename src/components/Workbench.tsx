@@ -2193,7 +2193,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
               )}
               
               {/* Explainable Logic - Interactive Architect Panel */}
-              {!['json', 'ui', 'mock', 'doc', 'graph'].includes(outputTab) && decisions.length > 0 && (
+              {genSettings.showExplainableLogic && !['json', 'ui', 'mock', 'doc', 'graph'].includes(outputTab) && decisions.length > 0 && (
                 <div className="bg-slate-50/85 dark:bg-slate-950/70 border-b border-slate-200 dark:border-slate-900/90 p-4 transition-all">
                   <div className="flex items-center justify-between mb-2">
                     <button 

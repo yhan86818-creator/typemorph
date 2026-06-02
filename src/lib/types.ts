@@ -1,6 +1,6 @@
 export interface Schema {
   type: string;
-  format?: 'email' | 'url' | 'uuid' | 'datetime' | 'date';
+  format?: 'email' | 'url' | 'uuid' | 'datetime' | 'date' | 'int' | 'float';
   fields?: Record<string, Schema>;
   itemType?: Schema;
   /** True when this field was absent in at least one sample object during inference */
