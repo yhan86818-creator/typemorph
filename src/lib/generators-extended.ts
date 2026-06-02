@@ -1520,8 +1520,9 @@ export const railsGen = {
     let res = `class ${migrationName} < ActiveRecord::Migration[7.0]\n  def change\n`;
     res += `    create_table :${toSnakeCase(name)}s do |t|\n`;
     for (const [k, v] of Object.entries(f)) {
+      if (k.toLowerCase() === 'id') continue; // Rails handles ID by default
       let rType = 'string';
-      if (v.type === 'number') rType = 'decimal';
+      if (v.type === 'number') rType = v.format === 'int' ? 'integer' : 'decimal';
       else if (v.type === 'boolean') rType = 'boolean';
       else if (v.type === 'object' || v.type === 'array') rType = 'jsonb';
       else if (v.format === 'datetime') rType = 'datetime';
