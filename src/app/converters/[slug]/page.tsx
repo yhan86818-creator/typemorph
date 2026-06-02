@@ -1,9 +1,12 @@
 import React from 'react';
+import Link from 'next/link';
 import TypeFlowApp from '../../page';
 import { converters } from '@/data/converters';
 import fs from 'fs';
 import path from 'path';
+import { notFound } from 'next/navigation';
 import { ShieldCheck, Crown, ArrowRight, BookOpen, Activity } from 'lucide-react';
+import { getConverterSeo } from '@/lib/seo';
 
 const blogPosts = [
   {
@@ -41,21 +44,22 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const converter = converters.find((c) => c.slug === slug);
-  const baseUrl = 'https://typeflow-pro.pages.dev';
-  
+  const seo = getConverterSeo(slug, 'en');
+
   return {
     title: converter?.title || 'Developer Converter Tool',
     description: converter?.description || 'Secure local-first developer utility.',
     alternates: {
-      canonical: `${baseUrl}/converters/${slug}`,
+      canonical: seo.canonical,
     },
+    robots: seo.robots,
     openGraph: {
       title: converter?.title,
       description: converter?.description,
-      url: `${baseUrl}/converters/${slug}`,
-      siteName: 'TypeFlow',
+      url: seo.canonical,
+      siteName: 'TypeFlow Pro',
       type: 'website',
-    }
+    },
   };
 }
 
@@ -63,7 +67,7 @@ export default async function ConverterPage({ params }: { params: Promise<{ slug
   const { slug } = await params;
   const converter = converters.find((c) => c.slug === slug);
 
-  if (!converter) return <div>Converter not found</div>;
+  if (!converter) return notFound();
 
   let fileContent = '';
   try {
@@ -85,6 +89,38 @@ export default async function ConverterPage({ params }: { params: Promise<{ slug
       "price": "0",
       "priceCurrency": "USD"
     }
+  };
+
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://typeflow-pro.pages.dev" },
+      { "@type": "ListItem", "position": 2, "name": "Converters", "item": "https://typeflow-pro.pages.dev/converters" },
+      { "@type": "ListItem", "position": 3, "name": converter.title, "item": `https://typeflow-pro.pages.dev/converters/${slug}` }
+    ]
+  };
+
+  const faqLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": `Is ${converter.title} free to use?`,
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. TypeFlow Pro's core conversion engine is 100% free with no account required." }
+      },
+      {
+        "@type": "Question",
+        "name": `Does ${converter.title} send my data to a server?`,
+        "acceptedAnswer": { "@type": "Answer", "text": "No. TypeFlow Pro is local-first. All processing happens entirely in your browser using Web Workers. Your data never leaves your machine." }
+      },
+      {
+        "@type": "Question",
+        "name": `Can I use ${converter.title} for enterprise or GDPR-sensitive data?`,
+        "acceptedAnswer": { "@type": "Answer", "text": "Absolutely. Because TypeFlow operates in a local-first architecture with zero server transmission, it is suitable for GDPR-compliant and SOC2-compliant workflows." }
+      }
+    ]
   };
 
   // Safe fallback content generator (Build-time only)
@@ -123,7 +159,7 @@ export default async function ConverterPage({ params }: { params: Promise<{ slug
       </blockquote>
       
       <h3>Future-Proofing Your Tech Stack</h3>
-      <p>As you move between different languages—perhaps migrating from Python to Go, or from a SQL-heavy backend to a GraphQL frontend—TypeFlow Pro remains your constant companion. With support for over 117+ converters, including specialized formats for ${tech}, you are always prepared for the next architectural shift in your career.</p>
+      <p>As you move between different languages—perhaps migrating from Python to Go, or from a SQL-heavy backend to a GraphQL frontend—TypeFlow Pro remains your constant companion. With support for over 290+ converters, including specialized formats for ${tech}, you are always prepared for the next architectural shift in your career.</p>
       
       <p>Start using the <strong>${name}</strong> today and experience the difference that a professional, local-first engineering workbench can make in your productivity.</p>
     `;
@@ -133,17 +169,16 @@ export default async function ConverterPage({ params }: { params: Promise<{ slug
 
   return (
     <div className="relative bg-[#F8FAFC]">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       {/* Re-using the main app logic but initialized for this specific context */}
       {/* Breadcrumbs at top */}
       <div className="max-w-7xl mx-auto px-6 pt-12 -mb-12 relative z-10">
         <nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-          <a href="/" className="hover:text-blue-600">Home</a>
+          <Link prefetch={false} href="/" className="hover:text-blue-600">Home</Link>
           <span>/</span>
-          <a href="/converters" className="hover:text-blue-600">Converters</a>
+          <Link prefetch={false} href="/converters" className="hover:text-blue-600">Converters</Link>
           <span>/</span>
           <span className="text-blue-600">{converter.category}</span>
         </nav>
@@ -208,7 +243,7 @@ export default async function ConverterPage({ params }: { params: Promise<{ slug
           <div className="grid md:grid-cols-2 gap-12">
             <div>
               <p className="font-black text-slate-900 mb-2">Is the processing local-only?</p>
-              <p className="text-sm text-slate-500 leading-relaxed font-medium">Absolutely. TypeFlow Pro operates entirely within your browser's sandbox. We use Web Workers for high-performance computation without ever transmitting your JSON, SQL, or API data to a remote server.</p>
+              <p className="text-sm text-slate-500 leading-relaxed font-medium">Absolutely. TypeFlow Pro operates entirely within your browser&apos;s sandbox. We use Web Workers for high-performance computation without ever transmitting your JSON, SQL, or API data to a remote server.</p>
             </div>
             <div>
               <p className="font-black text-slate-900 mb-2">Can I use this for enterprise projects?</p>
@@ -231,7 +266,7 @@ export default async function ConverterPage({ params }: { params: Promise<{ slug
               </div>
               <div className="grid md:grid-cols-2 gap-6">
                 {relatedPosts.map(post => (
-                  <a
+                  <Link
                     key={post.slug}
                     href={`/blog/${post.slug}`}
                     className="group p-8 rounded-[2rem] bg-white border border-slate-200 hover:border-blue-400 transition-all shadow-sm hover:shadow-lg hover:shadow-blue-500/10"
@@ -242,7 +277,7 @@ export default async function ConverterPage({ params }: { params: Promise<{ slug
                     <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-400 group-hover:text-blue-600 transition-colors">
                       Read Article <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                     </div>
-                  </a>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -267,13 +302,13 @@ export default async function ConverterPage({ params }: { params: Promise<{ slug
               })
               .slice(0, 8)
               .map(tool => (
-                <a 
+                <Link 
                   key={tool.slug}
                   href={`/converters/${tool.slug}`}
                   className="p-4 rounded-xl bg-white border border-slate-200 hover:border-blue-300 transition-all text-xs font-bold text-slate-600 hover:text-blue-600 flex items-center justify-center text-center"
                 >
                   {tool.title.split(' - ')[0]}
-                </a>
+                </Link>
               ))}
           </div>
         </div>

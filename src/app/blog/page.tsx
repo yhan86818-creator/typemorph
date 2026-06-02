@@ -1,33 +1,9 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { ArrowRight, Calendar, User } from 'lucide-react';
-
-const posts = [
-  {
-    slug: 'security-risks-of-online-converters',
-    title: 'The Hidden Security Risks of Online JSON Converters',
-    excerpt: 'Why pasting proprietary company data into third-party web tools is a major liability, and how to stay safe.',
-    date: '2026-05-10',
-    author: 'TypeFlow Security Team'
-  },
-  {
-    slug: 'nextjs-type-safety-workflow',
-    title: 'Ultimate Type-Safe Workflow for Next.js 15',
-    excerpt: 'A deep dive into combining Zod, React Query, and TypeScript for bulletproof API integration.',
-    date: '2026-05-12',
-    author: 'TypeFlow Engineering'
-  },
-  {
-    slug: 'schema-first-engineering-future',
-    title: 'Beyond Code Generation: Why Schema-First Engineering is the Future',
-    excerpt: 'Code generation is just the beginning. Discover how a schema-first approach can eliminate 90% of your integration bugs and revolutionize your team\'s velocity.',
-    date: '2026-05-13',
-    author: 'TypeFlow Architecture Team'
-  }
-];
+import { blogPosts as posts } from '@/data/blog-posts';
 
 export const metadata = {
-  title: 'TypeFlow Blog | Enterprise Security & TypeScript Best Practices',
+  title: 'TypeFlow Pro Blog | Security & TypeScript Best Practices',
   description: 'Expert insights on local-first development, security, and automating your Next.js workflow.',
 };
 

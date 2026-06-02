@@ -1,0 +1,1 @@
+import './infer.bench';

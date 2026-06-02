@@ -1,0 +1,12 @@
+{
+  "users": [
+    { "id": "u1", "name": "Alice", "role": "admin", "meta": { "last_login": "2023-10-01" } },
+    { "id": "u2", "name": "Bob", "role": "user", "meta": { "last_login": "2023-10-02" } },
+    { "id": "u3", "name": "Carol", "role": "user", "meta": { "last_login": "2023-10-03" } }
+  ],
+  "posts": [
+    { "id": "p1", "title": "Hello", "tags": ["intro", "welcome"] },
+    { "id": "p2", "title": "News", "tags": [] }
+  ],
+  "settings": { "theme": "dark", "notifications": true }
+}

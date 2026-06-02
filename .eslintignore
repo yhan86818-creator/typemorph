@@ -1,0 +1,4 @@
+.wrangler/
+dist/
+scripts/
+server/

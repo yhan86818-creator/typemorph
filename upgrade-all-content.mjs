@@ -161,7 +161,16 @@ const getCategoryInsight = (slug, t, lang = 'en') => {
   return `Honestly, manually converting <strong>${t.from}</strong> to <strong>${t.to}</strong> is a waste of your engineering time. I've seen too many bugs grow from simple mapping errors. This tool handles the grunt work locally, so you don't have to.`;
 };
 
+// ========== v16.8 DEEP MULTI-LANGUAGE SEO (The File-Based Authority Boss) ==========
+
+const manualDir = path.join(__dirname, 'scripts', 'manual_content');
+
 const generatePage = (tool, lang = 'en') => {
+  const manualPath = path.join(manualDir, lang, `${tool.slug}.html`);
+  if (fs.existsSync(manualPath)) {
+    return fs.readFileSync(manualPath, 'utf8');
+  }
+
   const insight = (lang === 'jp' ? (uniqueInsightsJP[tool.slug] || getCategoryInsight(tool.slug, tool, 'jp')) : (uniqueInsights[tool.slug] || getCategoryInsight(tool.slug, tool, 'en')));
   
   const sFrags = lang === 'jp' ? secFragsJP(tool) : secFrags(tool);
@@ -229,4 +238,4 @@ for (const slug of slugs) {
   updated++;
 }
 
-console.log(`✅ v16.5 DEEP MULTI-LANGUAGE SEO Complete (${updated} pages x 2 languages)`);
+console.log(`✅ v16.8 DEEP MULTI-LANGUAGE SEO Complete (${updated} pages x 2 languages)`);

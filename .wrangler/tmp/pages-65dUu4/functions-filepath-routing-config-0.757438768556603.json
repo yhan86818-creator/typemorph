@@ -1,0 +1,13 @@
+{
+  "routes": [
+    {
+      "routePath": "/api/verify",
+      "mountPath": "/api",
+      "method": "POST",
+      "module": [
+        "api/verify.ts:onRequestPost"
+      ]
+    }
+  ],
+  "baseURL": "/"
+}

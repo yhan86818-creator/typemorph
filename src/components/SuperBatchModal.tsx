@@ -135,6 +135,15 @@ export default function SuperBatchModal({
   const handleRunBatch = async () => {
     if (!inputDirHandle || !outputDirHandle || foundFiles.length === 0) return;
 
+    // Pro制限: 非Proユーザーは3ファイルまで
+    if (!isPro && foundFiles.length > 3) {
+      if (confirm(`Free version is limited to 3 files at a time. Upgrade to Pro to process all ${foundFiles.length} files?`)) {
+        onClose();
+        if (setShowLicenseModal) setShowLicenseModal(true);
+      }
+      return;
+    }
+
     setStep('processing');
     setProgress(0);
     const startTime = performance.now();

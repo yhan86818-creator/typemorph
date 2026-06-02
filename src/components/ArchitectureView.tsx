@@ -1,4 +1,6 @@
 'use client';
+
+import { trackProClick } from '@/lib/analytics';
 import React, { useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,6 +10,7 @@ import {
   Box, GitBranch, RefreshCw, Eye, Code2
 } from 'lucide-react';
 import mermaid from 'mermaid';
+import { callGeminiWithRetry } from '@/lib/gemini';
 
 // Initialize Mermaid with a premium look
 const getMermaidConfig = (isDark: boolean) => ({
@@ -135,10 +138,10 @@ CREATE TABLE comments (
   useEffect(() => {
     const magicData = localStorage.getItem('typeflow_magic_data');
     if (magicData) {
-      setInput(magicData);
+      setTimeout(() => setInput(magicData), 0);
       localStorage.removeItem('typeflow_magic_data');
       if (geminiKey && (isPro || trialCount > 0)) {
-        setTimeout(() => generateDiagram(), 500);
+        setTimeout(() => generateDiagramRef.current?.(), 500);
       }
     }
   }, [geminiKey, isPro]);
@@ -176,6 +179,9 @@ CREATE TABLE comments (
       // 6. Remove illegal subgraph / end blocks
       code = code.replace(/^\s*subgraph\s+.*$/gm, '');
       code = code.replace(/^\s*end\s*$/gm, '');
+      
+      // 7. Ensure closing brace is on its own line to prevent "Expecting ATTRIBUTE_WORD, got BLOCK_STOP"
+      code = code.replace(/\}/g, '\n}\n');
     }
 
     if (isFlowchart) {
@@ -209,6 +215,8 @@ CREATE TABLE comments (
     return code;
   };
   // ─────────────────────────────────────────────────────────────────────────
+
+  const generateDiagramRef = React.useRef<(() => void) | null>(null);
 
   const generateDiagram = async () => {
     if (!isPro && trialCount <= 0) {
@@ -250,20 +258,7 @@ CREATE TABLE comments (
         ${input}
       `;
 
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey.trim()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
-      });
-      
-      const data = await res.json();
-      if (!data.candidates || data.candidates.length === 0) {
-        throw new Error("Invalid API Response or Key.");
-      }
-      
-      let rawText = data.candidates[0].content.parts[0].text.trim();
+      const rawText = await callGeminiWithRetry(geminiKey, prompt);
       let code = '';
       
       // Robust markdown code block extractor
@@ -293,6 +288,10 @@ CREATE TABLE comments (
       setIsGenerating(false);
     }
   };
+
+  // Sync ref with latest generateDiagram so the magic-data timeout can call it safely
+  // eslint-disable-next-line
+  generateDiagramRef.current = generateDiagram;
 
   const handleDownloadSVG = () => {
     if (!svg) return;
@@ -521,7 +520,7 @@ CREATE TABLE comments (
                 Visualizing complex systems requires serious compute. Upgrade to Pro for unlimited AI diagrams and advanced SVG exports.
               </p>
               <div className="space-y-4">
-                <a href="https://yhanster206.gumroad.com/l/zjcuuu" target="_blank" className="block w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:scale-105 transition-all">Unlock Unlimited Access</a>
+                <a href="https://yhanster206.gumroad.com/l/zjcuuu" target="_blank" rel="noopener noreferrer" onClick={() => trackProClick('architecture_paywall')} className="block w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:scale-105 transition-all">Unlock Unlimited Access</a>
                 <button onClick={() => setShowPaywall(false)} className="block w-full text-slate-400 font-bold text-xs uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-300 transition-colors">Maybe later</button>
               </div>
             </motion.div>
@@ -735,7 +734,7 @@ CREATE TABLE comments (
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-slate-300">SchemaForge Pro</span>
+          <span className="text-slate-300">TypeFlow Pro</span>
           <div className="flex gap-1">
             <div className="w-1 h-1 rounded-full bg-blue-600" />
             <div className="w-1 h-1 rounded-full bg-blue-600/50" />

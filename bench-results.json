@@ -1,0 +1,130 @@
+{
+  "huge.json": {
+    "default": {
+      "durationMs": 7,
+      "fields": 14,
+      "anyCount": 0,
+      "enumCount": 0
+    },
+    "shallow_max3": {
+      "durationMs": 4,
+      "fields": 11,
+      "anyCount": 4,
+      "enumCount": 0
+    },
+    "enum_min4": {
+      "durationMs": 3,
+      "fields": 14,
+      "anyCount": 0,
+      "enumCount": 0
+    },
+    "deep_max20_enum6": {
+      "durationMs": 4,
+      "fields": 14,
+      "anyCount": 0,
+      "enumCount": 0
+    },
+    "include_meta": {
+      "durationMs": 4,
+      "fields": 14,
+      "anyCount": 0,
+      "enumCount": 0
+    }
+  },
+  "large.json": {
+    "default": {
+      "durationMs": 1,
+      "fields": 27,
+      "anyCount": 0,
+      "enumCount": 1
+    },
+    "shallow_max3": {
+      "durationMs": 0,
+      "fields": 22,
+      "anyCount": 6,
+      "enumCount": 1
+    },
+    "enum_min4": {
+      "durationMs": 0,
+      "fields": 27,
+      "anyCount": 0,
+      "enumCount": 1
+    },
+    "deep_max20_enum6": {
+      "durationMs": 0,
+      "fields": 27,
+      "anyCount": 0,
+      "enumCount": 1
+    },
+    "include_meta": {
+      "durationMs": 0,
+      "fields": 27,
+      "anyCount": 0,
+      "enumCount": 1
+    }
+  },
+  "medium.json": {
+    "default": {
+      "durationMs": 0,
+      "fields": 17,
+      "anyCount": 0,
+      "enumCount": 1
+    },
+    "shallow_max3": {
+      "durationMs": 0,
+      "fields": 17,
+      "anyCount": 2,
+      "enumCount": 1
+    },
+    "enum_min4": {
+      "durationMs": 0,
+      "fields": 17,
+      "anyCount": 0,
+      "enumCount": 1
+    },
+    "deep_max20_enum6": {
+      "durationMs": 0,
+      "fields": 17,
+      "anyCount": 0,
+      "enumCount": 1
+    },
+    "include_meta": {
+      "durationMs": 0,
+      "fields": 17,
+      "anyCount": 0,
+      "enumCount": 1
+    }
+  },
+  "small.json": {
+    "default": {
+      "durationMs": 0,
+      "fields": 8,
+      "anyCount": 0,
+      "enumCount": 0
+    },
+    "shallow_max3": {
+      "durationMs": 0,
+      "fields": 8,
+      "anyCount": 0,
+      "enumCount": 0
+    },
+    "enum_min4": {
+      "durationMs": 0,
+      "fields": 8,
+      "anyCount": 0,
+      "enumCount": 0
+    },
+    "deep_max20_enum6": {
+      "durationMs": 0,
+      "fields": 8,
+      "anyCount": 0,
+      "enumCount": 0
+    },
+    "include_meta": {
+      "durationMs": 0,
+      "fields": 8,
+      "anyCount": 0,
+      "enumCount": 0
+    }
+  }
+}

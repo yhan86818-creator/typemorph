@@ -1,0 +1,64 @@
+<p><strong>SWIFT MT (Message Type)</strong> and <strong>ISO 20022 MX</strong> represent two generations of the global financial messaging standard. The migration from the legacy MT format to the modern XML-based MX standard is one of the largest infrastructure transformation programs in banking history, with a full industry cutover mandated by SWIFT for November 2025. Understanding how to parse, validate, and convert between these formats is a critical competency for any payments engineer, integration architect, or fintech developer.</p>
+
+<h2>SWIFT MT vs. ISO 20022 MX: The Core Difference</h2>
+<p>The fundamental difference between MT and MX is not just syntax — it reflects a complete paradigm shift in how financial data is structured and transmitted:</p>
+<ul>
+  <li><strong>SWIFT MT</strong>: A proprietary, tag-based format developed in the 1970s. Messages are compact and efficient but have limited data capacity. Field definitions are positional and rely on implicit context. Example: MT103 (Customer Credit Transfer), MT202 (Financial Institution Transfer).</li>
+  <li><strong>ISO 20022 MX</strong>: An XML-based, internationally standardized format with rich, structured data fields. MX messages carry significantly more information (e.g., full LEI codes, extended remittance information, purpose codes) and support regulatory reporting requirements that MT cannot.</li>
+</ul>
+
+<h2>The MT103 to MX pacs.008 Conversion</h2>
+<p>The most common conversion scenario is the <strong>MT103 (Single Customer Credit Transfer)</strong> to <strong>pacs.008 (FICustomerCreditTransfer)</strong>. A typical MT103 message contains these key fields:</p>
+<pre><code>{1:F01BANKGB2LAXXX0000000000}
+{2:O1031030260601BANKUS33AXXX00000000002606011030N}
+{4:
+:20:REF20260601001
+:23B:CRED
+:32A:260601USD10000,00
+:50K:/12345678
+John Smith
+123 Main Street, London
+:59:/98765432
+Jane Doe
+456 Park Avenue, New York
+:70:PAYMENT FOR INVOICE INV-2026-0001
+:71A:SHA
+-}</code></pre>
+
+<p>The equivalent ISO 20022 pacs.008 message expresses the same payment in structured XML with full legal entity identifiers, standardized purpose codes, and extensible remittance data — enabling straight-through processing (STP) and automated reconciliation at the receiving institution.</p>
+
+<h2>Why This Conversion is Non-Trivial</h2>
+<p>MT-to-MX conversion is not a simple field mapping exercise. Several challenges require intelligent handling:</p>
+<ul>
+  <li><strong>Name and Address Parsing:</strong> MT messages store party information as unstructured free-text lines. MX requires structured fields: <code>FirstNm</code>, <code>LastNm</code>, <code>StrtNm</code>, <code>TwnNm</code>, <code>Ctry</code>. Decomposing "John Smith, 123 Main Street, London GB" requires NLP-level parsing.</li>
+  <li><strong>BIC vs. LEI:</strong> MT uses BIC (Bank Identifier Code) for institution identification. MX supports both BIC and LEI (Legal Entity Identifier). Cross-referencing requires access to the GLEIF registry.</li>
+  <li><strong>Currency Amount Formatting:</strong> MT uses comma as decimal separator (e.g., <code>USD10000,00</code>). MX uses period notation (<code>10000.00</code>) per ISO 4217 standards.</li>
+  <li><strong>Charge Bearer Codes:</strong> MT's <code>71A: SHA/OUR/BEN</code> maps to MX's <code>ChrgBr</code> element with values <code>SHAR/DEBT/CRED</code> — requiring explicit translation logic.</li>
+</ul>
+
+<h2>Privacy and Compliance in SWIFT Message Handling</h2>
+<p>SWIFT messages contain transaction details that are subject to strict regulatory protection under GDPR, PCI-DSS, and banking secrecy laws in most jurisdictions. Sending live or production SWIFT messages to a cloud-based tool for parsing or conversion is a serious compliance violation. TypeFlow's SWIFT MT to MX converter operates <strong>entirely within your browser's sandboxed Web Worker</strong>. No network request is made during conversion. Your payment data — including BICs, IBANs, transaction amounts, and beneficiary names — remains exclusively in your local environment.</p>
+
+<h2>The ISO 20022 Migration Timeline</h2>
+<p>The global SWIFT network's migration to ISO 20022 is proceeding in phases:</p>
+<ul>
+  <li><strong>March 2023:</strong> Coexistence period began. Both MT and MX messages accepted on the SWIFT network.</li>
+  <li><strong>November 2025:</strong> Full cutover deadline. MT cross-border payment messages (MT103, MT202, MT202COV) officially retired.</li>
+  <li><strong>Post-2025:</strong> Institutions must process MX messages natively or maintain automated translation middleware.</li>
+</ul>
+<p>For development, testing, and debugging purposes throughout this migration, having a reliable local-first MT-to-MX conversion tool is essential for every payments engineering team.</p>
+
+<h2>Supported Message Type Mappings</h2>
+<p>TypeFlow's AI-powered SWIFT MT to MX engine supports the following primary message type conversions:</p>
+<ul>
+  <li><strong>MT103 → pacs.008</strong>: Single Customer Credit Transfer</li>
+  <li><strong>MT202 → pacs.009</strong>: Financial Institution Credit Transfer</li>
+  <li><strong>MT202COV → pacs.009 + pacs.008</strong>: Cover Payment (complex dual message)</li>
+  <li><strong>MT900/910 → camt.054</strong>: Debit/Credit Confirmation notifications</li>
+  <li><strong>MT940/942 → camt.053/052</strong>: Bank Account Statement and Intraday Report</li>
+</ul>
+
+<blockquote>"The MT-to-MX migration is the Y2K of the payments industry. Having the right parsing and conversion tools — especially ones that protect sensitive transaction data — is not optional for any institution participating in the global payments network."</blockquote>
+
+<h3>Getting Started with SWIFT Message Parsing</h3>
+<p>To use TypeFlow's SWIFT MT to MX converter, paste your MT message directly into the input panel. The AI engine will parse the tag structure, validate field formats against the relevant MT ruleset, and generate the equivalent ISO 20022 XML output. For complex cases involving unstructured address fields or ambiguous party identifiers, the AI-assisted Smart Parse feature will apply contextual inference to produce the most accurate MX mapping possible.</p>

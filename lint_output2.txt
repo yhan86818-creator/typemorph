@@ -1,0 +1,450 @@
+﻿
+> typeflow@0.1.0 lint
+> eslint
+
+
+C:\Users\kouki\ai-factory\typeflow\.wrangler\tmp\pages-iejArz\functionsWorker-0.3498793694411171.js
+  134:20  warning  '_name' is defined but never used                                      @typescript-eslint/no-unused-vars
+  134:27  warning  '_type' is defined but never used                                      @typescript-eslint/no-unused-vars
+  137:20  warning  'type' is defined but never used                                       @typescript-eslint/no-unused-vars
+  152:12  warning  '_fn' is defined but never used                                        @typescript-eslint/no-unused-vars
+  152:17  warning  '_options' is defined but never used                                   @typescript-eslint/no-unused-vars
+  217:20  warning  'type' is defined but never used                                       @typescript-eslint/no-unused-vars
+  217:26  warning  'listener' is defined but never used                                   @typescript-eslint/no-unused-vars
+  217:36  warning  'options' is defined but never used                                    @typescript-eslint/no-unused-vars
+  220:23  warning  'type' is defined but never used                                       @typescript-eslint/no-unused-vars
+  220:29  warning  'listener' is defined but never used                                   @typescript-eslint/no-unused-vars
+  220:39  warning  'options' is defined but never used                                    @typescript-eslint/no-unused-vars
+  223:17  warning  'event' is defined but never used                                      @typescript-eslint/no-unused-vars
+  246:11  warning  'options' is defined but never used                                    @typescript-eslint/no-unused-vars
+  302:5   warning  'trace' is assigned a value but never used                             @typescript-eslint/no-unused-vars
+  303:5   warning  'debug' is assigned a value but never used                             @typescript-eslint/no-unused-vars
+  304:5   warning  'table' is assigned a value but never used                             @typescript-eslint/no-unused-vars
+  306:5   warning  'warn' is assigned a value but never used                              @typescript-eslint/no-unused-vars
+  307:5   warning  'createTask' is assigned a value but never used                        @typescript-eslint/no-unused-vars
+  308:5   warning  'clear' is assigned a value but never used                             @typescript-eslint/no-unused-vars
+  309:5   warning  'count' is assigned a value but never used                             @typescript-eslint/no-unused-vars
+  310:5   warning  'countReset' is assigned a value but never used                        @typescript-eslint/no-unused-vars
+  311:5   warning  'dir' is assigned a value but never used                               @typescript-eslint/no-unused-vars
+  312:5   warning  'dirxml' is assigned a value but never used                            @typescript-eslint/no-unused-vars
+  313:5   warning  'group' is assigned a value but never used                             @typescript-eslint/no-unused-vars
+  314:5   warning  'groupEnd' is assigned a value but never used                          @typescript-eslint/no-unused-vars
+  315:5   warning  'groupCollapsed' is assigned a value but never used                    @typescript-eslint/no-unused-vars
+  316:5   warning  'profile' is assigned a value but never used                           @typescript-eslint/no-unused-vars
+  317:5   warning  'profileEnd' is assigned a value but never used                        @typescript-eslint/no-unused-vars
+  318:5   warning  'time' is assigned a value but never used                              @typescript-eslint/no-unused-vars
+  319:5   warning  'timeEnd' is assigned a value but never used                           @typescript-eslint/no-unused-vars
+  320:5   warning  'timeLog' is assigned a value but never used                           @typescript-eslint/no-unused-vars
+  321:5   warning  'timeStamp' is assigned a value but never used                         @typescript-eslint/no-unused-vars
+  330:3   warning  'assert' is assigned a value but never used                            @typescript-eslint/no-unused-vars
+  331:10  warning  'clear2' is assigned a value but never used                            @typescript-eslint/no-unused-vars
+  333:3   warning  'context' is assigned a value but never used                           @typescript-eslint/no-unused-vars
+  334:10  warning  'count2' is assigned a value but never used                            @typescript-eslint/no-unused-vars
+  335:15  warning  'countReset2' is assigned a value but never used                       @typescript-eslint/no-unused-vars
+  337:15  warning  'createTask2' is assigned a value but never used                       @typescript-eslint/no-unused-vars
+  338:10  warning  'debug2' is assigned a value but never used                            @typescript-eslint/no-unused-vars
+  339:8   warning  'dir2' is assigned a value but never used                              @typescript-eslint/no-unused-vars
+  340:11  warning  'dirxml2' is assigned a value but never used                           @typescript-eslint/no-unused-vars
+  341:10  warning  'error2' is assigned a value but never used                            @typescript-eslint/no-unused-vars
+  342:10  warning  'group2' is assigned a value but never used                            @typescript-eslint/no-unused-vars
+  343:19  warning  'groupCollapsed2' is assigned a value but never used                   @typescript-eslint/no-unused-vars
+  344:13  warning  'groupEnd2' is assigned a value but never used                         @typescript-eslint/no-unused-vars
+  345:9   warning  'info2' is assigned a value but never used                             @typescript-eslint/no-unused-vars
+  346:8   warning  'log2' is assigned a value but never used                              @typescript-eslint/no-unused-vars
+  347:12  warning  'profile2' is assigned a value but never used                          @typescript-eslint/no-unused-vars
+  348:15  warning  'profileEnd2' is assigned a value but never used                       @typescript-eslint/no-unused-vars
+  349:10  warning  'table2' is assigned a value but never used                            @typescript-eslint/no-unused-vars
+  350:9   warning  'time2' is assigned a value but never used                             @typescript-eslint/no-unused-vars
+  351:12  warning  'timeEnd2' is assigned a value but never used                          @typescript-eslint/no-unused-vars
+  352:12  warning  'timeLog2' is assigned a value but never used                          @typescript-eslint/no-unused-vars
+  353:14  warning  'timeStamp2' is assigned a value but never used                        @typescript-eslint/no-unused-vars
+  354:10  warning  'trace2' is assigned a value but never used                            @typescript-eslint/no-unused-vars
+  355:9   warning  'warn2' is assigned a value but never used                             @typescript-eslint/no-unused-vars
+  423:5   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  427:5   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  431:5   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  435:5   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  438:17  warning  'env2' is defined but never used                                       @typescript-eslint/no-unused-vars
+  441:13  warning  'count3' is defined but never used                                     @typescript-eslint/no-unused-vars
+  441:21  warning  'env2' is defined but never used                                       @typescript-eslint/no-unused-vars
+  455:5   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  788:3   warning  'ref' is assigned a value but never used                               @typescript-eslint/no-unused-vars
+  811:3   warning  'unref' is assigned a value but never used                             @typescript-eslint/no-unused-vars
+
+C:\Users\kouki\ai-factory\typeflow\dist\worker\infer-worker.js
+   1:20    error    A `require()` style import is forbidden                                @typescript-eslint/no-require-imports
+   1:275   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   3:46    warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   3:699   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   3:930   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   3:1015  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   3:1175  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:45    warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:1070  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:1094  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:1302  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:1681  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:1888  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   8:249   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   8:565   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   8:1823  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   9:300   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   9:460   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   9:511   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   9:1114  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   9:1197  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   9:1637  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   9:2142  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   9:2228  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   9:2471  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   9:2632  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   9:2994  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   9:3183  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   9:3475  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   9:3728  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   9:4062  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  10:610   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  10:662   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  10:720   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  10:1141  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  10:1199  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  10:1788  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  10:1858  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  10:1955  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  10:2040  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  10:2419  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  10:2450  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  10:2705  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  10:3588  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  10:3674  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  10:4069  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  10:4197  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  16:510   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  16:1244  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  16:1615  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  16:2820  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  16:2989  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  16:3210  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  16:3311  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  16:4649  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  16:5129  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  16:5407  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  16:5751  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  16:6908  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  16:7415  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  16:7601  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  17:200   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  17:302   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  17:1284  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  17:1529  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  17:1556  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  17:1588  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  17:1748  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  17:2523  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  20:1150  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  20:1230  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  20:1294  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  27:51    warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  28:129   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  31:108   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  31:256   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  31:414   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  31:511   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  31:719   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  31:833   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  31:1077  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  31:1357  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  31:1682  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  31:2308  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  31:2379  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  31:2693  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  31:2854  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  31:3047  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  31:3204  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  31:3639  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  31:3851  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  32:187   warning  'Rr' is assigned a value but never used                                @typescript-eslint/no-unused-vars
+  32:198   warning  'wr' is assigned a value but never used                                @typescript-eslint/no-unused-vars
+  32:212   warning  '_r' is assigned a value but never used                                @typescript-eslint/no-unused-vars
+  32:227   warning  'Ir' is assigned a value but never used                                @typescript-eslint/no-unused-vars
+  32:252   warning  'Lr' is assigned a value but never used                                @typescript-eslint/no-unused-vars
+  32:283   warning  'Dr' is assigned a value but never used                                @typescript-eslint/no-unused-vars
+  32:1190  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  32:1496  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  32:1889  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  32:3173  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  32:3274  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  32:4356  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+
+C:\Users\kouki\ai-factory\typeflow\scripts\generate-huge-sample.js
+  1:12  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  2:14  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\kouki\ai-factory\typeflow\server\worker\pool.ts
+   7:33  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  53:45  warning  '_' is defined but never used            @typescript-eslint/no-unused-vars
+
+C:\Users\kouki\ai-factory\typeflow\src\app\blog\[slug]\page.tsx
+  3:10  warning  'ShieldCheck' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\kouki\ai-factory\typeflow\src\app\converters\[slug]\page.tsx
+  76:12  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\kouki\ai-factory\typeflow\src\app\jp\converters\[slug]\page.tsx
+  78:12  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\kouki\ai-factory\typeflow\src\app\page.tsx
+    7:11  warning  'ExternalLink' is defined but never used              @typescript-eslint/no-unused-vars
+    7:25  warning  'GitBranch' is defined but never used                 @typescript-eslint/no-unused-vars
+    7:36  warning  'X' is defined but never used                         @typescript-eslint/no-unused-vars
+    8:10  warning  'LayoutTemplate' is defined but never used            @typescript-eslint/no-unused-vars
+    8:26  warning  'Settings' is defined but never used                  @typescript-eslint/no-unused-vars
+    8:36  warning  'Home' is defined but never used                      @typescript-eslint/no-unused-vars
+    8:52  warning  'Zap' is defined but never used                       @typescript-eslint/no-unused-vars
+   30:10  warning  'supabase' is defined but never used                  @typescript-eslint/no-unused-vars
+   31:18  warning  'UserIcon' is defined but never used                  @typescript-eslint/no-unused-vars
+   31:28  warning  'LogOut' is defined but never used                    @typescript-eslint/no-unused-vars
+   58:10  warning  'showUserMenu' is assigned a value but never used     @typescript-eslint/no-unused-vars
+   58:24  warning  'setShowUserMenu' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   62:10  warning  'editorError' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  144:14  warning  'err' is defined but never used                       @typescript-eslint/no-unused-vars
+
+C:\Users\kouki\ai-factory\typeflow\src\app\privacy\page.tsx
+   3:10   warning  'ShieldCheck' is defined but never used                          @typescript-eslint/no-unused-vars
+  50:38   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  50:54   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  55:32   error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  55:151  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  59:13   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  59:135  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+C:\Users\kouki\ai-factory\typeflow\src\app\terms\page.tsx
+   3:10   warning  'ShieldCheck' is defined but never used                          @typescript-eslint/no-unused-vars
+  27:140  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  47:48   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  47:62   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  49:43   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  49:49   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  49:55   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  49:68   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  63:112  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\kouki\ai-factory\typeflow\src\app\v2\page.tsx
+    4:33  warning  'CheckCircle2' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+   29:28  error    Error: Cannot access variable before it is declared
+
+`handleGenerate` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+C:\Users\kouki\ai-factory\typeflow\src\app\v2\page.tsx:29:28
+  27 |       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+  28 |         e.preventDefault();
+> 29 |         if (!isGenerating) handleGenerate();
+     |                            ^^^^^^^^^^^^^^ `handleGenerate` accessed before it is declared
+  30 |       }
+  31 |       // Esc
+  32 |       if (e.key === 'Escape') {
+
+C:\Users\kouki\ai-factory\typeflow\src\app\v2\page.tsx:61:3
+  59 |   }, [logs]);
+  60 |
+> 61 |   const handleGenerate = async () => {
+     |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 62 |     setIsGenerating(true);
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 63 |     setLogs([]);
+     窶ｦ
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 86 |     }, 200);
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 87 |   };
+     | ^^^^^ `handleGenerate` is declared here
+  88 |
+  89 |   return (
+  90 |     <div className="flex flex-col h-screen overflow-hidden bg-[#22272e] text-[#adbac7] font-sans">  react-hooks/immutability
+   45:6   warning  React Hook useEffect has a missing dependency: 'handleGenerate'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            react-hooks/exhaustive-deps
+  250:32  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              react/no-unescaped-entities
+  250:39  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              react/no-unescaped-entities
+  250:44  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              react/no-unescaped-entities
+  250:48  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              react/no-unescaped-entities
+
+C:\Users\kouki\ai-factory\typeflow\src\components\ArchitectureView.tsx
+    8:45  warning  'Maximize2' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+   10:8   warning  'GitBranch' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+  133:10  warning  'diagramType' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+  133:23  warning  'setDiagramType' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+  141:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\kouki\ai-factory\typeflow\src\components\ArchitectureView.tsx:141:7
+  139 |     const magicData = localStorage.getItem('typeflow_magic_data');
+  140 |     if (magicData) {
+> 141 |       setInput(magicData);
+      |       ^^^^^^^^ Avoid calling setState() directly within an effect
+  142 |       localStorage.removeItem('typeflow_magic_data');
+  143 |       if (geminiKey && (isPro || trialCount > 0)) {
+  144 |         setTimeout(() => generateDiagram(), 500);                                                                                                      react-hooks/set-state-in-effect
+  144:26  error    Error: Cannot access variable before it is declared
+
+`generateDiagram` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+C:\Users\kouki\ai-factory\typeflow\src\components\ArchitectureView.tsx:144:26
+  142 |       localStorage.removeItem('typeflow_magic_data');
+  143 |       if (geminiKey && (isPro || trialCount > 0)) {
+> 144 |         setTimeout(() => generateDiagram(), 500);
+      |                          ^^^^^^^^^^^^^^^ `generateDiagram` accessed before it is declared
+  145 |       }
+  146 |     }
+  147 |   }, [geminiKey, isPro]);
+
+C:\Users\kouki\ai-factory\typeflow\src\components\ArchitectureView.tsx:216:3
+  214 |   // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+  215 |
+> 216 |   const generateDiagram = async () => {
+      |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 217 |     if (!isPro && trialCount <= 0) {
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 218 |       setShowPaywall(true);
+      窶ｦ
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 284 |     }
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 285 |   };
+      | ^^^^^ `generateDiagram` is declared here
+  286 |
+  287 |   const handleDownloadSVG = () => {
+  288 |     if (!svg) return;  react-hooks/immutability
+  147:6   warning  React Hook useEffect has missing dependencies: 'generateDiagram' and 'trialCount'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         react-hooks/exhaustive-deps
+
+C:\Users\kouki\ai-factory\typeflow\src\components\FullStackArchitectView.tsx
+   63:5    error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\kouki\ai-factory\typeflow\src\components\FullStackArchitectView.tsx:63:5
+  61 |   // Reset tab when mode changes
+  62 |   useEffect(() => {
+> 63 |     setActiveTab(currentTabs[0].id);
+     |     ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  64 |   }, [mode]);
+  65 |
+  66 |   const processArchitecture = async () => {  react-hooks/set-state-in-effect
+   64:6    warning  React Hook useEffect has a missing dependency: 'currentTabs'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react-hooks/exhaustive-deps
+  301:213  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                react/no-unescaped-entities
+
+C:\Users\kouki\ai-factory\typeflow\src\components\I18nView.tsx
+  2:44  warning  'CheckCircle2' is defined but never used     @typescript-eslint/no-unused-vars
+  3:10  warning  'motion' is defined but never used           @typescript-eslint/no-unused-vars
+  3:18  warning  'AnimatePresence' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\kouki\ai-factory\typeflow\src\components\LandingView.tsx
+    3:8   warning  'Link' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+    6:11  warning  'Sparkles' is defined but never used                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+    6:39  warning  'Layers' is defined but never used                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+    7:3   warning  'ArrowRight' is defined but never used                                                                                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+    8:37  warning  'FolderOpen' is defined but never used                                                                                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+   68:9   warning  'filtered' is assigned a value but never used                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+  237:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  251:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  309:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\kouki\ai-factory\typeflow\src\components\LogicLabView.tsx
+    8:20  warning  'ArrowRight' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+    8:46  warning  'Save' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+   63:6   warning  React Hook useEffect has a missing dependency: 'trialCount'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                     react-hooks/exhaustive-deps
+  148:5   error    Error: This value cannot be modified
+
+Modifying a value used previously in an effect function or as an effect dependency is not allowed. Consider moving the modification before calling useEffect().
+
+C:\Users\kouki\ai-factory\typeflow\src\components\LogicLabView.tsx:148:5
+  146 |   // Keep processLogicRef in sync
+  147 |   React.useEffect(() => {
+> 148 |     processLogicRef.current = processLogic;
+      |     ^^^^^^^^^^^^^^^ `processLogicRef` cannot be modified
+  149 |   });
+  150 |
+  151 |   const copyToClipboard = () => {  react-hooks/immutability
+
+C:\Users\kouki\ai-factory\typeflow\src\components\RegexBuilderView.tsx
+   3:10  warning  'Settings' is defined but never used      @typescript-eslint/no-unused-vars
+   4:8   warning  'Editor' is defined but never used        @typescript-eslint/no-unused-vars
+   8:3   warning  'setGeminiKey' is defined but never used  @typescript-eslint/no-unused-vars
+  89:14  warning  'e' is defined but never used             @typescript-eslint/no-unused-vars
+
+C:\Users\kouki\ai-factory\typeflow\src\components\Sidebar.tsx
+   4:27   warning  'useEffect' is defined but never used      @typescript-eslint/no-unused-vars
+  20:51   warning  'isDark' is defined but never used         @typescript-eslint/no-unused-vars
+  20:94   warning  'cursorPos' is defined but never used      @typescript-eslint/no-unused-vars
+  20:105  warning  'isEditorEmpty' is defined but never used  @typescript-eslint/no-unused-vars
+  20:120  warning  'editorError' is defined but never used    @typescript-eslint/no-unused-vars
+
+C:\Users\kouki\ai-factory\typeflow\src\components\SmartDiffView.tsx
+   3:26  warning  'Settings' is defined but never used                                                                                                                                                      @typescript-eslint/no-unused-vars
+   7:44  warning  'setGeminiKey' is defined but never used                                                                                                                                                  @typescript-eslint/no-unused-vars
+  16:9   warning  The 'handleMerge' function makes the dependencies of useEffect Hook (at line 70) change on every render. To fix this, wrap the definition of 'handleMerge' in its own useCallback() Hook  react-hooks/exhaustive-deps
+
+C:\Users\kouki\ai-factory\typeflow\src\components\SuperBatchModal.tsx
+   6:36  warning  'AlertCircle' is defined but never used           @typescript-eslint/no-unused-vars
+  25:3   warning  'isDark' is defined but never used                @typescript-eslint/no-unused-vars
+  38:10  warning  'elapsedTime' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\kouki\ai-factory\typeflow\src\components\TypeGraphPanel.tsx
+    2:44  warning  'useEffect' is defined but never used             @typescript-eslint/no-unused-vars
+    3:33  warning  'TypeNode' is defined but never used              @typescript-eslint/no-unused-vars
+   97:9   warning  'svgWidth' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  102:9   warning  'svgHeight' is assigned a value but never used    @typescript-eslint/no-unused-vars
+  293:21  warning  'isConnected' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\kouki\ai-factory\typeflow\src\components\Workbench.tsx
+     7:27   warning  'FileJson' is defined but never used                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+     7:66   warning  'Monitor' is defined but never used                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+     8:14   warning  'Edit3' is defined but never used                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+    23:21   warning  'HistoryIcon' is defined but never used                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+   191:107  warning  'trialCount' is assigned a value but never used                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+   191:123  warning  'setTrialCount' is defined but never used                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+   276:10   warning  'showAiSettings' is assigned a value but never used                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+   276:26   warning  'setShowAiSettings' is assigned a value but never used                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+   277:10   warning  'isShareCopied' is assigned a value but never used                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+   277:25   warning  'setIsShareCopied' is assigned a value but never used                                                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+   296:10   warning  'isSyncing' is assigned a value but never used                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+   338:6    warning  React Hook useEffect has missing dependencies: 'outputTab' and 'outputs'. Either include them or remove the dependency array                                                                                                                                            react-hooks/exhaustive-deps
+   338:7    warning  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                                react-hooks/exhaustive-deps
+   389:10   warning  'previousJsonData' is assigned a value but never used                                                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+   389:28   warning  'setPreviousJsonData' is assigned a value but never used                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+   514:14   warning  'e' is defined but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+   530:14   warning  'e' is defined but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+   554:6    warning  React Hook useEffect has a missing dependency: 'handleActivatePro'. Either include it or remove the dependency array                                                                                                                                                    react-hooks/exhaustive-deps
+   656:15   warning  'e' is defined but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+   730:17   warning  'e' is defined but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+   767:6    warning  React Hook useCallback has missing dependencies: 'checkAndConsumeTrial' and 'isProLicensed'. Either include them or remove the dependency array                                                                                                                         react-hooks/exhaustive-deps
+   893:6    warning  React Hook useCallback has a missing dependency: 'checkAndConsumeTrial'. Either include it or remove the dependency array                                                                                                                                               react-hooks/exhaustive-deps
+   974:18   warning  'e' is defined but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+   995:6    warning  React Hook useCallback has a missing dependency: 'checkAndConsumeTrial'. Either include it or remove the dependency array                                                                                                                                               react-hooks/exhaustive-deps
+  1034:14   warning  'e' is defined but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+  1122:6    warning  React Hook useCallback has missing dependencies: 'checkAndConsumeTrial' and 'setOutputTab'. Either include them or remove the dependency array. If 'setOutputTab' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
+  1199:6    warning  React Hook useCallback has a missing dependency: 'checkAndConsumeTrial'. Either include it or remove the dependency array                                                                                                                                               react-hooks/exhaustive-deps
+  1226:16   warning  'e' is defined but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+  1235:16   warning  'e' is defined but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+  1251:16   warning  'e' is defined but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+  1302:6    warning  React Hook useCallback has a missing dependency: 'checkAndConsumeBasicTrial'. Either include it or remove the dependency array                                                                                                                                          react-hooks/exhaustive-deps
+  1469:6    warning  React Hook useEffect has missing dependencies: 'handleAiSmartParse' and 'input'. Either include them or remove the dependency array                                                                                                                                     react-hooks/exhaustive-deps
+  1625:32   warning  'e' is defined but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+  1687:31   warning  'monaco' is defined but never used                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+
+C:\Users\kouki\ai-factory\typeflow\src\lib\engine.ts
+  915:12  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\kouki\ai-factory\typeflow\src\lib\generators.ts
+  407:53  warning  '_options' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  467:53  warning  '_options' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+笨・296 problems (28 errors, 268 warnings)
+

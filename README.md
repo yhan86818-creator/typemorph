@@ -1,4 +1,4 @@
-# 🛡️ SchemaForge Pro
+# TypeFlow Pro
 
 > **Premium, Local-First Schema Engineering Workbench for Modern Software Architects.**
 
@@ -6,13 +6,13 @@
 [![GitHub Stars](https://img.shields.io/github/stars/yhan86818-creator/ai-factory?style=for-the-badge&logo=github&logoColor=white&color=yellow)](https://github.com/yhan86818-creator/ai-factory)
 [![License](https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge)](LICENSE)
 
-SchemaForge Pro is an institutional-grade schema transformation and visualization platform. Engineered for elite developers, it delivers a **100% client-side sandbox** supporting over 300 developer and financial converter utilities, augmented by opt-in direct AI synthesis (BYOK).
+TypeFlow Pro is an institutional-grade schema transformation and visualization platform. Engineered for elite developers, it delivers a **100% client-side sandbox** supporting 290+ developer and financial converter utilities, augmented by opt-in direct AI synthesis (BYOK).
 
 ---
 
-## 🔒 The Privacy Manifesto
+## The Privacy Manifesto
 
-We value corporate data sovereignty above all else. SchemaForge Pro clearly separates standard offline browser-only processing from transparent direct AI operations:
+We value corporate data sovereignty above all else. TypeFlow Pro clearly separates standard offline browser-only processing from transparent direct AI operations:
 
 ```
 [ Your Sensitive Schema ]
@@ -23,19 +23,20 @@ We value corporate data sovereignty above all else. SchemaForge Pro clearly sepa
 ```
 
 1. **Local-First Engine**: All standard conversions (JSON to TypeScript/Go/Rust, SQL DDL, FIX protocol, etc.) run **entirely inside your browser's client-side JavaScript sandbox**. Your code never leaves your local device.
-2. **BYOK AI Model**: Advanced neural features connect directly from your client to Google Gemini's official API using **your own Gemini API Key (Bring Your Own Key)**. SchemaForge's servers never proxy, store, or intercept your keys or intellectual property.
+2. **BYOK AI Model**: Advanced neural features connect directly from your client to Google Gemini's official API using **your own Gemini API Key (Bring Your Own Key)**. TypeFlow does not proxy, store, or intercept your keys or intellectual property on conversion servers.
 3. **Zero Data Retention**: Guest history resides solely in your browser's local storage. Cloud history sync (Supabase) is strictly opt-in and active only for logged-in accounts. A **Nuclear Wipe option** is available in the CONFIG popover to instantly purge all local, cloud, and URL hash parameters.
-4. **100% Ethical & Open**: No third-party advertisements, no telemetry tracking, and **absolutely zero training** of AI models using your input payloads.
+4. **100% Ethical & Open**: No third-party advertisements, no retargeting tracking, and **absolutely zero training** of AI models using your input payloads.
+5. **Explicit-Only Share Policy**: By default, the **Share** button encodes your schema into an LZ-compressed `#data=...` URL hash — the data lives entirely in the URL string, no server is ever contacted. Only when your schema is too large for a URL (> 2,000 characters compressed) does the app automatically escalate to cloud storage — and **only if you explicitly click the Share button**. The raw auto-sync to URL hash on every keystroke has been intentionally removed to prevent inadvertent data exposure via browser history.
 
 ---
 
-## 🚀 Key Architectural Pillars
+## Key Architectural Pillars
 
-SchemaForge Pro is divided into 4 specialized, highly optimized workspaces:
+TypeFlow Pro is divided into 4 specialized, highly optimized workspaces:
 
 ### 1. Interactive Workbench (Monaco Editor)
-*   **300+ High-Performance Parsers**: Convert from JSON, XML, YAML, SQL DDL, cURL, SWIFT MT/MX, FIX Protocol to 15+ target languages.
-*   **Dynamic Privacy Indicators**: Real-time visual badge switching between `🔒 Local Mode (100% Private)` and `✨ AI Mode (BYOK Cloud)` based on your current API configuration.
+*   **290+ High-Performance Parsers**: Convert from JSON, XML, YAML, SQL DDL, cURL, SWIFT MT/MX, FIX Protocol to 15+ target languages.
+*   **Dynamic Privacy Indicators**: Real-time visual badge switching between `Local Mode (100% Private)` and `AI Mode (BYOK Cloud)` based on your current API configuration.
 *   **Smart Empty-State Drag & Drop**: Load schemas instantly by dropping `.json` or `.yaml` files directly into the Monaco editor, or launch a complex sample payload with one click.
 *   **Auto-Healing Syntax Parser**: Paste malformed or trailing-comma payloads and let the sandboxed AI automatically repair it on the fly.
 
@@ -52,14 +53,14 @@ SchemaForge Pro is divided into 4 specialized, highly optimized workspaces:
 
 ### 4. Smart Structural Diff (AST Semantic Compare)
 *   Standard text-diffs fail when keys are reordered or whitespaces change.
-*   SchemaForge's **Smart Diff parses schemas into an abstract AST**, matching properties semantically.
+*   TypeFlow's **Smart Diff parses schemas into an abstract AST**, matching properties semantically.
 *   Filters out formatting noise to highlight actual, structural payload changes.
 
 ---
 
-## ⚡ 1-Click Self-Host & Deployment
+## 1-Click Self-Host & Deployment
 
-Deploy your own private instance of SchemaForge Pro to Cloudflare Pages in less than a minute.
+Deploy your own private instance of TypeFlow Pro to Cloudflare Pages in less than a minute.
 
 ### Deploy to Cloudflare Pages
 1. Fork this repository.
@@ -71,9 +72,9 @@ Deploy your own private instance of SchemaForge Pro to Cloudflare Pages in less 
 
 ---
 
-## 🛠️ Local Development & Setup
+## Local Development & Setup
 
-SchemaForge Pro is built using **Next.js 16 (App Router)** and styled with **Vanilla CSS & modern dark-mode layouts**.
+TypeFlow Pro is built using **Next.js 16 (App Router)** and styled with **Vanilla CSS & modern dark-mode layouts**.
 
 ### Prerequisites
 *   Node.js 18+
@@ -97,10 +98,10 @@ SchemaForge Pro is built using **Next.js 16 (App Router)** and styled with **Van
 
 ---
 
-## 📄 License
+## License
 
 Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
-*Crafted with 🖤 by modern engineers, for modern software architects.*
+*Crafted with care by engineers, for software architects.*

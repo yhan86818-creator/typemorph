@@ -72,3 +72,13 @@ body {
   background-image: radial-gradient(circle, #CBD5E1 1px, transparent 1px);
   background-size: 24px 24px;
 }
+
+/* Monaco Highlight Line Decoration */
+.monaco-highlight-line {
+  background: rgba(59, 130, 246, 0.12) !important;
+  border-left: 4px solid #3b82f6 !important;
+}
+.dark .monaco-highlight-line {
+  background: rgba(59, 130, 246, 0.2) !important;
+  border-left: 4px solid #60a5fa !important;
+}

@@ -33,27 +33,33 @@ export const AuthModal = ({ isOpen, onClose, isDark }: { isOpen: boolean, onClos
               <p className="text-slate-500 text-sm font-medium">Log in to save your conversion history and sync across devices.</p>
             </div>
 
-            <Auth
-              supabaseClient={supabase}
-              appearance={{ 
-                theme: ThemeSupa,
-                variables: {
-                  default: {
-                    colors: {
-                      brand: '#2563eb',
-                      brandAccent: '#1d4ed8',
-                    },
-                    radii: {
-                      borderRadiusButton: '12px',
-                      inputBorderRadius: '12px',
+            {supabase ? (
+              <Auth
+                supabaseClient={supabase}
+                appearance={{ 
+                  theme: ThemeSupa,
+                  variables: {
+                    default: {
+                      colors: {
+                        brand: '#2563eb',
+                        brandAccent: '#1d4ed8',
+                      },
+                      radii: {
+                        borderRadiusButton: '12px',
+                        inputBorderRadius: '12px',
+                      }
                     }
                   }
-                }
-              }}
-              theme={isDark ? 'dark' : 'default'}
-              providers={['google']}
-              redirectTo={typeof window !== 'undefined' ? window.location.origin : ''}
-            />
+                }}
+                theme={isDark ? 'dark' : 'default'}
+                providers={['google']}
+                redirectTo={typeof window !== 'undefined' ? window.location.origin : ''}
+              />
+            ) : (
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl text-sm font-semibold border border-red-100 dark:border-red-900">
+                Supabase configuration is missing. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env file.
+              </div>
+            )}
           </motion.div>
         </div>
       )}

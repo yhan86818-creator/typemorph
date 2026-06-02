@@ -1,0 +1,45 @@
+<h2>Swift to TypeScript: 繝｢繝舌う繝ｫ縺ｨWeb縺ｮ蝙句梛迚ｹ繧堤ｵｱ荳€縺吶ｋ</h2>
+<p>iOS繧｢繝励Μ(Swift)縺ｨWeb繝輔Ο繝ｳ繝医 spire 繧ｨ繝ｳ繝(TypeScript)縺ｮ髢薙〒蝙夂ｾｩ繧貞蛻･縺ｫ邂｡逅☆繧九％縺ｯ縲∽ｸ€雋ｫ諤ｧ縺ｮ 驛 謇 繧ヰ繧ｰ縺ｮ蜴滓縺ｨ縺ｪ繧翫∪縺吶€：wift縺ｮStruct繧Enum繧鱈ypeScript縺ｫ螟画鋤縺吶ｋ縺薙→縺ｧ縲√ヵ繝ｫ繧ｹ繧ｿ繝け縺ｧ縺ｮ蝙句ｮ牙繧貞ｮ溽樟縺励€√ョ繝ｼ繧ｿ縺ｮ 驛 謇 繧堤ｵｶ蟇ｾ逧↑繧ゅ縺ｫ縺励∪縺吶€ゅ％繧後縲∬､焚縺ｮ繝励Λ繝ヨ繝輔か繝ｼ繝ｒ 驛 謇 縺ｫ髢狗匱縺吶ｋ繝√繝↓縺ｨ縺｣縺ｦ 豎ｺ 譚･逧↑ 豎ｺ 縺ｧ縺吶€</p>
+
+<h3>Live Example: Swift 讒矩€菴薙°繧鱈ypeScript繧､繝ｳ繧ｿ繝ｼ繝輔ぉ繝ｼ繧ｹ縺へ</h3>
+<pre><code>// 蜈･蜉 Swift Code
+struct User: Codable {
+    let id: Int
+    let username: String
+    let email: String?
+}
+
+// 逕滓縺輔ｌ縺 TypeScript Interface
+export interface User {
+  id: number;
+  username: string;
+  email: string | null;
+}
+</code></pre>
+
+<h3>繧ｹ繝ャ繝励繧､繧ｹ繝ャ繝玲ｱ守畑繧ｬ繧､繝</h3>
+<p>1. <strong>蟇ｾ雎｡繝｢繝Ν縺ｮ謚ｽ蜃ｺ:</strong> Swift縺ｮ <code>Codable</code> 縺ｫ貅悶拠縺励◆讒矩€菴薙ｒ驕ｸ謚槭＠縺ｾ縺吶€<br>
+2. <strong>蝙矩ぅ｣隕壹繝槭ャ繝斐Φ繧ｰ:</strong> <code>Int/Double</code> 繧 <code>number</code> 縺ｫ縲√€<code>Bool</code> 繧 <code>boolean</code> 縺ｫ螟画鋤縺励∪縺吶€<br>
+3. <strong>Optional縺ｮ蜿榊ｰ:</strong> Swift縺ｮ <code>?</code> 繧鱈ypeScript縺ｮ <code>| null</code> 繧 <code>?</code> 縺ｫ 驛 謇 縺ｫ螟画鋤縺励∪縺吶€<br>
+4. <strong>Enum縺ｮ騾｣謳ｺ:</strong> Swift縺ｮ蠑ｷ蜉帷噪縺ｪEnum繧鱈ypeScript縺ｮString Enum縺ｫ螟画鋤縺励∪縺吶€</p>
+
+<h3>Technical Deep Dive: Codable 縺ｨ TypeScript 縺ｮ隕ｪ蜥梧€ｧ</h3>
+<p>Swift縺ｮ <code>Codable</code> 縺ｯ 豎ｺ 譚･逧↑ 豎ｺ 縺ｧJSON繧扱う 驛 謇 繧堤｢ｺ遶九＠縺ｦ縺∪縺吶€ゅ％繧後ｒTypeScript縺ｫ螟画鋤縺吶ｋ 豎ｺ 縺ｯ縲∝愛縺ｪ繧九ョ繝ｼ繧ｿ縺ｮ螟画鋤縺ｧ縺ｯ縺ｪ縲√€<strong>繝薙ず繝阪せ繝ｭ繧ｸ繝け縺ｮ蝙句ｮ牙縲阪蜷梧悄</strong>繧呈э蜻ｳ縺励∪縺吶€ょｭ Pard 縺ｫ 豎ｺ 譚･逧↑ 豎ｺ 縺ｧ縲：IFT蜀蝙句ｮ牙繧堤ｶｭ謖√＠縺､縺､縲、PI繧ｨ繝ｳ繝峨繧､繝ｳ繝医 驛 謇 繧呈茶豸医＠縺ｾ縺吶€</p>
+
+<h3>豈碑ｼ→莉｣譛ｿ譯</h3>
+<p>謇句虚縺ｧ蝙九ｒ 豎ｺ 驛 縺吶ｋ縺ｮ縺ｯ繧ｨ繝ｩ繝ｼ縺ｮ 驛 謇 縺ｧ縺吶€、uto-generation (閾ｪ蜍慕函謌) 縺ｯ縲、PI-first髢狗匱縺ｫ縺翫＞縺ｦ 豎ｺ 譚･逧↑ 豎ｺ 縺ｧ縺吶€ゅ∪縺溘€<strong>GraphQL</strong> 繧剃ｽｿ逕ｨ縺吶ｌ縺ｰ縲∝愛荳€縺ｮ繧ｹ繧ｭ繝ｼ繝医°繧牙繝励Λ繝ヨ繝輔か繝ｼ繝縺ｮ蝙九ｒ 驛 謇 縺ｫ逕滓縺ｧ縺阪ｋ縺溘ａ縲∽ｸ€隕ｧ縺ｮ 豎ｺ 譚･縺ｨ縺ｪ繧翫∪縺吶€</p>
+
+<h3>譛ｪ譚･縺ｮ髢狗匱縺ｮ縺溘ａ縺ｮ繝吶せ繝医繝ｩ繧ｯ繝ぅ繧ｹ</h3>
+<ul>
+  <li><strong>Shared Package:</strong> 逕滓縺輔ｌ縺溷梛迚ｹ繧貞譛峨ヱ繝繧ｱ繝ｼ繧ｸ縺ｨ縺励※邂｡逅＠縲√そ繝槭Φ繝ぅ繝け繝舌繧ｸ繝ｧ繝九Φ繧ｰ繧定｡行 驛 縺吶∪縺吶€</li>
+  <li><strong>Date Parsing:</strong> 譌･莉倅ｺ､謠帙ISO 8601蠖｢蠑上〒 驛 謇 縺ｫ繝槭ャ繝斐Φ繧ｰ縺励∪縺吶€</li>
+  <li><strong>Enum Mapping:</strong> Enum縺ｯ蟶ｸ縺ｫString Raw Value繧剃ｽｿ逕ｨ縺励€∝庄隱ｭ諤ｧ繧帝ｫ倥ａ縺ｾ縺吶€</li>
+</ul>
+
+<h3>FAQ</h3>
+<p><strong>Q: Swift 縺ｮ Class 縺ｯ螟画鋤縺ｧ縺阪ｋ?</strong><br>
+A: 蟇ｾ蠢懊＠縺ｦ縺∪縺吶′縲√ョ繝ｼ繧ｿ繝｢繝Ν縺ｨ縺励※縺ｯ Struct 縺ｮ蟇ｾ蠢懊′ 豎ｺ 譚･逧〒縺吶€</p>
+<p><strong>Q: 繝舌繧ｸ繝ｧ繝ｳ髢薙 驛 謇 縺ｯ?</strong><br>
+A: Swift 5 莉･荳翫 <code>Codable</code> 繧堤ｷ壼叙縺励縺ｦ縺∪縺吶€</p>
+<p><strong>Q: 繝繧ｿ縺ｮ 驛 謇 縺ｯ?</strong><br>
+A: 繝繧ｿ繧ｪ繝悶ず繧ｧ繧ｯ繝医 驛 謇 縺ｯ 豎ｺ 譚･逧↓ TypeScript 縺ｮ繧､繝ｳ繧ｿ繝ｼ繝輔ぉ繝ｼ繧ｹ縺ｨ 驛 謇 縺励∪縺吶€</p>

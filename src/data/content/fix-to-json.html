@@ -1,0 +1,57 @@
+<p>The <strong>FIX Protocol (Financial Information eXchange)</strong> is the de facto messaging standard for real-time electronic communication of trade and market data between financial institutions. Originally developed in 1992 for equity trading between Fidelity Investments and Salomon Brothers, FIX has evolved into a comprehensive standard covering equities, fixed income, foreign exchange, and derivatives.</p>
+
+<p>Converting FIX Protocol messages to structured JSON is an essential workflow for fintech engineers who need to integrate legacy trading systems with modern APIs, analytics pipelines, or microservices architectures. The challenge lies in FIX's unique tag=value format, which is powerful but opaque without the right tooling.</p>
+
+<h2>Understanding the FIX Protocol Message Structure</h2>
+<p>A FIX message is composed of key-value pairs called <strong>fields</strong>, where each field is identified by a numeric tag. For example, a basic FIX New Order Single message looks like this:</p>
+<pre><code>8=FIX.4.2|9=176|35=D|49=CLIENT|56=BROKER|34=1|52=20260601-10:30:00|
+11=ORDER001|21=1|55=AAPL|54=1|60=20260601-10:30:00|38=100|40=2|44=150.00|10=123|</code></pre>
+
+<p>This encodes a buy order for 100 shares of AAPL at a limit price of $150. Each numeric tag maps to a specific field definition in the FIX data dictionary:</p>
+<ul>
+  <li><strong>Tag 35</strong> (MsgType): The message type — "D" means New Order Single</li>
+  <li><strong>Tag 49</strong> (SenderCompID): The identifier of the message sender</li>
+  <li><strong>Tag 55</strong> (Symbol): The instrument identifier (ticker)</li>
+  <li><strong>Tag 54</strong> (Side): "1" = Buy, "2" = Sell</li>
+  <li><strong>Tag 38</strong> (OrderQty): The quantity ordered</li>
+  <li><strong>Tag 44</strong> (Price): The limit price</li>
+</ul>
+
+<h2>Why Convert FIX to JSON?</h2>
+<p>Despite its power, the raw FIX format is not suitable for modern software architectures. Converting to JSON enables:</p>
+<ul>
+  <li><strong>REST API Integration:</strong> Modern microservices communicate via JSON over HTTP. FIX-to-JSON conversion bridges the gap between legacy trading infrastructure and cloud-native services.</li>
+  <li><strong>Data Analytics:</strong> Streaming FIX messages into a data lake or analytics platform (Apache Kafka, BigQuery, Snowflake) requires JSON or Avro format.</li>
+  <li><strong>Debugging &amp; Monitoring:</strong> JSON is human-readable and natively supported by logging systems like Elasticsearch, Datadog, and Splunk.</li>
+  <li><strong>Schema Validation:</strong> Once in JSON, you can apply JSON Schema or Zod validation to enforce message correctness before processing.</li>
+</ul>
+
+<h2>The Privacy-Critical Nature of FIX Data</h2>
+<p>FIX messages contain some of the most sensitive data in financial markets: order sizes, prices, client identifiers, trading strategies, and execution details. Submitting this data to a cloud-based converter is a severe compliance risk under MiFID II, SEC Rule 17a-4, and FINRA regulations. TypeFlow's FIX-to-JSON converter runs <strong>100% locally in your browser</strong> using Web Workers — your trading data never leaves your machine's RAM.</p>
+
+<h2>FIX Version Compatibility</h2>
+<p>TypeFlow supports all major FIX versions used in production environments:</p>
+<ul>
+  <li><strong>FIX 4.0 / 4.1</strong>: Legacy equity systems</li>
+  <li><strong>FIX 4.2</strong>: The most widely deployed version, dominant in equities and FX</li>
+  <li><strong>FIX 4.4</strong>: Extended message types including cross orders and multileg instruments</li>
+  <li><strong>FIX 5.0 / FIXT 1.1</strong>: Transport-agnostic session layer with expanded derivatives support</li>
+</ul>
+
+<h2>Common FIX Message Types and Their JSON Equivalents</h2>
+<p>Understanding which FIX message types you're working with helps structure the output JSON correctly. The most common types include:</p>
+<ul>
+  <li><strong>35=D</strong> (NewOrderSingle): New trade order — maps to an order creation JSON object</li>
+  <li><strong>35=8</strong> (ExecutionReport): Trade confirmation — contains fill status, executed quantity, and average price</li>
+  <li><strong>35=G</strong> (OrderCancelReplaceRequest): Order amendment — diff-style JSON showing changed fields</li>
+  <li><strong>35=V</strong> (MarketDataRequest): Market data subscription — maps to instrument and depth arrays</li>
+  <li><strong>35=W</strong> (MarketDataSnapshotFullRefresh): Full order book snapshot — nested bid/ask arrays in JSON</li>
+</ul>
+
+<h2>TypeScript Integration After Conversion</h2>
+<p>Once you have your FIX message as JSON, the next logical step is generating TypeScript interfaces to ensure type safety across your trading platform. TypeFlow's FIX-to-TypeScript tool combines both steps: parse the FIX message, convert to JSON, and immediately generate production-ready TypeScript types — all in a single workflow.</p>
+
+<blockquote>"FIX Protocol has been the backbone of electronic trading for three decades. Local-first tools that understand its semantics are essential for any fintech engineering team working with institutional-grade systems."</blockquote>
+
+<h3>From Legacy to Modern: The Complete FIX Integration Stack</h3>
+<p>A complete modern FIX integration typically involves: raw FIX message ingestion → local JSON parsing → schema validation → TypeScript type generation → API serialization. TypeFlow Pro covers the critical first steps of this pipeline with zero data exposure, making it the ideal tool for compliance-conscious financial engineering teams.</p>

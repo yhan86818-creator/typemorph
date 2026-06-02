@@ -1,0 +1,21 @@
+{
+  "accounts": [
+    {
+      "id": "a1",
+      "profile": { "name": "Alice", "email": "a@ex.com", "addresses": [ { "city": "Tokyo", "zip": "100-0001" } ] },
+      "logs": [ { "ts": "2023-01-01T00:00:00Z", "ev": "login" }, { "ts": "2023-01-02T00:00:00Z", "ev": "update" } ],
+      "roles": ["admin", "owner"]
+    },
+    {
+      "id": "a2",
+      "profile": { "name": "Bob", "email": "b@ex.com", "addresses": [ { "city": "Osaka", "zip": "530-0001" } ] },
+      "logs": [],
+      "roles": []
+    }
+  ],
+  "transactions": [
+    { "id": "t1", "amount": 123.45, "currency": "JPY", "meta": { "status": "ok" } },
+    { "id": "t2", "amount": 9.99, "currency": "USD", "meta": { "status": "pending" } }
+  ],
+  "featureFlags": { "beta": true, "newUI": false }
+}

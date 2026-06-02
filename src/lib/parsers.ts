@@ -63,32 +63,96 @@ export const parseXML = (str: string): any => {
 };
 
 export const parseCurl = (curl: string) => {
-  const method = curl.match(/-X\s+(\w+)/)?.[1] || 'GET';
-  const url = curl.match(/'(https?:\/\/[^']+)'/)?.[1] || curl.match(/"(https?:\/\/[^"]+)"/)?.[1] || "";
-  const headers: any = {};
-  const headerMatches = curl.matchAll(/-H\s+'([^']+)'/g);
-  for (const m of headerMatches) {
-    const [k, v] = m[1].split(':').map(s => s.trim());
-    headers[k] = v;
+  // Normalize whitespaces
+  const cleanCurl = curl.replace(/\s+/g, ' ');
+  
+  // Extract Method
+  let method = 'GET';
+  const methodMatch = cleanCurl.match(/(?:-X|--request)\s+(\w+)/i);
+  if (methodMatch) {
+    method = methodMatch[1].toUpperCase();
+  } else if (/(?:-d|--data|--data-raw|--data-binary)\s+/.test(cleanCurl)) {
+    method = 'POST'; // Default to POST if data is present but no method specified
   }
-  const bodyMatch = curl.match(/-d\s+'([^']+)'/);
+  
+  // Extract URL (starts with http/https, matches inside single/double quotes or unquoted)
+  let url = '';
+  const urlMatch = cleanCurl.match(/(?:https?:\/\/[^\s'"]+)/);
+  if (urlMatch) {
+    url = urlMatch[0];
+  }
+  
+  // Extract Headers
+  const headers: any = {};
+  // Matches both -H 'Header: Value' and -H "Header: Value" and --header '...' and --header "..."
+  const headerMatches = cleanCurl.matchAll(/(?:-H|--header)\s+(?:'([^']+)'|"([^"]+)")/gi);
+  for (const m of headerMatches) {
+    const headerStr = m[1] || m[2];
+    if (headerStr) {
+      const firstColon = headerStr.indexOf(':');
+      if (firstColon !== -1) {
+        const k = headerStr.slice(0, firstColon).trim();
+        const v = headerStr.slice(firstColon + 1).trim();
+        headers[k] = v;
+      }
+    }
+  }
+  
+  // Extract Body
+  // Matches -d '...', --data '...', --data-raw '...', etc.
+  const bodyMatch = cleanCurl.match(/(?:-d|--data|--data-raw|--data-binary)\s+(?:'([^']*)'|"([^"]*)")/i);
+  let body = '';
   let bodyJson = null;
   if (bodyMatch) {
-    try { bodyJson = JSON.parse(bodyMatch[1]); } catch(e) {}
+    body = bodyMatch[1] || bodyMatch[2] || '';
+    try {
+      bodyJson = JSON.parse(body);
+    } catch {
+      // Maybe escaping double quotes inside double quoted curl?
+      // e.g. "{\"a\": 1}"
+      try {
+        bodyJson = JSON.parse(body.replace(/\\"/g, '"'));
+      } catch {}
+    }
   }
-  return { method, url, headers, body: bodyMatch?.[1] || "", bodyJson };
+  
+  return { method, url, headers, body, bodyJson };
 };
 
 export const parseSQLToZod = (sql: string) => {
-  const tableName = sql.match(/CREATE TABLE (\w+)/)?.[1] || 'Schema';
+  const tableName = sql.match(/CREATE TABLE\s+(\w+)/i)?.[1] || 'Schema';
   const columns = sql.matchAll(/(\w+)\s+(\w+)/g);
   let out = `export const ${tableName}Schema = z.object({\n`;
+  const sqlKeywords = new Set([
+    'CREATE', 'TABLE', 'PRIMARY', 'KEY', 'NOT', 'NULL', 'FOREIGN', 'REFERENCES', 
+    'CONSTRAINT', 'UNIQUE', 'INDEX', 'DEFAULT', 'CHECK', 'AUTO_INCREMENT', 
+    'ON', 'UPDATE', 'DELETE', 'CASCADE', 'SET', 'ENGINE', 'CHARSET', 'COLLATE',
+    'UNSIGNED', 'SIGNED', 'ZEROFILL', 'COMMENT', 'AFTER', 'FIRST', 'ADD', 'COLUMN',
+    'IF', 'EXISTS', 'TEMPORARY', 'WITH', 'WITHOUT', 'ROWID',
+    // Common SQL type keywords that should not be treated as column names
+    'BIGINT', 'SMALLINT', 'MEDIUMINT', 'TINYINT',
+    'VARCHAR', 'NVARCHAR', 'CHAR', 'NCHAR',
+    'TEXT', 'LONGTEXT', 'MEDIUMTEXT', 'TINYTEXT',
+    'BLOB', 'LONGBLOB', 'MEDIUMBLOB', 'TINYBLOB',
+    'DATE', 'DATETIME', 'TIMESTAMP', 'TIME', 'YEAR',
+    'SERIAL', 'BIGSERIAL', 'SMALLSERIAL',
+    'JSON', 'JSONB', 'UUID', 'ENUM', 'SET',
+  ]);
+  
   for (const col of columns) {
-    if (['CREATE', 'TABLE', 'PRIMARY', 'KEY', 'NOT', 'NULL'].includes(col[1].toUpperCase())) continue;
+    const colNameUpper = col[1].toUpperCase();
+    if (sqlKeywords.has(colNameUpper)) continue;
+    // Skip pure numbers (e.g. VARCHAR(255) → '255')
+    if (/^\d+$/.test(col[1])) continue;
+    
     const type = col[2].toUpperCase();
     let zodType = 'z.string()';
-    if (['INT', 'INTEGER', 'FLOAT', 'DECIMAL'].includes(type)) zodType = 'z.number()';
-    if (['BOOLEAN', 'BOOL'].includes(type)) zodType = 'z.boolean()';
+    if (['INT', 'INTEGER', 'FLOAT', 'DECIMAL', 'DOUBLE', 'NUMERIC', 'REAL',
+         'BIGINT', 'SMALLINT', 'MEDIUMINT', 'SERIAL', 'BIGSERIAL', 'SMALLSERIAL'].includes(type)) zodType = 'z.number()';
+    if (['BOOLEAN', 'BOOL', 'BIT'].includes(type)) zodType = 'z.boolean()';
+    if (['DATE', 'DATETIME', 'TIMESTAMP', 'TIME'].includes(type)) zodType = 'z.string() /* datetime */';
+    if (['JSON', 'JSONB'].includes(type)) zodType = 'z.any() /* json */';
+    if (type === 'UUID') zodType = 'z.string().uuid()';
     out += `  ${col[1]}: ${zodType},\n`;
   }
   out += `});`;

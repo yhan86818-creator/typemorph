@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { converters } from '@/data/converters';
 import GlobalFooter from '@/components/GlobalFooter';
+import { VisualDemo } from './VisualDemo';
 
 interface LandingViewProps {
   onSelect: (slug: string) => void;
@@ -22,7 +23,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    setMounted(true);
+    setTimeout(() => setMounted(true), 0);
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === '/' && document.activeElement?.tagName !== 'TEXTAREA' && document.activeElement?.tagName !== 'INPUT') {
         e.preventDefault();
@@ -56,12 +57,12 @@ export function LandingView({ onSelect }: LandingViewProps) {
       }
 
       if (type !== 'Unknown') {
-        setAiAnalysis({ type, suggestion, icon });
+        setTimeout(() => setAiAnalysis({ type, suggestion, icon }), 0);
       } else {
-        setAiAnalysis(null);
+        setTimeout(() => setAiAnalysis(null), 0);
       }
     } else {
-      setAiAnalysis(null);
+      setTimeout(() => setAiAnalysis(null), 0);
     }
   }, [search]);
   
@@ -111,9 +112,12 @@ export function LandingView({ onSelect }: LandingViewProps) {
             Build Faster.<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-blue-400 to-blue-700">Model Everything.</span>
           </h1>
+
+          <VisualDemo />
+
           <p className="text-lg text-slate-500 dark:text-slate-400 font-medium max-w-2xl mx-auto leading-relaxed">
             The premium schema workbench for modern software architects. <br className="hidden md:block" />
-            300+ tools, 100% local-first, including institutional-grade financial & database engineering.
+            290+ tools, 100% local-first, including institutional-grade financial & database engineering.
           </p>
         </motion.div>
 
@@ -158,7 +162,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
                 </div>
                 <textarea 
                   ref={inputRef}
-                  placeholder="Paste raw schema (SQL DDL, JSON, cURL) or search 300+ tools..." 
+                  placeholder="Paste raw schema (SQL DDL, JSON, cURL) or search 290+ tools..." 
                   value={search}
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setIsFocused(false)}
@@ -218,7 +222,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
                 <span className="text-blue-600">Synthesize Complete Services</span>
               </h3>
               <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                Don't just convert raw JSON into static types. Logic Lab automatically generates full react-query hooks, typescript mock services, and API fetch functions mapped perfectly to your structures. Copy and drop straight into production.
+                Don&apos;t just convert raw JSON into static types. Logic Lab automatically generates full react-query hooks, typescript mock services, and API fetch functions mapped perfectly to your structures. Copy and drop straight into production.
               </p>
               <ul className="space-y-3 font-semibold text-slate-600 dark:text-slate-300">
                 <li className="flex items-center gap-3 text-sm">
@@ -290,7 +294,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
                 <span className="text-blue-600">Compare Keys, Ignore Chaos</span>
               </h3>
               <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                Standard text-diffs break when keys are in a different order or when formatting changes. SchemaForge's Smart Diff parses data into an abstract AST, matching properties semantically. It highlights actual, structural delta while filtering out formatting noise, so you can debug API changes instantly.
+                Standard text-diffs break when keys are in a different order or when formatting changes. TypeFlow&apos;s Smart Diff parses data into an abstract AST, matching properties semantically. It highlights actual, structural delta while filtering out formatting noise, so you can debug API changes instantly.
               </p>
               <ul className="space-y-3 font-semibold text-slate-600 dark:text-slate-300">
                 <li className="flex items-center gap-3 text-sm">
@@ -319,7 +323,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
         {/* Competitor Comparison Section */}
         <div className="mb-40">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white mb-4">Why SchemaForge <span className="text-blue-600">Pro?</span></h2>
+            <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white mb-4">Why TypeFlow <span className="text-blue-600">Pro?</span></h2>
             <p className="text-slate-500 dark:text-slate-400 font-medium">The ultimate balance of speed, privacy, and AI precision.</p>
           </div>
           
@@ -328,9 +332,9 @@ export function LandingView({ onSelect }: LandingViewProps) {
               {/* Header */}
               <div className="col-span-1"></div>
               <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border-2 border-blue-600 relative shadow-xl shadow-blue-600/[0.02] flex flex-col items-center justify-center text-center">
-                <div className="absolute -top-3.5 bg-blue-600 text-white px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-wider">SchemaForge Pro</div>
+                <div className="absolute -top-3.5 bg-blue-600 text-white px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-wider">TypeFlow Pro</div>
                 <ShieldCheck size={28} className="text-blue-600 mb-2" />
-                <h3 className="font-black text-slate-900 dark:text-white text-sm">SchemaForge Pro</h3>
+                <h3 className="font-black text-slate-900 dark:text-white text-sm">TypeFlow Pro</h3>
               </div>
               <div className="bg-slate-100 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center opacity-70">
                 <FileCode size={20} className="text-slate-400 mb-2" />
@@ -346,7 +350,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
                 { label: 'Data Privacy', tf: 'Local Engine (Opt-in AI)', std: 'Unknown / Cloud', ai: 'Stored & Trained on' },
                 { label: 'Broken Data Handling', tf: 'AI Auto-Repair', std: 'Syntax Error (Fails)', ai: 'Manual Prompting' },
                 { label: 'Speed & Workflow', tf: 'Instant / 1-Click UI', std: 'Instant', ai: 'Slow typing / Copy-Paste' },
-                { label: 'Available Tools', tf: '300+ Dedicated UIs', std: 'Limited (10-20)', ai: 'Infinite (Needs context)' },
+                { label: 'Available Tools', tf: '290+ Dedicated UIs', std: 'Limited (10-20)', ai: 'Infinite (Needs context)' },
                 { label: 'Visual Architecture', tf: 'Automated Interactive SVGs', std: 'None', ai: 'Raw Code Only' }
               ].map((row, i) => (
                 <React.Fragment key={i}>
@@ -402,7 +406,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
                   <span className="px-2.5 py-0.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-lg text-[8px] font-mono uppercase tracking-normal font-bold">Zero Proxy</span>
                 </h4>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
-                  For advanced synthesis like AI Smart Parse and UI Generation, requests connect directly to Google's official Gemini API. SchemaForge never proxies, stores, or inspects your API keys or data payloads. You maintain absolute control over your key and logic.
+                  For advanced synthesis like AI Smart Parse and UI Generation, requests connect directly to Google&apos;s official Gemini API. TypeFlow never proxies, stores, or inspects your API keys or data payloads. You maintain absolute control over your key and logic.
                 </p>
               </div>
             </div>
@@ -434,7 +438,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
                   <span className="px-2.5 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg text-[8px] font-mono uppercase tracking-normal font-bold">100% Ethical</span>
                 </h4>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
-                  We will never sell or monetize your data. SchemaForge does not run third-party advertising, does not track your private structural operations, and absolutely never uses your source code to train AI models.
+                  We will never sell or monetize your data. TypeFlow does not run third-party advertising, does not track your private structural operations, and absolutely never uses your source code to train AI models.
                 </p>
               </div>
             </div>
@@ -452,7 +456,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
                 Stop pasting data into <span className="text-red-500 underline decoration-red-500/30">ad-heavy</span> tools.
               </h2>
               <p className="text-slate-500 dark:text-slate-400 font-medium text-lg leading-relaxed mb-8">
-                SchemaForge Pro is the clean, high-performance alternative. No ads, no data mining, and zero latency. Just pure engineering utility.
+                TypeFlow Pro is the clean, high-performance alternative. No ads, no data mining, and zero latency. Just pure engineering utility.
               </p>
               <div className="space-y-4">
                 {[

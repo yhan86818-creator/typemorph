@@ -9,6 +9,20 @@ export interface Converter {
 export const converters: Converter[] = [
   {
     category: "Financial Engineering",
+    slug: "swift-mt-to-mx",
+    title: "Convert SWIFT MT to ISO 20022 MX - Payment Modernization Guide",
+    description: "Transform legacy SWIFT MT (MT103, MT202, etc.) messages into ISO 20022 MX (pacs.008, pacs.009) XML formats locally. The definitive guide to payment modernization.",
+    h1: "SWIFT MT to MX Migration: Secure Local Conversion"
+  },
+  {
+    category: "Financial Engineering",
+    slug: "fix-to-json",
+    title: "Convert FIX Protocol to JSON - Trading Log Parser",
+    description: "Decode raw FIX protocol messages (tag=value) into clean, human-readable JSON formats locally. The definitive guide to algorithmic trading data inspection.",
+    h1: "FIX Protocol to JSON: Real-Time Trading Log Parsing"
+  },
+  {
+    category: "Financial Engineering",
     slug: "fix-to-typescript",
     title: "FIX Protocol to TypeScript Parser - Institutional Trading Guide",
     description: "The professional workbench for FIX protocol data transformation. Decode tag-value pairs into type-safe TypeScript interfaces with high-precision validation.",

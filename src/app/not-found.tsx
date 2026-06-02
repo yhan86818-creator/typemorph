@@ -18,14 +18,14 @@ export default function NotFound() {
           404: Tool <span className="text-red-600">Not Found.</span>
         </h1>
         <p className="text-xl text-slate-500 dark:text-slate-400 font-medium mb-12 max-w-xl mx-auto">
-          We couldn't find the specific converter you were looking for. It might have been moved or renamed.
+          We couldn&apos;t find the specific converter you were looking for. It might have been moved or renamed.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-24">
-          <Link href="/" className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest flex items-center gap-2 shadow-xl shadow-blue-500/20 hover:scale-105 transition-all">
+          <Link prefetch={false} href="/" className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest flex items-center gap-2 shadow-xl shadow-blue-500/20 hover:scale-105 transition-all">
             <Home size={16} /> Back to Home
           </Link>
-          <Link href="/converters/" className="px-8 py-4 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-2xl font-black uppercase text-xs tracking-widest border border-slate-200 dark:border-slate-800 hover:bg-slate-50 transition-all">
+          <Link prefetch={false} href="/converters/" className="px-8 py-4 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-2xl font-black uppercase text-xs tracking-widest border border-slate-200 dark:border-slate-800 hover:bg-slate-50 transition-all">
             Browse All Tools
           </Link>
         </div>

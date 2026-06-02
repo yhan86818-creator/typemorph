@@ -1,0 +1,83 @@
+<p>The <strong>SWIFT MT103</strong> message is the global standard for single customer credit transfers — essentially, the financial industry's equivalent of a wire transfer instruction. Alongside MT202 (interbank transfers), MT103 is one of the two most critical message types in the cross-border payments ecosystem, processing trillions of dollars in transactions daily across the SWIFT network.</p>
+
+<p>For payments engineers, integration architects, and fintech developers, the ability to parse MT103 messages and convert them to structured JSON is foundational to building modern payment rails, compliance systems, and reconciliation pipelines.</p>
+
+<h2>Anatomy of a SWIFT MT103 Message</h2>
+<p>An MT103 message is divided into four blocks, each enclosed in curly braces:</p>
+<ul>
+  <li><strong>Block 1 (Basic Header):</strong> Contains the application identifier, session, and sequence number</li>
+  <li><strong>Block 2 (Application Header):</strong> Input/Output indicator, message type (103), and destination BIC</li>
+  <li><strong>Block 3 (User Header):</strong> Optional fields including banking priority, unique message ID</li>
+  <li><strong>Block 4 (Text Block):</strong> The actual payment instruction data — the core of the message</li>
+</ul>
+
+<h2>Critical MT103 Field Tags and Their JSON Mappings</h2>
+<p>The text block (Block 4) of an MT103 contains the following mandatory and optional fields:</p>
+
+<ul>
+  <li><strong>:20: (Transaction Reference Number)</strong> — Maps to <code>transactionReference</code> in JSON. A unique identifier assigned by the sender. Maximum 16 characters, alphanumeric.</li>
+  <li><strong>:23B: (Bank Operation Code)</strong> — Maps to <code>bankOperationCode</code>. Always "CRED" for standard credit transfers. Other values: SPAY, SSTD, SPRI.</li>
+  <li><strong>:32A: (Value Date, Currency, Amount)</strong> — Maps to a structured JSON object: <code>{ "valueDate": "YYYYMMDD", "currency": "USD", "amount": "10000.00" }</code>. Critical: MT103 uses comma as decimal separator; JSON conversion must normalize to period.</li>
+  <li><strong>:50K: or :50A: (Ordering Customer)</strong> — Maps to <code>orderingCustomer</code> with sub-fields for account, name, and address. 50K is the most common variant, containing unstructured free-text name/address lines.</li>
+  <li><strong>:56A: or :56C: (Intermediary Institution)</strong> — Optional. Maps to <code>intermediaryInstitution</code> with BIC or clearing code.</li>
+  <li><strong>:57A: or :57C: (Account With Institution)</strong> — The beneficiary's bank. Maps to <code>accountWithInstitution</code> with BIC and account details.</li>
+  <li><strong>:59: or :59A: (Beneficiary Customer)</strong> — The ultimate recipient. Maps to <code>beneficiaryCustomer</code> with IBAN or account number, name, and address.</li>
+  <li><strong>:70: (Remittance Information)</strong> — Free-text payment reference, up to 4 lines of 35 characters. Maps to <code>remittanceInformation</code> array in JSON.</li>
+  <li><strong>:71A: (Details of Charges)</strong> — Charge allocation: SHA (shared), OUR (sender pays all), BEN (beneficiary pays all). Maps to <code>chargesBearer</code> enum.</li>
+</ul>
+
+<h2>A Complete MT103 to JSON Conversion Example</h2>
+<p>Given the following MT103 text block:</p>
+<pre><code>:20:TRF20260601001
+:23B:CRED
+:32A:260601USD25000,00
+:50K:/GB29NWBK60161331926819
+Acme Corporation Ltd
+10 Downing Street
+London GB
+:57A:CHASUS33
+:59:/US64SVBKUS6S3300622894
+Tech Innovations Inc
+100 Silicon Valley Blvd
+San Jose CA US
+:70:PAYMENT INV-2026-0042
+/ROC/PO-98765
+:71A:SHA</code></pre>
+
+<p>TypeFlow generates the following structured JSON:</p>
+<pre><code>{
+  "transactionReference": "TRF20260601001",
+  "bankOperationCode": "CRED",
+  "valueDate": "2026-06-01",
+  "currency": "USD",
+  "amount": "25000.00",
+  "orderingCustomer": {
+    "account": "GB29NWBK60161331926819",
+    "name": "Acme Corporation Ltd",
+    "address": ["10 Downing Street", "London GB"]
+  },
+  "accountWithInstitution": {
+    "bic": "CHASUS33"
+  },
+  "beneficiaryCustomer": {
+    "account": "US64SVBKUS6S3300622894",
+    "name": "Tech Innovations Inc",
+    "address": ["100 Silicon Valley Blvd", "San Jose CA US"]
+  },
+  "remittanceInformation": ["PAYMENT INV-2026-0042", "/ROC/PO-98765"],
+  "chargesBearer": "SHA"
+}</code></pre>
+
+<h2>Compliance and Security Considerations</h2>
+<p>MT103 messages contain a combination of PII (personal names, addresses), financial data (account numbers, IBANs, transaction amounts), and proprietary business information (payment references, invoice numbers). Under GDPR Article 25 (Data Protection by Design), processing this data should occur in the most privacy-preserving manner possible.</p>
+<p>TypeFlow's MT103-to-JSON parser runs <strong>entirely in your browser's Web Worker thread</strong>. The message is parsed using a local JavaScript engine with zero network I/O during processing. This makes TypeFlow the only appropriate tool for handling production SWIFT data in a development or testing context — particularly for teams operating under SOC2 Type II, PCI-DSS, or DORA compliance frameworks.</p>
+
+<h2>Use Cases for MT103 JSON Conversion</h2>
+<ul>
+  <li><strong>ISO 20022 Migration:</strong> As a stepping stone before full MX adoption, converting MT103 to JSON allows intermediary processing and validation before generating pacs.008 XML.</li>
+  <li><strong>Sanctions Screening Integration:</strong> Structured JSON can be directly fed into OFAC/EU sanctions screening APIs (e.g., Refinitiv World-Check) for automated compliance checks.</li>
+  <li><strong>Reconciliation Systems:</strong> JSON-format MT103 data integrates cleanly with accounting systems and ERP platforms for automated payment reconciliation.</li>
+  <li><strong>Audit Trail Generation:</strong> Storing MT103 payments as structured JSON in document databases (MongoDB, Firestore) enables powerful querying and reporting for regulatory audits.</li>
+</ul>
+
+<blockquote>"The MT103 is the heartbeat of global cross-border payments. Engineers who can efficiently parse, validate, and transform these messages are among the most valuable in the fintech industry."</blockquote>

@@ -1,4 +1,6 @@
 'use client';
+
+import { trackProClick } from '@/lib/analytics';
 import React, { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -52,10 +54,10 @@ function fetchUsers(callback) {
   useEffect(() => {
     const magicData = localStorage.getItem('typeflow_magic_data');
     if (magicData) {
-      setInput(magicData);
+      setTimeout(() => setInput(magicData), 0);
       localStorage.removeItem('typeflow_magic_data');
       if (geminiKey && (isPro || trialCount > 0)) {
-        setTimeout(() => processLogic(), 500);
+        setTimeout(() => processLogicRef.current?.(), 500);
       }
     }
   }, [geminiKey, isPro]);
@@ -71,9 +73,11 @@ function fetchUsers(callback) {
     };
 
     if (samples[activePreset]) {
-      setInput(samples[activePreset]);
+      setTimeout(() => setInput(samples[activePreset]), 0);
     }
   }, [activePreset]);
+
+  const processLogicRef = React.useRef<((customPrompt?: string) => void) | null>(null);
 
   const processLogic = async (customPrompt?: string) => {
     if (!isPro && trialCount <= 0) {
@@ -139,6 +143,10 @@ function fetchUsers(callback) {
     }
   };
 
+  // Sync ref with latest processLogic so the magic-data timeout can call it safely
+  // eslint-disable-next-line
+  processLogicRef.current = processLogic;
+
   const copyToClipboard = () => {
     navigator.clipboard.writeText(output);
     setCopied(true);
@@ -169,8 +177,8 @@ function fetchUsers(callback) {
                 Smart refactoring requires high-density neural processing. Upgrade to Pro for unlimited Lab sessions.
               </p>
               <div className="space-y-4">
-                <a href="https://yhanster206.gumroad.com/l/zjcuuu" target="_blank" className="block w-full bg-purple-600 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:scale-105 transition-all">Get Pro Access</a>
-                <button onClick={() => setShowPaywall(false)} className="block w-full text-slate-400 font-bold text-xs uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-300 transition-colors">I'll wait</button>
+                <a href="https://yhanster206.gumroad.com/l/zjcuuu" target="_blank" rel="noopener noreferrer" onClick={() => trackProClick('logiclab_paywall')} className="block w-full bg-purple-600 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:scale-105 transition-all">Get Pro Access</a>
+                <button onClick={() => setShowPaywall(false)} className="block w-full text-slate-400 font-bold text-xs uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-300 transition-colors">I&apos;ll wait</button>
               </div>
             </motion.div>
           </motion.div>

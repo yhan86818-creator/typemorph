@@ -5,7 +5,7 @@ import { ArrowRight, Zap, ShieldCheck, Layers } from 'lucide-react';
 
 export const metadata = {
   title: 'All Developer Tools & Converters Directory - TypeFlow Pro',
-  description: 'Browse our complete library of 170+ local-first developer tools, including JSON to TypeScript, SQL to Zod, and more. Secure, fast, and professional.',
+  description: 'Browse our complete library of 290+ local-first developer tools, including JSON to TypeScript, SQL to Zod, and more. Secure, fast, and professional.',
 };
 
 export default function ConvertersDirectory() {
@@ -17,14 +17,14 @@ export default function ConvertersDirectory() {
       {/* Simple Header */}
       <div className="bg-white border-b border-slate-200 py-12 px-6">
         <div className="max-w-6xl mx-auto">
-          <Link href="/" className="inline-flex items-center gap-2 text-sm font-black text-blue-600 uppercase tracking-widest mb-8 hover:gap-3 transition-all">
+          <Link prefetch={false} href="/" className="inline-flex items-center gap-2 text-sm font-black text-blue-600 uppercase tracking-widest mb-8 hover:gap-3 transition-all">
             ← Back to Workbench
           </Link>
           <h1 className="text-4xl md:text-6xl font-black tracking-tight text-slate-900 mb-6">
             Developer <span className="text-blue-600">Directory.</span>
           </h1>
           <p className="text-lg text-slate-500 font-medium max-w-2xl leading-relaxed">
-            A comprehensive index of all 170+ professional tools engineered for the modern full-stack workflow. 100% Local-First. 100% Private.
+            A comprehensive index of all 290+ professional tools engineered for the modern full-stack workflow. 100% Local-First. 100% Private.
           </p>
         </div>
       </div>
@@ -69,7 +69,7 @@ export default function ConvertersDirectory() {
             </div>
             <div>
               <div className="flex items-center gap-2 text-blue-700 font-black text-[10px] uppercase tracking-widest mb-4">
-                <Layers size={14} /> 170+ Formats
+                <Layers size={14} /> 290+ Formats
               </div>
               <p className="text-xs text-slate-500 leading-relaxed font-medium">
                 From JSON to Rust to SQL. One ecosystem for every engineering transformation you need.

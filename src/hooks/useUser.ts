@@ -5,9 +5,13 @@ import { supabase } from '@/lib/supabase';
 
 export function useUser() {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !supabase);
 
   useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
     // Check active sessions
     supabase.auth.getSession().then(({ data: { session } }: any) => {
       setUser(session?.user ?? null);

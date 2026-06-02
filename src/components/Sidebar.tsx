@@ -1,5 +1,7 @@
 'use client';
-import React, { useState } from 'react';
+
+import { trackProClick } from '@/lib/analytics';
+import React, { useState, useEffect } from 'react';
 import { Layout, Search, Code2, Crown, History, Wand2, Zap, Sparkles, Layers, ShieldCheck, AppWindow, Globe2 } from 'lucide-react';
 import { converters } from '@/data/converters';
 
@@ -9,9 +11,13 @@ interface SidebarProps {
   isDark: boolean;
   setView: (view: string) => void;
   currentView: string;
+  isCollapsed?: boolean;
+  cursorPos?: { x: number, y: number };
+  isEditorEmpty?: boolean;
+  editorError?: string | null;
 }
 
-export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView }: SidebarProps) {
+export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView, isCollapsed, cursorPos, isEditorEmpty, editorError }: SidebarProps) {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   
@@ -26,9 +32,14 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView }
     return searchMatch && categoryMatch;
   });
 
+
+
   return (
-    <div className="w-72 bg-white dark:bg-[#090d16] border-r border-slate-200 dark:border-slate-800/80 hidden xl:flex flex-col h-full">
-      <div className="p-6 flex-1 flex flex-col min-h-0">
+    <div className={`bg-white dark:bg-[#090d16] border-r border-slate-200 dark:border-slate-800/80 hidden xl:flex flex-col h-full transition-all duration-300 ease-in-out overflow-hidden ${isCollapsed ? 'w-0 border-none opacity-0' : 'w-72 opacity-100'}`}>
+
+      <div className="p-6 flex-1 flex flex-col min-h-0 min-w-[288px]">
+
+
         <h3 className="text-[10px] font-mono uppercase text-slate-400 tracking-wider mb-4 flex items-center gap-1.5">
           <ShieldCheck size={12} className="text-blue-600"/> [advanced-workbenches]
         </h3>
@@ -36,6 +47,7 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView }
         <div className="space-y-1 mb-8">
           {[
             { id: 'app', label: 'Workbench', icon: <Layout size={14}/> },
+            { id: 'architect', label: 'Full-Stack Architect', icon: <Sparkles size={14} className="text-emerald-500"/> },
             { id: 'micro-saas', label: 'Micro-SaaS', icon: <AppWindow size={14}/> },
             { id: 'i18n', label: 'i18n Auto-Gen', icon: <Globe2 size={14}/> },
             { id: 'lab', label: 'Logic Lab', icon: <Zap size={14}/> },
@@ -103,11 +115,13 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView }
         </h3>
         <a 
           href="https://yhanster206.gumroad.com/l/zjcuuu" 
-          target="_blank" 
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => trackProClick('sidebar_gumroad')}
           className="flex items-center justify-between w-full p-4 bg-blue-600 hover:bg-blue-700 rounded-xl text-white shadow-md shadow-blue-600/10 hover:scale-[1.01] active:scale-95 transition-all"
         >
           <div className="flex flex-col">
-            <span className="text-[8px] font-mono uppercase tracking-wider opacity-80">SchemaForge Pro</span>
+            <span className="text-[8px] font-mono uppercase tracking-wider opacity-80">TypeFlow Pro</span>
             <span className="text-sm font-black">Lifetime Access</span>
           </div>
           <Crown size={18} className="text-white/40" />

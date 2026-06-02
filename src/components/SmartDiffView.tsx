@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeftRight, Settings, Wand2, Copy, CheckCircle2, AlertCircle } from 'lucide-react';
 import Editor from '@monaco-editor/react';
+import { callGeminiWithRetry } from '@/lib/gemini';
 
 export function SmartDiffView({ geminiKey, setGeminiKey, isPro, trialCount, setTrialCount, isDark }: { geminiKey: string, setGeminiKey: (k: string) => void, isPro: boolean, trialCount: number, setTrialCount: (c: number) => void, isDark: boolean }) {
   const [jsonA, setJsonA] = useState('{\n  "id": 101,\n  "user": "jdoe",\n  "status": "active"\n}');
@@ -44,19 +45,7 @@ export function SmartDiffView({ geminiKey, setGeminiKey, isPro, trialCount, setT
       ${jsonB}
       `;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey.trim()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.1 }
-        })
-      });
-
-      if (!response.ok) throw new Error('API Error: ' + response.statusText);
-      
-      const data = await response.json();
-      let resultText = data.candidates[0].content.parts[0].text;
+      let resultText = await callGeminiWithRetry(geminiKey, prompt, 0.1);
       resultText = resultText.replace(/^```(typescript|ts|javascript|js)?\n/i, '').replace(/\n```$/i, '').trim();
       
       setResult(resultText);
@@ -188,11 +177,7 @@ export function SmartDiffView({ geminiKey, setGeminiKey, isPro, trialCount, setT
       </div>
 
       {result && (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-slate-50 dark:bg-[#020617] border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xl"
-        >
+        <div className="bg-slate-50 dark:bg-[#020617] border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xl transition-all duration-300">
           <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
             <span className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Generated {schemaType === 'zod' ? 'Zod' : 'TypeScript'}</span>
             <button 
@@ -221,7 +206,7 @@ export function SmartDiffView({ geminiKey, setGeminiKey, isPro, trialCount, setT
               }}
             />
           </div>
-        </motion.div>
+        </div>
       )}
     </motion.div>
   );

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Globe2, Loader2, Wand2, Download, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { callGeminiWithRetry } from '@/lib/gemini';
 
 interface Props {
   isDark: boolean;
@@ -68,19 +69,7 @@ Source JSON:
 ${sourceJson}
 `;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey || process.env.NEXT_PUBLIC_GEMINI_KEY}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.1 }
-        })
-      });
-
-      const data = await response.json();
-      if (data.error) throw new Error(data.error.message);
-      
-      const rawText = data.candidates[0].content.parts[0].text;
+      const rawText = await callGeminiWithRetry(geminiKey, prompt, 0.1);
       const cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
       const parsed = JSON.parse(cleaned);
 

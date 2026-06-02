@@ -14,6 +14,7 @@ export default function TypeFlowV2() {
   
   const cmdKInputRef = useRef<HTMLInputElement>(null);
   const terminalRef = useRef<HTMLDivElement>(null);
+  const handleGenerateRef = useRef<(() => void) | null>(null);
 
   // Keyboard Shortcuts
   useEffect(() => {
@@ -26,7 +27,7 @@ export default function TypeFlowV2() {
       // Cmd+Enter
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
-        if (!isGenerating) handleGenerate();
+        if (!isGenerating) handleGenerateRef.current?.();
       }
       // Esc
       if (e.key === 'Escape') {
@@ -86,13 +87,17 @@ export default function TypeFlowV2() {
     }, 200);
   };
 
+  // Sync ref with latest handleGenerate
+  // eslint-disable-next-line
+  handleGenerateRef.current = handleGenerate;
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#22272e] text-[#adbac7] font-sans">
       {/* Topbar */}
       <header className="flex justify-between items-center px-6 py-3 border-b border-[#444c56] bg-[#22272e]">
         <div className="flex items-center gap-2 font-mono text-sm text-[#adbac7]">
           <ShieldCheck size={20} className="text-[#f59e0b]" />
-          SchemaForge Pro
+          TypeFlow Pro
           <span className="text-[#768390] text-xs font-normal border border-[#444c56] px-1.5 py-0.5 rounded ml-2">v2.0-beta</span>
         </div>
         
@@ -247,7 +252,7 @@ export default function TypeFlowV2() {
               />
             </div>
             <div className="p-3 text-xs text-[#768390] flex justify-between items-center bg-[#22272e]">
-              <span>Try typing "prisma" or "sql"</span>
+              <span>Try typing &quot;prisma&quot; or &quot;sql&quot;</span>
               <kbd className="font-mono bg-[#2d333b] border border-[#444c56] px-1.5 py-0.5 rounded text-[10px] text-[#adbac7]">Esc to close</kbd>
             </div>
           </div>

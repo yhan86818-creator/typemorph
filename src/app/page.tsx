@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { 
   Sun, Moon, ShieldCheck, Download, Crown, 
   Search, ExternalLink, GitBranch, X, MessageSquare,
-  Wand2, LayoutTemplate, Settings, Home, Sparkles, Zap, Layers, Key
+  Wand2, LayoutTemplate, Settings, Home, Sparkles, Zap, Layers, Key,
+  PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -21,15 +23,18 @@ const RegexBuilderView = dynamic(() => import('@/components/RegexBuilderView').t
 const ArchitectureView = dynamic(() => import('@/components/ArchitectureView').then(mod => mod.ArchitectureView), { ssr: false });
 const MicroSaaSView = dynamic(() => import('@/components/MicroSaaSView').then(mod => mod.MicroSaaSView), { ssr: false });
 const I18nView = dynamic(() => import('@/components/I18nView').then(mod => mod.I18nView), { ssr: false });
+const FullStackArchitectView = dynamic(() => import('@/components/FullStackArchitectView').then(mod => mod.FullStackArchitectView), { ssr: false });
 
 import { useUser } from '@/hooks/useUser';
 import { AuthModal } from '@/components/AuthModal';
+import { FeedbackModal } from '@/components/FeedbackModal';
 import { supabase } from '@/lib/supabase';
 import { User as UserIcon, LogOut } from 'lucide-react';
+import { trackWorkbenchOpen, trackProClick } from '@/lib/analytics';
 
 export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug = "" }) {
   const [view, setView] = useState<any>(initialSlug ? 'app' : defaultView);
-  const [isPro, setIsPro] = useState(false);
+  const [isPro, setIsPro] = useState(true);
   const [trialCount, setTrialCount] = useState(100);
   const [isDark, setIsDark] = useState(true);
   const [licenseKey, setLicenseKey] = useState("");
@@ -51,37 +56,52 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
   const [mounted, setMounted] = useState(false);
   const { user } = useUser();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 }); // Keeping for prop compatibility if needed, will remove later
+  const [isEditorEmpty, setIsEditorEmpty] = useState(true);
+  const [editorError, setEditorError] = useState<string | null>(null);
 
   useEffect(() => {
-    setMounted(true);
-    if (localStorage.getItem('typeflow_pro') === 'true') setIsPro(true);
-    const savedKey = localStorage.getItem('typeflow_gemini_key');
-    if (savedKey) setGeminiKey(savedKey);
-    const savedTheme = localStorage.getItem('typeflow_theme');
-    if (savedTheme === 'light') {
-      setIsDark(false);
-      document.documentElement.classList.remove('dark');
-    } else {
-      setIsDark(true);
-      document.documentElement.classList.add('dark');
-    }
-    const today = new Date().toDateString();
-    const lastDate = localStorage.getItem('typeflow_last_date');
-    // const savedCount = localStorage.getItem('typeflow_trial_count');
-    // if (lastDate !== today) {
-    //   localStorage.setItem('typeflow_last_date', today);
-    //   localStorage.setItem('typeflow_trial_count', '100');
-    //   setTrialCount(100);
-    // } else {
-    //   // setTrialCount(parseInt(savedCount));
-    // }
+    // Keyboard Shortcut Cmd/Ctrl + B
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'b' || e.key === 'B')) {
+        e.preventDefault();
+        setIsSidebarCollapsed(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  useEffect(() => {
+    setTimeout(() => {
+      setMounted(true);
+      if (localStorage.getItem('typeflow_pro') === 'true') setIsPro(true);
+      const savedKey = localStorage.getItem('typeflow_gemini_key');
+      if (savedKey) setGeminiKey(savedKey);
+      const savedTheme = localStorage.getItem('typeflow_theme');
+      if (savedTheme === 'light') {
+        setIsDark(false);
+        document.documentElement.classList.remove('dark');
+      } else {
+        setIsDark(true);
+        document.documentElement.classList.add('dark');
+      }
+    }, 0);
 
     // PWA Support
-    window.addEventListener('beforeinstallprompt', (e) => {
+    const handleInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
-    });
+    };
+    window.addEventListener('beforeinstallprompt', handleInstallPrompt);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleInstallPrompt);
+    };
   }, []);
 
   const toggleTheme = () => {
@@ -102,6 +122,7 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
     setSelectedSlug(slug);
     setOutputTab(getInitialTab(slug));
     setView('app');
+    trackWorkbenchOpen(slug);
   };
 
   const handleVerify = async () => {
@@ -135,45 +156,55 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
       <nav className={`${initialSlug ? 'sticky' : 'fixed'} top-0 left-0 right-0 h-20 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#030712]/80 backdrop-blur-xl z-[100] px-6`}>
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between">
           <div className="flex items-center gap-10">
-            <button onClick={() => setView('landing')} className="flex items-center gap-3 group text-left">
-              <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-slate-950 shadow-md shadow-blue-600/10 group-hover:scale-105 transition-all">
-                <ShieldCheck size={20} />
-              </div>
-              <span className="text-lg font-black tracking-tighter dark:text-white">SchemaForge <span className="text-blue-600 italic">Pro</span></span>
-            </button>
+            <div className="flex items-center gap-4">
+              {view !== 'landing' && (
+                <button 
+                  onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                  className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800/80 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-all border border-slate-200 dark:border-slate-700"
+                  title="Toggle Sidebar (Cmd+B)"
+                >
+                  {isSidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+                </button>
+              )}
+              <button onClick={() => setView('landing')} className="flex items-center gap-3 group text-left">
+                <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-slate-950 shadow-md shadow-blue-600/10 group-hover:scale-105 transition-all">
+                  <ShieldCheck size={20} />
+                </div>
+                <span className="text-lg font-black tracking-tighter dark:text-white">TypeFlow <span className="text-blue-600 italic">Pro</span></span>
+              </button>
+            </div>
             
             <div className="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200/50 dark:border-slate-800/80">
-              {['landing', 'app', 'lab', 'visual', 'smart-diff', 'regex-builder'].map((v) => (
+              {['landing', 'app', 'architect', 'lab', 'visual', 'smart-diff', 'regex-builder'].map((v) => (
                 <button 
                   key={v}
                   onClick={() => setView(v)} 
                   className={`px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${view === v ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
                 >
+                  {v === 'architect' && <Sparkles size={11} className="text-emerald-500" />}
                   {v === 'lab' && <Sparkles size={11} />}
                   {v === 'visual' && <Layers size={11} />}
                   {v === 'smart-diff' && <Wand2 size={11} />}
                   {v === 'regex-builder' && <Search size={11} />}
-                  {v === 'landing' ? 'Explore' : v === 'app' ? 'Workbench' : v === 'lab' ? 'Labs' : v === 'visual' ? 'Visuals' : v === 'smart-diff' ? 'Diff' : 'Regex'}
+                  {v === 'landing' ? 'Explore' : v === 'app' ? 'Workbench' : v === 'architect' ? 'Architect' : v === 'lab' ? 'Labs' : v === 'visual' ? 'Visuals' : v === 'smart-diff' ? 'Diff' : 'Regex'}
                 </button>
               ))}
-              <a href="/converters/" className="px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-400 hover:text-blue-600 bg-blue-600/10 dark:bg-blue-600/10 transition-all flex items-center gap-1.5"><Layers size={11}/> 300+ Tools</a>
-              <a href="/blog/" className="px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-blue-600 transition-all">Blog</a>
+              <Link prefetch={false} href="/converters/" className="px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-400 hover:text-blue-600 bg-blue-600/10 dark:bg-blue-600/10 transition-all flex items-center gap-1.5"><Layers size={11}/> 290+ Tools</Link>
+              <Link prefetch={false} href="/blog/" className="px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-blue-600 transition-all">Blog</Link>
             </div>
 
             {/* Language Switcher */}
             <div className="hidden sm:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200/50 dark:border-slate-800/80 ml-4">
-              <a 
-                href={initialSlug ? `/converters/${initialSlug}` : '/'}
+              <Link prefetch={false} href={initialSlug ? `/converters/${initialSlug}` : '/'}
                 className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mounted && !window.location.pathname.includes('/jp/') ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-400'}`}
               >
                 EN
-              </a>
-              <a 
-                href={initialSlug ? `/jp/converters/${initialSlug}` : '/jp'}
+              </Link>
+              <Link prefetch={false} href={initialSlug ? `/jp/converters/${initialSlug}` : '/jp'}
                 className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mounted && window.location.pathname.includes('/jp/') ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-400'}`}
               >
                 JP
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -223,7 +254,15 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
             </button>
             
             {!isPro ? (
-              <a href="https://yhanster206.gumroad.com/l/zjcuuu" target="_blank" className="bg-[#0F172A] dark:bg-blue-600 text-white dark:text-white px-5 py-2 rounded-xl text-xs font-black hover:scale-102 transition-all shadow-md shadow-blue-600/10">Upgrade</a>
+              <a
+                href="https://yhanster206.gumroad.com/l/zjcuuu"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => trackProClick('header_upgrade')}
+                className="bg-[#0F172A] dark:bg-blue-600 text-white dark:text-white px-5 py-2 rounded-xl text-xs font-black hover:scale-102 transition-all shadow-md shadow-blue-600/10"
+              >
+                Upgrade
+              </a>
             ) : (
               <div className="flex items-center gap-1.5 text-blue-600 font-black text-[10px] bg-blue-600/10 px-3.5 py-2 rounded-xl border border-blue-600/20">
                 <Crown size={12} /> PRO
@@ -243,52 +282,70 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
             isDark={isDark} 
             setView={setView} 
             currentView={view} 
+            isCollapsed={isSidebarCollapsed}
+            cursorPos={cursorPos}
+            isEditorEmpty={isEditorEmpty}
           />
         )}
 
-        <main className={`flex-1 min-w-0 ${initialSlug ? '' : 'overflow-y-auto'} relative no-scrollbar`}>
-          <AnimatePresence mode="wait">
-            {view === 'landing' && (
-              <motion.div key="landing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                <LandingView onSelect={handleSelectTool} />
-              </motion.div>
+        <main className={`flex-1 min-w-0 ${initialSlug ? '' : 'overflow-y-auto'} relative no-scrollbar flex flex-col`}>
+          {/* Beta Mode Promotion Banner */}
+          <div className="flex-none bg-blue-600 text-white px-6 py-2 flex items-center justify-center gap-3 shadow-lg z-50">
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/20 text-[9px] font-black uppercase tracking-widest border border-white/30">
+              Beta Mode
+            </div>
+            <p className="text-[11px] font-bold tracking-tight">
+              Professional Features Unlocked: <span className="hidden sm:inline">Local Sync, PII Masking, and Bulk Folders are currently </span><span className="text-blue-100 uppercase">FREE for all testers! ✨</span>
+            </p>
+            <button 
+              onClick={() => setShowFeedbackModal(true)}
+              className="ml-auto hidden md:flex items-center gap-1 text-[9px] font-black uppercase bg-white/10 hover:bg-white/20 px-3 py-1 rounded-lg border border-white/10 transition-all active:scale-95"
+            >
+              <MessageSquare size={10} /> Share Feedback
+            </button>
+          </div>
+
+          <div className="flex-1 h-full w-full">
+            {view === 'landing' && <LandingView onSelect={handleSelectTool} />}
+            {view === 'architect' && (
+              <FullStackArchitectView isDark={isDark} geminiKey={geminiKey} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
             )}
             {view === 'app' && (
-              <motion.div key="app" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                <Workbench slug={selectedSlug} isDark={isDark} geminiKey={geminiKey} outputTab={outputTab} setOutputTab={setOutputTab} isPro={isPro} setShowLicenseModal={setShowLicenseModal} trialCount={trialCount} setTrialCount={setTrialCount} user={user} />
-              </motion.div>
+              <Workbench 
+                slug={selectedSlug} 
+                isDark={isDark} 
+                geminiKey={geminiKey} 
+                outputTab={outputTab} 
+                setOutputTab={setOutputTab} 
+                isPro={isPro} 
+                setShowLicenseModal={setShowLicenseModal} 
+                trialCount={trialCount} 
+                setTrialCount={setTrialCount} 
+                user={user} 
+                onCursorChange={setCursorPos}
+                onEmptyChange={setIsEditorEmpty}
+                onEditorError={setEditorError}
+              />
             )}
             {view === 'smart-diff' && (
-              <motion.div key="diff" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                <SmartDiffView isDark={isDark} geminiKey={geminiKey} setGeminiKey={(k) => setGeminiKey(k)} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
-              </motion.div>
+              <SmartDiffView isDark={isDark} geminiKey={geminiKey} setGeminiKey={(k) => setGeminiKey(k)} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
             )}
             {view === 'regex-builder' && (
-              <motion.div key="regex" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                <RegexBuilderView isDark={isDark} geminiKey={geminiKey} setGeminiKey={(k) => setGeminiKey(k)} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
-              </motion.div>
+              <RegexBuilderView isDark={isDark} geminiKey={geminiKey} setGeminiKey={(k) => setGeminiKey(k)} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
             )}
             {view === 'lab' && (
-              <motion.div key="lab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                <LogicLabView isDark={isDark} geminiKey={geminiKey} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
-              </motion.div>
+              <LogicLabView isDark={isDark} geminiKey={geminiKey} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
             )}
             {view === 'visual' && (
-              <motion.div key="visual" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                <ArchitectureView isDark={isDark} geminiKey={geminiKey} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
-              </motion.div>
+              <ArchitectureView isDark={isDark} geminiKey={geminiKey} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
             )}
             {view === 'micro-saas' && (
-              <motion.div key="micro-saas" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                <MicroSaaSView isDark={isDark} geminiKey={geminiKey} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
-              </motion.div>
+              <MicroSaaSView isDark={isDark} geminiKey={geminiKey} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
             )}
             {view === 'i18n' && (
-              <motion.div key="i18n" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                <I18nView isDark={isDark} geminiKey={geminiKey} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
-              </motion.div>
+              <I18nView isDark={isDark} geminiKey={geminiKey} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
             )}
-          </AnimatePresence>
+          </div>
         </main>
       </div>
 
@@ -326,6 +383,11 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
         isOpen={showAuthModal} 
         onClose={() => setShowAuthModal(false)} 
         isDark={isDark} 
+      />
+      <FeedbackModal
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        isDark={isDark}
       />
       {/* Deployment Verification Tag */}
       <div className="fixed bottom-2 right-2 text-[8px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-700 pointer-events-none z-[500]">
