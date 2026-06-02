@@ -936,92 +936,67 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     let out = "";
     let matchedKey = "";
 
-    // 1. Slug-specific exact matches to prevent SEO/feature gaps
-    if (slug) {
-      const s = slug.toLowerCase();
-      matchedKey = s;
-      if (s.includes('csv')) out = csvGen.generate(schema);
-      else if (s.includes('sql-insert')) out = sqlInsertGen.generate(schema, 'table_name');
-      else if (s.includes('mysql') || s.includes('mariadb')) out = mysqlGen.generate(schema, 'Root');
-      else if (s.includes('postgres')) out = postgresGen.generate(schema, 'Root');
-      else if (s.includes('sqlite')) out = sqliteGen.generate(schema, 'Root');
-      else if (s.includes('snowflake')) out = snowflakeGen.generate(schema, 'Root');
-      else if (s.includes('toml')) out = tomlGen.generate(schema, 'config');
-      else if (s.includes('yaml') && !s.includes('xml')) out = yamlOutputGen.generate(schema);
-      else if (s.includes('env')) out = envGen.generate(schema);
-      else if (s.includes('properties')) out = propertiesGen.generate(schema);
-      else if (s.includes('markdown-table')) out = markdownTableGen.generate(schema);
-      else if (s.includes('asciidoc-table')) out = asciidocTableGen.generate(schema);
-      else if (s.includes('latex-table')) out = latexTableGen.generate(schema);
-      else if (s.includes('mermaid')) out = mermaidERGen.generate(schema, 'Root');
-      else if (s.includes('avro')) out = avroGen.generate(schema, 'Root');
-      else if (s.includes('bigquery-schema')) out = bigQueryGen.generate(schema);
-      else if (s.includes('dynamodb-json')) out = dynamoDBGen.generate(schema, 'Root');
-      else if (s.includes('openapi-3')) out = openApiGen.generate(schema, 'Root');
-      else if (s.includes('postman-collection')) out = postmanGen.generate(schema, 'Root');
-      else if (s.includes('http-file')) out = httpFileGen.generate(schema, 'Root');
-      else if (s.includes('vscode-snippet')) out = vscodeSnippetGen.generate(schema, 'Root');
-      else if (s.includes('curl')) out = curlOutputGen.generate(schema, 'Root');
-      else if (s.includes('mongoose-schema') || s.includes('mongoose-model')) out = mongooseGen.generate(schema, 'Root');
-      else if (s.includes('sequelize-model')) out = sequelizeGen.generate(schema, 'Root');
-      else if (s.includes('typeorm-entity')) out = typeormGen.generate(schema, 'Root');
-      else if (s.includes('drizzle-schema')) out = drizzleGen.generate(schema, 'Root');
-      else if (s.includes('kysely-schema')) out = kyselyGen.generate(schema, 'Root');
-      else if (s.includes('yup')) out = yupGen.generate(schema, 'root');
-      else if (s.includes('joi')) out = joiGen.generate(schema, 'root');
-      else if (s.includes('valibot')) out = valibotGen.generate(schema, 'root');
-      else if (s.includes('superstruct')) out = superstructGen.generate(schema, 'root');
-      else if (s.includes('react-props')) out = reactPropsGen.generate(schema, 'Component');
-      else if (s.includes('react-context')) out = reactContextGen.generate(schema, 'State');
-      else if (s.includes('redux-slice')) out = reduxSliceGen.generate(schema, 'User');
-      else if (s.includes('pinia-store')) out = piniaStoreGen.generate(schema, 'User');
-      else if (s.includes('vue-props')) out = vuePropsGen.generate(schema, 'Component');
-      else if (s.includes('svelte-props')) out = sveltePropsGen.generate(schema, 'Component');
-      else if (s.includes('solid-props')) out = solidPropsGen.generate(schema, 'Component');
-      else if (s.includes('arduino')) out = arduinoGen.generate(schema, 'Data');
-      else if (s.includes('cobol')) out = cobolGen.generate(schema, 'RECORD');
-      else if (s.includes('clojure-spec')) out = clojureGen.generate(schema, 'data');
-      else if (s.includes('elixir-struct')) out = elixirGen.generate(schema, 'Data');
-      else if (s.includes('elm-decoder')) out = elmGen.generate(schema, 'Model');
-      else if (s.includes('godot-gdscript')) out = godotGen.generate(schema, 'Data');
-      else if (s.includes('haskell-type')) out = haskellGen.generate(schema, 'Root');
-      else if (s.includes('r-dataframe')) out = rGen.generate(schema, 'df');
-      else if (s.includes('scala-case-class')) out = scalaGen.generate(schema, 'Root');
-      else if (s.includes('solidity')) out = solidityGen.generate(schema, 'Record');
-      else if (s.includes('django-model') || s.includes('django-rest-serializer')) out = djangoGen.generate(schema, 'Post');
-      else if (s.includes('rails-migration')) out = railsGen.generate(schema, 'User');
-    }
+    // 1. Unified Router for Slug-based and Language-based requests
+    const s = (slug || lang || "").toLowerCase();
+    matchedKey = s;
 
-    // 2. Default fallback language router
+    // Explicit Language Mappings
+    if (s === 'typescript' || s === 'ts') {
+      out = `/**\n * TypeFlow Generated TypeScript Interface\n */\n` + tsGen.generate(schema, 'Root', options);
+    } else if (s === 'zod') {
+      out = `import { z } from "zod";\n\n` + zodGen.generate(schema, 'root', options);
+    } else if (s === 'go' || s === 'golang') {
+      out = goGen.generate(schema, 'Root', options);
+    } else if (s === 'rust') {
+      out = rustGen.generate(schema, 'Root', options);
+    } else if (s === 'java') {
+      out = javaGen.generate(schema, 'Root', options);
+    } else if (s === 'python') {
+      out = `from pydantic import BaseModel\n\n` + pythonGen.generate(schema, 'Root', options);
+    } else if (s === 'php') {
+      out = `<?php\n\n` + phpGen.generate(schema, 'Root', options);
+    } else if (s === 'sql' || s === 'prisma') {
+      out = prismaGen.generate(schema, 'Root', options);
+    } else if (s === 'proto' || s === 'protobuf') {
+      out = `// Protocol Buffers v3 specification\n\nsyntax = "proto3";\n\n` + protoGen.generate(schema, 'Root', options);
+    } else if (s === 'graphql' || s === 'gql') {
+      out = gqlGen.generate(schema, 'Root', options);
+    } 
+    // Extended & Framework Specific (Slug matching)
+    else if (s.includes('csv')) out = csvGen.generate(schema);
+    else if (s.includes('sql-insert')) out = sqlInsertGen.generate(schema, 'table_name');
+    else if (s.includes('mysql')) out = mysqlGen.generate(schema, 'Root');
+    else if (s.includes('postgres')) out = postgresGen.generate(schema, 'Root');
+    else if (s.includes('sqlite')) out = sqliteGen.generate(schema, 'Root');
+    else if (s.includes('snowflake')) out = snowflakeGen.generate(schema, 'Root');
+    else if (s.includes('mongodb') || s.includes('mongoose')) out = mongooseGen.generate(schema, 'Root');
+    else if (s.includes('ruby') || s.includes('rails')) out = railsGen.generate(schema, 'Root');
+    else if (s.includes('django')) out = djangoGen.generate(schema, 'Root');
+    else if (s.includes('dart') || s.includes('flutter')) out = dartGen.generate(schema, 'Root', options);
+    else if (s.includes('swift')) out = swiftGen.generate(schema);
+    else if (s.includes('kotlin')) out = kotlinGen.generate(schema);
+    else if (s.includes('csharp') || s.includes('c-sharp')) out = csharpGen.generate(schema);
+    else if (s.includes('openapi')) out = openApiGen.generate(schema, 'Root');
+    else if (s.includes('jsonschema')) out = jsonSchemaGen.generate(schema);
+    else if (s.includes('yup')) out = yupGen.generate(schema, 'root');
+    else if (s.includes('joi')) out = joiGen.generate(schema, 'root');
+    else if (s.includes('valibot')) out = valibotGen.generate(schema, 'root');
+    else if (s.includes('react-props')) out = reactPropsGen.generate(schema, 'Component');
+    else if (s.includes('vue-props')) out = vuePropsGen.generate(schema, 'Component');
+    else if (s.includes('svelte-props')) out = sveltePropsGen.generate(schema, 'Component');
+    else if (s.includes('solid-props')) out = solidPropsGen.generate(schema, 'Component');
+    else if (s.includes('arduino')) out = arduinoGen.generate(schema, 'Data');
+    else if (s.includes('mock')) out = mockGen.generate(schema);
+    else if (s.includes('ui')) out = uiGen.generate(schema, 'Component');
+    else if (s.includes('doc')) out = docGen.generate(schema);
+    else if (s.includes('avro')) out = avroGen.generate(schema, 'Root');
+    else if (s.includes('toml')) out = tomlGen.generate(schema, 'config');
+    else if (s.includes('yaml')) out = yamlOutputGen.generate(schema);
+
+    // Fallback to JSON if still not processed
     if (!out) {
-      matchedKey = lang.toLowerCase();
-      switch (lang) {
-        case 'typescript': out = `/**\n * TypeFlow Generated TypeScript Interface\n */\n` + tsGen.generate(schema, 'Root', options); break;
-        case 'zod': out = `import { z } from "zod";\n\n` + zodGen.generate(schema, 'root', options); break;
-        case 'go': out = goGen.generate(schema, 'Root', options); break;
-        case 'rust': out = rustGen.generate(schema, 'Root', options); break;
-        case 'java': out = javaGen.generate(schema, 'Root', options); break;
-        case 'sql':
-        case 'prisma': out = prismaGen.generate(schema, 'Root', options); break;
-        case 'mysql': out = mysqlGen.generate(schema, 'Root'); break;
-        case 'postgres':
-        case 'postgresql': out = postgresGen.generate(schema, 'Root'); break;
-        case 'sqlite': out = sqliteGen.generate(schema, 'Root'); break;
-        case 'ui': out = uiGen.generate(schema, 'Component'); break;
-        case 'mock': out = mockGen.generate(schema); break;
-        case 'dart': out = dartGen.generate(schema, 'Root', options); break;
-        case 'php': out = `<?php\n\n` + phpGen.generate(schema, 'Root', options); break;
-        case 'python': out = `from pydantic import BaseModel\n\n` + pythonGen.generate(schema, 'Root', options); break;
-        case 'proto':
-        case 'protobuf': out = `// Protocol Buffers v3 specification\n\nsyntax = "proto3";\n\n` + protoGen.generate(schema, 'Root', options); break;
-        case 'graphql': out = gqlGen.generate(schema, 'Root', options); break;
-        case 'csharp': out = csharpGen.generate(schema); break;
-        case 'swift': out = swiftGen.generate(schema); break;
-        case 'kotlin': out = kotlinGen.generate(schema); break;
-        case 'jsonschema': out = jsonSchemaGen.generate(schema); break;
-        case 'doc': out = docGen.generate(schema); break;
-        default: out = JSON.stringify(json, null, 2); break;
-      }
+      matchedKey = 'json';
+      out = JSON.stringify(val, null, 2);
     }
 
     // 3. Find dependencies comment
