@@ -1,7 +1,7 @@
 {
   "huge.json": {
     "default": {
-      "durationMs": 7,
+      "durationMs": 6,
       "fields": 14,
       "anyCount": 0,
       "enumCount": 0
@@ -25,7 +25,7 @@
       "enumCount": 0
     },
     "include_meta": {
-      "durationMs": 4,
+      "durationMs": 5,
       "fields": 14,
       "anyCount": 0,
       "enumCount": 0

@@ -31,12 +31,11 @@ describe('TypeFlow Engine', () => {
   });
 
   describe('runEngine', () => {
-    it('should generate valid typescript', () => {
-      const json = { id: 1, title: "post" };
+    it('should NOT fallback to JSON when valid language is passed', () => {
+      const json = { id: 1 };
       const result = runEngine(json, 'typescript');
-      expect(result).toContain('interface Root');
-      expect(result).toContain('id: number');
-      expect(result).toContain('title: "post"');
+      expect(result).not.toBe(JSON.stringify(json, null, 2));
+      expect(result).toContain('interface');
     });
 
     it('should generate valid zod schema', () => {

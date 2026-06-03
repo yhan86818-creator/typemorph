@@ -386,6 +386,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     customTypeNames: {} as Record<string, string>,
     extractTimestamps: true,
     flattenWrappers: true,
+    showExplainableLogic: true,
   });
 
   const [decisions, setDecisions] = useState<Decision[]>([]);
@@ -1317,7 +1318,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     }
     setOutputs(res);
     setHasParseError(!success);
-  }, [input, slug, genSettings, reportConvertIfNew]);
+  }, [input, slug, genSettings, reportConvertIfNew, outputTab]);
 
   useEffect(() => { 
     const len = input.length;

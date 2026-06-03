@@ -937,7 +937,7 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     let matchedKey = "";
 
     // 1. Unified Router for Slug-based and Language-based requests
-    const s = (slug || lang || "").toLowerCase();
+    const s = (lang || slug || "").toLowerCase();
     matchedKey = s;
 
     // Explicit Language Mappings
