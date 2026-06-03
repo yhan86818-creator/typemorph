@@ -200,23 +200,21 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
     const sampleCount = options?.arraySampleCount ?? 200;
     const prefixSample = options?.arrayPrefixSample ?? 10;
 
-    let indices: number[] = [];
+    const indicesSet = new Set<number>();
     if (len <= threshold) {
-      indices = Array.from({ length: len }, (_, i) => i);
+      for (let i = 0; i < len; i++) indicesSet.add(i);
     } else {
-      const prefix = Math.min(prefixSample, len);
-      indices = Array.from({ length: prefix }, (_, i) => i);
-      const remaining = Math.max(0, Math.min(sampleCount - prefix, len - prefix));
+      const prefixCount = Math.min(prefixSample, len);
+      for (let i = 0; i < prefixCount; i++) indicesSet.add(i);
+      const remaining = Math.max(0, Math.min(sampleCount - prefixCount, len - prefixCount));
       if (remaining > 0) {
-        const step = (len - prefix) / remaining;
+        const step = (len - prefixCount) / remaining;
         for (let j = 0; j < remaining; j++) {
-          const idx = Math.min(len - 1, Math.floor(prefix + j * step));
-          if (!indices.includes(idx)) indices.push(idx);
+          indicesSet.add(Math.min(len - 1, Math.floor(prefixCount + j * step)));
         }
       }
     }
-
-    const sampledItems = indices.map(i => val[i]);
+    const sampledItems = Array.from(indicesSet).map(i => val[i]);
 
     // 配列内のオブジェクトのキーに対して、統計的な Enum 判定を実施（サンプリングベース）
     const allowed = new Set<string>();
@@ -514,6 +512,77 @@ const mergeIsomorphicObjects = (target: Schema, source: Schema) => {
   }
 };
 
+interface IsomorphicGroup {
+  group: Schema[];
+  semanticName: string;
+}
+
+const buildIsomorphicGroups = (
+  nodes: { schema: Schema; parentKey: string }[],
+  options: { sharedPrefix?: string; minMatchRatio?: number; maxTypeMismatches?: number; minFieldsForIsomorphic?: number; customTypeNames?: Record<string, string>; disabledUnifications?: string[] } = {}
+): IsomorphicGroup[] => {
+  const prefix = options.sharedPrefix !== undefined ? options.sharedPrefix : 'Shared';
+  const rawGroups: Schema[][] = [];
+
+  for (const node of nodes) {
+    let found = false;
+    for (const group of rawGroups) {
+      if (areFieldsIsomorphic(node.schema, group[0], new Set(), options as any)) {
+        group.push(node.schema);
+        found = true;
+        break;
+      }
+    }
+    if (!found) rawGroups.push([node.schema]);
+  }
+
+  const sharedNames = new Set<string>();
+  let counter = 1;
+  const result: IsomorphicGroup[] = [];
+
+  for (const group of rawGroups) {
+    if (group.length < 2) continue;
+    group.sort((a, b) => Object.keys(b.fields || {}).length - Object.keys(a.fields || {}).length);
+    const rep = group[0];
+    const repNode = nodes.find(n => n.schema === rep) || nodes.find(n => group.includes(n.schema));
+    const representativeKey = repNode?.parentKey || 'Object';
+    const fieldNames = Object.keys(rep.fields || {});
+
+    let semanticName = '';
+    if (fieldNames.includes('city') && (fieldNames.includes('street') || fieldNames.includes('zip'))) {
+      semanticName = prefix ? `${prefix}Address` : 'Address';
+    } else if (fieldNames.includes('amount') && fieldNames.includes('currency')) {
+      semanticName = prefix ? `${prefix}Money` : 'Money';
+    } else if (fieldNames.includes('created_at') && fieldNames.includes('updated_at')) {
+      semanticName = prefix ? `${prefix}Metadata` : 'Metadata';
+    } else if (fieldNames.includes('name') && (fieldNames.includes('email') || fieldNames.includes('age') || fieldNames.includes('profile') || fieldNames.includes('role'))) {
+      semanticName = prefix ? `${prefix}User` : 'User';
+    } else if (fieldNames.includes('id') && fieldNames.includes('profile') && fieldNames.includes('permissions')) {
+      semanticName = prefix ? `${prefix}Member` : 'Member';
+    } else {
+      const allParentKeys = group
+        .map(s => nodes.find(n => n.schema === s)?.parentKey)
+        .filter((k): k is string => !!k && k !== 'Root' && k !== 'Object');
+      let bestKey = allParentKeys.length > 0
+        ? allParentKeys.sort((a, b) => a.length - b.length)[0]
+        : representativeKey;
+      if (bestKey.endsWith('s') && bestKey !== 'status' && bestKey !== 'address') {
+        bestKey = bestKey.slice(0, -1);
+      }
+      const camelKey = bestKey.replace(/(^\w|_\w)/g, m => m.replace(/_/, '').toUpperCase());
+      semanticName = prefix ? `${prefix}${camelKey}` : camelKey;
+    }
+
+    let finalName = semanticName;
+    while (sharedNames.has(finalName)) finalName = `${semanticName}${counter++}`;
+    sharedNames.add(finalName);
+
+    result.push({ group, semanticName: finalName });
+  }
+
+  return result;
+};
+
 // 共通型の自動推論とスキーマリファクタリング (構造同型性発見器: Structural Isomorphism Discovery)
 export const extractSharedTypes = (
   rootSchema: Schema,
@@ -534,104 +603,19 @@ export const extractSharedTypes = (
     node.schema._structureHash = calculateStructureHash(node.schema);
   }
 
-  const prefix = options.sharedPrefix !== undefined ? options.sharedPrefix : 'Shared';
+  const groups = buildIsomorphicGroups(nodes, options);
 
-  // 1. 構造的同型性に基づくグループ化
-  const isomorphicGroups: Schema[][] = [];
-  
-    for (const node of nodes) {
-    let foundGroup = false;
-    for (const group of isomorphicGroups) {
-      if (areFieldsIsomorphic(node.schema, group[0], new Set(), options as any)) {
-        group.push(node.schema);
-        foundGroup = true;
-        break;
-      }
-    }
-    if (!foundGroup) {
-      isomorphicGroups.push([node.schema]);
-    }
+  for (const { group, semanticName } of groups) {
+    if (options.disabledUnifications?.includes(semanticName)) continue;
+    const finalName = options.customTypeNames?.[semanticName] ?? semanticName;
+    const rep = group[0];
+
+    for (let i = 1; i < group.length; i++) mergeIsomorphicObjects(rep, group[i]);
+    for (let i = 1; i < group.length; i++) group[i].fields = rep.fields;
+    for (const s of group) s._sharedTypeName = finalName;
   }
 
-  const sharedNames = new Set<string>();
-  let sharedCounter = 1;
 
-  // 2. 2回以上出現する、または再帰構造を持つグループに対して共通定義を展開
-  for (const group of isomorphicGroups) {
-    if (group.length >= 2) {
-      // フィールド数が最も多く定義されている代表ノードを選択
-      group.sort((a, b) => Object.keys(b.fields || {}).length - Object.keys(a.fields || {}).length);
-      const rep = group[0];
-
-      // 代表となるノードの命名推論
-      const repNode = nodes.find(n => n.schema === rep) || nodes.find(n => group.includes(n.schema));
-      const representativeKey = repNode?.parentKey || 'Object';
-      
-      let semanticName = "";
-      const fieldNames = Object.keys(rep.fields || {});
-      
-      if (fieldNames.includes('city') && (fieldNames.includes('street') || fieldNames.includes('zip'))) {
-        semanticName = prefix ? `${prefix}Address` : 'Address';
-      } else if (fieldNames.includes('amount') && fieldNames.includes('currency')) {
-        semanticName = prefix ? `${prefix}Money` : 'Money';
-      } else if (fieldNames.includes('created_at') && fieldNames.includes('updated_at')) {
-        semanticName = prefix ? `${prefix}Metadata` : 'Metadata';
-      } else if (fieldNames.includes('name') && (fieldNames.includes('email') || fieldNames.includes('age') || fieldNames.includes('profile') || fieldNames.includes('role'))) {
-        semanticName = prefix ? `${prefix}User` : 'User';
-      } else if (fieldNames.includes('id') && fieldNames.includes('profile') && fieldNames.includes('permissions')) {
-        semanticName = prefix ? `${prefix}Member` : 'Member';
-      } else {
-        // Collect all parent keys in this group
-        const allParentKeys = group.map(s => nodes.find(n => n.schema === s)?.parentKey).filter(k => k && k !== 'Root' && k !== 'Object') as string[];
-        let bestKey = representativeKey;
-        
-        // Find a representative key that isn't too specific (like 'ceo' or 'manager')
-        if (allParentKeys.length > 0) {
-          // Find shortest key to encourage abstract names (e.g. 'staff' over 'manager')
-          bestKey = allParentKeys.sort((a, b) => a.length - b.length)[0];
-          // Plural check (if it ends with s, make it singular)
-          if (bestKey.endsWith('s') && bestKey !== 'status' && bestKey !== 'address') {
-            bestKey = bestKey.slice(0, -1);
-          }
-        }
-        
-        const camelKey = bestKey.replace(/(^\w|_\w)/g, m => m.replace(/_/, '').toUpperCase());
-        semanticName = prefix ? `${prefix}${camelKey}` : camelKey;
-      }
-      
-      let finalName = semanticName;
-      while (sharedNames.has(finalName)) {
-        finalName = `${semanticName}${sharedCounter++}`;
-      }
-
-      // もしこの共通型名が disabledUnifications に入っていたら、このグループの共通化をスキップ！
-      if (options.disabledUnifications?.includes(finalName)) {
-        continue;
-      }
-
-      // もしこの共通型名にカスタム名が指定されていたら、そちらを採用！
-      if (options.customTypeNames && options.customTypeNames[finalName]) {
-        finalName = options.customTypeNames[finalName];
-      }
-      
-      sharedNames.add(finalName);
-      
-      // グループ内の他のすべてのフィールド定義を代表ノードにマージ
-      for (let i = 1; i < group.length; i++) {
-        mergeIsomorphicObjects(rep, group[i]);
-      }
-
-      // 同一グループ内の参照フィールドを完全に同期
-      for (let i = 1; i < group.length; i++) {
-        group[i].fields = rep.fields;
-      }
-      
-      // グループ内の全スキーマに共通名を設定
-      for (const s of group) {
-        s._sharedTypeName = finalName;
-      }
-    }
-  }
 };
 
 export interface Decision {
@@ -661,83 +645,29 @@ export const getDecisions = (json: any, options: any = {}): Decision[] => {
       node.schema._structureHash = calculateStructureHash(node.schema);
     }
     
-    const prefix = options.sharedPrefix !== undefined ? options.sharedPrefix : 'Shared';
-    const isomorphicGroups: Schema[][] = [];
-    for (const node of nodes) {
-      let foundGroup = false;
-      for (const group of isomorphicGroups) {
-        if (areFieldsIsomorphic(node.schema, group[0], new Set(), options as any)) {
-          group.push(node.schema);
-          foundGroup = true;
-          break;
+    const groups = buildIsomorphicGroups(nodes, options);
+
+    for (const { group, semanticName } of groups) {
+      const isDisabled = !!options.disabledUnifications?.includes(semanticName);
+      const displayName = options.customTypeNames?.[semanticName] ?? semanticName;
+      const rep = group[0];
+
+      decisions.push({
+        id: `unify_${semanticName}`,
+        type: 'unification',
+        title: `Unify similar objects as ${displayName}`,
+        description: `Detected ${group.length} objects with similar fields. Unified them into ${displayName} to avoid duplicate class definitions.`,
+        meta: {
+          semanticName: displayName,
+          originalName: semanticName,
+          count: group.length,
+          fields: Object.keys(rep.fields || {}),
+          disabled: isDisabled
         }
-      }
-      if (!foundGroup) {
-        isomorphicGroups.push([node.schema]);
-      }
+      });
     }
 
-    const sharedNames = new Set<string>();
-    let sharedCounter = 1;
 
-    for (const group of isomorphicGroups) {
-      if (group.length >= 2) {
-        group.sort((a, b) => Object.keys(b.fields || {}).length - Object.keys(a.fields || {}).length);
-        const rep = group[0];
-        const repNode = nodes.find(n => n.schema === rep) || nodes.find(n => group.includes(n.schema));
-        const representativeKey = repNode?.parentKey || 'Object';
-        
-        let semanticName = "";
-        const fieldNames = Object.keys(rep.fields || {});
-        
-        if (fieldNames.includes('city') && (fieldNames.includes('street') || fieldNames.includes('zip'))) {
-          semanticName = prefix ? `${prefix}Address` : 'Address';
-        } else if (fieldNames.includes('amount') && fieldNames.includes('currency')) {
-          semanticName = prefix ? `${prefix}Money` : 'Money';
-        } else if (fieldNames.includes('created_at') && fieldNames.includes('updated_at')) {
-          semanticName = prefix ? `${prefix}Metadata` : 'Metadata';
-        } else if (fieldNames.includes('name') && (fieldNames.includes('email') || fieldNames.includes('age') || fieldNames.includes('profile') || fieldNames.includes('role'))) {
-          semanticName = prefix ? `${prefix}User` : 'User';
-        } else if (fieldNames.includes('id') && fieldNames.includes('profile') && fieldNames.includes('permissions')) {
-          semanticName = prefix ? `${prefix}Member` : 'Member';
-        } else {
-          const allParentKeys = group.map(s => nodes.find(n => n.schema === s)?.parentKey).filter(k => k && k !== 'Root' && k !== 'Object') as string[];
-          let bestKey = representativeKey;
-          if (allParentKeys.length > 0) {
-            bestKey = allParentKeys.sort((a, b) => a.length - b.length)[0];
-            if (bestKey.endsWith('s') && bestKey !== 'status' && bestKey !== 'address') {
-              bestKey = bestKey.slice(0, -1);
-            }
-          }
-          const camelKey = bestKey.replace(/(^\w|_\w)/g, m => m.replace(/_/, '').toUpperCase());
-          semanticName = prefix ? `${prefix}${camelKey}` : camelKey;
-        }
-        
-        let finalName = semanticName;
-        while (sharedNames.has(finalName)) {
-          finalName = `${semanticName}${sharedCounter++}`;
-        }
-        sharedNames.add(finalName);
-
-        const isRenamed = options.customTypeNames && !!options.customTypeNames[finalName];
-        const displayName = isRenamed ? options.customTypeNames[finalName] : finalName;
-        const isDisabled = !!options.disabledUnifications?.includes(finalName);
-
-        decisions.push({
-          id: `unify_${finalName}`,
-          type: 'unification',
-          title: `Unify similar objects as ${displayName}`,
-          description: `Detected ${group.length} objects with similar fields. Unified them into ${displayName} to avoid duplicate class definitions.`,
-          meta: {
-            semanticName: displayName,
-            originalName: finalName,
-            count: group.length,
-            fields: Object.keys(rep.fields || {}),
-            disabled: isDisabled
-          }
-        });
-      }
-    }
 
     // Now check for Timestamp Extraction
     const timestampFields = ['createdAt', 'updatedAt', 'deletedAt', 'created_at', 'updated_at', 'deleted_at'];

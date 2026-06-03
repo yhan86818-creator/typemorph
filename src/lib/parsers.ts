@@ -166,10 +166,17 @@ export const curlToTypeScript = (parsed: any) => {
   if (Object.keys(headers).length > 0) {
     out += `  const headers = ${JSON.stringify(headers, null, 2).replace(/\n/g, '\n  ')};\n\n`;
   }
+  if (bodyJson) {
+    out += `  const body = ${JSON.stringify(bodyJson, null, 2).replace(/\n/g, '\n  ')};\n\n`;
+  }
   out += `  const res = await fetch('${url}', {\n`;
   out += `    method: '${method}',\n`;
   if (Object.keys(headers).length > 0) out += `    headers,\n`;
-  if (body) out += `    body: ${bodyJson ? 'JSON.stringify(body)' : `'${body}'`},\n`;
+  if (bodyJson) {
+    out += `    body: JSON.stringify(body),\n`;
+  } else if (body) {
+    out += `    body: '${body}',\n`;
+  }
   out += `  });\n\n`;
   out += `  return await res.json();\n`;
   out += `};`;

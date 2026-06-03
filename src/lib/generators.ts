@@ -2,6 +2,13 @@ import { Schema, ASTType, ASTClass } from './types';
 import { schemaToAST } from './ast';
 
 const toPascalCase = (str: string) => str.replace(/(^\w|_\w)/g, m => m.replace(/_/, '').toUpperCase());
+
+// annotations から継承元クラス名を取り出すヘルパー
+const getBaseClass = (cls: ASTClass): string | null => {
+  const ann = cls.annotations?.find(a => a.startsWith('extends '));
+  return ann ? ann.slice('extends '.length) : null;
+};
+
 const toCamelCase = (str: string) => {
   const pascal = toPascalCase(str);
   return pascal.charAt(0).toLowerCase() + pascal.slice(1);
@@ -43,8 +50,8 @@ export const tsGen = {
 
     // 2. 平坦化されたクラスを順番に出力（再帰は不要！）
     for (const cls of astClasses) {
-      const extendsAnnotation = cls.annotations?.find(a => a.startsWith('extends '));
-      const extendsStr = extendsAnnotation ? ` ${extendsAnnotation}` : "";
+      const baseClass = getBaseClass(cls);
+      const extendsStr = baseClass ? ` extends ${baseClass}` : "";
 
       const exportKeyword = (options.exportDefault && cls.name === 'Root') 
         ? `export default interface ${cls.name}${extendsStr}` 
@@ -87,9 +94,8 @@ const topoSortForZod = (classes: ASTClass[]): ASTClass[] => {
     if (visited.has(cls.name)) return;
     visited.add(cls.name);
     // Visit base class (extends) first
-    const extendsAnn = cls.annotations?.find(a => a.startsWith('extends '));
-    if (extendsAnn) {
-      const baseName = extendsAnn.replace('extends ', '');
+    const baseName = getBaseClass(cls);
+    if (baseName) {
       const dep = nameToClass.get(baseName);
       if (dep) visit(dep);
     }
@@ -127,6 +133,9 @@ const printZodASTType = (type: ASTType, options: any = {}): string => {
       }
       return 'z.array(z.any())';
     case 'string':
+      if (type.format === 'email') return 'z.string().email()';
+      if (type.format === 'url') return 'z.string().url()';
+      if (type.format === 'uuid') return 'z.string().uuid()';
       return 'z.string()';
     case 'number':
       return 'z.number()';
@@ -148,8 +157,7 @@ export const zodGen = {
     const sortedClasses = topoSortForZod(astClasses);
     for (const cls of sortedClasses) {
       const camelName = toCamelCase(cls.name);
-      const extendsAnn = cls.annotations?.find(a => a.startsWith('extends '));
-      const baseClass = extendsAnn ? extendsAnn.replace('extends ', '') : null;
+      const baseClass = getBaseClass(cls);
       const baseCamel = baseClass ? toCamelCase(baseClass) : null;
       
       if (baseCamel) {
@@ -165,7 +173,8 @@ export const zodGen = {
         
         res += `  ${field.name}: ${zType}${isNull}${isOpt},\n`;
       }
-      res += `});\n\n`;
+      res += `});\n`;
+      res += `export type ${cls.name} = z.infer<typeof ${camelName}Schema>;\n\n`;
     }
 
     return res;
@@ -189,7 +198,7 @@ const printDartASTType = (type: any): string => {
       }
       return 'List<dynamic>';
     case 'string': return 'String';
-    case 'number': return 'double';
+    case 'number': return type.format === 'int' ? 'int' : 'double';
     case 'boolean': return 'bool';
     default: return 'dynamic';
   }
@@ -201,8 +210,7 @@ export const dartGen = {
     let res = "";
 
     for (const cls of astClasses) {
-      const extendsAnn = cls.annotations?.find(a => a.startsWith('extends '));
-      const baseClass = extendsAnn ? extendsAnn.replace('extends ', '') : null;
+      const baseClass = getBaseClass(cls);
       const inheritance = baseClass ? ` extends ${baseClass}` : '';
 
       res += `class ${cls.name}${inheritance} {\n`;
@@ -230,7 +238,7 @@ const printPhpASTType = (type: any): string => {
     case 'classRef': return type.classRefName ?? 'mixed';
     case 'array': return 'array';
     case 'string': return 'string';
-    case 'number': return 'float';
+    case 'number': return type.format === 'int' ? 'int' : 'float';
     case 'boolean': return 'bool';
     default: return 'mixed';
   }
@@ -242,8 +250,7 @@ export const phpGen = {
     let res = "";
 
     for (const cls of astClasses) {
-      const extendsAnn = cls.annotations?.find(a => a.startsWith('extends '));
-      const baseClass = extendsAnn ? extendsAnn.replace('extends ', '') : null;
+      const baseClass = getBaseClass(cls);
       const inheritance = baseClass ? ` extends ${baseClass}` : '';
 
       res += `class ${cls.name}${inheritance} {\n`;
@@ -282,8 +289,7 @@ export const pythonGen = {
     let res = "";
 
     for (const cls of astClasses) {
-      const extendsAnn = cls.annotations?.find(a => a.startsWith('extends '));
-      const baseClass = extendsAnn ? extendsAnn.replace('extends ', '') : 'BaseModel';
+      const baseClass = getBaseClass(cls) ?? 'BaseModel';
 
       res += `class ${cls.name}(${baseClass}):\n`;
       if (cls.fields.length === 0) {
@@ -316,7 +322,7 @@ const printProtoASTType = (type: any): string => {
       }
       return 'repeated string';
     case 'string': return 'string';
-    case 'number': return 'double';
+    case 'number': return type.format === 'int' ? 'int32' : 'double';
     case 'boolean': return 'bool';
     default: return 'string';
   }
@@ -333,8 +339,7 @@ export const protoGen = {
 
       // Proto3 には継承がありません。extends アノテーションがある場合は、
       // 継承モデルのフィールドをプリンタ側で自動的にマージ平坦展開して出力します！
-      const extendsAnn = cls.annotations?.find(a => a.startsWith('extends '));
-      const baseClass = extendsAnn ? extendsAnn.replace('extends ', '') : null;
+      const baseClass = getBaseClass(cls);
 
       if (baseClass) {
         const baseCls = astClasses.find(c => c.name === baseClass);
@@ -369,7 +374,7 @@ const printGqlASTType = (type: any): string => {
       }
       return '[String]';
     case 'string': return 'String';
-    case 'number': return 'Float';
+    case 'number': return type.format === 'int' ? 'Int' : 'Float';
     case 'boolean': return 'Boolean';
     default: return 'String';
   }
@@ -385,8 +390,7 @@ export const gqlGen = {
 
       // GraphQL にはクラス継承がありません。extends アノテーションがある場合は、
       // 継承モデルのフィールドを自動的にマージ平坦展開して出力します！
-      const extendsAnn = cls.annotations?.find(a => a.startsWith('extends '));
-      const baseClass = extendsAnn ? extendsAnn.replace('extends ', '') : null;
+      const baseClass = getBaseClass(cls);
 
       if (baseClass) {
         const baseCls = astClasses.find(c => c.name === baseClass);
@@ -451,8 +455,7 @@ export const rustGen = {
     let res = "use serde::{Serialize, Deserialize};\n\n";
 
     for (const cls of astClasses) {
-      const extendsAnn = cls.annotations?.find(a => a.startsWith('extends '));
-      const baseStruct = extendsAnn ? extendsAnn.replace('extends ', '') : null;
+      const baseStruct = getBaseClass(cls);
 
       res += `#[derive(Serialize, Deserialize, Debug, Clone)]\npub struct ${cls.name} {\n`;
       if (baseStruct) {
@@ -508,11 +511,15 @@ const printGoASTType = (type: ASTType): string => {
 export const goGen = {
   generate: (schema: Schema, name: string = 'Root', _options = {}): string => {
     const astClasses = schemaToAST(schema, toPascalCase(name));
-    let res = "package main\n\nimport \"time\"\n\n";
+    const usesTime = astClasses.some(cls =>
+  cls.fields.some(f => f.fieldType.kind === 'date' || f.fieldType.kind === 'datetime')
+);
+let res = usesTime
+  ? "package main\n\nimport \"time\"\n\n"
+  : "package main\n\n";
 
     for (const cls of astClasses) {
-      const extendsAnn = cls.annotations?.find(a => a.startsWith('extends '));
-      const baseStruct = extendsAnn ? extendsAnn.replace('extends ', '') : null;
+      const baseStruct = getBaseClass(cls);
 
       res += `type ${cls.name} struct {\n`;
       if (baseStruct) {
@@ -557,8 +564,7 @@ export const javaGen = {
     let res = "";
 
     for (const cls of astClasses) {
-      const extendsAnn = cls.annotations?.find(a => a.startsWith('extends '));
-      const baseClass = extendsAnn ? extendsAnn.replace('extends ', '') : null;
+      const baseClass = getBaseClass(cls);
       const inheritance = baseClass ? ` extends ${baseClass}` : '';
 
       res += `public class ${cls.name}${inheritance} {\n`;
@@ -599,8 +605,7 @@ export const prismaGen = {
         res += `  id String @id @default(uuid())\n`;
       }
 
-      const extendsAnn = cls.annotations?.find(a => a.startsWith('extends '));
-      const baseClass = extendsAnn ? extendsAnn.replace('extends ', '') : null;
+      const baseClass = getBaseClass(cls);
 
       if (baseClass) {
         const baseCls = astClasses.find(c => c.name === baseClass);
@@ -650,7 +655,7 @@ export const uiGen = {
     res += `    <h3 className="text-lg font-black mb-4 dark:text-white">${name}</h3>\n`;
     res += `    <div className="grid grid-cols-2 gap-4">\n`;
     keys.slice(0, 8).forEach(k => {
-      res += `      <div>\n        <p className="text-[10px] text-slate-400 uppercase">${k}</p>\n        <p className="text-sm font-bold dark:text-slate-200">{String(data?.${k} || '-')}</p>\n      </div>\n`;
+      res += `      <div>\n        <p className="text-[10px] text-slate-400 uppercase">${k}</p>\n        <p className="text-sm font-bold dark:text-slate-200">{typeof data?.${k} === 'object' ? JSON.stringify(data?.${k}) : String(data?.${k} ?? '-')}</p>\n      </div>\n`;
     });
     res += `    </div>\n  </div>\n);\n`;
     return res;
@@ -668,7 +673,8 @@ export const mockGen = {
         return obj;
       }
       if (s.type === 'array') {
-        return [generateMock(s.itemType || { type: 'string' }, key), generateMock(s.itemType || { type: 'string' }, key), generateMock(s.itemType || { type: 'string' }, key)];
+        const itemSchema = s.itemType || { type: 'string' };
+        return Array.from({ length: 3 }, () => generateMock(itemSchema, key));
       }
       if (s.type === 'number') return key.toLowerCase().includes('id') ? 1 : 42;
       if (s.type === 'boolean') return true;
@@ -695,97 +701,112 @@ export const mockGen = {
   }
 };
 
+const printCsharpASTType = (type: ASTType): string => {
+  switch (type.kind) {
+    case 'union': return 'object';
+    case 'enum': return 'string';
+    case 'date':
+    case 'datetime': return 'DateTime';
+    case 'classRef': return type.classRefName ?? 'object';
+    case 'array':
+      return type.itemType ? `List<${printCsharpASTType(type.itemType)}>` : 'List<object>';
+    case 'string': return 'string';
+    case 'number': return type.format === 'int' ? 'long' : 'double';
+    case 'boolean': return 'bool';
+    default: return 'object';
+  }
+};
+
 export const csharpGen = {
-  generate: (schema: Schema, name: string = 'Root'): string => {
-    if (schema.type === 'object' && schema.fields) {
-      let res = `public class ${name}\n{\n`;
-      for (const [k, v] of Object.entries(schema.fields)) {
-        let type: string;
-        if (v.type === 'object') type = toPascalCase(k);
-        else if (v.type === 'array') {
-          const it = v.itemType?.type;
-          const inner = it === 'object' ? toPascalCase(k) + 'Item'
-            : it === 'number' ? 'double'
-            : it === 'boolean' ? 'bool'
-            : 'string';
-          type = `List<${inner}>`;
-        }
-        else if (v.type === 'number') type = 'double';
-        else if (v.type === 'boolean') type = 'bool';
-        else type = 'string';
-        res += `    public ${type} ${k} { get; set; }\n`;
+  generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
+    const astClasses = schemaToAST(schema, toPascalCase(name), options);
+    let res = "";
+
+    for (const cls of astClasses) {
+      const baseClass = getBaseClass(cls);
+      const inheritance = baseClass ? ` : ${baseClass}` : '';
+      res += `public class ${cls.name}${inheritance}\n{\n`;
+      for (const field of cls.fields) {
+        const csType = printCsharpASTType(field.fieldType);
+        const nullable = (field.isOptional || field.isNullable) ? '?' : '';
+        res += `    public ${csType}${nullable} ${toPascalCase(field.name)} { get; set; }\n`;
       }
       res += `}\n\n`;
-      for (const [k, v] of Object.entries(schema.fields)) {
-        if (v.type === 'object') res += csharpGen.generate(v, toPascalCase(k));
-        if (v.type === 'array' && v.itemType?.type === 'object') res += csharpGen.generate(v.itemType, toPascalCase(k) + 'Item');
-      }
-      return res;
     }
-    return "";
+    return res;
+  }
+};
+
+const printSwiftASTType = (type: ASTType): string => {
+  switch (type.kind) {
+    case 'union': return 'AnyCodable';
+    case 'enum': return 'String';
+    case 'date':
+    case 'datetime': return 'Date';
+    case 'classRef': return type.classRefName ?? 'AnyCodable';
+    case 'array':
+      return type.itemType ? `[${printSwiftASTType(type.itemType)}]` : '[AnyCodable]';
+    case 'string': return 'String';
+    case 'number': return type.format === 'int' ? 'Int' : 'Double';
+    case 'boolean': return 'Bool';
+    default: return 'AnyCodable';
   }
 };
 
 export const swiftGen = {
-  generate: (schema: Schema, name: string = 'Root'): string => {
-    if (schema.type === 'object' && schema.fields) {
-      let res = `struct ${name}: Codable {\n`;
-      for (const [k, v] of Object.entries(schema.fields)) {
-        let type: string;
-        if (v.type === 'object') type = toPascalCase(k);
-        else if (v.type === 'array') {
-          const it = v.itemType?.type;
-          const inner = it === 'object' ? toPascalCase(k) + 'Item'
-            : it === 'number' ? 'Double'
-            : it === 'boolean' ? 'Bool'
-            : 'String';
-          type = `[${inner}]`;
-        }
-        else if (v.type === 'number') type = 'Double';
-        else if (v.type === 'boolean') type = 'Bool';
-        else type = 'String';
-        res += `    let ${k}: ${type}\n`;
+  generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
+    const astClasses = schemaToAST(schema, toPascalCase(name), options);
+    let res = "";
+
+    for (const cls of astClasses) {
+      const baseClass = getBaseClass(cls);
+      const inheritance = baseClass ? `: ${baseClass}` : ': Codable';
+      res += `struct ${cls.name} ${inheritance} {\n`;
+      for (const field of cls.fields) {
+        let swiftType = printSwiftASTType(field.fieldType);
+        if (field.isOptional || field.isNullable) swiftType += '?';
+        res += `    let ${field.name}: ${swiftType}\n`;
       }
       res += `}\n\n`;
-      for (const [k, v] of Object.entries(schema.fields)) {
-        if (v.type === 'object') res += swiftGen.generate(v, toPascalCase(k));
-        if (v.type === 'array' && v.itemType?.type === 'object') res += swiftGen.generate(v.itemType, toPascalCase(k) + 'Item');
-      }
-      return res;
     }
-    return "";
+    return res;
+  }
+};
+
+const printKotlinASTType = (type: ASTType): string => {
+  switch (type.kind) {
+    case 'union': return 'Any';
+    case 'enum': return 'String';
+    case 'date':
+    case 'datetime': return 'String // ISO 8601';
+    case 'classRef': return type.classRefName ?? 'Any';
+    case 'array':
+      return type.itemType ? `List<${printKotlinASTType(type.itemType)}>` : 'List<Any>';
+    case 'string': return 'String';
+    case 'number': return type.format === 'int' ? 'Int' : 'Double';
+    case 'boolean': return 'Boolean';
+    default: return 'Any';
   }
 };
 
 export const kotlinGen = {
-  generate: (schema: Schema, name: string = 'Root'): string => {
-    if (schema.type === 'object' && schema.fields) {
-      const entries = Object.entries(schema.fields);
-      let res = `data class ${name}(\n`;
-      res += entries.map(([k, v]) => {
-        let type: string;
-        if (v.type === 'object') type = toPascalCase(k);
-        else if (v.type === 'array') {
-          const it = v.itemType?.type;
-          const inner = it === 'object' ? toPascalCase(k) + 'Item'
-            : it === 'number' ? 'Double'
-            : it === 'boolean' ? 'Boolean'
-            : 'String';
-          type = `List<${inner}>`;
-        }
-        else if (v.type === 'number') type = 'Double';
-        else if (v.type === 'boolean') type = 'Boolean';
-        else type = 'String';
-        return `    val ${k}: ${type}`;
-      }).join(',\n');
-      res += `\n)\n\n`;
-      for (const [k, v] of entries) {
-        if (v.type === 'object') res += kotlinGen.generate(v, toPascalCase(k));
-        if (v.type === 'array' && v.itemType?.type === 'object') res += kotlinGen.generate(v.itemType, toPascalCase(k) + 'Item');
-      }
-      return res;
+  generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
+    const astClasses = schemaToAST(schema, toPascalCase(name), options);
+    let res = "";
+
+    for (const cls of astClasses) {
+      const baseClass = getBaseClass(cls);
+      const inheritance = baseClass ? ` : ${baseClass}` : '';
+      res += `data class ${cls.name}(\n`;
+      const fields = cls.fields.map(field => {
+        let ktType = printKotlinASTType(field.fieldType);
+        if (field.isOptional || field.isNullable) ktType += '?';
+        return `    val ${field.name}: ${ktType}`;
+      });
+      res += fields.join(',\n');
+      res += `\n)${inheritance}\n\n`;
     }
-    return "";
+    return res;
   }
 };
 
@@ -816,7 +837,7 @@ export const docGen = {
       res += `| :--- | :--- | :--- | :--- |\n`;
       for (const [k, v] of Object.entries(schema.fields)) {
         const type = v.type === 'object' ? 'Object' : v.type === 'array' ? `${v.itemType?.type || 'any'}[]` : v.type;
-        const required = 'Yes';
+        const required = v.optional ? 'No' : 'Yes';
         
         // Intelligent descriptions based on field names
         let desc = 'No description provided.';

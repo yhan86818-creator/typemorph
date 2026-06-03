@@ -1498,6 +1498,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     { id: 'java', label: 'Java' },
     { id: 'kotlin', label: 'Kotlin' },
     { id: 'swift', label: 'Swift' },
+    { id: 'csharp', label: 'C#' },
     { id: 'protobuf', label: 'Proto' },
     { id: 'graphql', label: 'GQL' },
     { id: 'sql', label: 'SQL' },

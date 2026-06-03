@@ -948,9 +948,9 @@ export const valibotGen = {
           valiType = `v.picklist([${v.enumValues.map(ev => `"${ev}"`).join(', ')}])`;
         } else if (v.type === 'string') {
           valiType = 'v.string()';
-          if (v.format === 'email') valiType = 'v.string([v.email()])';
-          else if (v.format === 'url') valiType = 'v.string([v.url()])';
-          else if (v.format === 'uuid') valiType = 'v.string([v.uuid()])';
+          if (v.format === 'email') valiType = 'v.pipe(v.string(), v.email())';
+          else if (v.format === 'url') valiType = 'v.pipe(v.string(), v.url())';
+          else if (v.format === 'uuid') valiType = 'v.pipe(v.string(), v.uuid())';
         } else {
           valiType = `v.${v.type}()`;
         }
