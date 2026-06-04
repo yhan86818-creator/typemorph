@@ -284,14 +284,41 @@ export const resolveNameCollisions = (classes: ASTClass[]): ASTClass[] => {
     }
   }
 
-  // 4. ベースクラス（TimestampModelなど）が先に生成されるようにソート（PythonやZodでの依存解決エラーを防ぐ）
-  classes.sort((a, b) => {
-    if (a.annotations?.some(ann => ann.includes(`extends ${b.name}`))) return 1;
-    if (b.annotations?.some(ann => ann.includes(`extends ${a.name}`))) return -1;
-    if (a.name === 'TimestampModel') return -1;
-    if (b.name === 'TimestampModel') return 1;
-    return 0;
-  });
+  // 4. 依存関係グラフを構築してトポロジカルソートする。
+  // 各クラスのannotationsから "extends XxxClass" を解析し、
+  // 依存先が必ず前に来るように並び替える。
+  // TimestampModelは常に先頭に来るようにする。
+  const sorted: ASTClass[] = [];
+  const visited = new Set<string>();
+  const visiting = new Set<string>();
+  const nameToClass = new Map<string, ASTClass>(classes.map(c => [c.name, c]));
+
+  const visit = (cls: ASTClass) => {
+    if (visited.has(cls.name)) return;
+    if (visiting.has(cls.name)) return;
+    visiting.add(cls.name);
+
+    // 継承元の解析
+    const baseAnn = cls.annotations?.find(a => a.startsWith('extends '));
+    if (baseAnn) {
+      const baseName = baseAnn.slice('extends '.length);
+      const baseCls = nameToClass.get(baseName);
+      if (baseCls) visit(baseCls);
+    }
+
+    visiting.delete(cls.name);
+    visited.add(cls.name);
+    sorted.push(cls);
+  };
+
+  // TimestampModel を最優先で配置
+  const tsModel = classes.find(c => c.name === 'TimestampModel');
+  if (tsModel) visit(tsModel);
+
+  for (const cls of classes) visit(cls);
+  
+  classes.length = 0;
+  classes.push(...sorted);
 
   return classes;
 };

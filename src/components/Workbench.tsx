@@ -559,7 +559,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
   }, []);
 
   // Helper to consume trial and check paywall
-  const checkAndConsumeTrial = (): boolean => {
+  const checkAndConsumeTrial = useCallback((): boolean => {
     if (isProLicensed) return true; // Pro版は無制限
     if (localTrialCount > 0) {
       const newCount = localTrialCount - 1;
@@ -575,7 +575,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     // トライアル切れの場合はペイウォールを表示して実行ブロック
     setShowPaywall(true);
     return false;
-  };
+  }, [isProLicensed, localTrialCount, setLocalTrialCount, setShowPaywall, setToastMsg, setShowToast]);
 
   const checkAndConsumeBasicTrial = (): boolean => {
     if (isProLicensed) return true;
@@ -1300,7 +1300,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
         }));
 
         // 2. Queue the remaining languages in the background asynchronously
-        const langs = ['typescript', 'zod', 'go', 'rust', 'java', 'python', 'dart', 'php', 'protobuf', 'graphql', 'swift', 'kotlin', 'sql', 'jsonschema', 'mock', 'ui', 'doc'].filter(l => l !== activeLang);
+        const langs = ['typescript', 'zod', 'go', 'rust', 'java', 'python', 'dart', 'php', 'csharp', 'protobuf', 'graphql', 'swift', 'kotlin', 'sql', 'jsonschema', 'mock', 'ui', 'doc'].filter(l => l !== activeLang);
         
         const generateBackground = async () => {
           for (const lang of langs) {
@@ -1332,7 +1332,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     }, delay);
 
     return () => clearTimeout(timer);
-  }, [processInput, input.length]);
+  }, [processInput, input]);
 
   useEffect(() => {
     const saved = localStorage.getItem('typeflow_history');

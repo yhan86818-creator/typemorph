@@ -396,5 +396,19 @@ describe('TypeFlow Engine', () => {
       expect(unification?.meta.semanticName).toBe('Location');
       expect(unification?.meta.originalName).toBe('SharedAddress');
     });
+
+    it('should merge enumValues when only one side has them', () => {
+      const json = {
+        users: [
+          { id: 1, role: "member", status: "active" },
+          { id: 2, role: "member", status: "active" }
+        ],
+        admins: [
+          { id: 3, role: "admin", status: "active" }
+        ]
+      };
+      const result = runEngine(json, 'typescript');
+      expect(result).toContain('"member" | "admin"');
+    });
   });
 });

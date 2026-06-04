@@ -580,6 +580,8 @@ export const javaGen = {
 
 const printPrismaASTType = (type: ASTType): string => {
   switch (type.kind) {
+    case 'union': return 'String';
+    case 'enum': return 'String';
     case 'string': return 'String';
     case 'number': return type.format === 'int' ? 'Int' : 'Float';
     case 'boolean': return 'Boolean';
@@ -820,7 +822,9 @@ export const jsonSchemaGen = {
         };
       }
       if (s.type === 'array') return { type: 'array', items: build(s.itemType!) };
-      return { type: s.type };
+      const leaf: any = { type: s.type };
+      if (s.enumValues && s.enumValues.length > 0) leaf.enum = s.enumValues;
+      return leaf;
     };
     return JSON.stringify({ 
       $schema: "http://json-schema.org/draft-07/schema#", 

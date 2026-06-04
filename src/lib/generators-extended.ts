@@ -105,7 +105,7 @@ export const mysqlGen = {
       res += `  \`updated_at\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n`;
     } else {
       // Remove trailing comma from last field if we didn't add updated_at
-      res = res.trimEnd().replace(/,$/, '') + '\n';
+      res = res.replace(/,\s*$/, '\n');
     }
     
     res += `) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;\n`;
@@ -143,7 +143,7 @@ export const postgresGen = {
     if (!hasUpdatedAt) {
       res += `  "updated_at" TIMESTAMP NOT NULL DEFAULT NOW()\n`;
     } else {
-      res = res.trimEnd().replace(/,$/, '') + '\n';
+      res = res.replace(/,\s*$/, '\n');
     }
 
     res += `);\n`;
@@ -180,7 +180,7 @@ export const sqliteGen = {
     if (!hasUpdatedAt) {
       res += `  "updated_at" TEXT NOT NULL DEFAULT (datetime('now'))\n`;
     } else {
-      res = res.trimEnd().replace(/,$/, '') + '\n';
+      res = res.replace(/,\s*$/, '\n');
     }
 
     res += `);\n`;
@@ -400,7 +400,7 @@ const avroType = (s: Schema): any => {
       name: 'NestedRecord',
       fields: Object.entries(s.fields).map(([n, v]) => ({
         name: n,
-        type: s.optional ? ['null', avroType(v)] : avroType(v),
+        type: v.optional ? ['null', avroType(v)] : avroType(v),
       })),
     };
   }
@@ -688,7 +688,7 @@ export const mongooseGen = {
 
     if (schema.type === 'object') {
       let out = `import mongoose, { Schema, Document } from 'mongoose';\n\n`;
-      out += `const ${schemaName} = new Schema(${buildSchemaFields(schema)},\ { timestamps: true });\n\n`;
+      out += `const ${schemaName} = new Schema(${buildSchemaFields(schema)}, { timestamps: true });\n\n`;
       out += `export interface I${modelName} extends Document {}\n`;
       out += `export const ${modelName} = mongoose.models.${modelName} || mongoose.model<I${modelName}>('${modelName}', ${schemaName});\n`;
       return out;

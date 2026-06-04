@@ -88,8 +88,8 @@ const mergeSchemas = (s1: Schema, s2: Schema, depth: number = 0): Schema => {
   if (s1.type === 'string' && s2.type === 'string') {
     // Merge enum values
     let enumValues: string[] | undefined = undefined;
-    if (s1.enumValues && s2.enumValues) {
-      const mergedEnum = Array.from(new Set([...s1.enumValues, ...s2.enumValues]));
+    if (s1.enumValues || s2.enumValues) {
+      const mergedEnum = Array.from(new Set([...(s1.enumValues ?? []), ...(s2.enumValues ?? [])]));
       // Keep as closed enum if unique string count is small (e.g. max 6)
       if (mergedEnum.length <= 6) {
         enumValues = mergedEnum;
@@ -492,6 +492,10 @@ const mergeIsomorphicObjects = (target: Schema, source: Schema) => {
       const t = target.fields[k];
       if (t.type === 'any') {
         target.fields[k] = { ...v };
+      } else if (t.type === 'string' && v.type === 'string') {
+        if (t.enumValues || v.enumValues) {
+          t.enumValues = Array.from(new Set([...(t.enumValues ?? []), ...(v.enumValues ?? [])]));
+        }
       } else if (t.type === 'object' && v.type === 'object') {
         mergeIsomorphicObjects(t, v);
       } else if (t.type === 'array' && t.itemType && v.type === 'array' && v.itemType) {
