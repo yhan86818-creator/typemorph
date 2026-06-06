@@ -148,10 +148,7 @@ describe('generators', () => {
       // After the fix it must recurse and produce valid Zod for each member.
       const unionSchema: any = {
         type: 'union',
-        unionTypes: [
-          { kind: 'string' },
-          { kind: 'number' }
-        ]
+        unionTypes: ['string', 'number']
       };
       const wrappedSchema: any = {
         type: 'object',
