@@ -14,7 +14,7 @@ export const blogPosts: BlogPost[] = [
     title: 'The Hidden Security Risks of Online JSON Converters: A Comprehensive Guide for Engineers',
     excerpt: 'Why pasting proprietary company data into third-party web tools is a major liability. Explore the anatomy of data leakage and how to implement a secure, local-first development workflow.',
     date: '2026-05-10',
-    author: 'Alex Morgan — Staff Engineer, TypeFlow',
+    author: 'Alex Morgan — Staff Engineer, TypeMorph',
     content: `
       <p>In the high-speed world of modern software engineering, developers are constantly looking for ways to streamline their workflow. Online tools for formatting JSON, converting YAML to TOML, or generating TypeScript interfaces have become daily companions for millions. However, beneath the convenience of these "free" browser-based utilities lies a significant and often ignored security threat: the systematic leakage of proprietary data and intellectual property.</p>
       
@@ -33,10 +33,10 @@ export const blogPosts: BlogPost[] = [
       <p>For engineers working in regulated sectors, using an online converter isn't just a security risk—it's a legal liability. Under <strong>GDPR (General Data Protection Regulation)</strong>, sending any Personal Identifiable Information (PII) to an unauthorized processor is a violation that can result in massive fines. Similarly, <strong>SOC2 Type II</strong> compliance requires strict control over where data is processed. If an auditor finds that your team is routinely pasting production-like data into random web tools, your certification is at risk.</p>
       
       <h2>4. The Local-First Revolution: Security by Architecture</h2>
-      <p>At TypeFlow, we believe that tools should be secure by design, not by policy. Our <strong>Local-First</strong> architecture means that 100% of the conversion logic is executed within the browser's sandbox using JavaScript. When you click "Convert," there is no network request. Your data never leaves your machine's RAM. This approach provides several key benefits:</p>
+      <p>At TypeMorph, we believe that tools should be secure by design, not by policy. Our <strong>Local-First</strong> architecture means that 100% of the conversion logic is executed within the browser's sandbox using JavaScript. When you click "Convert," there is no network request. Your data never leaves your machine's RAM. This approach provides several key benefits:</p>
       <ul>
         <li><strong>Zero Latency:</strong> No round-trips to a server mean conversions are instantaneous, even for massive 20MB JSON files.</li>
-        <li><strong>Air-Gapped Compatibility:</strong> TypeFlow can be used in secure, offline environments where internet access is restricted.</li>
+        <li><strong>Air-Gapped Compatibility:</strong> TypeMorph can be used in secure, offline environments where internet access is restricted.</li>
         <li><strong>Total Privacy:</strong> Since we don't receive your data, we can't lose it, leak it, or sell it.</li>
       </ul>
 
@@ -52,7 +52,7 @@ export const blogPosts: BlogPost[] = [
       <p>If you're evaluating runtime validation libraries for your local-first workflow, see our comparison: <a href="/blog/zod-vs-yup-vs-valibot">Zod vs Yup vs Valibot in 2026</a>. For a complete guide to converting your existing JSON payloads, see <a href="/blog/json-to-typescript-complete-guide">JSON to TypeScript: The Complete Engineer's Guide</a>.</p>
 
       <h2>Conclusion: Protecting the Developer Persona</h2>
-      <p>Your reputation as a professional engineer is built on the quality of your code and the security of your systems. Don't compromise that reputation for a few seconds of convenience. By switching to a local-first workbench like TypeFlow Pro, you ensure that your intellectual property remains exactly where it belongs: under your control.</p>
+      <p>Your reputation as a professional engineer is built on the quality of your code and the security of your systems. Don't compromise that reputation for a few seconds of convenience. By switching to a local-first workbench like TypeMorph, you ensure that your intellectual property remains exactly where it belongs: under your control.</p>
     `
   },
   {
@@ -60,7 +60,7 @@ export const blogPosts: BlogPost[] = [
     title: 'Achieving 100% Type-Safety in Next.js 15: The Zod + React Query Masterclass',
     excerpt: 'Stop relying on fragile TypeScript interfaces. Learn how to implement a bulletproof runtime validation layer that protects your Next.js application from API regressions and silent failures.',
     date: '2026-05-12',
-    author: 'Alex Morgan — Staff Engineer, TypeFlow',
+    author: 'Alex Morgan — Staff Engineer, TypeMorph',
     content: `
       <p>The release of Next.js 15 has ushered in a new era of React development, characterized by deeper integration of Server Components and an increasingly complex relationship between the client and the server. In this environment, basic TypeScript interfaces are no longer sufficient. To build truly resilient applications, we must move toward <strong>Runtime Type Validation</strong>.</p>
       
@@ -94,8 +94,8 @@ type User = z.infer&lt;typeof UserSchema&gt;;</code></pre>
       <h2>Step 3: Server Actions and Type-Safe Forms</h2>
       <p>In Next.js 15, Server Actions are the primary way to handle mutations. Without validation, these actions are massive security holes. By using Zod inside your Server Action, you can validate the <code>FormData</code> or JSON payload before it ever touches your database. This provides a clean, unified validation logic that works across both the client (for UI feedback) and the server (for security).</p>
       
-      <h2>Step 4: Automating the Boilerplate with TypeFlow Pro</h2>
-      <p>The biggest hurdle to implementing this workflow is the manual effort required to write Zod schemas for hundreds of API endpoints. This is exactly why we built the <strong>JSON to Zod</strong> converter in TypeFlow Pro. You can simply paste a sample API response, and our engine will generate the Zod schema, the inferred TypeScript types, and even basic validation logic for you in seconds. This turns a 20-minute manual task into a 5-second automated step, making 100% type safety a realistic goal for even the fastest-moving teams.</p>
+      <h2>Step 4: Automating the Boilerplate with TypeMorph</h2>
+      <p>The biggest hurdle to implementing this workflow is the manual effort required to write Zod schemas for hundreds of API endpoints. This is exactly why we built the <strong>JSON to Zod</strong> converter in TypeMorph. You can simply paste a sample API response, and our engine will generate the Zod schema, the inferred TypeScript types, and even basic validation logic for you in seconds. This turns a 20-minute manual task into a 5-second automated step, making 100% type safety a realistic goal for even the fastest-moving teams.</p>
       
       <h2>The Result: A Self-Healing Codebase</h2>
       <p>When you implement this workflow, your codebase becomes self-healing. When an API changes, your app doesn't crash—it reports a validation error. You can then update the schema, and TypeScript will immediately highlight every single component and function that needs to be updated to accommodate the change. This is the definition of "Market-Dominating Engineering."</p>
@@ -104,7 +104,7 @@ type User = z.infer&lt;typeof UserSchema&gt;;</code></pre>
       <p>For an in-depth comparison of Zod vs its alternatives, see <a href="/blog/zod-vs-yup-vs-valibot">Zod vs Yup vs Valibot in 2026</a>. To understand the schema-first philosophy behind this workflow, see <a href="/blog/schema-first-engineering-future">Why Schema-First Engineering is the Future of Scalable Apps</a>.</p>
 
       <h2>Conclusion</h2>
-      <p>Type safety isn't just about avoiding bugs; it's about developer confidence. By combining the power of Next.js 15, Zod, and the automation provided by TypeFlow Pro, you can ship faster, sleep better, and build applications that are truly production-ready.</p>
+      <p>Type safety isn't just about avoiding bugs; it's about developer confidence. By combining the power of Next.js 15, Zod, and the automation provided by TypeMorph, you can ship faster, sleep better, and build applications that are truly production-ready.</p>
     `
   },
   {
@@ -112,7 +112,7 @@ type User = z.infer&lt;typeof UserSchema&gt;;</code></pre>
     title: 'Beyond Code Generation: Why Schema-First Engineering is the Future of Scalable Apps',
     excerpt: 'Code generation is just the beginning. Discover how a schema-first approach can eliminate 90% of your integration bugs and revolutionize your team\'s velocity.',
     date: '2026-05-13',
-    author: 'Alex Morgan — Staff Engineer, TypeFlow',
+    author: 'Alex Morgan — Staff Engineer, TypeMorph',
     content: `
       <p>In the early days of web development, we wrote our types and schemas as an afterthought. We built the database, wrote the API, and then—if we had time—we hand-wrote some documentation or TypeScript interfaces. This "Code-First" approach is increasingly becoming a liability in the era of microservices, serverless functions, and globally distributed teams.</p>
       
@@ -128,14 +128,14 @@ type User = z.infer&lt;typeof UserSchema&gt;;</code></pre>
       </ul>
       
       <h2>3. The Role of Automation in the Schema-First Stack</h2>
-      <p>The biggest barrier to Schema-First adoption is the "Boilerplate Tax." Writing detailed schemas for every service is perceived as slow. This is where <strong>TypeFlow Pro</strong> comes in. Our philosophy is that while the schema should be the source of truth, it shouldn't be a burden to create.</p>
+      <p>The biggest barrier to Schema-First adoption is the "Boilerplate Tax." Writing detailed schemas for every service is perceived as slow. This is where <strong>TypeMorph</strong> comes in. Our philosophy is that while the schema should be the source of truth, it shouldn't be a burden to create.</p>
       <p>By using our <strong>JSON to Zod</strong> or <strong>SQL to TypeScript</strong> engines, you can take an existing sample of data and instantly "crystallize" it into a schema. This allows you to adopt Schema-First principles incrementally, without slowing down your sprint velocity.</p>
       
       <h2>4. Moving Toward a "Self-Documenting" Infrastructure</h2>
       <p>Imagine a world where your API definitions are so precise that your client-side SDKs are generated automatically with full type safety, including JSDoc comments and validation rules. This isn't a dream—it's how the world's most high-performance engineering teams operate. Stripe, for example, publishes its entire API surface as a machine-readable OpenAPI spec (<a href="https://github.com/stripe/openapi" target="_blank" rel="noopener">github.com/stripe/openapi</a>), from which it auto-generates SDKs in 8+ languages. This is Schema-First Engineering at scale. They treat schemas as <strong>Code as Infrastructure</strong>.</p>
       
       <h2>5. How to Start Your Transition</h2>
-      <p>You don't need to rewrite your entire backend to benefit from this. Start with your most fragile integration point—perhaps a complex third-party API or a critical internal microservice. Use TypeFlow to generate a Zod schema for that endpoint, and enforce it at the network boundary. You will immediately see a drop in "undefined" errors and a rise in developer confidence.</p>
+      <p>You don't need to rewrite your entire backend to benefit from this. Start with your most fragile integration point—perhaps a complex third-party API or a critical internal microservice. Use TypeMorph to generate a Zod schema for that endpoint, and enforce it at the network boundary. You will immediately see a drop in "undefined" errors and a rise in developer confidence.</p>
       
       <h2>Further Reading</h2>
       <p>For a practical starting point, see <a href="/blog/json-to-typescript-complete-guide">JSON to TypeScript: The Complete Engineer's Guide</a>. For runtime validation options to enforce your schemas, see <a href="/blog/zod-vs-yup-vs-valibot">Zod vs Yup vs Valibot in 2026</a>.</p>
@@ -149,7 +149,7 @@ type User = z.infer&lt;typeof UserSchema&gt;;</code></pre>
     title: 'JSON to TypeScript: The Complete Engineer\'s Guide (2026 Edition)',
     excerpt: 'Stop writing TypeScript interfaces by hand. A comprehensive guide to automatically converting JSON to TypeScript types, Zod schemas, and more — with zero data exposure.',
     date: '2026-05-20',
-    author: 'Alex Morgan — Staff Engineer, TypeFlow',
+    author: 'Alex Morgan — Staff Engineer, TypeMorph',
     content: `
       <p>Every modern web developer has faced the same tedious task: you receive a JSON payload from an API, and now you need to write TypeScript interfaces for it. For a simple response, this takes a few minutes. For a deeply nested, production-scale API response with 30+ fields? This can consume an entire afternoon — and it's error-prone, especially as APIs evolve.</p>
 
@@ -179,7 +179,7 @@ type User = z.infer&lt;typeof UserSchema&gt;;</code></pre>
       <p>The correct approach in 2026 is to use a <strong>local-first type generation tool</strong> to convert your JSON to TypeScript automatically. The key word is <em>local-first</em> — since you'll often be pasting sensitive API payloads (containing real user data or proprietary schemas), sending that to a cloud server is a significant security and compliance risk.</p>
 
       <h2>Step 1: Inferring Types from JSON</h2>
-      <p>A high-quality converter doesn't just blindly map <code>string</code> to <code>string</code>. TypeFlow Pro's inference engine:</p>
+      <p>A high-quality converter doesn't just blindly map <code>string</code> to <code>string</code>. TypeMorph's inference engine:</p>
       <ul>
         <li>Detects <strong>date formats</strong> (ISO 8601) and marks them as <code>string // ISO datetime</code></li>
         <li>Identifies <strong>UUID patterns</strong> and annotates them correctly</li>
@@ -190,7 +190,7 @@ type User = z.infer&lt;typeof UserSchema&gt;;</code></pre>
 
       <h2>Step 2: From TypeScript to Zod (Runtime Safety)</h2>
       <p>A TypeScript interface alone is not enough. The next step is generating a <strong>Zod schema</strong> from your JSON. Zod provides runtime validation, meaning your app can detect and handle API regressions before they crash your UI:</p>
-      <pre><code>// Auto-generated by TypeFlow Pro
+      <pre><code>// Auto-generated by TypeMorph
 const UserSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),
@@ -201,7 +201,7 @@ type User = z.infer&lt;typeof UserSchema&gt;;</code></pre>
 
       <h2>Step 3: The Privacy-First Workflow</h2>
       <p>This is where most developers make a critical mistake. When converting production API payloads, many paste them into cloud-based tools. This means your actual user data, internal field names, and proprietary architecture leave your environment and sit on a stranger's server.</p>
-      <p>TypeFlow Pro solves this by running <strong>100% in your browser's Web Worker</strong>. There is no server-side processing, no logging, and no data transmission. Open Chrome DevTools, go to the Network tab, and press Convert — you'll see zero outgoing requests. This makes it the only safe tool for regulated industries and enterprise environments.</p>
+      <p>TypeMorph solves this by running <strong>100% in your browser's Web Worker</strong>. There is no server-side processing, no logging, and no data transmission. Open Chrome DevTools, go to the Network tab, and press Convert — you'll see zero outgoing requests. This makes it the only safe tool for regulated industries and enterprise environments.</p>
       <p>You can verify this yourself: open Chrome DevTools (F12 → Network tab), paste your JSON, and click Convert. You will see zero outgoing network requests. This is what "local-first" means in practice.</p>
 <pre><code>// Chrome DevTools Network tab after conversion:
 // (no requests logged)
@@ -219,7 +219,7 @@ type User = z.infer&lt;typeof UserSchema&gt;;</code></pre>
     title: 'Why Fintech Engineers Must Use Local-First Tools for SWIFT and FIX Protocol Parsing',
     excerpt: 'Financial message formats like SWIFT MT/MX and FIX Protocol contain some of the most sensitive data in existence. Here\'s why cloud-based parsers are a compliance disaster waiting to happen.',
     date: '2026-05-25',
-    author: 'Alex Morgan — Staff Engineer, TypeFlow',
+    author: 'Alex Morgan — Staff Engineer, TypeMorph',
     content: `
       <p>In the world of financial technology, data security is not a feature — it is a fundamental requirement. SWIFT message payloads, FIX protocol logs, and ISO 20022 XML files contain transaction amounts, account numbers, counterparty identifiers, and routing instructions. In the wrong hands, this data can enable fraud, money laundering, or severe regulatory violations.</p>
 
@@ -252,13 +252,13 @@ LONDON, UK
       <p>This single message contains: the sender's BIC (<code>BANKUS33A</code>), the receiver's BIC (<code>BANKGB2L</code>), the ordering customer's account and full name, the beneficiary's IBAN and full name, the transaction amount (<code>USD 15,000</code>), and a reference to a specific invoice. Sending this to an unknown server during debugging is a serious compliance violation under GDPR, PCI-DSS, and MiFID II.</p>
 
       <h2>The Local-First Architecture for Financial Engineering</h2>
-      <p>TypeFlow Finance solves this problem with a <strong>100% local-first architecture</strong>. When you use our SWIFT MT to MX parser or the FIX Protocol decoder, the processing happens entirely within your browser's sandboxed Web Worker. The message never leaves your machine's RAM. Our AI-assisted parsing feature uses a <strong>Bring Your Own Key (BYOK)</strong> model, meaning API requests go directly from your browser to Google's API endpoints — we never proxy, log, or store a single byte of your financial data.</p>
+      <p>TypeMorph Finance solves this problem with a <strong>100% local-first architecture</strong>. When you use our SWIFT MT to MX parser or the FIX Protocol decoder, the processing happens entirely within your browser's sandboxed Web Worker. The message never leaves your machine's RAM. Our AI-assisted parsing feature uses a <strong>Bring Your Own Key (BYOK)</strong> model, meaning API requests go directly from your browser to Google's API endpoints — we never proxy, log, or store a single byte of your financial data.</p>
 
       <h2>Compliance Benefits: GDPR, SOC2, and PCI-DSS</h2>
-      <p>Because TypeFlow Finance has zero server infrastructure receiving your payloads, it inherently satisfies several key compliance requirements:</p>
+      <p>Because TypeMorph Finance has zero server infrastructure receiving your payloads, it inherently satisfies several key compliance requirements:</p>
       <ul>
         <li><strong>GDPR Article 28:</strong> No third-party data processor receives your transaction data, so no Data Processing Agreement (DPA) is required for using the tool.</li>
-        <li><strong>SOC2 Type II:</strong> Auditors cannot identify TypeFlow as a risk vector since no data is transmitted externally.</li>
+        <li><strong>SOC2 Type II:</strong> Auditors cannot identify TypeMorph as a risk vector since no data is transmitted externally.</li>
         <li><strong>PCI-DSS:</strong> Cardholder data and financial message content remain within your controlled environment.</li>
       </ul>
 
@@ -266,7 +266,7 @@ LONDON, UK
       <p>For the broader security case for local-first tooling, see <a href="/blog/security-risks-of-online-converters">The Hidden Security Risks of Online JSON Converters</a>.</p>
 
       <h2>Conclusion</h2>
-      <p>For fintech engineers, the choice of tooling is a compliance decision, not just a productivity one. Local-first tools like TypeFlow Finance represent the only responsible approach to working with SWIFT, FIX Protocol, and ISO 20022 data outside of your core banking systems.</p>
+      <p>For fintech engineers, the choice of tooling is a compliance decision, not just a productivity one. Local-first tools like TypeMorph Finance represent the only responsible approach to working with SWIFT, FIX Protocol, and ISO 20022 data outside of your core banking systems.</p>
     `
   },
   {
@@ -274,7 +274,7 @@ LONDON, UK
     title: 'Zod vs Yup vs Valibot in 2026: Which TypeScript Validator Should You Choose?',
     excerpt: 'A comprehensive, performance-benchmarked comparison of the three most popular TypeScript runtime validators. Find out which one wins for bundle size, type inference, and developer experience.',
     date: '2026-05-28',
-    author: 'Alex Morgan — Staff Engineer, TypeFlow',
+    author: 'Alex Morgan — Staff Engineer, TypeMorph',
     content: `
       <p>Runtime type validation is no longer optional in production TypeScript applications. With APIs that can change without warning and user inputs that are inherently untrusted, you need a library that can validate data at runtime and infer TypeScript types simultaneously. In 2026, three libraries dominate this space: <strong>Zod</strong>, <strong>Yup</strong>, and <strong>Valibot</strong>. Let's compare them head to head.</p>
 
@@ -321,7 +321,7 @@ LONDON, UK
       <p>To see Zod schema generation in action with real JSON payloads, see <a href="/blog/nextjs-type-safety-workflow">Achieving 100% Type-Safety in Next.js 15</a>. For the security case for keeping your schemas local, see <a href="/blog/security-risks-of-online-converters">The Hidden Security Risks of Online JSON Converters</a>.</p>
 
       <h2>Automate Your Schema Generation</h2>
-      <p>Regardless of which library you choose, TypeFlow Pro can auto-generate Zod, Valibot, and Yup schemas directly from your JSON, SQL, or TypeScript interfaces. Paste your data structure and get production-ready validation code in seconds — all processed locally in your browser.</p>
+      <p>Regardless of which library you choose, TypeMorph can auto-generate Zod, Valibot, and Yup schemas directly from your JSON, SQL, or TypeScript interfaces. Paste your data structure and get production-ready validation code in seconds — all processed locally in your browser.</p>
     `
   }
 ];

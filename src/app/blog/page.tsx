@@ -3,7 +3,7 @@ import { ArrowRight, Calendar, User } from 'lucide-react';
 import { blogPosts as posts } from '@/data/blog-posts';
 
 export const metadata = {
-  title: 'TypeFlow Pro Blog | Security & TypeScript Best Practices',
+  title: 'TypeMorph Blog | Security & TypeScript Best Practices',
   description: 'Expert insights on local-first development, security, and automating your Next.js workflow.',
 };
 

@@ -23,10 +23,15 @@ export function compareSchemas(oldObj: any, newObj: any): SchemaDiff[] {
   }
 
   // Helper to flatten object keys into paths with type signatures
-  function flattenSchema(obj: any, path: string = 'root', registry: Map<string, string> = new Map()) {
+  function flattenSchema(obj: any, path: string = 'root', registry: Map<string, string> = new Map(), seen: Set<any> = new Set()) {
     if (obj === null || obj === undefined) {
       registry.set(path, 'null');
       return registry;
+    }
+
+    if (typeof obj === 'object') {
+      if (seen.has(obj)) return registry;
+      seen.add(obj);
     }
 
     const currentType = getTypeSignature(obj);
@@ -43,7 +48,7 @@ export function compareSchemas(oldObj: any, newObj: any): SchemaDiff[] {
             }
           }
         }
-        flattenSchema(mergedObj, `${path}[]`, registry);
+        flattenSchema(mergedObj, `${path}[]`, registry, seen);
       } else {
         const nonObjectElements = obj.filter(x => x === null || typeof x !== 'object' || Array.isArray(x));
         if (nonObjectElements.length > 0) {
@@ -52,7 +57,7 @@ export function compareSchemas(oldObj: any, newObj: any): SchemaDiff[] {
       }
     } else if (typeof obj === 'object') {
       for (const key of Object.keys(obj)) {
-        flattenSchema(obj[key], `${path}.${key}`, registry);
+        flattenSchema(obj[key], `${path}.${key}`, registry, seen);
       }
     }
 

@@ -37,7 +37,7 @@ Jane Doe
 </ul>
 
 <h2>Privacy and Compliance in SWIFT Message Handling</h2>
-<p>SWIFT messages contain transaction details that are subject to strict regulatory protection under GDPR, PCI-DSS, and banking secrecy laws in most jurisdictions. Sending live or production SWIFT messages to a cloud-based tool for parsing or conversion is a serious compliance violation. TypeFlow's SWIFT MT to MX converter operates <strong>entirely within your browser's sandboxed Web Worker</strong>. No network request is made during conversion. Your payment data — including BICs, IBANs, transaction amounts, and beneficiary names — remains exclusively in your local environment.</p>
+<p>SWIFT messages contain transaction details that are subject to strict regulatory protection under GDPR, PCI-DSS, and banking secrecy laws in most jurisdictions. Sending live or production SWIFT messages to a cloud-based tool for parsing or conversion is a serious compliance violation. TypeMorph's SWIFT MT to MX converter operates <strong>entirely within your browser's sandboxed Web Worker</strong>. No network request is made during conversion. Your payment data — including BICs, IBANs, transaction amounts, and beneficiary names — remains exclusively in your local environment.</p>
 
 <h2>The ISO 20022 Migration Timeline</h2>
 <p>The global SWIFT network's migration to ISO 20022 is proceeding in phases:</p>
@@ -49,7 +49,7 @@ Jane Doe
 <p>For development, testing, and debugging purposes throughout this migration, having a reliable local-first MT-to-MX conversion tool is essential for every payments engineering team.</p>
 
 <h2>Supported Message Type Mappings</h2>
-<p>TypeFlow's AI-powered SWIFT MT to MX engine supports the following primary message type conversions:</p>
+<p>TypeMorph's AI-powered SWIFT MT to MX engine supports the following primary message type conversions:</p>
 <ul>
   <li><strong>MT103 → pacs.008</strong>: Single Customer Credit Transfer</li>
   <li><strong>MT202 → pacs.009</strong>: Financial Institution Credit Transfer</li>
@@ -61,4 +61,4 @@ Jane Doe
 <blockquote>"The MT-to-MX migration is the Y2K of the payments industry. Having the right parsing and conversion tools — especially ones that protect sensitive transaction data — is not optional for any institution participating in the global payments network."</blockquote>
 
 <h3>Getting Started with SWIFT Message Parsing</h3>
-<p>To use TypeFlow's SWIFT MT to MX converter, paste your MT message directly into the input panel. The AI engine will parse the tag structure, validate field formats against the relevant MT ruleset, and generate the equivalent ISO 20022 XML output. For complex cases involving unstructured address fields or ambiguous party identifiers, the AI-assisted Smart Parse feature will apply contextual inference to produce the most accurate MX mapping possible.</p>
+<p>To use TypeMorph's SWIFT MT to MX converter, paste your MT message directly into the input panel. The AI engine will parse the tag structure, validate field formats against the relevant MT ruleset, and generate the equivalent ISO 20022 XML output. For complex cases involving unstructured address fields or ambiguous party identifiers, the AI-assisted Smart Parse feature will apply contextual inference to produce the most accurate MX mapping possible.</p>

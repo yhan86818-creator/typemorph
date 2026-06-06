@@ -10,7 +10,7 @@
 </ul>
 
 <h2>The Workflow: From JSON Schema to gRPC-Web TypeScript Client</h2>
-<p>The typical development workflow for integrating a gRPC-Web service into a TypeScript front-end involves several steps that TypeFlow simplifies significantly:</p>
+<p>The typical development workflow for integrating a gRPC-Web service into a TypeScript front-end involves several steps that TypeMorph simplifies significantly:</p>
 
 <h3>Step 1: Define Your Data Structure</h3>
 <p>Start with your existing JSON data structure — perhaps from an existing REST API response or a database schema. For example, a financial transaction object:</p>
@@ -27,10 +27,10 @@
 }</code></pre>
 
 <h3>Step 2: Generate the Protobuf Schema</h3>
-<p>TypeFlow infers the appropriate Protobuf message types, mapping JSON primitives to their proto3 equivalents: <code>string</code>, <code>double</code>, <code>int64</code>, <code>bool</code>, and <code>google.protobuf.Timestamp</code> for datetime fields.</p>
+<p>TypeMorph infers the appropriate Protobuf message types, mapping JSON primitives to their proto3 equivalents: <code>string</code>, <code>double</code>, <code>int64</code>, <code>bool</code>, and <code>google.protobuf.Timestamp</code> for datetime fields.</p>
 
 <h3>Step 3: Generate TypeScript Client Code</h3>
-<p>From the Protobuf definition, TypeFlow generates the TypeScript interfaces and gRPC-Web service client stubs needed to call the service from a browser. This includes:</p>
+<p>From the Protobuf definition, TypeMorph generates the TypeScript interfaces and gRPC-Web service client stubs needed to call the service from a browser. This includes:</p>
 <ul>
   <li>Message classes with <code>toObject()</code> and <code>serializeBinary()</code> methods</li>
   <li>Service client class with fully typed method signatures</li>
@@ -66,6 +66,6 @@ client.getTransaction(request, {}, (err, response) => {
 });</code></pre>
 
 <h2>Privacy and Local Processing</h2>
-<p>When generating gRPC-Web TypeScript code from JSON schemas that contain sensitive business data, using a local-first tool is essential. TypeFlow processes all schema inference and code generation entirely within your browser — no schema structures, field names, or data values are transmitted to external servers. This makes it suitable for use within corporate networks and compliance-sensitive development environments.</p>
+<p>When generating gRPC-Web TypeScript code from JSON schemas that contain sensitive business data, using a local-first tool is essential. TypeMorph processes all schema inference and code generation entirely within your browser — no schema structures, field names, or data values are transmitted to external servers. This makes it suitable for use within corporate networks and compliance-sensitive development environments.</p>
 
 <blockquote>"gRPC-Web represents the next generation of browser-to-service communication. TypeScript code generation from a trusted, local-first toolchain is the foundation of a reliable gRPC-Web integration strategy."</blockquote>

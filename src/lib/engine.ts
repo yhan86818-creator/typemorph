@@ -14,7 +14,7 @@ import {
   solidPropsGen, arduinoGen, cobolGen, clojureGen, elixirGen, elmGen,
   godotGen, haskellGen, rGen, scalaGen, solidityGen, djangoGen, railsGen
 } from './generators-extended';
-import { Schema } from './types';
+import { Schema, SchemaType } from './types';
 import { createHash } from 'crypto';
 import { parseYAML, parseXML, parseCurl, parseSQLToZod, curlToTypeScript } from './parsers';
 
@@ -35,7 +35,7 @@ const makeUnion = (a: Schema, b: Schema): Schema => {
   const bTypes = b.type === 'union' ? (b.unionTypes ?? []) : [b.type];
   const merged = Array.from(new Set([...aTypes, ...bTypes]));
   // If all types are still the same single type, collapse back
-  if (merged.length === 1) return { type: merged[0] };
+  if (merged.length === 1) return { type: merged[0] as SchemaType };
   return { type: 'union', unionTypes: merged };
 };
 
@@ -69,9 +69,13 @@ const mergeSchemas = (s1: Schema, s2: Schema, depth: number = 0): Schema => {
       return { ...makeUnion(s1, s2), optional, nullable };
     }
     if (s1.type === 'union' || s2.type === 'union') {
-      return { ...makeUnion(s1, s2), optional, nullable };
+      // Only merge if the other type is primitive or union
+      const otherType = s1.type === 'union' ? s2.type : s1.type;
+      if (otherType === 'union' || PRIMITIVE_TYPES.has(otherType)) {
+        return { ...makeUnion(s1, s2), optional, nullable };
+      }
     }
-    // Incompatible complex types (e.g. object vs array) → any
+    // Incompatible complex types (e.g. object vs array, or union vs object) → any
     return { type: 'any', optional, nullable };
   }
 
@@ -286,7 +290,11 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
     return addMeta({ type: 'number', format: isInt ? 'int' : 'float' }, 'number');
   }
 
-  return addMeta({ type: typeof val }, 'primitive');
+  const t = typeof val;
+  if (t === 'string' || t === 'number' || t === 'boolean' || t === 'object') {
+    return addMeta({ type: t as SchemaType }, 'primitive');
+  }
+  return addMeta({ type: 'any' }, 'primitive');
 };
 
 const DEPENDENCY_COMMENTS: Record<string, string> = {
@@ -418,9 +426,11 @@ const areFieldsIsomorphic = (s1: Schema, s2: Schema, visited = new Set<string>()
   const minFields = options.minFieldsForIsomorphic ?? 2;
   if (keys1.length < minFields || keys2.length < minFields) return false;
 
-  const pairKey = `${s1._structureHash || ''}-${s2._structureHash || ''}`;
-  if (visited.has(pairKey)) return true;
-  visited.add(pairKey);
+  const s1Hash = s1._structureHash;
+  const s2Hash = s2._structureHash;
+  const pairKey = s1Hash && s2Hash ? `${s1Hash}-${s2Hash}` : undefined;
+  if (pairKey && visited.has(pairKey)) return true;
+  if (pairKey) visited.add(pairKey);
 
   const allKeys = Array.from(new Set([...keys1, ...keys2]));
   let matchingKeys = 0;
@@ -490,8 +500,10 @@ const mergeIsomorphicObjects = (target: Schema, source: Schema) => {
       target.fields[k] = { ...v, optional: true };
     } else {
       const t = target.fields[k];
+      t.optional = t.optional || v.optional;
+      t.nullable = t.nullable || v.nullable;
       if (t.type === 'any') {
-        target.fields[k] = { ...v };
+        target.fields[k] = { ...v, optional: t.optional, nullable: t.nullable };
       } else if (t.type === 'string' && v.type === 'string') {
         if (t.enumValues || v.enumValues) {
           t.enumValues = Array.from(new Set([...(t.enumValues ?? []), ...(v.enumValues ?? [])]));
@@ -541,10 +553,10 @@ const buildIsomorphicGroups = (
   }
 
   const sharedNames = new Set<string>();
-  let counter = 1;
   const result: IsomorphicGroup[] = [];
 
   for (const group of rawGroups) {
+    let counter = 1;
     if (group.length < 2) continue;
     group.sort((a, b) => Object.keys(b.fields || {}).length - Object.keys(a.fields || {}).length);
     const rep = group[0];
@@ -853,12 +865,17 @@ export const attachFullMeta = (schema: Schema, samples: any, options: InferOptio
 // Convenience wrapper: run inference in a worker thread to avoid blocking.
 export const inferSchemaAsync = async (json: any, options: InferOptions = {}) => {
   try {
-    const runPath = ['..','..','server','worker','runInferenceInWorker'].join('/');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { runInferenceInWorker } = require(runPath) as { runInferenceInWorker: (j: unknown, o: unknown) => Promise<unknown> };
-    return await runInferenceInWorker(json, options);
+    if (typeof window === 'undefined') {
+      const runPath = ['..','..','server','worker','runInferenceInWorker'].join('/');
+      // Hide require from bundlers like Turbopack/Webpack to prevent build warnings
+      const req = typeof eval !== 'undefined' ? eval('require') : require;
+      const { runInferenceInWorker } = req(runPath) as { runInferenceInWorker: (j: unknown, o: unknown) => Promise<unknown> };
+      return await runInferenceInWorker(json, options);
+    }
+    // Fallback to synchronous inference if in browser
+    return inferSchema(json, undefined, 0, undefined, options);
   } catch (e) {
-    // Fallback to synchronous inference
+    // Fallback to synchronous inference on error
     return inferSchema(json, undefined, 0, undefined, options);
   }
 };
@@ -876,7 +893,7 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
 
     // Explicit Language Mappings
     if (s === 'typescript' || s === 'ts') {
-      out = `/**\n * TypeFlow Generated TypeScript Interface\n */\n` + tsGen.generate(schema, 'Root', options);
+      out = `/**\n * TypeMorph Generated TypeScript Interface\n */\n` + tsGen.generate(schema, 'Root', options);
     } else if (s === 'zod') {
       out = `import { z } from "zod";\n\n` + zodGen.generate(schema, 'root', options);
     } else if (s === 'go' || s === 'golang') {
@@ -919,6 +936,15 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     else if (s.includes('vue-props')) out = vuePropsGen.generate(schema, 'Component');
     else if (s.includes('svelte-props')) out = sveltePropsGen.generate(schema, 'Component');
     else if (s.includes('solid-props')) out = solidPropsGen.generate(schema, 'Component');
+    else if (s.includes('react-context')) out = reactContextGen.generate(schema, 'Root');
+    else if (s.includes('react-query')) out = reactPropsGen.generate(schema, 'Component'); // Fallback or separate
+    else if (s.includes('redux-slice')) out = reduxSliceGen.generate(schema, 'root');
+    else if (s.includes('pinia')) out = piniaStoreGen.generate(schema, 'root');
+    else if (s.includes('sequelize')) out = sequelizeGen.generate(schema, 'Root');
+    else if (s.includes('typeorm')) out = typeormGen.generate(schema, 'Root');
+    else if (s.includes('drizzle')) out = drizzleGen.generate(schema, 'Root');
+    else if (s.includes('kysely')) out = kyselyGen.generate(schema, 'Root');
+    else if (s.includes('superstruct')) out = superstructGen.generate(schema, 'root');
     else if (s.includes('arduino')) out = arduinoGen.generate(schema, 'Data');
     else if (s.includes('mock')) out = mockGen.generate(schema);
     else if (s.includes('ui')) out = uiGen.generate(schema, 'Component');
@@ -926,6 +952,27 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     else if (s.includes('avro')) out = avroGen.generate(schema, 'Root');
     else if (s.includes('toml')) out = tomlGen.generate(schema, 'config');
     else if (s.includes('yaml')) out = yamlOutputGen.generate(schema);
+    else if (s.includes('env')) out = envGen.generate(schema);
+    else if (s.includes('properties')) out = propertiesGen.generate(schema);
+    else if (s.includes('markdown')) out = markdownTableGen.generate(schema);
+    else if (s.includes('asciidoc')) out = asciidocTableGen.generate(schema);
+    else if (s.includes('latex')) out = latexTableGen.generate(schema);
+    else if (s.includes('mermaid')) out = mermaidERGen.generate(schema, 'Root');
+    else if (s.includes('bigquery')) out = bigQueryGen.generate(schema);
+    else if (s.includes('dynamodb')) out = dynamoDBGen.generate(schema, 'Root');
+    else if (s.includes('postman')) out = postmanGen.generate(schema);
+    else if (s.includes('http')) out = httpFileGen.generate(schema);
+    else if (s.includes('vscode')) out = vscodeSnippetGen.generate(schema);
+    else if (s.includes('curl')) out = curlOutputGen.generate(schema);
+    else if (s.includes('cobol')) out = cobolGen.generate(schema, 'ROOT');
+    else if (s.includes('clojure')) out = clojureGen.generate(schema, 'Root');
+    else if (s.includes('elixir')) out = elixirGen.generate(schema, 'Root');
+    else if (s.includes('elm')) out = elmGen.generate(schema, 'Root');
+    else if (s.includes('godot') || s.includes('gdscript')) out = godotGen.generate(schema, 'Root');
+    else if (s.includes('haskell')) out = haskellGen.generate(schema, 'Root');
+    else if (s.includes('r-lang') || s === 'r') out = rGen.generate(schema, 'Root');
+    else if (s.includes('scala')) out = scalaGen.generate(schema, 'Root');
+    else if (s.includes('solidity')) out = solidityGen.generate(schema, 'Root');
 
     // Fallback to JSON if still not processed
     if (!out) {

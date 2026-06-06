@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ArrowRight, Zap, ShieldCheck, Layers } from 'lucide-react';
 
 export const metadata = {
-  title: 'All Developer Tools & Converters Directory - TypeFlow Pro',
+  title: 'All Developer Tools & Converters Directory - TypeMorph',
   description: 'Browse our complete library of 290+ local-first developer tools, including JSON to TypeScript, SQL to Zod, and more. Secure, fast, and professional.',
 };
 

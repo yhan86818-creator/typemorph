@@ -165,9 +165,13 @@ export default function SuperBatchModal({
         const trimmed = content.trim();
         
         if (extension === '.xml') {
-          jsonObj = parseXML(trimmed);
+          const xmlResult = parseXML(trimmed);
+          if (!xmlResult || Object.keys(xmlResult).length === 0) throw new Error('Invalid or empty XML.');
+          jsonObj = xmlResult;
         } else if (extension === '.yaml' || extension === '.yml') {
-          jsonObj = parseYAML(trimmed);
+          const yamlResult = parseYAML(trimmed);
+          if (!yamlResult || Object.keys(yamlResult).length === 0) throw new Error('Invalid or empty YAML.');
+          jsonObj = yamlResult;
         } else {
           jsonObj = JSON.parse(trimmed);
         }

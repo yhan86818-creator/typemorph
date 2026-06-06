@@ -13,7 +13,7 @@ export default function FinanceLandingPage() {
           <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md">
             <ShieldCheck size={20} />
           </div>
-          <span className="text-lg font-black tracking-tighter dark:text-white">TypeFlow <span className="text-blue-600 italic">Finance</span></span>
+          <span className="text-lg font-black tracking-tighter dark:text-white">TypeMorph <span className="text-blue-600 italic">Finance</span></span>
         </Link>
         <Link href="/" className="text-sm font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors">
           Back to Standard Edition
@@ -40,7 +40,7 @@ export default function FinanceLandingPage() {
               {[
                 { icon: <ServerOff size={20} />, title: "100% Offline Parsing Engine", desc: "Your financial messages are processed completely in the browser's Web Worker. No external API calls are made for standard parsing." },
                 { icon: <Key size={20} />, title: "Bring Your Own Key (BYOK)", desc: "For AI-assisted generation, use your enterprise Google API key. We never proxy requests or store your credentials." },
-                { icon: <ShieldCheck size={20} />, title: "GDPR & SOC2 Friendly", desc: "Because we have zero servers receiving your payloads, using TypeFlow inherently meets strict data isolation requirements." }
+                { icon: <ShieldCheck size={20} />, title: "GDPR & SOC2 Friendly", desc: "Because we have zero servers receiving your payloads, using TypeMorph inherently meets strict data isolation requirements." }
               ].map((feature, i) => (
                 <div key={i} className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center shrink-0">
@@ -84,7 +84,7 @@ export default function FinanceLandingPage() {
                 </ul>
               </div>
               <a 
-                href="https://yhanster206.gumroad.com/l/typeflow-finance" 
+                href="https://yhanster206.gumroad.com/l/typemorph-finance" 
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => trackProClick('finance_pricing_cta')}

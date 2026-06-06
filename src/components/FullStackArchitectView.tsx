@@ -189,7 +189,7 @@ export function FullStackArchitectView({ isDark, geminiKey, isPro, trialCount, s
       if (!isPro) {
         const newCount = trialCount - 1;
         setTrialCount(newCount);
-        localStorage.setItem('typeflow_trial_count', String(newCount));
+        localStorage.setItem('typemorph_trial_count', String(newCount));
       }
     } catch (err: any) {
       console.error('Architect Error:', err);
@@ -211,7 +211,7 @@ export function FullStackArchitectView({ isDark, geminiKey, isPro, trialCount, s
     const zip = new JSZip();
     
     zip.file('package.json', JSON.stringify({
-      "name": "typeflow-micro-saas",
+      "name": "typemorph-micro-saas",
       "version": "1.0.0",
       "private": true,
       "scripts": { "dev": "next dev", "build": "next build", "start": "next start" },
@@ -261,7 +261,7 @@ export function FullStackArchitectView({ isDark, geminiKey, isPro, trialCount, s
     }
     
     const content = await zip.generateAsync({ type: 'blob' });
-    saveAs(content, mode === 'fullstack' ? 'typeflow-micro-saas.zip' : 'typeflow-admin-ui.zip');
+    saveAs(content, mode === 'fullstack' ? 'typemorph-micro-saas.zip' : 'typemorph-admin-ui.zip');
   };
 
   const copyToClipboard = () => {
@@ -484,7 +484,7 @@ export function FullStackArchitectView({ isDark, geminiKey, isPro, trialCount, s
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TypeFlow Live Preview</title>
+    <title>TypeMorph Live Preview</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       body { margin: 0; padding: 0; background: ${isDark ? '#020617' : '#f8fafc'}; color: ${isDark ? '#fff' : '#0f172a'}; font-family: system-ui, -apple-system, sans-serif; }
@@ -553,7 +553,7 @@ export function FullStackArchitectView({ isDark, geminiKey, isPro, trialCount, s
             100% {mode === 'fullstack' ? 'Schema Accuracy' : 'React Beautiful UI'}
           </div>
         </div>
-        <div className="text-slate-300">TypeFlow Architect Engine v2.0</div>
+        <div className="text-slate-300">TypeMorph Architect Engine v2.0</div>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import TypeFlowApp from '../../../page';
+import TypeMorphApp from '../../../page';
 import { converters } from '@/data/converters';
 import fs from 'fs';
 import path from 'path';
@@ -50,7 +50,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const toName = slug.split('-to-').pop()?.toUpperCase();
 
   return {
-    title: `${fromName}を${toName}に変換 - セキュアなエンジニアリングガイド | TypeFlow Pro`,
+    title: `${fromName}を${toName}に変換 - セキュアなエンジニアリングガイド | TypeMorph`,
     description: converter?.description || `JSONやSQLから${toName}を自動生成。ブラウザ内だけで動作する型定義ツール。`,
     alternates: {
       canonical: seo.canonical,
@@ -60,7 +60,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       title: `${fromName} to ${toName} 変換`,
       description: `セキュアなローカルファースト開発ユーティリティ。`,
       url: seo.canonical,
-      siteName: 'TypeFlow',
+      siteName: 'TypeMorph',
       type: 'website',
     },
   };
@@ -89,7 +89,7 @@ export default async function JapaneseConverterPage({ params }: { params: Promis
       <p>現代のソフトウェア開発において、データ構造を迅速かつ正確に変換する能力は、単なる利便性ではなく、競争上の不可欠な要素です。当社の<strong>${c.title}</strong>は、プロフェッショナルな開発の最高基準を満たすよう設計されており、異種データ形式間にシームレスで安全なローカルファーストの架け橋を提供します。</p>
       
       <h2>ローカルファースト開発ツールへの転換</h2>
-      <p>長年、開発者は機密性の高いJSON、SQL、またはAPIペイロードをリモートサーバーで処理するクラウドベースのコンバーターに依存してきました。しかし、GDPRやSOC2などのデータプライバシー規制が厳しくなるにつれ、独自のスキーマをサードパーティのバックエンドに送信することは重大なセキュリティリスクとなっています。TypeFlow Proは、このリスクを排除するために誕生しました。<strong>${name}</strong>エンジンを使用してすべての変換ロジックをブラウザ内で100%ローカルに実行することで、知的財産や顧客データが安全な環境から離れないことを保証します。</p>
+      <p>長年、開発者は機密性の高いJSON、SQL、またはAPIペイロードをリモートサーバーで処理するクラウドベースのコンバーターに依存してきました。しかし、GDPRやSOC2などのデータプライバシー規制が厳しくなるにつれ、独自のスキーマをサードパーティのバックエンドに送信することは重大なセキュリティリスクとなっています。TypeMorphは、このリスクを排除するために誕生しました。<strong>${name}</strong>エンジンを使用してすべての変換ロジックをブラウザ内で100%ローカルに実行することで、知的財産や顧客データが安全な環境から離れないことを保証します。</p>
       
       <h2>なぜ ${name} を使用するのか？</h2>
       <p>大規模なレガシー移行に取り組んでいる場合でも、${tech}を使用してグリーンフィールドプロジェクトを構築している場合でも、型、クラス、スキーマのマッピングに必要な手作業はヒューマンエラーが発生しやすいものです。当社の ${name} ユーティリティはこのプロセスを自動化し、ターゲット言語の慣習的なパターンに従いながら、完璧な構造的整合性を維持します。JSONから${tech}に変換する場合、ツールはオプショナル属性、ネストされた関係、および命名規則を自動的にインテリジェントに推論します。</p>
@@ -106,17 +106,17 @@ export default async function JapaneseConverterPage({ params }: { params: Promis
       <p><strong>${c.title}</strong>を日常のルーチンに組み込むことで、繰り返しの多い手作業を何時間も節約できます。サードパーティのサービスから複雑なAPIレスポンスを受け取った場合、手動でインターフェースを記述するのに30分費やす代わりに、ここにペイロードを貼り付けるだけで、数秒でプロダクションレディな${tech}コードを取得できます。このスピードにより、チームはボイラープレートの管理ではなく、ビジネスロジックに集中できるようになります。</p>
       
       <h3>セキュリティとコンプライアンス</h3>
-      <p>TypeFlow Proはアカウント登録やデータのアップロードを必要としないため、エアギャップ環境や高セキュリティの企業ネットワークとも完全に互換性があります。開発者ツールは、データパイプラインの整合性を損なうことなくユーザーを支援すべきであると私たちは信じています。</p>
+      <p>TypeMorphはアカウント登録やデータのアップロードを必要としないため、エアギャップ環境や高セキュリティの企業ネットワークとも完全に互換性があります。開発者ツールは、データパイプラインの整合性を損なうことなくユーザーを支援すべきであると私たちは信じています。</p>
 
-      <h2>比較：TypeFlow Pro vs. 従来のコンバーター</h2>
+      <h2>比較：TypeMorph vs. 従来のコンバーター</h2>
       <p>標準的なコンバーターは、大幅な修正を必要とする汎用的で「フラット」なコードを出力することがよくあります。当社の<strong>${name}</strong>ロジックは複雑なデータ型を理解し、多態的な構造を処理し、${tech}の公式ドキュメントに従った慣習的なコードを生成します。適切なケース変換から正しい属性装飾（RustのSerdeやJavaのLombokなど）まで、実世界のプロダクションユースに合わせてエンジンを調整しています。</p>
       
       <blockquote>
-        「TypeFlow Proは、データモデリングの処理方法を再定義しました。ローカルファーストのプライバシーとAI駆動の解析の組み合わせは、現代の開発者にとってゴールドスタンダードです。」
+        「TypeMorphは、データモデリングの処理方法を再定義しました。ローカルファーストのプライバシーとAI駆動の解析の組み合わせは、現代の開発者にとってゴールドスタンダードです。」
       </blockquote>
       
       <h3>開発スタックの将来性</h3>
-      <p>PythonからGoへ、あるいはSQL主体のバックエンドからGraphQLフロントエンドへ移行する場合でも、TypeFlow Proは常にあなたのパートナーです。${tech}用の特殊なフォーマットを含む290以上のコンバーターをサポートしており、キャリアの次のアーキテクチャシフトにいつでも対応できます。</p>
+      <p>PythonからGoへ、あるいはSQL主体のバックエンドからGraphQLフロントエンドへ移行する場合でも、TypeMorphは常にあなたのパートナーです。${tech}用の特殊なフォーマットを含む290以上のコンバーターをサポートしており、キャリアの次のアーキテクチャシフトにいつでも対応できます。</p>
       
       <p>今すぐ <strong>${name}</strong> の使用を開始し、プロフェッショナルなローカルファーストのエンジニアリングワークベンチが生産性にもたらす違いを体験してください。</p>
     `;
@@ -155,7 +155,7 @@ export default async function JapaneseConverterPage({ params }: { params: Promis
         </nav>
       </div>
 
-      <TypeFlowApp defaultView="app" initialSlug={slug} />
+      <TypeMorphApp defaultView="app" initialSlug={slug} />
 
       {/* Technical Manual / Documentation Section */}
       <div className="max-w-4xl mx-auto px-6 py-32 border-t border-slate-100 mt-24">
@@ -190,7 +190,7 @@ export default async function JapaneseConverterPage({ params }: { params: Promis
           <div className="grid md:grid-cols-2 gap-12">
             <div>
               <p className="font-black text-slate-900 mb-2">処理はローカルのみで行われますか？</p>
-              <p className="text-sm text-slate-500 leading-relaxed font-medium">はい。TypeFlow Proは完全にブラウザのサンドボックス内で動作します。Web Workersを使用して高速な計算を行いますが、JSONやSQL、APIデータがリモートサーバーに送信されることは一切ありません。</p>
+              <p className="text-sm text-slate-500 leading-relaxed font-medium">はい。TypeMorphは完全にブラウザのサンドボックス内で動作します。Web Workersを使用して高速な計算を行いますが、JSONやSQL、APIデータがリモートサーバーに送信されることは一切ありません。</p>
             </div>
             <div>
               <p className="font-black text-slate-900 mb-2">商用プロジェクトで使用できますか？</p>

@@ -52,10 +52,10 @@ function fetchUsers(callback) {
 
   // Initial Magic Data Handling
   useEffect(() => {
-    const magicData = localStorage.getItem('typeflow_magic_data');
+    const magicData = localStorage.getItem('typemorph_magic_data');
     if (magicData) {
       setTimeout(() => setInput(magicData), 0);
-      localStorage.removeItem('typeflow_magic_data');
+      localStorage.removeItem('typemorph_magic_data');
       if (geminiKey && (isPro || trialCount > 0)) {
         setTimeout(() => processLogicRef.current?.(), 500);
       }
@@ -132,7 +132,7 @@ function fetchUsers(callback) {
       if (!isPro) {
         const newCount = trialCount - 1;
         setTrialCount(newCount);
-        localStorage.setItem('typeflow_trial_count', String(newCount));
+        localStorage.setItem('typemorph_trial_count', String(newCount));
       }
     } catch (err: any) {
       console.error('LogicLab Error:', err);
@@ -344,7 +344,7 @@ function fetchUsers(callback) {
             Safe Sandbox Execution
           </div>
         </div>
-        <div className="text-slate-300">TypeFlow Logic Engine v4.2</div>
+        <div className="text-slate-300">TypeMorph Logic Engine v4.2</div>
       </div>
     </div>
   );

@@ -8,6 +8,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: '*',
       allow: '/',
     },
-    sitemap: 'https://typeflow-pro.pages.dev/sitemap.xml',
+    sitemap: 'https://typemorph.dev/sitemap.xml',
   };
 }

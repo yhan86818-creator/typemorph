@@ -51,7 +51,7 @@ export default function PricingPage() {
           {/* Pro Tier */}
           <div className="p-0.5 bg-gradient-to-br from-blue-600 via-blue-400 to-blue-700 rounded-xl shadow-lg shadow-blue-600/[0.02] relative group hover:scale-[1.005] transition-transform">
             <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-white dark:bg-slate-950 px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-wider text-blue-600 border border-blue-600/20 shadow-md z-10 whitespace-nowrap">
-              TypeFlow Professional - Most Popular
+              TypeMorphfessional - Most Popular
             </div>
             <div className="h-full w-full bg-white dark:bg-slate-950 rounded-[0.7rem] p-8 flex flex-col">
               <div className="mb-6">
@@ -138,7 +138,7 @@ export default function PricingPage() {
                   },
                   {
                     title: "Direct AI Communication",
-                    desc: "Your Gemini API Key is stored in your LocalStorage (AES encrypted). When you click 'Generate', your browser talks DIRECTLY to Google. It never passes through a TypeFlow proxy."
+                    desc: "Your Gemini API Key is stored in your LocalStorage (AES encrypted). When you click 'Generate', your browser talks DIRECTLY to Google. It never passes through a TypeMorph proxy."
                   },
                   {
                     title: "Physical Barrier to Data",

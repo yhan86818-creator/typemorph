@@ -32,6 +32,25 @@ describe('Schema Diff Comparison Engine', () => {
     });
   });
 
+  it('[regression] should handle nested fields correctly', () => {
+    const diffs = compareSchemas({ user: { address: { zip: 100 } } }, { user: { address: {} } });
+    expect(diffs).toContainEqual(expect.objectContaining({ path: 'user.address.zip', type: 'removed' }));
+  });
+
+  it('[regression] should not crash on circular references (Maximum call stack size exceeded)', () => {
+    const objA: any = {};
+    objA.self = objA;
+
+    const objB: any = {};
+    objB.self = objB;
+
+    // Should run without throwing "Maximum call stack size exceeded"
+    expect(() => compareSchemas(objA, objB)).not.toThrow();
+    
+    const diffs = compareSchemas(objA, objB);
+    expect(diffs).toHaveLength(0); // identical structural schemas
+  });
+
   it('should detect type changes', () => {
     const oldObj = { age: 25 };
     const newObj = { age: '25' };

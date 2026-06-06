@@ -42,3 +42,68 @@ test('extractSharedTypes finds shared type and getDecisions reports unification'
   expect(unify).toBeDefined();
   if (unify) expect((unify.meta.count || 0) >= 2).toBeTruthy();
 });
+
+test('inferSchema merges array items and detects optional/union fields', () => {
+  const json = [
+    { id: 1, name: 'Alice' },
+    { id: 2, name: 'Bob', age: 30 },
+    { id: 'uuid-1234', name: 'Charlie', age: 25.5 }
+  ];
+
+  const schema = inferSchema(json);
+  
+  expect(schema.type).toBe('array');
+  expect(schema.itemType).toBeDefined();
+  
+  const item = schema.itemType!;
+  expect(item.type).toBe('object');
+  
+  // 'id' is number in first two, string in third -> union of number and string
+  expect(item.fields!.id.type).toBe('union');
+  expect(item.fields!.id.unionTypes).toContain('number');
+  expect(item.fields!.id.unionTypes).toContain('string');
+
+  // 'name' is string in all
+  expect(item.fields!.name.type).toBe('string');
+  expect(item.fields!.name.optional).toBeFalsy();
+
+  // 'age' is missing in first -> optional
+  expect(item.fields!.age.type).toBe('number');
+  expect(item.fields!.age.optional).toBe(true);
+  expect(item.fields!.age.format).toBe('float'); // due to 25.5
+});
+
+test('inferSchema format detection', () => {
+  const json = {
+    my_uuid: '123e4567-e89b-12d3-a456-426614174000',
+    my_email: 'test@example.com',
+    my_url: 'https://example.com',
+    my_date: '2023-10-01',
+    my_datetime: '2023-10-01T12:00:00Z'
+  };
+
+  const schema = inferSchema(json);
+  expect(schema.fields!.my_uuid.format).toBe('uuid');
+  expect(schema.fields!.my_email.format).toBe('email');
+  expect(schema.fields!.my_url.format).toBe('url');
+  expect(schema.fields!.my_date.format).toBe('date');
+  expect(schema.fields!.my_datetime.format).toBe('datetime');
+});
+
+test('inferSchema Enum detection', () => {
+  const json = [
+    { status: 'active' },
+    { status: 'inactive' },
+    { status: 'pending' },
+    { status: 'active' }
+  ];
+
+  const schema = inferSchema(json);
+  const statusField = schema.itemType!.fields!.status;
+  
+  expect(statusField.type).toBe('string');
+  expect(statusField.enumValues).toBeDefined();
+  expect(statusField.enumValues).toContain('active');
+  expect(statusField.enumValues).toContain('inactive');
+  expect(statusField.enumValues).toContain('pending');
+});

@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Terminal, Zap, CheckCircle2, ShieldCheck } from 'lucide-react';
 
-export default function TypeFlowV2() {
+export default function TypeMorphV2() {
   const [cmdKOpen, setCmdKOpen] = useState(false);
-  const [inputCode, setInputCode] = useState('{\n  "user": {\n    "id": "usr_12345",\n    "email": "dev@typeflow.pro",\n    "isActive": true,\n    "roles": ["admin", "developer"]\n  }\n}');
+  const [inputCode, setInputCode] = useState('{\n  "user": {\n    "id": "usr_12345",\n    "email": "dev@typemorph.pro",\n    "isActive": true,\n    "roles": ["admin", "developer"]\n  }\n}');
   const [outputCode, setOutputCode] = useState('');
   const [logs, setLogs] = useState<{ msg: string; type: string }[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -97,7 +97,7 @@ export default function TypeFlowV2() {
       <header className="flex justify-between items-center px-6 py-3 border-b border-[#444c56] bg-[#22272e]">
         <div className="flex items-center gap-2 font-mono text-sm text-[#adbac7]">
           <ShieldCheck size={20} className="text-[#f59e0b]" />
-          TypeFlow Pro
+          TypeMorph
           <span className="text-[#768390] text-xs font-normal border border-[#444c56] px-1.5 py-0.5 rounded ml-2">v2.0-beta</span>
         </div>
         

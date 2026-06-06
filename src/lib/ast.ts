@@ -1,4 +1,4 @@
-import { Schema, ASTClass, ASTField, ASTType, ASTTypeKind } from './types';
+import { Schema, SchemaType, ASTClass, ASTField, ASTType, ASTTypeKind } from './types';
 
 const toPascalCase = (str: string) => str.replace(/(^\w|_\w)/g, m => m.replace(/_/, '').toUpperCase());
 
@@ -55,8 +55,16 @@ export const convertToASTType = (v: Schema, parentClassPrefix: string, fieldKey:
     };
   }
   
-  // number, boolean, any, etc.
-  return { kind: v.type as ASTTypeKind, format: v.format };
+  // safe mapping for primitives to ASTTypeKind
+  // At this point v.type is one of: 'number' | 'boolean' | 'any' | 'union' (others handled above)
+  const primitiveMap: Partial<Record<SchemaType, ASTTypeKind>> = {
+    number: 'number',
+    boolean: 'boolean',
+    any: 'any',
+    union: 'union',
+  };
+  const kind: ASTTypeKind = primitiveMap[v.type] ?? 'any';
+  return { kind, format: v.format };
 };
 
 // スキーマ・リファクタリングエンジン (AST 最適化)
@@ -64,7 +72,11 @@ export const optimizeAST = (
   classes: ASTClass[],
   options: { flattenWrappers?: boolean; extractTimestamps?: boolean } = {}
 ): ASTClass[] => {
-  let optimized = [...classes];
+  let optimized: ASTClass[] = classes.map(cls => ({ 
+    ...cls, 
+    fields: [...cls.fields], 
+    annotations: cls.annotations ? [...cls.annotations] : undefined 
+  }));
   
   const flattenWrappers = options.flattenWrappers !== false;
   const extractTimestamps = options.extractTimestamps !== false;
@@ -88,7 +100,11 @@ export const optimizeAST = (
       for (const cls of optimized) {
         if (cls.name === 'TimestampModel') continue;
         const foundTimestamps = cls.fields.filter(f => timestampFields.includes(f.name));
-        if (foundTimestamps.length >= 2) {
+        
+        const isExactMatch = foundTimestamps.length === baseFields.length && 
+          foundTimestamps.every(f => baseFields.some(b => b.name === f.name));
+
+        if (foundTimestamps.length >= 2 && isExactMatch) {
           if (!hasTimestampBase) {
             optimized.push({
               name: 'TimestampModel',
@@ -110,6 +126,7 @@ export const optimizeAST = (
   // 2. 不必要なネストの排除（Flattening）
   if (flattenWrappers) {
     let changed = true;
+    const flattenedNames = new Set<string>(); // Prevent cycle deletion
     while (changed) {
       changed = false;
       for (let i = 0; i < optimized.length; i++) {
@@ -120,6 +137,11 @@ export const optimizeAST = (
           const singleField = cls.fields[0];
           if (singleField.fieldType.kind === 'classRef') {
             const targetClassName = singleField.fieldType.classRefName;
+            if (!targetClassName) continue;
+            
+            // Cycle prevention
+            if (targetClassName === cls.name || flattenedNames.has(targetClassName)) continue;
+            
             const targetClass = optimized.find(c => c.name === targetClassName);
             
             if (targetClass) {
@@ -141,6 +163,7 @@ export const optimizeAST = (
 
               // 不要になったターゲットクラスを除外
               optimized = optimized.filter(c => c.name !== targetClassName);
+              flattenedNames.add(targetClassName);
               changed = true;
               break;
             }
@@ -164,14 +187,25 @@ export const schemaToAST = (
   const seenClasses = new Set<string>();
 
   const traverse = (s: Schema, name: string) => {
+    if (seenSchemas.has(s)) return;
+    seenSchemas.add(s);
+
+    if (s.type === 'array' && s.itemType) {
+      let childItemName = s.itemType._sharedTypeName;
+      if (!childItemName) {
+        if (name.endsWith('ies')) childItemName = name.slice(0, -3) + 'y';
+        else if (name.endsWith('s')) childItemName = name.slice(0, -1);
+        else if (name.endsWith('List')) childItemName = name.slice(0, -4);
+        else childItemName = name + 'Item';
+      }
+      traverse(s.itemType, childItemName);
+      return;
+    }
+
     if (s.type !== 'object' || !s.fields) return;
 
     // 1. 共通型名が指定されている場合、すでに処理済みなら早期リターンして重複排除！
     if (s._sharedTypeName && seenClasses.has(s._sharedTypeName)) return;
-
-    // 2. スキーマオブジェクト自体がすでに走査済みなら、無限ループ防止のため早期リターン！
-    if (seenSchemas.has(s)) return;
-    seenSchemas.add(s);
 
     const className = s._sharedTypeName ?? name;
     seenClasses.add(className);
@@ -275,6 +309,9 @@ export const resolveNameCollisions = (classes: ASTClass[]): ASTClass[] => {
     }
     if (type.kind === 'array' && type.itemType) {
       updateType(type.itemType);
+    }
+    if (type.kind === 'union' && type.unionTypes) {
+      for (const ut of type.unionTypes) updateType(ut);
     }
   };
 

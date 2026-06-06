@@ -1,5 +1,5 @@
 {
-  "name": "typeflow",
+  "name": "typemorph",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run",
+    "test": "tsc --noEmit && vitest run",
     "deploy": "next build && npx wrangler pages deploy out --project-name typeflow-pro --branch main --commit-dirty=true",
     "deploy:only": "npx wrangler pages deploy out --project-name typeflow-pro --branch main --commit-dirty=true",
     "deploy:win": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy.ps1",

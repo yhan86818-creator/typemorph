@@ -4,8 +4,8 @@ import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'TypeFlow Pro',
-    short_name: 'TypeFlow',
+    name: 'TypeMorph',
+    short_name: 'TypeMorph',
     description: 'Local-First Professional Code Converter',
     start_url: '/',
     display: 'standalone',

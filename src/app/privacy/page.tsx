@@ -4,7 +4,7 @@ import { ShieldCheck, ArrowLeft, Lock } from 'lucide-react';
 import GlobalFooter from '@/components/GlobalFooter';
 
 export const metadata = {
-  title: 'Privacy Manifesto - TypeFlow Pro',
+  title: 'Privacy Manifesto - TypeMorph',
   description: 'Our commitment to zero-trace, local-first engineering.',
 };
 
@@ -24,7 +24,7 @@ export default function PrivacyPolicy() {
             Privacy <span className="text-blue-600">Manifesto.</span>
           </h1>
           <p className="text-xl text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-            We built TypeFlow Pro because we were tired of risking proprietary schemas by pasting them into random online converters.
+            We built TypeMorph because we were tired of risking proprietary schemas by pasting them into random online converters.
           </p>
         </div>
 
@@ -37,7 +37,7 @@ export default function PrivacyPolicy() {
           
           <h2>1. 100% Local-First Execution</h2>
           <p>
-            When you paste a 10,000-line JSON payload or a highly confidential PostgreSQL dump into TypeFlow Pro, <strong>it never leaves your machine.</strong> All parsing, AST generation, and AI inference happens strictly within the secure sandbox of your web browser. We do not have a backend database to store your inputs.
+            When you paste a 10,000-line JSON payload or a highly confidential PostgreSQL dump into TypeMorph, <strong>it never leaves your machine.</strong> All parsing, AST generation, and AI inference happens strictly within the secure sandbox of your web browser. We do not have a backend database to store your inputs.
           </p>
 
           <h2>2. What We Actually Collect</h2>

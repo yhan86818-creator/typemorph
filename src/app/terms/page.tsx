@@ -4,8 +4,8 @@ import { ShieldCheck, ArrowLeft, Scale } from 'lucide-react';
 import GlobalFooter from '@/components/GlobalFooter';
 
 export const metadata = {
-  title: 'Terms of Service - TypeFlow Pro',
-  description: 'Rules and guidelines for using the TypeFlow Pro engineering workbench.',
+  title: 'Terms of Service - TypeMorph',
+  description: 'Rules and guidelines for using the TypeMorph engineering workbench.',
 };
 
 export default function TermsOfService() {
@@ -24,7 +24,7 @@ export default function TermsOfService() {
             Terms of <span className="text-slate-500">Service.</span>
           </h1>
           <p className="text-xl text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-            By accessing or using TypeFlow Pro, you agree to be bound by these terms. We keep it simple: use the tools responsibly, and don&apos;t sue us if your code breaks.
+            By accessing or using TypeMorph, you agree to be bound by these terms. We keep it simple: use the tools responsibly, and don&apos;t sue us if your code breaks.
           </p>
         </div>
 
@@ -36,12 +36,12 @@ export default function TermsOfService() {
           
           <h2>1. Acceptance of Terms</h2>
           <p>
-            By accessing TypeFlow Pro, you agree to these Terms of Service. If you disagree with any part of the terms, then you do not have permission to access the Service.
+            By accessing TypeMorph, you agree to these Terms of Service. If you disagree with any part of the terms, then you do not have permission to access the Service.
           </p>
 
           <h2>2. Use of Service & Generated Code</h2>
           <p>
-            TypeFlow Pro provides utility functions that transform data (JSON, SQL, code, etc.). <strong>You own all the code you generate using our tools.</strong> You are free to use the output in commercial applications, open-source projects, and enterprise environments without attribution.
+            TypeMorph provides utility functions that transform data (JSON, SQL, code, etc.). <strong>You own all the code you generate using our tools.</strong> You are free to use the output in commercial applications, open-source projects, and enterprise environments without attribution.
           </p>
 
           <h2>3. Disclaimer of Warranties (The &quot;No Guarantees&quot; Clause)</h2>
@@ -55,7 +55,7 @@ export default function TermsOfService() {
 
           <h2>4. Limitation of Liability</h2>
           <p>
-            In no event shall TypeFlow Pro, nor its associated third parties, be liable for any indirect, incidental, special, consequential, or punitive damages—including but not limited to <strong>loss of profits, server downtime, data corruption, or security breaches</strong>—resulting from your use of the generated code or the service itself.
+            In no event shall TypeMorph, nor its associated third parties, be liable for any indirect, incidental, special, consequential, or punitive damages—including but not limited to <strong>loss of profits, server downtime, data corruption, or security breaches</strong>—resulting from your use of the generated code or the service itself.
           </p>
 
           <h2>5. Acceptable Use</h2>

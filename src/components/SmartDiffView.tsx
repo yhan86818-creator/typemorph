@@ -31,7 +31,7 @@ export function SmartDiffView({ geminiKey, setGeminiKey, isPro, trialCount, setT
       if (!isPro) {
         const newCount = trialCount - 1;
         setTrialCount(newCount);
-        localStorage.setItem('typeflow_trial_count', newCount.toString());
+        localStorage.setItem('typemorph_trial_count', newCount.toString());
       }
       const prompt = `You are an expert developer. Analyze these two JSON payloads (A and B).
       Generate a single unified ${schemaType === 'zod' ? 'Zod Schema (const schema = z.object(...))' : 'TypeScript Interface'} that can safely handle both formats.

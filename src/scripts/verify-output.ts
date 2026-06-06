@@ -32,7 +32,7 @@ const LANGS = [
 ] as const;
 
 console.log('='.repeat(60));
-console.log('TypeFlow Output Verification');
+console.log('TypeMorph Output Verification');
 console.log('Input:', JSON.stringify(TEST_JSON, null, 2));
 console.log('='.repeat(60));
 

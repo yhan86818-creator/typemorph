@@ -121,7 +121,7 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView, 
           className="flex items-center justify-between w-full p-4 bg-blue-600 hover:bg-blue-700 rounded-xl text-white shadow-md shadow-blue-600/10 hover:scale-[1.01] active:scale-95 transition-all"
         >
           <div className="flex flex-col">
-            <span className="text-[8px] font-mono uppercase tracking-wider opacity-80">TypeFlow Pro</span>
+            <span className="text-[8px] font-mono uppercase tracking-wider opacity-80">TypeMorph</span>
             <span className="text-sm font-black">Lifetime Access</span>
           </div>
           <Crown size={18} className="text-white/40" />

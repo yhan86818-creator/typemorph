@@ -1,5 +1,7 @@
+export type SchemaType = 'string' | 'number' | 'boolean' | 'object' | 'array' | 'any' | 'union';
+
 export interface Schema {
-  type: string;
+  type: SchemaType;
   format?: 'email' | 'url' | 'uuid' | 'datetime' | 'date' | 'int' | 'float';
   fields?: Record<string, Schema>;
   itemType?: Schema;
@@ -32,7 +34,7 @@ export interface Converter {
 }
 
 // ---------------------------------------------------------------------------
-// TypeFlow-AST (Language-Agnostic Abstract Syntax Tree)
+// TypeMorph-AST (Language-Agnostic Abstract Syntax Tree)
 // ---------------------------------------------------------------------------
 export interface ASTClass {
   name: string;
@@ -59,5 +61,5 @@ export interface ASTType {
   itemType?: ASTType;            // Used when kind is 'array'
   unionTypes?: ASTTypeKind[];    // Used when kind is 'union'
   enumValues?: string[];         // Used when kind is 'enum'
-  format?: string;               // e.g. 'int', 'float', 'date', 'email', 'uuid'
+  format?: 'email' | 'url' | 'uuid' | 'datetime' | 'date' | 'int' | 'float'; // matches Schema.format
 }

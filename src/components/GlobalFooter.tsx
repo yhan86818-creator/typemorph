@@ -12,7 +12,7 @@ export default function GlobalFooter() {
               <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center text-slate-950 shadow-md">
                 <ShieldCheck size={18} />
               </div>
-              <span className="text-xl font-black tracking-tighter dark:text-white">TypeFlow <span className="text-blue-600 italic">Pro</span></span>
+              <span className="text-xl font-black tracking-tighter dark:text-white">TypeMorph <span className="text-blue-600 italic">Pro</span></span>
             </div>
             <p className="text-slate-500 max-w-sm mb-8 leading-relaxed font-medium">
               The most secure, local-first schema and data engineering workbench for professional software developers. Built with privacy in our DNA.
@@ -55,7 +55,7 @@ export default function GlobalFooter() {
           </div>
         </div>
         <div className="pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-          <p>© 2026 TypeFlow Pro Engine. ALL RIGHTS RESERVED.</p>
+          <p>© 2026 TypeMorph Engine. ALL RIGHTS RESERVED.</p>
           <div className="flex gap-8">
             <span>GDPR COMPLIANT</span>
             <span>100% LOCAL PROCESSING</span>

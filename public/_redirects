@@ -2,3 +2,6 @@
 # Mapping legacy root paths to the new /converters/ subdirectory to preserve SEO ranking.
 
 # /:slug  /converters/:slug  301
+
+# Redirect all traffic from the legacy pages.dev domain to the new custom domain
+https://typeflow-pro.pages.dev/* https://typemorph.dev/:splat 301

@@ -5,7 +5,7 @@ import Editor, { useMonaco } from '@monaco-editor/react';
 import LZString from 'lz-string';
 import { 
   Terminal, Share2, Copy, FileJson, Sparkles, Settings, Loader2, Monitor, Trash2, Code2, Zap, Crown, Upload, ChevronDown,
-  Lightbulb, Edit3, Check, PanelLeftClose, PanelLeftOpen
+  Lightbulb, Edit3, Check, PanelLeftClose, PanelLeftOpen, Wand2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -51,7 +51,7 @@ const PRESETS = [
   {
     label: 'Team Project',
     data: {
-      "project_name": "TypeFlow Pro",
+      "project_name": "TypeMorph",
       "owner": {
         "id": "usr_99",
         "details": {
@@ -153,8 +153,8 @@ const PRESETS = [
     data: {
       id: 29837482,
       node_id: "MDEwOlJlcG9zaXRvcnkyOTgzNzQ4Mg==",
-      name: "typeflow-pro",
-      full_name: "devflow-labs/typeflow-pro",
+      name: "typemorph",
+      full_name: "devflow-labs/typemorph",
       private: false,
       owner: {
         login: "devflow-labs",
@@ -163,7 +163,7 @@ const PRESETS = [
         type: "Organization",
         site_admin: false
       },
-      html_url: "https://github.com/devflow-labs/typeflow-pro",
+      html_url: "https://github.com/devflow-labs/typemorph",
       description: "Elite developer-centric architectural schema converter and model synthesizer.",
       fork: false,
       stargazers_count: 8742,
@@ -354,14 +354,14 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('typeflow_save_cloud_history');
+      const saved = localStorage.getItem('typemorph_save_cloud_history');
       if (saved !== null) {
         setTimeout(() => setSaveCloudHistory(saved === 'true'), 0);
       }
       
       // ベータ版でない場合のみローカル証明書をチェック
       if (!IS_BETA) {
-        const cert = localStorage.getItem('typeflow_pro_cert');
+        const cert = localStorage.getItem('typemorph_pro_cert');
         if (cert) {
           setTimeout(() => setIsProLicensed(true), 0);
         }
@@ -372,7 +372,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
   }, [IS_BETA]);
   const handleSaveCloudHistoryChange = (val: boolean) => {
     setSaveCloudHistory(val);
-    localStorage.setItem('typeflow_save_cloud_history', String(val));
+    localStorage.setItem('typemorph_save_cloud_history', String(val));
   };
 
 
@@ -498,8 +498,8 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
       });
       const data = await res.json();
       if (res.ok && data.token) {
-        localStorage.setItem('typeflow_pro_cert', data.token);
-        localStorage.setItem('typeflow_license_key', targetKey);
+        localStorage.setItem('typemorph_pro_cert', data.token);
+        localStorage.setItem('typemorph_license_key', targetKey);
         setIsProLicensed(true);
         setLicenseKeyInput("");
         if (!providedKey) {
@@ -512,7 +512,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
           setLicenseError(data.error || "Invalid license key.");
         } else {
           // サイレント更新に失敗した場合、ライセンスを無効化
-          localStorage.removeItem('typeflow_pro_cert');
+          localStorage.removeItem('typemorph_pro_cert');
           setIsProLicensed(false);
         }
       }
@@ -539,8 +539,8 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
 
   useEffect(() => {
     const checkLicense = async () => {
-      const cert = localStorage.getItem('typeflow_pro_cert');
-      const savedKey = localStorage.getItem('typeflow_license_key');
+      const cert = localStorage.getItem('typemorph_pro_cert');
+      const savedKey = localStorage.getItem('typemorph_license_key');
       
       if (cert) {
         if (isTokenExpired(cert)) {
@@ -564,7 +564,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     if (localTrialCount > 0) {
       const newCount = localTrialCount - 1;
       setLocalTrialCount(newCount);
-      localStorage.setItem('typeflow_trial_count', String(newCount));
+      localStorage.setItem('typemorph_trial_count', String(newCount));
       
       // トライアル消費のトースト通知
       setToastMsg(`Free Trial Used (${newCount} left today)`);
@@ -577,17 +577,17 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     return false;
   }, [isProLicensed, localTrialCount, setLocalTrialCount, setShowPaywall, setToastMsg, setShowToast]);
 
-  const checkAndConsumeBasicTrial = (): boolean => {
+  const checkAndConsumeBasicTrial = useCallback((): boolean => {
     if (isProLicensed) return true;
     if (basicTrialCount > 0) {
       const newCount = basicTrialCount - 1;
       setBasicTrialCount(newCount);
-      localStorage.setItem('typeflow_basic_trial_count', String(newCount));
+      localStorage.setItem('typemorph_basic_trial_count', String(newCount));
       return true;
     }
     setShowPaywall(true);
     return false;
-  };
+  }, [isProLicensed, basicTrialCount, setBasicTrialCount, setShowPaywall, setToastMsg, setShowToast]);
 
 
   // Hydrate data from URL hash on mount
@@ -646,7 +646,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
 
   // Load settings
   useEffect(() => {
-    const saved = localStorage.getItem('typeflow_gen_settings');
+    const saved = localStorage.getItem('typemorph_gen_settings');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -664,7 +664,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
 
   // Save settings
   useEffect(() => {
-    localStorage.setItem('typeflow_gen_settings', JSON.stringify(genSettings));
+    localStorage.setItem('typemorph_gen_settings', JSON.stringify(genSettings));
   }, [genSettings]);
 
   useEffect(() => {
@@ -683,6 +683,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
   useEffect(() => { outputTabRef.current = outputTab; }, [outputTab]);
 
   const taskIdRef = useRef(0);
+  const isGeneratingRef = useRef(false);
 
   useEffect(() => {
     trackWorkbenchOpen(slug);
@@ -770,6 +771,74 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
       }, 1000);
     }
   }, [geminiKey]); // Only depend on geminiKey
+
+  // ─── AI Transform: natural-language JSON mutation ─────────────────────────
+  const [isAiTransformLoading, setIsAiTransformLoading] = useState(false);
+  const [showTransformModal, setShowTransformModal] = useState(false);
+  const [transformInstruction, setTransformInstruction] = useState('');
+
+  const handleAiTransform = useCallback(async () => {
+    if (!input.trim()) {
+      alert('Please enter some JSON first.');
+      return;
+    }
+    if (!geminiKey) {
+      if (window.confirm('Gemini API Key is required for AI Transform.\n\nWould you like to get a FREE API Key from Google AI Studio?')) {
+        window.open('https://aistudio.google.com/app/apikey', '_blank');
+      }
+      return;
+    }
+    setShowTransformModal(true);
+  }, [geminiKey, input]);
+
+  const executeAiTransform = useCallback(async () => {
+    if (!transformInstruction.trim()) return;
+    setShowTransformModal(false);
+    setIsAiTransformLoading(true);
+    setAiStatus('Transforming...');
+    try {
+      const prompt = `You are a JSON transformation engine.
+The user has given you this JSON:
+\`\`\`json
+${input}
+\`\`\`
+
+User instruction: "${transformInstruction}"
+
+Rules:
+1. Apply the instruction and return ONLY the transformed JSON — no markdown fences, no explanation.
+2. Keep the JSON syntactically valid and well-formatted (2-space indent).
+3. If the instruction is ambiguous, make a sensible best-effort transformation.
+4. NEVER add or invent new top-level keys unless the instruction explicitly asks for them.`;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey.trim()}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+        }
+      );
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) {
+        const cleaned = text.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
+        setInput(cleaned);
+        setTransformInstruction('');
+        setToastMsg('✨ JSON transformed by AI!');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2500);
+      } else {
+        alert('AI returned no output. Please try again.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('AI Transform failed. Please check your API key.');
+    } finally {
+      setIsAiTransformLoading(false);
+      setAiStatus('');
+    }
+  }, [transformInstruction, input, geminiKey]);
 
   // ─── Streaming helper ────────────────────────────────────────────────────
   const streamGemini = useCallback(async function* (prompt: string): AsyncGenerator<string> {
@@ -1227,6 +1296,8 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     // 基本変換の回数制限チェック
     if (!checkAndConsumeBasicTrial()) return;
 
+    isGeneratingRef.current = true; // Start generating
+
     const res: any = {};
     let jsonObj: any = null;
     let success = false;
@@ -1260,12 +1331,18 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
           success = true;
         }
         else if (trimmed.startsWith('<')) {
-          jsonObj = parseXML(trimmed);
-          if (jsonObj && Object.keys(jsonObj).length > 0) success = true;
+          const xmlResult = parseXML(trimmed);
+          if (xmlResult && Object.keys(xmlResult).length > 0) {
+            jsonObj = xmlResult;
+            success = true;
+          }
         }
         else {
-          jsonObj = parseYAML(trimmed);
-          if (jsonObj && Object.keys(jsonObj).length > 0) success = true;
+          const yamlResult = parseYAML(trimmed);
+          if (yamlResult && Object.keys(yamlResult).length > 0) {
+            jsonObj = yamlResult;
+            success = true;
+          }
         }
       } catch (e) {}
 
@@ -1303,12 +1380,18 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
         const langs = ['typescript', 'zod', 'go', 'rust', 'java', 'python', 'dart', 'php', 'csharp', 'protobuf', 'graphql', 'swift', 'kotlin', 'sql', 'jsonschema', 'mock', 'ui', 'doc'].filter(l => l !== activeLang);
         
         const generateBackground = async () => {
-          for (const lang of langs) {
-            await new Promise(r => setTimeout(r, 0)); // Yield to main thread to prevent UI freeze
-            if (taskId !== taskIdRef.current) return; // Cancel if obsolete
-            const compiled = runEngine(jsonObj, lang, slug, genSettings);
-            if (taskId !== taskIdRef.current) return; // Cancel if obsolete
-            setOutputs((prev: any) => ({ ...prev, [lang]: compiled }));
+          try {
+            for (const lang of langs) {
+              await new Promise(r => setTimeout(r, 0)); // Yield to main thread to prevent UI freeze
+              if (taskId !== taskIdRef.current) return; // Cancel if obsolete
+              const compiled = runEngine(jsonObj, lang, slug, genSettings);
+              if (taskId !== taskIdRef.current) return; // Cancel if obsolete
+              setOutputs((prev: any) => ({ ...prev, [lang]: compiled }));
+            }
+          } finally {
+            if (taskId === taskIdRef.current) {
+              isGeneratingRef.current = false; // Finish generating
+            }
           }
         };
         generateBackground();
@@ -1318,6 +1401,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     }
     setOutputs(res);
     setHasParseError(!success);
+    isGeneratingRef.current = false; // Finish generating (sync case)
   }, [input, slug, genSettings, reportConvertIfNew, outputTab]);
 
   useEffect(() => { 
@@ -1335,14 +1419,14 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
   }, [processInput, input]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('typeflow_history');
+    const saved = localStorage.getItem('typemorph_history');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         setTimeout(() => setHistory(parsed), 0);
       } catch (e) {
-        console.warn('typeflow_history corrupted, clearing.', e);
-        localStorage.removeItem('typeflow_history');
+        console.warn('typemorph_history corrupted, clearing.', e);
+        localStorage.removeItem('typemorph_history');
       }
     }
   }, []);
@@ -1354,7 +1438,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     setHistory(prev => {
       const filtered = prev.filter(h => h.content !== content);
       const next = [{ content, timestamp: new Date().toISOString() }, ...filtered].slice(0, 5);
-      localStorage.setItem('typeflow_history', JSON.stringify(next));
+      localStorage.setItem('typemorph_history', JSON.stringify(next));
       return next;
     });
 
@@ -1436,7 +1520,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
   // Auto-save history after idle
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (input && input.length > 20 && input !== lastWipedContent) {
+      if (input && input.length > 20 && input !== lastWipedContent && !isGeneratingRef.current) {
         saveToHistory(input);
       }
     }, 3000);
@@ -1446,11 +1530,11 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
   // Initial Sample Data & Magic Data Handling
   const lastSlug = useRef('');
   useEffect(() => {
-    const magicData = localStorage.getItem('typeflow_magic_data');
+    const magicData = localStorage.getItem('typemorph_magic_data');
     if (magicData) {
       setTimeout(() => {
         setInput(magicData);
-        localStorage.removeItem('typeflow_magic_data');
+        localStorage.removeItem('typemorph_magic_data');
         if (geminiKey) {
           setTimeout(() => handleAiSmartParse(), 500);
         }
@@ -1569,6 +1653,24 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                 <div className="flex items-center gap-2">
                   <Sparkles size={12} />
                   <span>AI Smart Parse</span>
+                </div>
+              )}
+            </button>
+            <button
+              onClick={handleAiTransform}
+              disabled={isAiTransformLoading}
+              className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/30 px-3 py-1.5 rounded-xl border border-violet-200 dark:border-violet-900/50 hover:bg-violet-600 hover:text-white dark:hover:bg-violet-600 dark:hover:text-white transition-all shadow-sm disabled:opacity-50"
+              title="Ask AI to transform your JSON (e.g. 'rename all keys to camelCase')"
+            >
+              {isAiTransformLoading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 size={12} className="animate-spin" />
+                  <span>{aiStatus}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Wand2 size={12} />
+                  <span>AI Transform</span>
                 </div>
               )}
             </button>
@@ -1954,7 +2056,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
 
                   <div className="border-t border-slate-200 dark:border-slate-800 my-3 pt-3">
                     <h5 className="text-[9px] font-mono uppercase text-slate-500 dark:text-slate-400 mb-2 tracking-wider flex items-center gap-1.5">
-                      <Crown size={12} className="text-yellow-500" /> TypeFlow Pro License
+                      <Crown size={12} className="text-yellow-500" /> TypeMorph License
                     </h5>
                     {isProLicensed ? (
                       <div className="flex items-center gap-2 p-2 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-lg mb-3">
@@ -2008,7 +2110,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                     <button 
                       onClick={() => {
                         if (confirm("Are you sure you want to completely wipe all local conversion history? This cannot be undone.")) {
-                          localStorage.removeItem('typeflow_history');
+                          localStorage.removeItem('typemorph_history');
                           setHistory([]);
                           setLastWipedContent(input);
                           setToastMsg("Local History Wiped!");
@@ -2055,7 +2157,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                   "/Component.tsx": (outputs['ui'] || "export const ComponentCard = () => <div>No UI generated</div>;")
                 } : {
                   "/public/index.html": `<!DOCTYPE html>\n<html lang="en" class="${isDark ? 'dark' : ''}">\n  <head>\n    <script src="https://cdn.tailwindcss.com"></script>\n  </head>\n  <body class="bg-slate-50 dark:bg-[#0b0f19]">\n    <div id="root"></div>\n  </body>\n</html>`,
-                  "/App.tsx": `import React, { useState } from 'react';\nimport { Root } from './types';\nimport mockData from './mockData';\n\nexport default function App() {\n  // ⚡ Write type-safe React code here!\n  // Try changing properties to trigger typescript compiler check errors in real-time.\n  const [data, setData] = useState<Root>(mockData as Root);\n\n  return (\n    <div className="p-6 font-sans leading-relaxed text-slate-800 dark:text-slate-100 min-h-screen bg-slate-50 dark:bg-[#0b0f19]">\n      <h2 className="text-lg font-black text-blue-600 dark:text-blue-400 border-b border-slate-200 dark:border-slate-800 pb-2 mb-4 flex items-center gap-2">\n        ⚡ TypeFlow Live Playground\n      </h2>\n      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">\n        The inferred interfaces are loaded in <code>types.ts</code>. Change variable bindings in <code>App.tsx</code> to see compile validation checks!\n      </p>\n      <div className="bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">\n        <h4 className="text-xs font-bold text-slate-450 mb-2">Injected State Data:</h4>\n        <pre className="text-[10px] overflow-auto max-h-48 bg-slate-50 dark:bg-slate-950 p-3 rounded border border-slate-200 dark:border-slate-850 font-mono text-slate-800 dark:text-slate-200">\n          {JSON.stringify(data, null, 2)}\n        </pre>\n      </div>\n    </div>\n  );\n}`,
+                  "/App.tsx": `import React, { useState } from 'react';\nimport { Root } from './types';\nimport mockData from './mockData';\n\nexport default function App() {\n  // ⚡ Write type-safe React code here!\n  // Try changing properties to trigger typescript compiler check errors in real-time.\n  const [data, setData] = useState<Root>(mockData as Root);\n\n  return (\n    <div className="p-6 font-sans leading-relaxed text-slate-800 dark:text-slate-100 min-h-screen bg-slate-50 dark:bg-[#0b0f19]">\n      <h2 className="text-lg font-black text-blue-600 dark:text-blue-400 border-b border-slate-200 dark:border-slate-800 pb-2 mb-4 flex items-center gap-2">\n        ⚡ TypeMorph Live Playground\n      </h2>\n      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">\n        The inferred interfaces are loaded in <code>types.ts</code>. Change variable bindings in <code>App.tsx</code> to see compile validation checks!\n      </p>\n      <div className="bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">\n        <h4 className="text-xs font-bold text-slate-450 mb-2">Injected State Data:</h4>\n        <pre className="text-[10px] overflow-auto max-h-48 bg-slate-50 dark:bg-slate-950 p-3 rounded border border-slate-200 dark:border-slate-850 font-mono text-slate-800 dark:text-slate-200">\n          {JSON.stringify(data, null, 2)}\n        </pre>\n      </div>\n    </div>\n  );\n}`,
                   "/types.ts": (outputs['typescript'] || "export interface Root {}"),
                   "/mockData.ts": `const mockData = ${outputs['mock'] || '{}'};\nexport default mockData;`
                 }}
@@ -2476,17 +2578,17 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
             </div>
             
             <h2 className="text-lg font-black text-slate-900 dark:text-white mb-2 font-sans tracking-tight">
-              Unlock TypeFlow Pro
+              Unlock TypeMorph
             </h2>
             <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-6 font-sans">
-              You&apos;ve reached your free daily limit for AI features. Upgrade to <b>TypeFlow Pro</b> to unlock unlimited, 100% private conversions.
+              You&apos;ve reached your free daily limit for AI features. Upgrade to <b>TypeMorph</b> to unlock unlimited, 100% private conversions.
             </p>
 
             <div className="w-full flex flex-col gap-3">
               <button 
                 onClick={() => {
                   trackProClick('workbench_paywall_pricing');
-                  window.open('https://typeflow.dev/pricing', '_blank');
+                  window.open('https://typemorph.dev/pricing', '_blank');
                 }}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-950 dark:bg-white text-white dark:text-slate-950 font-bold text-sm shadow-xl shadow-slate-900/10 dark:shadow-white/5 hover:scale-[1.02] active:scale-95 transition-all"
               >

@@ -79,56 +79,87 @@ export const tsGen = {
 
 // Topological sort: ensures referenced schemas are output before the schemas that use them.
 // This prevents ReferenceError caused by `const` forward references in TypeScript/JS.
-const topoSortForZod = (classes: ASTClass[]): ASTClass[] => {
+// It also strictly detects cycles and returns a set of fields that must be lazy-evaluated.
+const topoSortForZod = (classes: ASTClass[]): { sorted: ASTClass[], cyclicClassRefs: Set<string> } => {
   const nameToClass = new Map<string, ASTClass>(classes.map(c => [c.name, c]));
   const visited = new Set<string>();
-  const result: ASTClass[] = [];
+  const visiting = new Set<string>();
+  const sorted: ASTClass[] = [];
+  const cyclicClassRefs = new Set<string>();
 
   const getClassRefs = (type: ASTType): string[] => {
     if (type.kind === 'classRef' && type.classRefName) return [type.classRefName];
     if (type.kind === 'array' && type.itemType) return getClassRefs(type.itemType);
+    if (type.kind === 'union' && type.unionTypes) {
+      // unionTypes in AST only hold primitive strings (ASTTypeKind), so they never contain classRefs.
+      return [];
+    }
     return [];
   };
 
   const visit = (cls: ASTClass) => {
     if (visited.has(cls.name)) return;
-    visited.add(cls.name);
+    if (visiting.has(cls.name)) return;
+    visiting.add(cls.name);
+
     // Visit base class (extends) first
     const baseName = getBaseClass(cls);
     if (baseName) {
       const dep = nameToClass.get(baseName);
-      if (dep) visit(dep);
+      if (dep) {
+        if (!visiting.has(baseName)) visit(dep);
+      }
     }
+
     // Visit classRef field dependencies
     for (const field of cls.fields) {
       for (const ref of getClassRefs(field.fieldType)) {
-        const dep = nameToClass.get(ref);
-        if (dep) visit(dep);
+        if (visiting.has(ref)) {
+          // Detected a cycle! This specific classRef must be wrapped in z.lazy()
+          cyclicClassRefs.add(ref);
+        } else {
+          const dep = nameToClass.get(ref);
+          if (dep) visit(dep);
+        }
       }
     }
-    result.push(cls);
+
+    visiting.delete(cls.name);
+    visited.add(cls.name);
+    sorted.push(cls);
   };
 
   for (const cls of classes) visit(cls);
-  return result;
+  return { sorted, cyclicClassRefs };
 };
 
 // Zod型表現を出力するプリンタヘルパー
-const printZodASTType = (type: ASTType, options: any = {}): string => {
+const printZodASTType = (type: ASTType, cyclicClassRefs: Set<string>, options: any = {}): string => {
   switch (type.kind) {
-    case 'union':
-      return type.unionTypes ? `z.union([${type.unionTypes.map(t => `z.${t}()`).join(', ')}])` : 'z.any()';
+    case 'union': {
+      if (!type.unionTypes || type.unionTypes.length === 0) return 'z.any()';
+      const parts = type.unionTypes.map(t => {
+        // unionTypes is an array of ASTTypeKind (strings), we wrap it in an ASTType object for the recursive call
+        return printZodASTType({ kind: t } as ASTType, cyclicClassRefs, options);
+      });
+      if (parts.length === 1) return parts[0];
+      return `z.union([${parts.join(', ')}])`;
+    }
     case 'enum':
       return type.enumValues ? `z.enum([${type.enumValues.map(ev => `"${ev}"`).join(', ')}])` : 'z.string()';
     case 'date':
       return 'z.coerce.date()';
     case 'datetime':
       return 'z.string().datetime()';
-    case 'classRef':
-      return type.classRefName ? `${toCamelCase(type.classRefName)}Schema` : 'z.any()';
+    case 'classRef': {
+      if (!type.classRefName) return 'z.any()';
+      const core = `${toCamelCase(type.classRefName)}Schema`;
+      // Use z.lazy() if this reference causes a cycle, avoiding ReferenceError
+      return cyclicClassRefs.has(type.classRefName) ? `z.lazy(() => ${core})` : core;
+    }
     case 'array':
       if (type.itemType) {
-        const sub = printZodASTType(type.itemType, options);
+        const sub = printZodASTType(type.itemType, cyclicClassRefs, options);
         return `z.array(${sub})`;
       }
       return 'z.array(z.any())';
@@ -153,8 +184,8 @@ export const zodGen = {
     let res = "";
 
     // 2. 各クラス（構造体）に対応する Zod スキーマを平坦に出力
-    // トポロジカルソートで依存先を先に出力（前方参照エラーを防止）
-    const sortedClasses = topoSortForZod(astClasses);
+    // トポロジカルソートで依存先を先に出力（前方参照エラーを防止し、循環時は z.lazy で対応）
+    const { sorted: sortedClasses, cyclicClassRefs } = topoSortForZod(astClasses);
     for (const cls of sortedClasses) {
       const camelName = toCamelCase(cls.name);
       const baseClass = getBaseClass(cls);
@@ -169,7 +200,7 @@ export const zodGen = {
       for (const field of cls.fields) {
         const isOpt = (options.optionalFields || field.isOptional) ? '.optional()' : '';
         const isNull = field.isNullable ? '.nullable()' : '';
-        const zType = printZodASTType(field.fieldType, options);
+        const zType = printZodASTType(field.fieldType, cyclicClassRefs, options);
         
         res += `  ${field.name}: ${zType}${isNull}${isOpt},\n`;
       }
@@ -528,7 +559,7 @@ let res = usesTime
 
       for (const field of cls.fields) {
         let goType = printGoASTType(field.fieldType);
-        if (field.isNullable) goType = `*${goType}`;
+        if (field.isNullable || field.isOptional) goType = `*${goType}`;
         const pascalFieldName = toPascalCase(field.name);
         const omitEmpty = field.isOptional ? ',omitempty' : '';
         res += `  ${pascalFieldName} ${goType} \`json:"${field.name}${omitEmpty}"\`\n`;
@@ -816,14 +847,29 @@ export const jsonSchemaGen = {
   generate: (schema: Schema): string => {
     const build = (s: Schema): any => {
       if (s.type === 'object' && s.fields) {
-        return {
+        const required = Object.keys(s.fields).filter(k => !s.fields![k].optional);
+        const res: any = {
           type: 'object',
           properties: Object.keys(s.fields).reduce((acc, k) => ({ ...acc, [k]: build(s.fields![k]) }), {})
         };
+        if (required.length > 0) res.required = required;
+        if (s.nullable) res.nullable = true;
+        return res;
       }
-      if (s.type === 'array') return { type: 'array', items: build(s.itemType!) };
+      if (s.type === 'array') {
+        const res: any = { type: 'array', items: build(s.itemType!) };
+        if (s.nullable) res.nullable = true;
+        return res;
+      }
+      if (s.type === 'union' && s.unionTypes) {
+        const res: any = { anyOf: s.unionTypes.map(t => ({ type: t })) };
+        if (s.nullable) res.nullable = true;
+        return res;
+      }
       const leaf: any = { type: s.type };
+      if (s.format) leaf.format = s.format;
       if (s.enumValues && s.enumValues.length > 0) leaf.enum = s.enumValues;
+      if (s.nullable) leaf.nullable = true;
       return leaf;
     };
     return JSON.stringify({ 
@@ -840,10 +886,14 @@ export const docGen = {
       res += `| Field | Type | Required | Description |\n`;
       res += `| :--- | :--- | :--- | :--- |\n`;
       for (const [k, v] of Object.entries(schema.fields)) {
-        const type = v.type === 'object' ? 'Object' : v.type === 'array' ? `${v.itemType?.type || 'any'}[]` : v.type;
+        let typeStr = v.type === 'object' ? 'Object' : v.type === 'array' ? `${v.itemType?.type || 'any'}[]` : v.type;
+        if (v.type === 'union' && v.unionTypes) {
+          typeStr = v.unionTypes.join(' \\| ');
+        }
+        if (v.nullable) typeStr += ' (nullable)';
+        
         const required = v.optional ? 'No' : 'Yes';
         
-        // Intelligent descriptions based on field names
         let desc = 'No description provided.';
         const keyLower = k.toLowerCase();
         if (keyLower === 'id' || keyLower.endsWith('id')) desc = 'Unique identifier for the record.';
@@ -864,7 +914,7 @@ export const docGen = {
         else if (v.format === 'url') desc = 'Fully-qualified web URL (HTTP/HTTPS).';
         else if (v.format === 'datetime') desc = 'ISO 8601 compliant UTC date-time string.';
         
-        res += `| \`${k}\` | \`${type}\` | ${required} | ${desc} |\n`;
+        res += `| \`${k}\` | \`${typeStr}\` | ${required} | ${desc} |\n`;
       }
       res += `\n`;
       

@@ -93,7 +93,7 @@ export const rootSchema = z.object({
         <div className="flex flex-col gap-2 relative">
           <div className="flex items-center justify-between px-4 py-1">
             <span className="text-[10px] font-black uppercase text-blue-600 dark:text-blue-400 tracking-[0.2em] flex items-center gap-2">
-              <Sparkles size={12} /> TypeFlow Synthesis
+              <Sparkles size={12} /> TypeMorph Synthesis
             </span>
             {step === 2 && (
               <motion.div 

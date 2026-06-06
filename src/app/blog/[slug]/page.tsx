@@ -12,9 +12,9 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const post = posts.find((p) => p.slug === slug);
-  const baseUrl = 'https://typeflow-pro.pages.dev';
+  const baseUrl = 'https://typemorph.dev';
   return {
-    title: `${post?.title} | TypeFlow Blog`,
+    title: `${post?.title} | TypeMorph Blog`,
     description: post?.excerpt || post?.title,
     alternates: {
       canonical: `${baseUrl}/blog/${slug}`,
@@ -23,10 +23,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       title: post?.title,
       description: post?.excerpt,
       url: `${baseUrl}/blog/${slug}`,
-      siteName: 'TypeFlow Pro',
+      siteName: 'TypeMorph',
       type: 'article',
       publishedTime: post?.date,
-      authors: [post?.author || 'TypeFlow Team'],
+      authors: [post?.author || 'TypeMorph Team'],
     }
   };
 }
@@ -74,10 +74,10 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
         <footer className="mt-20 p-8 rounded-3xl bg-primary text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-primary/20">
           <div>
             <h3 className="text-xl font-bold mb-2">Want to automate this?</h3>
-            <p className="text-slate-300 text-sm">Use TypeFlow to generate your types and schemas in seconds.</p>
+            <p className="text-slate-300 text-sm">Use TypeMorph to generate your types and schemas in seconds.</p>
           </div>
           <Link prefetch={false} href="/?view=app" className="px-6 py-3 bg-accent rounded-xl font-bold hover:bg-accent/90 transition-colors">
-            Try TypeFlow Now
+            Try TypeMorph Now
           </Link>
         </footer>
       </article>

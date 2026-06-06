@@ -136,10 +136,10 @@ CREATE TABLE comments (
 
   // Initial Magic Data Handling
   useEffect(() => {
-    const magicData = localStorage.getItem('typeflow_magic_data');
+    const magicData = localStorage.getItem('typemorph_magic_data');
     if (magicData) {
       setTimeout(() => setInput(magicData), 0);
-      localStorage.removeItem('typeflow_magic_data');
+      localStorage.removeItem('typemorph_magic_data');
       if (geminiKey && (isPro || trialCount > 0)) {
         setTimeout(() => generateDiagramRef.current?.(), 500);
       }
@@ -279,7 +279,7 @@ CREATE TABLE comments (
       if (!isPro) {
         const newCount = trialCount - 1;
         setTrialCount(newCount);
-        localStorage.setItem('typeflow_trial_count', String(newCount));
+        localStorage.setItem('typemorph_trial_count', String(newCount));
       }
     } catch (e: any) {
       console.error('ArchitectureView Error:', e);
@@ -299,7 +299,7 @@ CREATE TABLE comments (
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `typeflow-arch-${Date.now()}.svg`;
+    link.download = `typemorph-arch-${Date.now()}.svg`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -347,7 +347,7 @@ CREATE TABLE comments (
           const pngUrl = URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = pngUrl;
-          link.download = `typeflow-arch-${Date.now()}-${useTransparent ? 'transparent' : 'solid'}.png`;
+          link.download = `typemorph-arch-${Date.now()}-${useTransparent ? 'transparent' : 'solid'}.png`;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
@@ -734,7 +734,7 @@ CREATE TABLE comments (
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-slate-300">TypeFlow Pro</span>
+          <span className="text-slate-300">TypeMorph</span>
           <div className="flex gap-1">
             <div className="w-1 h-1 rounded-full bg-blue-600" />
             <div className="w-1 h-1 rounded-full bg-blue-600/50" />

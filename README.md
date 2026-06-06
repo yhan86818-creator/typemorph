@@ -2,7 +2,7 @@
 
 > **Premium, Local-First Schema Engineering Workbench for Modern Software Architects.**
 
-[![Live Demo](https://img.shields.io/badge/Demo-Live_on_Cloudflare-3B82F6?style=for-the-badge&logo=cloudflare&logoColor=white)](https://15324be7.typeflow-pro.pages.dev)
+[![Live Demo](https://img.shields.io/badge/Demo-Live_on_Cloudflare-3B82F6?style=for-the-badge&logo=cloudflare&logoColor=white)](https://typemorph.dev)
 [![GitHub Stars](https://img.shields.io/github/stars/yhan86818-creator/ai-factory?style=for-the-badge&logo=github&logoColor=white&color=yellow)](https://github.com/yhan86818-creator/ai-factory)
 [![License](https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge)](LICENSE)
 

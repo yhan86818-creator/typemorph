@@ -44,7 +44,7 @@ San Jose CA US
 /ROC/PO-98765
 :71A:SHA</code></pre>
 
-<p>TypeFlow generates the following structured JSON:</p>
+<p>TypeMorph generates the following structured JSON:</p>
 <pre><code>{
   "transactionReference": "TRF20260601001",
   "bankOperationCode": "CRED",
@@ -70,7 +70,7 @@ San Jose CA US
 
 <h2>Compliance and Security Considerations</h2>
 <p>MT103 messages contain a combination of PII (personal names, addresses), financial data (account numbers, IBANs, transaction amounts), and proprietary business information (payment references, invoice numbers). Under GDPR Article 25 (Data Protection by Design), processing this data should occur in the most privacy-preserving manner possible.</p>
-<p>TypeFlow's MT103-to-JSON parser runs <strong>entirely in your browser's Web Worker thread</strong>. The message is parsed using a local JavaScript engine with zero network I/O during processing. This makes TypeFlow the only appropriate tool for handling production SWIFT data in a development or testing context — particularly for teams operating under SOC2 Type II, PCI-DSS, or DORA compliance frameworks.</p>
+<p>TypeMorph's MT103-to-JSON parser runs <strong>entirely in your browser's Web Worker thread</strong>. The message is parsed using a local JavaScript engine with zero network I/O during processing. This makes TypeMorph the only appropriate tool for handling production SWIFT data in a development or testing context — particularly for teams operating under SOC2 Type II, PCI-DSS, or DORA compliance frameworks.</p>
 
 <h2>Use Cases for MT103 JSON Conversion</h2>
 <ul>

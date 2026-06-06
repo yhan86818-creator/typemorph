@@ -32,7 +32,7 @@ import { supabase } from '@/lib/supabase';
 import { User as UserIcon, LogOut } from 'lucide-react';
 import { trackWorkbenchOpen, trackProClick } from '@/lib/analytics';
 
-export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug = "" }) {
+export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug = "" }) {
   const [view, setView] = useState<any>(initialSlug ? 'app' : defaultView);
   const [isPro, setIsPro] = useState(true);
   const [trialCount, setTrialCount] = useState(100);
@@ -80,10 +80,10 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
   useEffect(() => {
     setTimeout(() => {
       setMounted(true);
-      if (localStorage.getItem('typeflow_pro') === 'true') setIsPro(true);
-      const savedKey = localStorage.getItem('typeflow_gemini_key');
+      if (localStorage.getItem('typemorph_pro') === 'true') setIsPro(true);
+      const savedKey = localStorage.getItem('typemorph_gemini_key');
       if (savedKey) setGeminiKey(savedKey);
-      const savedTheme = localStorage.getItem('typeflow_theme');
+      const savedTheme = localStorage.getItem('typemorph_theme');
       if (savedTheme === 'light') {
         setIsDark(false);
         document.documentElement.classList.remove('dark');
@@ -107,7 +107,7 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
   const toggleTheme = () => {
     const newDark = !isDark;
     setIsDark(newDark);
-    localStorage.setItem('typeflow_theme', newDark ? 'dark' : 'light');
+    localStorage.setItem('typemorph_theme', newDark ? 'dark' : 'light');
     document.documentElement.classList.toggle('dark');
   };
 
@@ -137,7 +137,7 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
       const data = await response.json();
       if (data.success && !data.purchase.refunded) {
         setIsPro(true);
-        localStorage.setItem('typeflow_pro', 'true');
+        localStorage.setItem('typemorph_pro', 'true');
         setVMsg({ type: 'success', text: 'Pro Activated!' });
         setTimeout(() => setShowLicenseModal(false), 2000);
       } else {
@@ -170,7 +170,7 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
                 <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-slate-950 shadow-md shadow-blue-600/10 group-hover:scale-105 transition-all">
                   <ShieldCheck size={20} />
                 </div>
-                <span className="text-lg font-black tracking-tighter dark:text-white">TypeFlow <span className="text-blue-600 italic">Pro</span></span>
+                <span className="text-lg font-black tracking-tighter dark:text-white">TypeMorph <span className="text-blue-600 italic">Pro</span></span>
               </button>
             </div>
             
@@ -234,7 +234,7 @@ export default function TypeFlowMainApp({ defaultView = 'landing', initialSlug =
                   value={geminiKey}
                   onChange={(e) => {
                     setGeminiKey(e.target.value);
-                    localStorage.setItem('typeflow_gemini_key', e.target.value);
+                    localStorage.setItem('typemorph_gemini_key', e.target.value);
                   }}
                   className="w-40 bg-slate-100 dark:bg-slate-900 border-none outline-none pl-8 pr-3 py-1.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:ring-1 focus:ring-blue-600 transition-all placeholder:text-slate-400"
                 />

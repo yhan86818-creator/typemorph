@@ -21,7 +21,7 @@ function gtagEvent(event: AnalyticsEvent, params?: Record<string, string>) {
   window.gtag('event', event, params);
 }
 
-const sessionKey = (name: string) => `typeflow_analytics_${name}`;
+const sessionKey = (name: string) => `typemorph_analytics_${name}`;
 
 /** User opened the main converter workbench (once per browser session). */
 export function trackWorkbenchOpen(converterSlug: string) {

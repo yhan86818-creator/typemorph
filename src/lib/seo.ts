@@ -4,7 +4,7 @@
  * JP pages are noindex unless listed in INDEXED_JP_SLUGS (original content, not translation).
  */
 
-export const BASE_URL = 'https://typeflow-pro.pages.dev';
+export const BASE_URL = 'https://typemorph.dev';
 
 /** Primary EN converter pages — safe to index (unique editorial content). */
 export const INDEXED_EN_SLUGS = new Set([
@@ -98,6 +98,26 @@ export const INDEXED_EN_SLUGS = new Set([
   'json-to-grpc-web',
 
   // Niche Communities (Low Competition, High Rankability)
+  'json-to-react-query',
+  'json-to-redux-slice',
+  'json-to-pinia-store',
+  'json-to-supabase-type',
+  'json-to-pocketbase-type',
+  'json-to-lucia-auth-schema',
+  'json-to-nextauth-config',
+  'json-to-scala-case-class',
+  'json-to-elm-decoder',
+  'json-to-ruby-struct',
+  'json-to-graphql-resolver',
+  'json-to-django-rest-serializer',
+  'json-to-spring-boot-jpa',
+  'json-to-csharp-dto',
+  'json-to-superstruct',
+  'json-to-joi',
+  'json-to-ajv',
+  'json-to-knex-migration',
+  'json-to-typeorm-entity',
+  'json-to-yup',
   'json-to-solidity',        // Web3 / Blockchain
   'json-to-arduino',         // IoT / Maker community
   'json-to-godot-gdscript',  // Indie game dev

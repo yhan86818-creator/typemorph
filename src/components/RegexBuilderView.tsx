@@ -41,7 +41,7 @@ export function RegexBuilderView({
       if (!isPro) {
         const newCount = trialCount - 1;
         setTrialCount(newCount);
-        localStorage.setItem('typeflow_trial_count', newCount.toString());
+        localStorage.setItem('typemorph_trial_count', newCount.toString());
       }
       const prompt = `You are an expert developer. Generate ONLY a valid Regular Expression (regex) that does the following: "${intent}".
       Do not include any explanations, markdown backticks, or the wrapping / / characters. Just the raw pattern.`;

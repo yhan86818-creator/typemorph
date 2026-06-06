@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { inferSchema, runEngine, getDecisions } from './engine';
 import { parseCurl, parseSQLToZod } from './parsers';
 
-describe('TypeFlow Engine', () => {
+describe('TypeMorph Engine', () => {
   describe('inferSchema', () => {
     it('should infer basic types correctly', () => {
       expect(inferSchema("hello").type).toBe('string');
@@ -43,6 +43,17 @@ describe('TypeFlow Engine', () => {
       const result = runEngine(json, 'zod');
       expect(result).toContain('z.object');
       expect(result).toContain('age: z.number()');
+    });
+
+    it('[regression] should correctly dispatch to extended generators and not fallback to JSON', () => {
+      const json = { id: 1, name: "Alice" };
+      
+      const formats = ['drizzle', 'kysely', 'react-query', 'mermaid', 'postman', 'clojure'];
+      for (const format of formats) {
+        const result = runEngine(json, format);
+        // If it failed to dispatch, it would return the raw JSON stringified
+        expect(result).not.toEqual(JSON.stringify(json, null, 2));
+      }
     });
 
     it('should automatically extract and reuse shared types for duplicate object structures', () => {
@@ -122,7 +133,7 @@ describe('TypeFlow Engine', () => {
         // Semantic candidate (should become enum)
         userStatus: "active",
         // Not a semantic key, and long raw text (should become string)
-        articleTitle: "Introduction to Advanced TypeFlow Engineering Engine",
+        articleTitle: "Introduction to Advanced TypeMorph Engineering Engine",
         // Short text but not semantic, and raw data has 3 entries
         nonSemanticList: ["Alice", "Bob", "Charlie"]
       };
@@ -409,6 +420,23 @@ describe('TypeFlow Engine', () => {
       };
       const result = runEngine(json, 'typescript');
       expect(result).toContain('"member" | "admin"');
+    });
+
+    it('[regression] fields absent in some objects in a unified type must be optional', () => {
+      // Owner has contact.phone, but one team member does not.
+      // After unification, SharedContact.phone must be optional.
+      const json = {
+        owner: {
+          details: { first_name: 'Kouki', contact: { email: 'k@example.com', phone: '+81-00' } }
+        },
+        team_members: [
+          { info: { first_name: 'Alex', contact: { email: 'a@example.com', phone: '+1-555' } } },
+          { info: { first_name: 'Sara', contact: { email: 's@example.com' } } } // phone missing
+        ]
+      };
+      const result = runEngine(json, 'zod');
+      // phone must be rendered as optional
+      expect(result).toMatch(/phone:.*\.optional\(\)/);
     });
   });
 });
