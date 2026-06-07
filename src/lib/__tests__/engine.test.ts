@@ -107,3 +107,31 @@ test('inferSchema Enum detection', () => {
   expect(statusField.enumValues).toContain('inactive');
   expect(statusField.enumValues).toContain('pending');
 });
+
+test('[context inference] currency neighbor upgrades amount/tax to float', () => {
+  const json = {
+    amount: 19.99,
+    currency: 'USD',
+    tax: 1.5,
+  };
+  const schema = inferSchema(json);
+  // amount と tax は currency が隣にあるので float に昇格されるべき
+  expect(schema.fields!.amount.format).toBe('float');
+  expect(schema.fields!.tax.format).toBe('float');
+});
+
+test('[context inference] lat/lng pair both become float', () => {
+  const json = { lat: 35.6895, lon: 139.6917, name: 'Tokyo' };
+  const schema = inferSchema(json);
+  expect(schema.fields!.lat.format).toBe('float');
+  expect(schema.fields!.lon.format).toBe('float');
+});
+
+test('[context inference] createdBy next to createdAt becomes uuid format', () => {
+  const json = {
+    created_at: '2024-01-01T00:00:00Z',
+    created_by: 'some-author-id',
+  };
+  const schema = inferSchema(json);
+  expect(schema.fields!.created_by.format).toBe('uuid');
+});

@@ -45,6 +45,7 @@ export interface InferOptions {
   maxDepth?: number;
   enumMinSamples?: number; // minimum number of samples to consider enum
   enumMaxUnique?: number;  // maximum unique values to treat as enum
+  enumConfidenceThreshold?: number; // 0〜1, default 0.6 — confidence threshold for enum detection
   // Array sampling controls for large arrays
   arrayLargeThreshold?: number; // if array length > this, sampling is used
   arraySampleCount?: number;    // total number of items to sample from large arrays
@@ -154,33 +155,88 @@ const getFieldStringValues = (arr: any[]): Record<string, string[]> => {
   return result;
 };
 
-const isKeyEnum = (key: string, values: string[], options?: InferOptions): boolean => {
-  if (values.length === 0) return false;
-  
-  // 1. 強力なキーワードマッチ
+const enumKeywordsSet = new Set([
+  // 既存
+  'status', 'type', 'role', 'gender', 'state', 'category', 'mode', 'level', 'phase', 'kind', 'visibility', 'scope', 'method', 'action', 'currency', 'priority',
+  // 追加
+  'tier', 'plan', 'severity', 'permission', 'provider', 'platform', 'environment',
+  'locale', 'theme', 'layout', 'variant', 'direction', 'alignment', 'position',
+]);
+
+/**
+ * Enum の確信度を 0〜1 のスコアで返す。
+ * - キーワードマッチ: +0.4
+ * - ユニーク率が低い (重複が多い): 最大+0.4
+ * - サンプル数が多い (信頼できるデータ量): 最大+0.2
+ * 閾値 0.6 以上で enum 判定。
+ */
+const calcEnumConfidence = (key: string, values: string[], options?: InferOptions): number => {
+  if (values.length === 0) return 0;
+  let score = 0;
+
+  // 1. キーワードマッチで +0.6（これだけで閾値に到達できる）
   const k = key.toLowerCase();
-  const enumKeywords = ['status', 'type', 'role', 'gender', 'state', 'category', 'mode', 'level', 'phase', 'kind', 'visibility', 'scope', 'method', 'action', 'currency', 'priority'];
-  if (enumKeywords.some(kw => k.includes(kw))) {
-    return true;
-  }
-  
-  // 2. 統計的判断：要素数が十分あり（3つ以上）、かつ値に重複があるか？
-  const unique = new Set(values);
-  const minSamples = options?.enumMinSamples ?? 3;
-  const maxUnique = options?.enumMaxUnique ?? 6;
-  if (values.length >= minSamples && unique.size < values.length) {
-    if (unique.size <= maxUnique) {
-      return true;
+  if (Array.from(enumKeywordsSet).some(kw => k.includes(kw))) score += 0.6;
+
+  // 2. ユニーク率で +0〜0.4
+  const uniqueRatio = new Set(values).size / values.length;
+  if (uniqueRatio <= 0.2) score += 0.4;
+  else if (uniqueRatio <= 0.4) score += 0.2;
+
+  // 3. サンプル数で +0〜0.2
+  if (values.length >= 10) score += 0.2;
+  else if (values.length >= 5) score += 0.1;
+
+  // 4. 共通定数にすべてマッチ → 確実に enum
+  const commonConstants = new Set(['yes', 'no', 'true', 'false', 'get', 'post', 'put', 'delete', 'active', 'inactive', 'pending', 'success', 'error', 'failed']);
+  if (values.every(v => commonConstants.has(v.toLowerCase()))) score += 0.6;
+
+  return Math.min(score, 1.0);
+};
+
+const isKeyEnum = (key: string, values: string[], options?: InferOptions): boolean => {
+  const threshold = options?.enumConfidenceThreshold ?? 0.6;
+  return calcEnumConfidence(key, values, options) >= threshold;
+};
+
+
+/**
+ * 隣接フィールドの文脈を使って format を補正する。
+ * 例: currency が隣にあれば amount/price/tax を float に昇格。
+ */
+const applyContextCorrections = (fields: Record<string, Schema>): void => {
+  const keys = Object.keys(fields);
+
+  // --- currency/amount パターン ---
+  const hasCurrency = keys.some(k => /currency|curr/i.test(k));
+  if (hasCurrency) {
+    for (const k of keys) {
+      if (/amount|price|cost|fee|tax|total|subtotal/i.test(k) && fields[k].type === 'number') {
+        fields[k].format = 'float';
+      }
     }
   }
-  
-  // 3. 極めて限定的な共通の定数値
-  const commonConstants = new Set(['yes', 'no', 'true', 'false', 'get', 'post', 'put', 'delete', 'active', 'inactive', 'pending', 'success', 'error', 'failed']);
-  if (values.every(v => commonConstants.has(v.toLowerCase()))) {
-    return true;
+
+  // --- lat/lng パターン ---
+  const hasLat = keys.some(k => /^lat(itude)?$/i.test(k));
+  const hasLng = keys.some(k => /^(lng|lon|longitude)$/i.test(k));
+  if (hasLat && hasLng) {
+    for (const k of keys) {
+      if (/^lat(itude)?$|^(lng|lon|longitude)$/i.test(k) && fields[k].type === 'number') {
+        fields[k].format = 'float';
+      }
+    }
   }
-  
-  return false;
+
+  // --- createdBy/updatedBy → uuid パターン ---
+  const hasTimestamp = keys.some(k => /created_?at|updated_?at/i.test(k));
+  if (hasTimestamp) {
+    for (const k of keys) {
+      if (/created_?by|updated_?by/i.test(k) && fields[k].type === 'string') {
+        fields[k].format = 'uuid';
+      }
+    }
+  }
 };
 
 export const inferSchema = (val: any, keyName?: string, depth: number = 0, allowedEnumKeys?: Set<string>, options?: InferOptions): Schema => {
@@ -241,6 +297,8 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
     for (const key in val) {
       fields[key] = inferSchema(val[key], key, depth + 1, allowedEnumKeys, options);
     }
+    // 隣接フィールドの文脈で format を補正
+    applyContextCorrections(fields);
     return addMeta({ type: 'object', fields }, 'object', { fieldCount: Object.keys(fields).length });
   }
 
@@ -260,7 +318,24 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
     let isEnumCandidate = false;
     if (keyName) {
       const k = keyName.toLowerCase();
-      const enumKeywords = ['status', 'type', 'role', 'gender', 'state', 'category', 'mode', 'level', 'phase', 'kind', 'visibility', 'scope', 'method', 'action', 'currency', 'priority'];
+      const enumKeywords = [
+        // 既存
+        'status', 'type', 'role', 'gender', 'state', 'category', 'mode', 'level', 'phase', 'kind', 'visibility', 'scope', 'method', 'action', 'currency', 'priority',
+        // 追加
+        'tier', 'plan', 'severity', 'permission', 'provider', 'platform', 'environment',
+        'locale', 'theme', 'layout', 'variant', 'direction', 'alignment', 'position',
+      ];
+
+      // キー名に基づいた format 推論辞書（値パターンマッチの前に適用）
+      const floatKeyPattern = /price|amount|cost|fee|tax|rate|ratio|percent|score|weight|height|width|balance|salary|revenue/i;
+      const uuidKeyPattern = /^id$|_id$|^uuid$|^guid$|^token$/i;
+      const urlKeyPattern = /url|uri|href|link|src|endpoint|avatar|thumbnail|image|photo/i;
+      const emailKeyPattern = /email|mail/i;
+
+      if (uuidKeyPattern.test(keyName)) return addMeta({ type: 'string', format: 'uuid' }, 'format:uuid:keyname');
+      if (emailKeyPattern.test(keyName)) return addMeta({ type: 'string', format: 'email' }, 'format:email:keyname');
+      if (urlKeyPattern.test(keyName)) return addMeta({ type: 'string', format: 'url' }, 'format:url:keyname');
+      if (floatKeyPattern.test(keyName)) return addMeta({ type: 'number', format: 'float' }, 'format:float:keyname');
       
       if (allowedEnumKeys) {
         // 統計判定情報が存在する場合はそれを利用

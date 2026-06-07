@@ -438,5 +438,25 @@ describe('TypeMorph Engine', () => {
       // phone must be rendered as optional
       expect(result).toMatch(/phone:.*\.optional\(\)/);
     });
+
+    it('[semantic dict] key-name patterns infer correct formats without needing value patterns', () => {
+      const json = {
+        avatar: 'not-a-url-looking-string',
+        price: 'not-a-number-looking-string',
+        user_email: 'not@formatted',
+      };
+      const schema = inferSchema(json);
+      // キー名だけで format を推論できるべき
+      expect(schema.fields!.avatar.format).toBe('url');
+      expect(schema.fields!.user_email.format).toBe('email');
+    });
+
+    it('[semantic dict] expanded enum keywords detected (tier, plan, severity)', () => {
+      const json = { plan: 'pro', tier: 'gold', severity: 'critical' };
+      const schema = inferSchema(json);
+      expect(schema.fields!.plan.enumValues).toBeDefined();
+      expect(schema.fields!.tier.enumValues).toBeDefined();
+      expect(schema.fields!.severity.enumValues).toBeDefined();
+    });
   });
 });
