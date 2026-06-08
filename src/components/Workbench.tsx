@@ -17,11 +17,13 @@ import {
   trackConvertSuccess,
   trackProClick,
   shouldReportConvert,
+  trackInferenceError,
 } from '@/lib/analytics';
 import { processPii } from '@/lib/privacy';
 import { JsonVisualizer, Toast } from './SharedUI';
 import { History as HistoryIcon, Clock, FolderOpen } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { getWorkbenchEditorText, WorkbenchOutputStatus } from './workbench-utils';
 import { User } from '@supabase/supabase-js';
 import SuperBatchModal from './SuperBatchModal';
 import dynamic from 'next/dynamic';
@@ -281,10 +283,17 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
   const [isShareCopied, setIsShareCopied] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [outputs, setOutputs] = useState<any>({});
+  const [outputState, setOutputState] = useState<Record<string, WorkbenchOutputStatus>>({});
   const [jsonData, setJsonData] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
+  const setOutputStateFor = useCallback((lang: string, status: 'idle' | 'loading' | 'error' | 'unsupported', message?: string) => {
+    setOutputState(prev => ({
+      ...prev,
+      [lang]: { status, message }
+    }));
+  }, []);
   const [aiStatus, setAiStatus] = useState("");
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [isAiUiLoading, setIsAiUiLoading] = useState(false);
@@ -1290,6 +1299,8 @@ Rules:
     const trimmed = input.trim();
     if (!trimmed) {
       setHasParseError(false);
+      setOutputs({});
+      setOutputState({});
       return;
     }
 
@@ -1364,29 +1375,70 @@ Rules:
         }
         const activeLang = outputTabRef.current || 'typescript';
         const taskId = ++taskIdRef.current;
-        
-        // 1. Immediately calculate the active tab to make it feel instant!
-        res[activeLang] = runEngine(jsonObj, activeLang, slug, genSettings);
-        res.json = JSON.stringify(jsonObj, null, 2);
-        
-        // Update the active tab output immediately!
-        setOutputs((prev: any) => ({ 
-          ...prev, 
-          [activeLang]: res[activeLang], 
-          json: res.json 
+        const langs = ['typescript', 'zod', 'go', 'rust', 'java', 'python', 'dart', 'php', 'csharp', 'protobuf', 'graphql', 'swift', 'kotlin', 'sql', 'jsonschema', 'mock', 'ui', 'doc'].filter(l => l !== activeLang);
+        const allTargets = [activeLang, ...langs];
+
+        setOutputs((prev: any) => ({
+          ...prev,
+          ...Object.fromEntries(allTargets.map(lang => [lang, '']))
         }));
+        allTargets.forEach(lang => setOutputStateFor(lang, 'loading'));
+
+        // 1. Immediately calculate the active tab to make it feel instant!
+        try {
+          res[activeLang] = runEngine(jsonObj, activeLang, slug, genSettings);
+          res.json = JSON.stringify(jsonObj, null, 2);
+
+          const isUnsupported = typeof res[activeLang] === 'string' && res[activeLang].startsWith('// Unsupported output target');
+          setOutputStateFor(activeLang, isUnsupported ? 'unsupported' : 'idle', isUnsupported ? res[activeLang] : undefined);
+
+          // Update the active tab output immediately!
+          setOutputs((prev: any) => ({ 
+            ...prev, 
+            [activeLang]: res[activeLang], 
+            json: res.json 
+          }));
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : 'Unknown inference error';
+          trackInferenceError('run_engine_failure', {
+            lang: activeLang,
+            stage: 'initial',
+            message: error instanceof Error ? error.name : 'unknown',
+          });
+          console.error('Inference error:', error);
+          setHasParseError(true);
+          setOutputStateFor(activeLang, 'error', `// Failed to generate ${activeLang}: ${message}`);
+          setOutputs((prev: any) => ({ ...prev, [activeLang]: `// Failed to generate ${activeLang}: ${message}` }));
+          isGeneratingRef.current = false;
+          return;
+        }
 
         // 2. Queue the remaining languages in the background asynchronously
-        const langs = ['typescript', 'zod', 'go', 'rust', 'java', 'python', 'dart', 'php', 'csharp', 'protobuf', 'graphql', 'swift', 'kotlin', 'sql', 'jsonschema', 'mock', 'ui', 'doc'].filter(l => l !== activeLang);
         
         const generateBackground = async () => {
           try {
             for (const lang of langs) {
               await new Promise(r => setTimeout(r, 0)); // Yield to main thread to prevent UI freeze
               if (taskId !== taskIdRef.current) return; // Cancel if obsolete
-              const compiled = runEngine(jsonObj, lang, slug, genSettings);
-              if (taskId !== taskIdRef.current) return; // Cancel if obsolete
-              setOutputs((prev: any) => ({ ...prev, [lang]: compiled }));
+              try {
+                const compiled = runEngine(jsonObj, lang, slug, genSettings);
+                if (taskId !== taskIdRef.current) return; // Cancel if obsolete
+
+                const isUnsupported = typeof compiled === 'string' && compiled.startsWith('// Unsupported output target');
+                setOutputStateFor(lang, isUnsupported ? 'unsupported' : 'idle', isUnsupported ? compiled : undefined);
+                setOutputs((prev: any) => ({ ...prev, [lang]: compiled }));
+              } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : 'Unknown inference error';
+                trackInferenceError('run_engine_failure', {
+                  lang,
+                  stage: 'background',
+                  message: error instanceof Error ? error.name : 'unknown',
+                });
+                console.error('Background inference error:', error);
+                setOutputStateFor(lang, 'error', `// Failed to generate ${lang}: ${message}`);
+                setOutputs((prev: any) => ({ ...prev, [lang]: `// Failed to generate ${lang}: ${message}` }));
+                return;
+              }
             }
           } finally {
             if (taskId === taskIdRef.current) {
@@ -1400,6 +1452,7 @@ Rules:
       }
     }
     setOutputs(res);
+    setOutputState({});
     setHasParseError(!success);
     isGeneratingRef.current = false; // Finish generating (sync case)
   }, [input, slug, genSettings, reportConvertIfNew, outputTab]);
@@ -2475,7 +2528,7 @@ Rules:
                   height="100%"
                   theme={isDark ? "vs-dark" : "light"}
                   language={outputTab === 'doc' ? 'markdown' : outputTab}
-                  value={outputs[outputTab] || "// Generate code..."}
+                  value={getWorkbenchEditorText(outputTab, outputs, outputState)}
                   onMount={(editor, monaco) => {
                     outputEditorRef.current = editor;
                     monacoRef.current = monaco;

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { inferSchema, extractSharedTypes, getDecisions } from '../engine';
+import { inferSchema, extractSharedTypes, getDecisions, runEngine } from '../engine';
 
 test('inferSchema basic types', () => {
   const json = {
@@ -73,6 +73,24 @@ test('inferSchema merges array items and detects optional/union fields', () => {
   expect(item.fields!.age.format).toBe('float'); // due to 25.5
 });
 
+test('inferSchema maintains stable sampling for large arrays', () => {
+  const json = Array.from({ length: 50 }, (_, idx) => ({
+    status: idx % 3 === 0 ? 'inactive' : 'active',
+    category: idx % 2 === 0 ? 'A' : 'B'
+  }));
+
+  const schema = inferSchema(json, undefined, 0, undefined, {
+    arrayLargeThreshold: 10,
+    arraySampleCount: 6,
+    arrayPrefixSample: 2,
+    includeMeta: true,
+  });
+
+  expect(schema.type).toBe('array');
+  expect(schema._meta?.info?.sampled).toBe(6);
+  expect(schema.itemType?.fields?.status.enumValues).toEqual(expect.arrayContaining(['active', 'inactive']));
+});
+
 test('inferSchema format detection', () => {
   const json = {
     my_uuid: '123e4567-e89b-12d3-a456-426614174000',
@@ -134,4 +152,19 @@ test('[context inference] createdBy next to createdAt becomes uuid format', () =
   };
   const schema = inferSchema(json);
   expect(schema.fields!.created_by.format).toBe('uuid');
+});
+
+test('runEngine returns explicit unsupported target notice', () => {
+  const json = { foo: 'bar' };
+  const output = runEngine(json, 'does-not-exist', 'does-not-exist', {});
+
+  expect(output).toContain('Unsupported output target');
+  expect(output).not.toBe(JSON.stringify(json, null, 2));
+});
+
+test('runEngine returns raw JSON for json target', () => {
+  const json = { foo: 'bar' };
+  const output = runEngine(json, 'json', '', {});
+
+  expect(output).toBe(JSON.stringify(json, null, 2));
 });
