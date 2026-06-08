@@ -17,6 +17,7 @@ import {
 import { Schema, SchemaType } from './types';
 import { createHash } from 'crypto';
 import { parseYAML, parseXML, parseCurl, parseSQLToZod, curlToTypeScript } from './parsers';
+import { trackInferenceError, trackInferenceFallback, trackUnsupportedOutputTarget } from './analytics';
 
 export { type Schema };
 export { parseYAML, parseXML, parseCurl, parseSQLToZod, curlToTypeScript };
@@ -174,22 +175,32 @@ const calcEnumConfidence = (key: string, values: string[], options?: InferOption
   if (values.length === 0) return 0;
   let score = 0;
 
-  // 1. キーワードマッチで +0.6（これだけで閾値に到達できる）
   const k = key.toLowerCase();
-  if (Array.from(enumKeywordsSet).some(kw => k.includes(kw))) score += 0.6;
+  const minSamples = options?.enumMinSamples ?? 3;
+  const keywordMatch = Array.from(enumKeywordsSet).some(kw => k.includes(kw));
 
-  // 2. ユニーク率で +0〜0.4
-  const uniqueRatio = new Set(values).size / values.length;
-  if (uniqueRatio <= 0.2) score += 0.4;
-  else if (uniqueRatio <= 0.4) score += 0.2;
+  // 1. キーワードマッチは小サンプルでは弱めに扱う
+  if (keywordMatch) {
+    score += values.length >= minSamples ? 0.4 : 0.2;
+  }
 
-  // 3. サンプル数で +0〜0.2
+  const unique = new Set(values);
+  const uniqueRatio = unique.size / values.length;
+  if (unique.size === 1) {
+    score += 0.4;
+  } else if (uniqueRatio <= 0.2) {
+    score += 0.4;
+  } else if (uniqueRatio <= 0.4 && values.length >= minSamples) {
+    score += 0.2;
+  }
+
   if (values.length >= 10) score += 0.2;
   else if (values.length >= 5) score += 0.1;
 
-  // 4. 共通定数にすべてマッチ → 確実に enum
   const commonConstants = new Set(['yes', 'no', 'true', 'false', 'get', 'post', 'put', 'delete', 'active', 'inactive', 'pending', 'success', 'error', 'failed']);
-  if (values.every(v => commonConstants.has(v.toLowerCase()))) score += 0.6;
+  if (values.every(v => commonConstants.has(v.toLowerCase()))) {
+    score += values.length >= minSamples ? 0.5 : 0.2;
+  }
 
   return Math.min(score, 1.0);
 };
@@ -274,7 +285,7 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
         }
       }
     }
-    const sampledItems = Array.from(indicesSet).map(i => val[i]);
+    const sampledItems = Array.from(indicesSet).sort((a, b) => a - b).map(i => val[i]);
 
     // 配列内のオブジェクトのキーに対して、統計的な Enum 判定を実施（サンプリングベース）
     const allowed = new Set<string>();
@@ -470,6 +481,7 @@ const calculateStructureHash = (s: Schema): string => {
       nullable: !!node.nullable,
     };
     if (node.enumValues && node.enumValues.length > 0) base.enum = [...node.enumValues].sort();
+    if (node.format) base.format = node.format;
     return base;
   };
 
@@ -880,17 +892,32 @@ export const attachFullMeta = (schema: Schema, samples: any, options: InferOptio
   const detectFormats = (vals: any[]) => {
     const res: Record<string, any> = {};
     if (!vals || vals.length === 0) return res;
-    const strs = vals.filter(v => typeof v === 'string');
+    const strs = vals.filter(v => typeof v === 'string').map(s => (s as string).trim()).filter(Boolean);
     if (strs.length === 0) return res;
-    // UUID
-    if (strs.every(s => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s))) res.format = 'uuid';
-    // email
-    else if (strs.every(s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s))) res.format = 'email';
-    // url
-    else if (strs.every(s => /^https?:\/\/[\S]+$/.test(s))) res.format = 'url';
-    // date / datetime
-    else if (strs.every(s => /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s)))) res.format = 'date';
-    else if (strs.every(s => (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(s) || (/^\d/.test(s) && s.includes('T'))) && !isNaN(Date.parse(s)))) res.format = 'datetime';
+
+    const total = strs.length;
+    const pct = (count: number) => count / total;
+
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const urlRe = /^https?:\/\/[\S]+$/;
+    const dateOnlyRe = /^\d{4}-\d{2}-\d{2}$/;
+
+    const uuidCount = strs.filter(s => uuidRe.test(s)).length;
+    if (pct(uuidCount) >= 0.9) { res.format = 'uuid'; return res; }
+
+    const emailCount = strs.filter(s => emailRe.test(s)).length;
+    if (pct(emailCount) >= 0.9) { res.format = 'email'; return res; }
+
+    const urlCount = strs.filter(s => urlRe.test(s)).length;
+    if (pct(urlCount) >= 0.9) { res.format = 'url'; return res; }
+
+    const dateOnlyCount = strs.filter(s => dateOnlyRe.test(s) && !isNaN(Date.parse(s))).length;
+    if (pct(dateOnlyCount) >= 0.85) { res.format = 'date'; return res; }
+
+    const datetimeCount = strs.filter(s => ((/^[0-9]{4}[-/]/.test(s) || (s.includes('T') && /^[0-9]/.test(s))) && !isNaN(Date.parse(s)))).length;
+    if (pct(datetimeCount) >= 0.85) { res.format = 'datetime'; return res; }
+
     return res;
   };
 
@@ -907,11 +934,14 @@ export const attachFullMeta = (schema: Schema, samples: any, options: InferOptio
       }
 
       // Enum detection using sample values
-      const stringVals = vals.filter(v => typeof v === 'string').map(v => v.trim()).filter(v => v !== '');
+      const stringVals = vals.filter(v => typeof v === 'string').map(v => (v as string).trim()).filter(v => v !== '');
       const unique = Array.from(new Set(stringVals));
       const minSamples = options.enumMinSamples ?? 3;
       const maxUnique = options.enumMaxUnique ?? 6;
-      if (stringVals.length >= minSamples && unique.length <= maxUnique && unique.length > 0) {
+      const uniqueRatio = unique.length / Math.max(1, stringVals.length);
+      // Accept enum when there are enough samples and either the unique count is small
+      // or the unique ratio is low (many duplicates) to avoid false negatives on large sets
+      if (stringVals.length >= minSamples && (unique.length <= maxUnique || uniqueRatio <= 0.2) && unique.length > 0) {
         s.enumValues = unique;
         s._meta.reason = s._meta.reason || 'enum_detected';
         s._meta.enumValues = unique;
@@ -942,14 +972,44 @@ export const inferSchemaAsync = async (json: any, options: InferOptions = {}) =>
   try {
     if (typeof window === 'undefined') {
       const runPath = ['..','..','server','worker','runInferenceInWorker'].join('/');
-      // Hide require from bundlers like Turbopack/Webpack to prevent build warnings
-      const req = typeof eval !== 'undefined' ? eval('require') : require;
-      const { runInferenceInWorker } = req(runPath) as { runInferenceInWorker: (j: unknown, o: unknown) => Promise<unknown> };
-      return await runInferenceInWorker(json, options);
+      // Attempt to dynamically import the worker module (preferred) and
+      // fall back to CommonJS `require` if import fails at runtime.
+      const dynamicLoad = async (p: string) => {
+        try {
+          // Prevent some bundlers from statically analyzing this import
+          // @ts-ignore
+          const m = await import(/* webpackIgnore: true */ p);
+          return (m && (m.runInferenceInWorker ? m : (m.default || m)));
+        } catch (e) {
+          if (typeof require !== 'undefined') {
+            try {
+              // eslint-disable-next-line @typescript-eslint/no-var-requires
+              const m = require(p);
+              return m;
+            } catch (e2) {
+              throw e;
+            }
+          }
+          throw e;
+        }
+      };
+
+      const mod = await dynamicLoad(runPath);
+      const runFn = mod?.runInferenceInWorker ?? (typeof mod === 'function' ? mod : undefined);
+      if (typeof runFn === 'function') {
+        return await runFn(json, options);
+      }
+      // If worker cannot be loaded, fall back to synchronous inference
+      trackInferenceFallback('worker_unavailable');
+      return inferSchema(json, undefined, 0, undefined, options);
     }
     // Fallback to synchronous inference if in browser
     return inferSchema(json, undefined, 0, undefined, options);
   } catch (e) {
+    trackInferenceError('infer_schema_async_error', {
+      message: e instanceof Error ? e.name : 'unknown',
+      stage: 'async_fallback',
+    });
     // Fallback to synchronous inference on error
     return inferSchema(json, undefined, 0, undefined, options);
   }
@@ -1049,10 +1109,15 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     else if (s.includes('scala')) out = scalaGen.generate(schema, 'Root');
     else if (s.includes('solidity')) out = solidityGen.generate(schema, 'Root');
 
-    // Fallback to JSON if still not processed
-    if (!out) {
-      matchedKey = 'json';
+    // Explicit JSON output when requested, otherwise surface unsupported targets.
+    if (s === 'json') {
       out = JSON.stringify(json, null, 2);
+    } else if (!out) {
+      matchedKey = 'unsupported';
+      trackUnsupportedOutputTarget(lang || slug || 'unknown', s);
+      out = `// Unsupported output target: "${lang || slug || 'unknown'}"
+// Supported targets include: typescript, zod, go, rust, java, python, php, sql, protobuf, graphql, swift, kotlin, jsonschema, mock, ui, doc, openapi, yup, joi, valibot, react-props, vue-props, svelte-props, solid-props, react-context, redux-slice, pinia, sequelize, typeorm, drizzle, kysely, superstruct, arduino, clojure, elixir, elm, godot, haskell, r, scala, solidity
+`;
     }
 
     // 3. Find dependencies comment

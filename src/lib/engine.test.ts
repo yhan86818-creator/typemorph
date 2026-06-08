@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { inferSchema, runEngine, getDecisions } from './engine';
 import { parseCurl, parseSQLToZod } from './parsers';
 
@@ -54,6 +54,20 @@ describe('TypeMorph Engine', () => {
         // If it failed to dispatch, it would return the raw JSON stringified
         expect(result).not.toEqual(JSON.stringify(json, null, 2));
       }
+    });
+
+    it('should emit unsupported output telemetry and message for unknown target', () => {
+      const gtagMock = vi.fn();
+      vi.stubGlobal('window', { gtag: gtagMock });
+
+      const json = { id: 1 };
+      const result = runEngine(json, 'unknown-output-target');
+
+      expect(result).toContain('// Unsupported output target: "unknown-output-target"');
+      expect(gtagMock).toHaveBeenCalledWith('event', 'infer_unsupported_output', {
+        target: 'unknown-output-target',
+        requested: 'unknown-output-target'
+      });
     });
 
     it('should automatically extract and reuse shared types for duplicate object structures', () => {

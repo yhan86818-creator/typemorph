@@ -14,7 +14,10 @@ declare global {
 export type AnalyticsEvent =
   | 'workbench_open'
   | 'convert_success'
-  | 'pro_click';
+  | 'pro_click'
+  | 'infer_worker_fallback'
+  | 'infer_error'
+  | 'infer_unsupported_output';
 
 function gtagEvent(event: AnalyticsEvent, params?: Record<string, string>) {
   if (typeof window === 'undefined' || typeof window.gtag !== 'function') return;
@@ -56,4 +59,19 @@ export function shouldReportConvert(inputFingerprint: string): boolean {
   if (prev === inputFingerprint) return false;
   sessionStorage.setItem(key, inputFingerprint);
   return true;
+}
+
+export function trackInferenceFallback(reason: string, params?: Record<string, string>) {
+  gtagEvent('infer_worker_fallback', { reason, ...params });
+}
+
+export function trackInferenceError(reason: string, params?: Record<string, string>) {
+  gtagEvent('infer_error', { reason, ...params });
+}
+
+export function trackUnsupportedOutputTarget(target: string, requested: string) {
+  gtagEvent('infer_unsupported_output', {
+    target,
+    requested,
+  });
 }

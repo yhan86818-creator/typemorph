@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "tsc --noEmit && vitest run",
+    "test:ux": "vitest run src/components/__tests__/workbench-utils.test.tsx src/components/__tests__/Workbench.integration.test.tsx --run",
+    "bench": "vitest run src/lib/__bench__/real-data.bench.test.ts --run",
     "deploy": "next build && npx wrangler pages deploy out --project-name typeflow-pro --branch main --commit-dirty=true",
     "deploy:only": "npx wrangler pages deploy out --project-name typeflow-pro --branch main --commit-dirty=true",
     "deploy:win": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy.ps1",
