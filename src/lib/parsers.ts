@@ -144,9 +144,9 @@ export const parseCurl = (curl: string) => {
   const bodyDoubleMatch = cleanCurl.match(
     /(?:-d|--data|--data-raw|--data-binary)\s+"((?:[^"\\]|\\.)*)"/i
   );
-  // Try unquoted body (everything up to next flag or end of string)
+  // Try unquoted body: capture everything after the flag up to the next flag (-X) or end of string
   const bodyUnquotedMatch = cleanCurl.match(
-    /(?:-d|--data|--data-raw|--data-binary)\s+([^\s-][^\s]*)/i
+    /(?:-d|--data|--data-raw|--data-binary)\s+((?:(?!\s+-[a-zA-Z-])[^\s])[^\s]*(?:\s+(?:(?!\s+-[a-zA-Z-])[^\s][^\s]*))*)/i
   );
 
   // Extract body from the original joined (non-collapsed) string to preserve JSON whitespace

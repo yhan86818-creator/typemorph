@@ -104,7 +104,8 @@ const mergeSchemas = (s1: Schema, s2: Schema, depth: number = 0): Schema => {
     if (s1.format === s2.format) {
       return { ...s1, optional, nullable, enumValues };
     }
-    return { type: 'string', optional, nullable, enumValues };
+    // Formats differ (e.g. 'email' vs 'url'); keep the first format as a best-effort
+    return { type: 'string', format: s1.format ?? s2.format, optional, nullable, enumValues };
   }
 
   if (s1.type === 'object' && s2.type === 'object') {
@@ -346,7 +347,7 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
       if (uuidKeyPattern.test(keyName)) return addMeta({ type: 'string', format: 'uuid' }, 'format:uuid:keyname');
       if (emailKeyPattern.test(keyName)) return addMeta({ type: 'string', format: 'email' }, 'format:email:keyname');
       if (urlKeyPattern.test(keyName)) return addMeta({ type: 'string', format: 'url' }, 'format:url:keyname');
-      if (floatKeyPattern.test(keyName)) return addMeta({ type: 'number', format: 'float' }, 'format:float:keyname');
+      if (floatKeyPattern.test(keyName)) return addMeta({ type: 'string', format: 'float' }, 'format:float:keyname');
       
       if (allowedEnumKeys) {
         // 統計判定情報が存在する場合はそれを利用
@@ -669,7 +670,10 @@ const buildIsomorphicGroups = (
       let bestKey = allParentKeys.length > 0
         ? allParentKeys.sort((a, b) => a.length - b.length)[0]
         : representativeKey;
-      if (bestKey.endsWith('s') && bestKey !== 'status' && bestKey !== 'address') {
+      // Simple singularization: remove trailing 's' for common plural patterns,
+      // but preserve words that are singular despite ending in 's'
+      const singularExceptions = new Set(['status', 'address', 'business', 'process', 'class', 'series', 'species', 'means', 'news', 'analysis', 'basis', 'crisis', 'thesis', 'oasis', 'bonus', 'genius', 'campus', 'focus', 'corpus', 'census', 'consensus', 'virus', 'canvas', 'atlas', 'alias', 'bias', 'gas']);
+      if (bestKey.endsWith('s') && !bestKey.endsWith('ss') && !singularExceptions.has(bestKey.toLowerCase())) {
         bestKey = bestKey.slice(0, -1);
       }
       const camelKey = bestKey.replace(/(^\w|_\w)/g, m => m.replace(/_/, '').toUpperCase());
@@ -1072,7 +1076,7 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     else if (s.includes('svelte-props')) out = sveltePropsGen.generate(schema, 'Component');
     else if (s.includes('solid-props')) out = solidPropsGen.generate(schema, 'Component');
     else if (s.includes('react-context')) out = reactContextGen.generate(schema, 'Root');
-    else if (s.includes('react-query')) out = reactPropsGen.generate(schema, 'Component'); // Fallback or separate
+    // react-query is not yet implemented; fall through to unsupported
     else if (s.includes('redux-slice')) out = reduxSliceGen.generate(schema, 'root');
     else if (s.includes('pinia')) out = piniaStoreGen.generate(schema, 'root');
     else if (s.includes('sequelize')) out = sequelizeGen.generate(schema, 'Root');
