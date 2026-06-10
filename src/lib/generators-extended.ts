@@ -94,8 +94,9 @@ export const mysqlGen = {
     for (const [k, v] of Object.entries(f)) {
       const nullable = v.optional ? ' NULL' : ' NOT NULL';
       const isId = k.toLowerCase() === 'id';
+      const autoInc = isId ? ' AUTO_INCREMENT' : '';
       const pk = isId ? ' PRIMARY KEY' : '';
-      res += `  \`${toSnakeCase(k)}\` ${sqlType(v, 'mysql')}${nullable}${pk},\n`;
+      res += `  \`${toSnakeCase(k)}\` ${sqlType(v, 'mysql')}${nullable}${autoInc}${pk},\n`;
     }
 
     if (!hasCreatedAt) {

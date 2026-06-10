@@ -28,6 +28,27 @@ describe('TypeMorph Engine', () => {
       expect(arrSchema.type).toBe('array');
       expect(arrSchema.itemType?.type).toBe('number');
     });
+
+    it('[bug] should NOT infer string values as number based on key name alone (floatKeyPattern bug)', () => {
+      // price is a floatKeyPattern match, but the value is a string → should be string, not number
+      const schema = inferSchema({ price: "19.99" });
+      expect(schema.fields?.price.type).toBe('string');
+      // format is still 'float' because key-name-based format inference is valid
+      expect(schema.fields?.price.format).toBe('float');
+
+      // amount is also a floatKeyPattern match, but value is a non-numeric string
+      const schema2 = inferSchema({ amount: "free" });
+      expect(schema2.fields?.amount.type).toBe('string');
+
+      // cost with string value
+      const schema3 = inferSchema({ cost: "to be determined" });
+      expect(schema3.fields?.cost.type).toBe('string');
+
+      // Actual number values should still be inferred as number
+      const schema4 = inferSchema({ price: 19.99 });
+      expect(schema4.fields?.price.type).toBe('number');
+      expect(schema4.fields?.price.format).toBe('float');
+    });
   });
 
   describe('runEngine', () => {
@@ -462,6 +483,7 @@ describe('TypeMorph Engine', () => {
       const schema = inferSchema(json);
       // キー名だけで format を推論できるべき
       expect(schema.fields!.avatar.format).toBe('url');
+      expect(schema.fields!.price.format).toBe('float');
       expect(schema.fields!.user_email.format).toBe('email');
     });
 

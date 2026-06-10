@@ -48,6 +48,7 @@ export function compareSchemas(oldObj: any, newObj: any): SchemaDiff[] {
             }
           }
         }
+        seen.add(mergedObj);
         flattenSchema(mergedObj, `${path}[]`, registry, seen);
       } else {
         const nonObjectElements = obj.filter(x => x === null || typeof x !== 'object' || Array.isArray(x));
