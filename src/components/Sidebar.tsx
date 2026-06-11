@@ -128,24 +128,6 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView, 
         </div>
       </div>
       
-      <div className="mt-auto p-6 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-[#030712]/50">
-        <h3 className="text-[10px] font-mono uppercase text-slate-400 tracking-wider mb-4 flex items-center gap-1.5">
-          <History size={12} className="text-slate-400"/> [licensing]
-        </h3>
-        <a 
-          href="https://yhanster206.gumroad.com/l/zjcuuu" 
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => trackProClick('sidebar_gumroad')}
-          className="flex items-center justify-between w-full p-4 bg-blue-600 hover:bg-blue-700 rounded-xl text-white shadow-md shadow-blue-600/10 hover:scale-[1.01] active:scale-95 transition-all"
-        >
-          <div className="flex flex-col">
-            <span className="text-[8px] font-mono uppercase tracking-wider opacity-80">TypeMorph</span>
-            <span className="text-sm font-black">Lifetime Access</span>
-          </div>
-          <Crown size={18} className="text-white/40" />
-        </a>
-      </div>
     </div>
   );
 }
