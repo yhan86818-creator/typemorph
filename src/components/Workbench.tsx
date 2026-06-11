@@ -306,7 +306,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
   const [localFileHandle, setLocalFileHandle] = useState<any>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const IS_BETA = true; // ベータ期間中はtrueに設定
+  const IS_BETA = true; // ベ�Eタ期間中はtrueに設宁E
   const [isProLicensed, setIsProLicensed] = useState(IS_BETA);
 
   const handleSelectSyncFile = async () => {
@@ -340,7 +340,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
         await writable.close();
       } catch (e) {
         console.error("Sync failed:", e);
-        setLocalFileHandle(null); // エラー時は解除
+        setLocalFileHandle(null); // エラー時�E解除
       } finally {
         setIsSyncing(false);
       }
@@ -366,7 +366,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
         setTimeout(() => setSaveCloudHistory(saved === 'true'), 0);
       }
       
-      // ベータ版でない場合のみローカル証明書をチェック
+      // ベ�Eタ版でなぁE��合�Eみローカル証明書をチェチE��
       if (!IS_BETA) {
         const cert = localStorage.getItem('typemorph_pro_cert');
         if (cert) {
@@ -518,7 +518,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
         if (!providedKey) {
           setLicenseError(data.error || "Invalid license key.");
         } else {
-          // サイレント更新に失敗した場合、ライセンスを無効化
+          // サイレント更新に失敗した場合、ライセンスを無効匁E
           localStorage.removeItem('typemorph_pro_cert');
           setIsProLicensed(false);
         }
@@ -532,7 +532,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     }
   };
 
-  // JWTの有効期限チェックユーティリティ
+  // JWTの有効期限チェチE��ユーチE��リチE��
   const isTokenExpired = (token: string) => {
     try {
       const parts = token.split('.');
@@ -552,7 +552,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
       if (cert) {
         if (isTokenExpired(cert)) {
           if (savedKey) {
-            // トークンが切れているがキーがある場合、バックグラウンドで再認証
+            // ト�Eクンが�EれてぁE��がキーがある場合、バチE��グラウンドで再認証
             await handleActivatePro(savedKey);
           } else {
             setIsProLicensed(false);
@@ -567,19 +567,19 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
 
   // Helper to consume trial and check paywall
   const checkAndConsumeTrial = useCallback((): boolean => {
-    if (isProLicensed) return true; // Pro版は無制限
+    if (isProLicensed) return true; // Pro版�E無制陁E
     if (localTrialCount > 0) {
       const newCount = localTrialCount - 1;
       setLocalTrialCount(newCount);
       localStorage.setItem('typemorph_trial_count', String(newCount));
       
-      // トライアル消費のトースト通知
+      // トライアル消費のト�Eスト通知
       setToastMsg(`Free Trial Used (${newCount} left today)`);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2500);
       return true;
     }
-    // トライアル切れの場合はペイウォールを表示して実行ブロック
+    // トライアル刁E��の場合�Eペイウォールを表示して実行ブロチE��
     setShowPaywall(true);
     return false;
   }, [isProLicensed, localTrialCount, setLocalTrialCount, setShowPaywall, setToastMsg, setShowToast]);
@@ -716,7 +716,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     if (piiResult.detectedTypes.length > 0) {
       if (!isProLicensed) {
         const proceed = window.confirm(
-          `⚠️ Privacy Warning: We detected sensitive data (${piiResult.detectedTypes.join(', ')}) in your input.\n\nFree users send data as-is. Upgrade to Pro for automatic local masking before sending to AI.\n\nDo you want to proceed anyway?`
+          `⚠�E�EPrivacy Warning: We detected sensitive data (${piiResult.detectedTypes.join(', ')}) in your input.\n\nFree users send data as-is. Upgrade to Pro for automatic local masking before sending to AI.\n\nDo you want to proceed anyway?`
         );
         if (!proceed) return;
       } else {
@@ -820,7 +820,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     let finalInput = inputRef.current;
     if (piiResult.detectedTypes.length > 0) {
       if (!isProLicensed) {
-        if (!window.confirm("⚠️ Privacy Warning: Detected sensitive data. Proceed without masking?")) return;
+        if (!window.confirm("⚠�E�EPrivacy Warning: Detected sensitive data. Proceed without masking?")) return;
       } else {
         finalInput = piiResult.maskedText;
         setToastMsg("Privacy Shield: Sensitive data masked! ");
@@ -957,7 +957,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     let finalInput = inputRef.current;
     if (piiResult.detectedTypes.length > 0) {
       if (!isProLicensed) {
-        if (!window.confirm("⚠️ Privacy Warning: Detected sensitive data. Proceed without masking?")) return;
+        if (!window.confirm("⚠�E�EPrivacy Warning: Detected sensitive data. Proceed without masking?")) return;
       } else {
         finalInput = piiResult.maskedText;
         setToastMsg("Privacy Shield: Sensitive data masked! ");
@@ -1040,7 +1040,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     let finalInput = inputRef.current;
     if (piiResult.detectedTypes.length > 0) {
       if (!isProLicensed) {
-        if (!window.confirm("⚠️ Privacy Warning: Detected sensitive data. \|Proceed without masking?")) return;
+        if (!window.confirm("⚠�E�EPrivacy Warning: Detected sensitive data. \|Proceed without masking?")) return;
       } else {
         finalInput = piiResult.maskedText;
         setToastMsg("Privacy Shield: Sensitive data masked! ");
@@ -1118,7 +1118,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
       return;
     }
 
-    // 基本変換の回数制限チェック
+    // 基本変換の回数制限チェチE��
     if (!checkAndConsumeBasicTrial()) return;
 
     isGeneratingRef.current = true; // Start generating
@@ -1351,7 +1351,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
       } else {
-        // --- Mode 2: Cloud Share (Supabase) — only on explicit user action ---
+        // --- Mode 2: Cloud Share (Supabase)  Eonly on explicit user action ---
         if (!supabase) {
           alert("Your schema is too large for a URL link.\n\nCloud sharing requires Supabase to be configured.\nFor now, copying the raw URL (may be truncated in some apps).");
           await navigator.clipboard.writeText(candidateUrl);
@@ -1372,7 +1372,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
 
         const shortUrl = `${window.location.origin}${window.location.pathname}?share=${data.id}`;
         await navigator.clipboard.writeText(shortUrl);
-        setToastMsg("☁️ Cloud Link Copied! (Schema stored securely)");
+        setToastMsg("☁E��ECloud Link Copied! (Schema stored securely)");
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
       }
@@ -1474,7 +1474,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
         ['--left-width' as any]: isLeftCollapsed ? '0%' : `${leftWidth}%`,
         ['--right-width' as any]: isLeftCollapsed ? '100%' : `${100 - leftWidth}%`
       }}
-      className={`flex flex-col md:flex-row h-[calc(100vh-80px)] p-6 bg-slate-50 dark:bg-[#020617] relative ${isResizing ? 'cursor-col-resize select-none' : ''}`}
+      className={`flex flex-col md:flex-row h-[calc(100vh-80px)] p-6 bg-slate-50 dark:bg-[#0A0A0A] relative ${isResizing ? 'cursor-col-resize select-none' : ''}`}
     >
       <div 
         className={`flex flex-col min-w-0 h-full transition-all duration-300 ease-in-out overflow-hidden ${isLeftCollapsed ? 'w-0 md:w-0 opacity-0 pointer-events-none' : 'w-full md:flex-none md:w-[calc(var(--left-width)-12px)] opacity-100'}`}
@@ -1630,7 +1630,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
               }
             }
           }}
-          className="flex-1 bg-white dark:bg-slate-900/50 backdrop-blur-md rounded-xl shadow-xl dark:shadow-black/40 border border-slate-200 dark:border-slate-700/50 overflow-hidden relative group/editor"
+          className="flex-1 bg-white dark:bg-[#0F0F0F]/50 backdrop-blur-md rounded-xl shadow-xl dark:shadow-black/40 border border-slate-200 dark:border-[#222222]/50 overflow-hidden relative group/editor"
         >
           <Editor
             height="100%"
@@ -1716,7 +1716,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                     <button
                       key={i}
                       onClick={() => setInput(typeof p.data === 'string' ? p.data : JSON.stringify(p.data, null, 2))}
-                      className="flex flex-col items-start p-4 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/50 hover:border-blue-500/50 dark:hover:border-blue-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-all text-left group"
+                      className="flex flex-col items-start p-4 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-[#222222]/50 hover:border-blue-500/50 dark:hover:border-blue-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-all text-left group"
                     >
                       <span className="text-[10px] font-mono text-blue-600 dark:text-blue-400 font-bold mb-1 flex items-center gap-1">
                         <Zap size={10} className="text-yellow-500" /> Preset {i + 1}
@@ -1848,13 +1848,13 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                   setShowToast(false);
                 }, 2000);
               }}
-              className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-white bg-slate-950 dark:bg-blue-600 dark:text-white px-4 py-1.5 rounded-xl shadow-lg hover:scale-[1.02] transition-all shrink-0"
+              className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-white bg-slate-950 dark:bg-blue-600 dark:text-[#E8E8E8] px-4 py-1.5 rounded-xl shadow-lg hover:scale-[1.02] transition-all shrink-0"
             >
               <Copy size={12} /> <span>{isCopied ? 'Copied' : 'Copy'}</span>
             </button>
           </div>
         </div>
-        <div className="flex-1 bg-white dark:bg-slate-900/50 backdrop-blur-md rounded-xl shadow-xl dark:shadow-black/40 border border-slate-200 dark:border-slate-700/50 overflow-hidden relative group">
+        <div className="flex-1 bg-white dark:bg-[#0F0F0F]/50 backdrop-blur-md rounded-xl shadow-xl dark:shadow-black/40 border border-slate-200 dark:border-[#222222]/50 overflow-hidden relative group">
           
           <AnimatePresence>
             {showGenSettings && (
@@ -1866,15 +1866,15 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
               >
                 <h4 className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 mb-4 tracking-wider">Code Generation Rules</h4>
                 <div className="space-y-3">
-                  <label className="flex items-center gap-2 text-xs font-bold dark:text-white cursor-pointer">
+                  <label className="flex items-center gap-2 text-xs font-bold dark:text-[#E8E8E8] cursor-pointer">
                     <input type="checkbox" checked={genSettings.exportDefault} onChange={e => setGenSettings(s => ({...s, exportDefault: e.target.checked}))} className="rounded text-blue-600 focus:ring-blue-600/20" />
                     Use `export default` (TS)
                   </label>
-                  <label className="flex items-center gap-2 text-xs font-bold dark:text-white cursor-pointer">
+                  <label className="flex items-center gap-2 text-xs font-bold dark:text-[#E8E8E8] cursor-pointer">
                     <input type="checkbox" checked={genSettings.optionalFields} onChange={e => setGenSettings(s => ({...s, optionalFields: e.target.checked}))} className="rounded text-blue-600 focus:ring-blue-600/20" />
                     Make all fields optional
                   </label>
-                  <label className="flex items-center gap-2 text-xs font-bold dark:text-white cursor-pointer">
+                  <label className="flex items-center gap-2 text-xs font-bold dark:text-[#E8E8E8] cursor-pointer">
                     <input type="checkbox" checked={genSettings.useUUID} onChange={e => setGenSettings(s => ({...s, useUUID: e.target.checked}))} className="rounded text-blue-600 focus:ring-blue-600/20" />
                     Infer UUIDs for `*id` (Zod)
                   </label>
@@ -1886,7 +1886,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                       placeholder="e.g. Shared, Common, or empty" 
                       value={genSettings.sharedPrefix !== undefined ? genSettings.sharedPrefix : 'Shared'} 
                       onChange={e => setGenSettings(s => ({...s, sharedPrefix: e.target.value}))} 
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-500 dark:focus:ring-2 dark:focus:ring-blue-500/50 transition-all font-sans"
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 dark:text-[#E8E8E8] outline-none focus:border-blue-500 dark:focus:border-blue-500 dark:focus:ring-2 dark:focus:ring-blue-500/50 transition-all font-sans"
                     />
                   </div>
 
@@ -1906,7 +1906,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                           placeholder="Enter License Key (e.g. TF-PRO-...)" 
                           value={licenseKeyInput} 
                           onChange={e => setLicenseKeyInput(e.target.value)} 
-                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-500 dark:focus:ring-2 dark:focus:ring-blue-500/50 transition-all font-mono"
+                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 dark:text-[#E8E8E8] outline-none focus:border-blue-500 dark:focus:border-blue-500 dark:focus:ring-2 dark:focus:ring-blue-500/50 transition-all font-mono"
                         />
                         {licenseError && <p className="text-[9px] text-red-500">{licenseError}</p>}
                         <button 
@@ -1938,7 +1938,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
 
                   <div className="border-t border-slate-200 dark:border-slate-800 my-3 pt-3">
                     <h5 className="text-[9px] font-mono uppercase text-slate-500 dark:text-slate-400 mb-2 tracking-wider">Privacy & Data Control</h5>
-                    <label className="flex items-center gap-2 text-xs font-bold dark:text-white cursor-pointer mb-3">
+                    <label className="flex items-center gap-2 text-xs font-bold dark:text-[#E8E8E8] cursor-pointer mb-3">
                       <input type="checkbox" checked={saveCloudHistory} onChange={e => handleSaveCloudHistoryChange(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-600/20" />
                       Save History to Cloud (Supabase)
                     </label>
@@ -2008,7 +2008,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
           ) : (
             <div className="w-full h-full flex flex-col relative">
               {outputTab === 'mock' && (
-                <div className="flex items-center justify-between px-6 py-3 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-700/50 z-10 animate-fade-in">
+                <div className="flex items-center justify-between px-6 py-3 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-[#222222]/50 z-10 animate-fade-in">
                   <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-300 tracking-wider flex items-center gap-1.5 font-bold">
                     <Zap size={12} className="text-blue-600" /> AI Data Synthesizer
                   </span>
@@ -2046,7 +2046,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                 </div>
               )}
               {outputTab === 'zod' && (
-                <div className="flex items-center justify-between px-6 py-3 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-700/50 z-10 animate-fade-in">
+                <div className="flex items-center justify-between px-6 py-3 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-[#222222]/50 z-10 animate-fade-in">
                   <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-300 tracking-wider flex items-center gap-1.5 font-bold">
                     <Sparkles size={12} className="text-emerald-500" /> Semantic Validator
                   </span>
@@ -2103,7 +2103,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
 
                       const severityBadges = {
                         error: 'Breaking',
-                        warning: '⚠️ Warning',
+                        warning: '⚠�E�EWarning',
                         info: 'Added'
                       };
 
@@ -2161,7 +2161,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                         return (
                           <div 
                             key={`${decision.id}-${decisionIndex}`} 
-                            className={`p-3 rounded-xl border transition-all flex flex-col justify-between ${isDisabled ? 'bg-slate-100/50 dark:bg-slate-950/20 border-slate-200/55 dark:border-slate-850 opacity-60' : 'bg-white dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 hover:border-blue-500/30 dark:hover:border-blue-500/40 shadow-sm'}`}
+                            className={`p-3 rounded-xl border transition-all flex flex-col justify-between ${isDisabled ? 'bg-slate-100/50 dark:bg-slate-950/20 border-slate-200/55 dark:border-slate-850 opacity-60' : 'bg-white dark:bg-[#0F0F0F]/50 border-slate-200 dark:border-slate-800 hover:border-blue-500/30 dark:hover:border-blue-500/40 shadow-sm'}`}
                             onMouseEnter={() => !isDisabled && highlightDecisionInCode(decision)}
                             onMouseLeave={clearDecisionHighlight}
                           >
@@ -2191,7 +2191,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                                             value={renameValue} 
                                             onChange={e => setRenameValue(e.target.value)}
                                             placeholder="New name..."
-                                            className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2.5 py-1 text-[10px] font-bold text-slate-800 dark:text-white outline-none focus:border-blue-500 transition-all"
+                                            className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2.5 py-1 text-[10px] font-bold text-slate-800 dark:text-[#E8E8E8] outline-none focus:border-blue-500 transition-all"
                                             onKeyDown={e => {
                                               if (e.key === 'Enter') {
                                                 const originalName = decision.meta.originalName!;
@@ -2413,7 +2413,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
               <Crown size={32} className="text-blue-600 dark:text-blue-400" />
             </div>
             
-            <h2 className="text-lg font-black text-slate-900 dark:text-white mb-2 font-sans tracking-tight">
+            <h2 className="text-lg font-black text-slate-900 dark:text-[#E8E8E8] mb-2 font-sans tracking-tight">
               Unlock TypeMorph
             </h2>
             <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-6 font-sans">
