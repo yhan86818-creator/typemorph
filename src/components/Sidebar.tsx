@@ -40,8 +40,8 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView, 
       <div className="p-6 flex-1 flex flex-col min-h-0 min-w-[288px]">
 
 
-        <h3 className="text-[10px] font-mono uppercase text-slate-400 tracking-wider mb-4 flex items-center gap-1.5">
-          <ShieldCheck size={12} className="text-blue-600"/> [workbench]
+        <h3 className="text-[10px] font-mono uppercase text-slate-400 tracking-wider mb-4">
+          [workbench]
         </h3>
         
         <div className="space-y-1 mb-8">
@@ -79,7 +79,7 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView, 
             <button
               key={cat}
               onClick={() => setCategoryFilter(cat)}
-              className={`px-2.5 py-1 rounded-lg text-[9px] font-mono uppercase tracking-wider whitespace-nowrap transition-all ${categoryFilter === cat ? 'bg-slate-950 dark:bg-white text-white dark:text-slate-950 shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-blue-600'}`}
+              className={`px-2.5 py-1 rounded-lg text-[9px] font-mono uppercase tracking-wider whitespace-nowrap transition-all ${categoryFilter === cat ? 'text-slate-950 dark:text-white font-black' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-blue-600'}`}
             >
               {cat}
             </button>
