@@ -1485,11 +1485,11 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
               <Terminal size={14} className="text-slate-400 dark:text-slate-300" /> Input Source
             </span>
             {geminiKey ? (
-              <span className="flex items-center gap-1 text-[8px] font-mono uppercase tracking-widest text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 font-medium">
+              <span className="flex items-center gap-1 text-[8px] font-mono uppercase tracking-widest text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full font-medium">
                 AI Mode
               </span>
             ) : (
-              <span className="flex items-center gap-1 text-[8px] font-mono uppercase tracking-widest text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 font-medium">
+              <span className="flex items-center gap-1 text-[8px] font-mono uppercase tracking-widest text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full font-medium">
                 Local Mode
               </span>
             )}
@@ -1848,7 +1848,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                   setShowToast(false);
                 }, 2000);
               }}
-              className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-white bg-slate-950 dark:bg-blue-600 dark:text-[#E8E8E8] px-4 py-1.5 rounded-xl shadow-lg hover:scale-[1.02] transition-all shrink-0"
+              className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-white dark:text-slate-950 bg-slate-950 dark:bg-white px-4 py-1.5 rounded-xl hover:opacity-90 transition-all shrink-0"
             >
               <Copy size={12} /> <span>{isCopied ? 'Copied' : 'Copy'}</span>
             </button>
