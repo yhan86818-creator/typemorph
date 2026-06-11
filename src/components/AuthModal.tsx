@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
@@ -7,6 +7,12 @@ import { supabase } from '@/lib/supabase';
 import { X } from 'lucide-react';
 
 export const AuthModal = ({ isOpen, onClose, isDark }: { isOpen: boolean, onClose: () => void, isDark: boolean }) => {
+  const [origin, setOrigin] = useState('');
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -53,7 +59,7 @@ export const AuthModal = ({ isOpen, onClose, isDark }: { isOpen: boolean, onClos
                 }}
                 theme={isDark ? 'dark' : 'default'}
                 providers={['google']}
-                redirectTo={typeof window !== 'undefined' ? window.location.origin : ''}
+                redirectTo={origin}
               />
             ) : (
               <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl text-sm font-semibold border border-red-100 dark:border-red-900">
