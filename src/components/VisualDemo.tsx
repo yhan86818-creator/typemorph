@@ -83,7 +83,7 @@ export const rootSchema = z.object({
                 initial={{ top: '-10%' }}
                 animate={{ top: '110%' }}
                 transition={{ duration: 2, ease: "linear", repeat: Infinity }}
-                className="absolute left-0 right-0 h-16 bg-gradient-to-b from-transparent via-blue-500/10 to-transparent border-t border-blue-500/30 z-10 pointer-events-none"
+                className="absolute left-0 right-0 h-16 bg-blue-500/10 border-t border-blue-500/30 z-10 pointer-events-none"
               />
             )}
           </div>
@@ -134,7 +134,7 @@ export const rootSchema = z.object({
                       transition={{ delay: i * 0.4 }}
                       className="flex items-center gap-3 text-[10px] font-mono text-blue-500/60"
                     >
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                       {log}
                     </motion.div>
                   ))}
@@ -158,7 +158,7 @@ export const rootSchema = z.object({
             }}
             className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-2xl transition-colors duration-500 ${step === 1 ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-400'}`}
           >
-            {step === 1 ? <Zap size={20} className="animate-pulse" /> : <ArrowRight size={20} />}
+            {step === 1 ? <Zap size={20} /> : <ArrowRight size={20} />}
           </motion.div>
         </div>
       </div>

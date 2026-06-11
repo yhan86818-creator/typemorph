@@ -30,7 +30,7 @@ export default function GlobalFooter() {
                 target="_blank"
                 className="bg-blue-600/5 dark:bg-blue-600/5 text-blue-700 dark:text-blue-400 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-600/10 hover:bg-blue-600 hover:text-slate-950 transition-all flex items-center gap-2"
               >
-                <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse" /> Community Discord
+                <div className="w-1.5 h-1.5 bg-blue-600 rounded-full" /> Community Discord
               </a>
             </div>
           </div>

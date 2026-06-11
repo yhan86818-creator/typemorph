@@ -169,7 +169,7 @@ function fetchUsers(callback) {
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
               className="max-w-md w-full bg-white dark:bg-slate-900 rounded-[3rem] p-12 text-center shadow-2xl border border-slate-200 dark:border-slate-800"
             >
-              <div className="w-20 h-20 bg-purple-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8 text-white shadow-xl shadow-purple-500/40">
+              <div className="w-20 h-20 bg-purple-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8 text-white shadow-xl">
                 <Crown size={40} />
               </div>
               <h2 className="text-3xl font-black mb-4 dark:text-white">Lab Access Limited</h2>
@@ -189,7 +189,7 @@ function fetchUsers(callback) {
       <div className="h-20 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#020617]/80 backdrop-blur-xl z-10 px-8 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
+            <div className="w-10 h-10 bg-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg">
               <FlaskConical size={22} />
             </div>
             <div>
@@ -284,7 +284,7 @@ function fetchUsers(callback) {
                   onClick={copyToClipboard}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase shadow-sm transition-all duration-300 ${
                     copied 
-                      ? 'bg-emerald-600 dark:bg-emerald-500 text-white shadow-emerald-500/20 animate-pulse' 
+                      ? 'bg-emerald-600 dark:bg-emerald-500 text-white' 
                       : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-purple-600'
                   }`}
                 >

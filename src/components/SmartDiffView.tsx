@@ -172,7 +172,7 @@ export function SmartDiffView({ geminiKey, setGeminiKey, isPro, trialCount, setT
           ) : (
             <span className="flex items-center gap-2"><Wand2 size={18} /> AI Merge Schema <span className="text-[10px] opacity-50 ml-2 border border-current px-1.5 py-0.5 rounded">⌘↵</span></span>
           )}
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div className="absolute inset-0 bg-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
         </button>
       </div>
 
