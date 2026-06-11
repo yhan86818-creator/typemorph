@@ -51,9 +51,9 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView, 
             <button 
               key={v.id}
               onClick={() => setView(v.id)}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${currentView === v.id ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${currentView === v.id ? 'text-slate-950 dark:text-white font-black' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
             >
-              <span className={currentView === v.id ? 'text-blue-600' : 'text-slate-400'}>{v.icon}</span>
+              <span className={currentView === v.id ? 'text-slate-950 dark:text-white' : 'text-slate-400'}>{v.icon}</span>
               {v.label}
             </button>
           ))}
