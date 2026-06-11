@@ -1,14 +1,14 @@
-// TypeFlow Pro - Service Worker v1
-// Strategy: Cache-first for static assets, network-first for navigation
+// TypeMorph - Service Worker v2
+// Strategy: Network-first for JS chunks, cache-first for static assets
 
-const CACHE_NAME = 'typeflow-v1';
+const CACHE_VERSION = 'v2';
+const CACHE_NAME = `typemorph-${CACHE_VERSION}`;
 const OFFLINE_URL = '/';
 
 // Static assets to precache on install
 const PRECACHE_ASSETS = [
   '/',
   '/favicon.png',
-  '/manifest.webmanifest',
 ];
 
 // ── Install ──────────────────────────────────────────────────────────────────
@@ -20,15 +20,11 @@ self.addEventListener('install', (event) => {
 });
 
 // ── Activate ─────────────────────────────────────────────────────────────────
-// Delete old caches so users always get fresh assets after a deploy
+// Delete ALL old caches so users always get fresh assets after a deploy
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      )
+      Promise.all(keys.map((key) => caches.delete(key)))
     )
   );
   self.clients.claim();
@@ -59,10 +55,25 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets (_next/static, images, fonts): cache-first
+  // JS/CSS chunks (_next/static): network-first to always get latest build
+  // This prevents stale module factory errors after deployments
+  if (url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // Images, fonts, other static assets: cache-first
   if (
-    url.pathname.startsWith('/_next/static/') ||
-    url.pathname.startsWith('/favicon') ||
     url.pathname.match(/\.(png|jpg|jpeg|svg|gif|webp|ico|woff2?|ttf)$/)
   ) {
     event.respondWith(
