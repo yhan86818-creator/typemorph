@@ -71,6 +71,8 @@ export function extractTypeGraph(tsCode: string): TypeGraph {
       isRoot: false
     };
 
+    // Skip duplicate interface names (same interface may appear in multiple output tabs)
+    if (nodeMap.has(interfaceName)) continue;
     nodes.push(node);
     nodeMap.set(interfaceName, node);
   }
