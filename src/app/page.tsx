@@ -144,16 +144,16 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
   };
 
   return (
-    <div className={`${initialSlug ? 'w-full overflow-x-hidden' : 'min-h-screen overflow-hidden'} flex flex-col ${isDark ? 'dark' : ''} bg-white dark:bg-[#030712] transition-colors duration-500`}>
+    <div className={`${initialSlug ? 'w-full overflow-x-hidden' : 'min-h-screen overflow-hidden'} flex flex-col ${isDark ? 'dark' : ''} bg-white dark:bg-[#0A0A0A] transition-colors duration-500`}>
       {/* Top Navigation Cockpit */}
-      <nav className={`${initialSlug ? 'sticky' : 'fixed'} top-0 left-0 right-0 h-20 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#030712]/80 backdrop-blur-xl z-[100] px-6`}>
+      <nav className={`${initialSlug ? 'sticky' : 'fixed'} top-0 left-0 right-0 h-20 border-b border-slate-200 dark:border-[#1A1A1A] bg-white/80 dark:bg-[#0A0A0A]/80 backdrop-blur-xl z-[100] px-6`}>
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between">
           <div className="flex items-center gap-10">
             <div className="flex items-center gap-4">
               {view !== 'landing' && (
                 <button 
                   onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                  className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800/80 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-all border border-slate-200 dark:border-slate-700"
+                  className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-[#141414]/80 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-all border border-slate-200 dark:border-slate-700"
                   title="Toggle Sidebar (Cmd+B)"
                 >
                   {isSidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
@@ -167,7 +167,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
               </button>
             </div>
             
-            <div className="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200/50 dark:border-slate-800/80">
+            <div className="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200/50 dark:border-[#1A1A1A]/80">
               {['landing', 'app'].map((v) => (
                 <button 
                   key={v}
@@ -182,7 +182,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
             </div>
 
             {/* Language Switcher */}
-            <div className="hidden sm:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200/50 dark:border-slate-800/80 ml-4">
+            <div className="hidden sm:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200/50 dark:border-[#1A1A1A]/80 ml-4">
               <Link prefetch={false} href={initialSlug ? `/converters/${initialSlug}` : '/'}
                 className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mounted && !window.location.pathname.includes('/jp/') ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-400'}`}
               >
@@ -237,7 +237,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
               </a>
             </div>
 
-            <button onClick={toggleTheme} className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800/80 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-all border border-slate-200 dark:border-slate-700">
+            <button onClick={toggleTheme} className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-[#141414]/80 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-all border border-slate-200 dark:border-slate-700">
               {isDark ? <Sun size={16} /> : <Moon size={16} />}
             </button>
             
@@ -321,7 +321,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
         {showLicenseModal && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowLicenseModal(false)} className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-md" />
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl border border-slate-200 dark:border-slate-800">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl border border-slate-200 dark:border-[#1A1A1A]">
               <h2 className="text-xl font-black mb-2 dark:text-white text-slate-900">Activate Pro</h2>
               <p className="text-slate-500 text-xs mb-6 font-medium">Unlock unlimited AI conversions and visual architecture.</p>
               <div className="space-y-4">
