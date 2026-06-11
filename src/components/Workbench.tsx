@@ -1558,7 +1558,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
               <button 
                 key={i}
                 onClick={() => { setInput(typeof p.data === 'string' ? p.data : JSON.stringify(p.data, null, 2)); resetBaseline(p.data); }}
-                className="px-2.5 py-1 rounded-lg bg-blue-50/50 dark:bg-blue-950/20 text-[9px] font-bold text-blue-600 dark:text-blue-400 hover:bg-slate-950 hover:text-white dark:hover:bg-white dark:hover:text-slate-950 transition-all shrink-0"
+                className="px-2.5 py-1 rounded-lg text-[9px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white transition-all shrink-0"
               >
                 {p.label}
               </button>
@@ -1584,7 +1584,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                         resetBaseline(null);
                       }
                     }}
-                className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[9px] font-bold text-slate-500 hover:text-blue-600 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all truncate max-w-[120px] shrink-0"
+                className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[9px] font-bold text-slate-500 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 transition-all truncate max-w-[120px] shrink-0"
                     title={h.content.slice(0, 100)}
                   >
                     {h.content.trim().slice(0, 15)}...
