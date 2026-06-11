@@ -1481,15 +1481,15 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
       >
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-3">
-            <span className="text-[10px] font-mono text-slate-500 dark:text-slate-300 flex items-center gap-1.5 font-bold">
-              <Terminal size={14} className="text-slate-400 dark:text-slate-300" /> Input
+            <span className="text-xs text-slate-400 flex items-center gap-1.5">
+              Input
             </span>
             {geminiKey ? (
               <span className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 font-medium">
                 AI Mode
               </span>
             ) : (
-              <span className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 font-medium">
+              <span className="text-xs text-slate-400">
                 Local Mode
               </span>
             )}
@@ -1848,9 +1848,9 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                   setShowToast(false);
                 }, 2000);
               }}
-              className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-slate-950 dark:text-white px-4 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shrink-0"
+              className="text-xs font-bold text-slate-950 dark:text-white px-4 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shrink-0"
             >
-              <Copy size={12} /> <span>{isCopied ? 'Copied' : 'Copy'}</span>
+              {isCopied ? 'Copied' : 'Copy'}
             </button>
           </div>
         </div>
