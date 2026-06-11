@@ -87,30 +87,9 @@ export function LandingView({ onSelect }: LandingViewProps) {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-24"
         >
-          <div className="flex flex-wrap justify-center gap-3 mb-8">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 text-slate-500 dark:text-slate-400 font-mono text-[9px] uppercase tracking-wider shadow-sm">
-              [neural-engine-active]
-            </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-600/10 border border-blue-600/20 text-blue-700 dark:text-blue-400 font-mono text-[9px] uppercase tracking-wider shadow-sm">
-              [prisma-crud-generator]
-            </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 text-slate-500 dark:text-slate-400 font-mono text-[9px] uppercase tracking-wider shadow-sm">
-              [bulk-folder-sync]
-            </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 text-slate-500 dark:text-slate-400 font-mono text-[9px] uppercase tracking-wider shadow-sm">
-              [ai-ui-synthesizer]
-            </div>
-            <a 
-              href="https://discord.gg/dQHqsa8g8J" 
-              target="_blank"
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-600/5 hover:bg-blue-600/10 border border-blue-600/10 text-blue-700 dark:text-blue-400 font-mono text-[9px] uppercase tracking-wider transition-all"
-            >
-              [join-discord]
-            </a>
-          </div>
           <h1 className="text-6xl md:text-8xl font-black tracking-tighter mb-10 text-slate-900 dark:text-white leading-[0.9]">
             Build Faster.<br />
-            <span className="text-transparent bg-clip-text bg-blue-600">Model Everything.</span>
+            <span>Model Everything.</span>
           </h1>
 
           <VisualDemo />
@@ -214,9 +193,6 @@ export function LandingView({ onSelect }: LandingViewProps) {
           {/* Pillar 1: Logic Lab (Left Text, Right Image) */}
           <div className="grid md:grid-cols-12 gap-12 items-center">
             <div className="md:col-span-5 space-y-6">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-600/5 text-blue-700 dark:text-blue-400 font-mono text-[9px] uppercase tracking-wider border border-blue-600/10">
-                [pillar-01] Core Feature
-              </div>
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
                 Logic Lab: <br />
                 <span className="text-blue-600">Synthesize Complete Services</span>
@@ -260,9 +236,6 @@ export function LandingView({ onSelect }: LandingViewProps) {
               </div>
             </div>
             <div className="md:col-span-5 md:order-2 space-y-6">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-600/5 text-blue-700 dark:text-blue-400 font-mono text-[9px] uppercase tracking-wider border border-blue-600/10">
-                [pillar-02] Core Feature
-              </div>
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
                 Architecture Visuals: <br />
                 <span className="text-blue-600">Visual Role-Based Diagramming</span>
@@ -286,9 +259,6 @@ export function LandingView({ onSelect }: LandingViewProps) {
           {/* Pillar 3: Smart Diff (Left Text, Right Image) */}
           <div className="grid md:grid-cols-12 gap-12 items-center">
             <div className="md:col-span-5 space-y-6">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-600/5 text-blue-700 dark:text-blue-400 font-mono text-[9px] uppercase tracking-wider border border-blue-600/10">
-                [pillar-03] Core Feature
-              </div>
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
                 Smart Structural Diff: <br />
                 <span className="text-blue-600">Compare Keys, Ignore Chaos</span>
