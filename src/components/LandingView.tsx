@@ -110,7 +110,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
           </div>
           <h1 className="text-6xl md:text-8xl font-black tracking-tighter mb-10 text-slate-900 dark:text-white leading-[0.9]">
             Build Faster.<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-blue-400 to-blue-700">Model Everything.</span>
+            <span className="text-transparent bg-clip-text bg-blue-600">Model Everything.</span>
           </h1>
 
           <VisualDemo />
@@ -146,7 +146,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
                     <div className="w-px h-6 bg-slate-200 dark:bg-slate-800" />
                     <button 
                       onClick={handleMagicExtract}
-                      className="flex items-center gap-1.5 bg-blue-600 text-white px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-blue-700 transition-colors shadow-md shadow-blue-600/10"
+                      className="flex items-center gap-1.5 bg-blue-600 text-white px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-blue-700 transition-colors shadow-md"
                     >
                       Instant Synthesis <ChevronRight size={12} />
                     </button>
@@ -158,7 +158,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
             <div className={`relative bg-white dark:bg-slate-900/80 rounded-2xl border transition-all duration-500 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.05)] dark:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.2)] ${isFocused ? 'border-blue-600 ring-4 ring-blue-600/5' : 'border-slate-200 dark:border-slate-800/80'}`}>
               <div className="p-1.5 flex items-start">
                 <div className="p-4 text-slate-400">
-                  {aiAnalysis ? <Zap className="text-blue-600 animate-pulse" size={20} /> : <Search size={20} />}
+                  {aiAnalysis ? <Zap className="text-blue-600" size={20} /> : <Search size={20} />}
                 </div>
                 <textarea 
                   ref={inputRef}
@@ -182,7 +182,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
             </div>
             
             {/* Visual Decor */}
-            <div className="absolute -bottom-1 left-12 right-12 h-px bg-gradient-to-r from-transparent via-blue-600/20 to-transparent" />
+            <div className="absolute -bottom-1 left-12 right-12 h-px bg-blue-600/20" />
           </div>
 
           {/* Quick Stats */}
@@ -204,7 +204,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
         <div className="space-y-40 mb-40">
           <div className="text-center max-w-2xl mx-auto">
             <h2 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900 dark:text-white leading-tight">
-              Three Pillars of <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-700">Pure Schema Engineering</span>
+              Three Pillars of <span className="text-transparent bg-clip-text text-blue-600">Pure Schema Engineering</span>
             </h2>
             <p className="text-lg text-slate-500 dark:text-slate-400 font-medium mt-4">
               We cut out the clutter. These three massive, premium workbenches solve 90% of your daily structural bottlenecks.
@@ -368,7 +368,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
         <div className="max-w-5xl mx-auto -mt-20 mb-40 p-10 rounded-3xl bg-white dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-700/50 shadow-2xl dark:shadow-black/40">
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-600/10 text-blue-700 dark:text-blue-400 font-mono text-[9px] uppercase tracking-wider mb-4 border border-blue-600/20 shadow-sm">
-              <ShieldCheck size={12} className="animate-pulse" /> Privacy Manifesto
+              <ShieldCheck size={12} /> Privacy Manifesto
             </div>
             <h3 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-3">
               100% Privacy-First Architecture
@@ -460,9 +460,9 @@ export function LandingView({ onSelect }: LandingViewProps) {
               </p>
               <div className="space-y-4">
                 {[
-                  '🔥 Full-Stack AI Synthesis (Prisma ➡ Next.js API CRUD Auto-Gen)',
-                  '✨ AI UI Premium Synthesizer (Instant dynamic React+Tailwind UI previews)',
-                  '⚡ Local Folder Bulk Mode (Transform entire folders instantly)',
+                  'Full-Stack AI Synthesis (Prisma ➡ Next.js API CRUD Auto-Gen)',
+                  'AI UI Premium Synthesizer (Instant dynamic React+Tailwind UI previews)',
+                  'Local Folder Bulk Mode (Transform entire folders instantly)',
                   'Auto-Healing Parser (Synthesizes even broken & malformed payloads)',
                   '100% Client-Side Sandbox (Zero server transmission, sub-millisecond compile)',
                   'Developer-Rule Configs (Infer UUIDs, optional fields, and default exports)'
@@ -484,13 +484,13 @@ export function LandingView({ onSelect }: LandingViewProps) {
                      <div className="w-3 h-3 rounded-full bg-green-400" />
                    </div>
                    <div className="space-y-4">
-                     <div className="h-4 w-3/4 bg-slate-100 dark:bg-slate-800 rounded-full animate-pulse" />
-                     <div className="h-4 w-full bg-slate-100 dark:bg-slate-800 rounded-full animate-pulse" />
-                     <div className="h-4 w-1/2 bg-slate-100 dark:bg-slate-800 rounded-full animate-pulse" />
+                     <div className="h-4 w-3/4 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                     <div className="h-4 w-full bg-slate-100 dark:bg-slate-800 rounded-full" />
+                     <div className="h-4 w-1/2 bg-slate-100 dark:bg-slate-800 rounded-full" />
                    </div>
                    <div className="mt-12 p-6 bg-blue-600/5 rounded-xl border border-blue-600/10 shadow-inner">
                      <div className="flex items-center gap-2 mb-2">
-                       <ShieldCheck className="text-blue-600 animate-pulse" size={14} />
+                       <ShieldCheck className="text-blue-600" size={14} />
                        <span className="text-[10px] font-black uppercase text-blue-600">PRISMA ➡ NEXT.JS API SYNTHESIS</span>
                      </div>
                      <div className="h-3 w-full bg-blue-600/20 rounded-full mb-3" />

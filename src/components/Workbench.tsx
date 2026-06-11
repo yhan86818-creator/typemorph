@@ -1485,22 +1485,22 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
               <Terminal size={14} className="text-slate-400 dark:text-slate-300" /> Input Source
             </span>
             {geminiKey ? (
-              <span className="flex items-center gap-1 text-[8px] font-mono uppercase tracking-widest text-indigo-650 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-900/50 font-bold">
-                AI Mode (BYOK Cloud)
+              <span className="flex items-center gap-1 text-[8px] font-mono uppercase tracking-widest text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 font-medium">
+                AI Mode
               </span>
             ) : (
-              <span className="flex items-center gap-1 text-[8px] font-mono uppercase tracking-widest text-emerald-650 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-900/50 font-bold">
-                Local Mode (100% Private)
+              <span className="flex items-center gap-1 text-[8px] font-mono uppercase tracking-widest text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 font-medium">
+                Local Mode
               </span>
             )}
             {hasParseError && (
               <button
                 onClick={handleAiSchemaHeal}
                 disabled={isAiLoading}
-                className="flex items-center gap-1.5 text-[9px] font-mono uppercase text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 px-2.5 py-1.5 rounded-lg border border-red-200 dark:border-red-900/50 hover:bg-red-600 dark:hover:bg-red-600 hover:text-white dark:hover:text-white transition-all"
+                className="flex items-center gap-1.5 text-[9px] font-mono uppercase text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 px-2.5 py-1.5 rounded-lg border border-red-200 dark:border-red-900/50 hover:bg-red-600 hover:text-white transition-all"
                 title="AI detects a syntax error. Click to auto-heal!"
               >
-                <Sparkles size={10} className="animate-spin" style={{ animationDuration: '3s' }} />
+                <Sparkles size={10} />
                 <span>Heal Schema</span>
               </button>
             )}
@@ -1552,7 +1552,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
         <div className="flex flex-col gap-2 mb-3">
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
             <span className="flex items-center gap-1 text-[8px] font-mono uppercase text-slate-500 dark:text-slate-350 tracking-wider shrink-0 font-bold">
-              <Zap size={10} className="text-yellow-500" /> Presets:
+              <Zap size={10} className="text-slate-400" /> Presets:
             </span>
             {PRESETS.map((p, i) => (
               <button 

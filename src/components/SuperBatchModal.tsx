@@ -245,7 +245,7 @@ export default function SuperBatchModal({
           <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/20">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-blue-600/10 text-blue-600 border border-blue-600/20">
-                <Crown size={22} className="animate-pulse" />
+                <Crown size={22} />
               </div>
               <div>
                 <h3 className="text-md font-black dark:text-white flex items-center gap-2">
@@ -283,7 +283,7 @@ export default function SuperBatchModal({
                 </div>
                 <button
                   onClick={handleSelectInputFolder}
-                  className="flex items-center gap-2 mx-auto text-xs font-black uppercase text-white bg-blue-600 dark:bg-blue-600 px-6 py-3 rounded-2xl shadow-xl shadow-blue-500/10 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                  className="flex items-center gap-2 mx-auto text-xs font-black uppercase text-white bg-blue-600 dark:bg-blue-600 px-6 py-3 rounded-2xl shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
                 >
                   <FolderOpen size={16} />
                   Select Source Folder
@@ -386,7 +386,7 @@ export default function SuperBatchModal({
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: `${progress}%` }}
-                      className="bg-gradient-to-r from-blue-600 to-yellow-400 h-full rounded-full"
+                      className="bg-blue-600 h-full rounded-full"
                     />
                   </div>
                 </div>

@@ -512,7 +512,7 @@ CREATE TABLE comments (
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
               className="max-w-md w-full bg-white dark:bg-slate-900 rounded-[3rem] p-12 text-center shadow-2xl border border-slate-200 dark:border-slate-800"
             >
-              <div className="w-20 h-20 bg-blue-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8 text-white shadow-xl shadow-blue-500/40">
+              <div className="w-20 h-20 bg-blue-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8 text-white shadow-xl">
                 <Crown size={40} />
               </div>
               <h2 className="text-3xl font-black mb-4 dark:text-white">Pro Architect</h2>
@@ -532,7 +532,7 @@ CREATE TABLE comments (
       <div className="h-20 border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-[#020617]/50 backdrop-blur-xl z-10 px-8 flex items-center justify-between">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-blue-700 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-600/20">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
               <Layers size={22} />
             </div>
             <div>
@@ -541,7 +541,7 @@ CREATE TABLE comments (
                 <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded-md text-[8px] font-mono uppercase">v2.0 Beta</span>
               </h1>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
                 <p className="text-[9px] font-mono uppercase tracking-widest text-slate-400">AI-Powered System Synthesis</p>
               </div>
             </div>
