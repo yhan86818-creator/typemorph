@@ -5,7 +5,7 @@ import Editor, { useMonaco } from '@monaco-editor/react';
 import LZString from 'lz-string';
 import { 
   Terminal, Share2, Copy, FileJson, Sparkles, Settings, Loader2, Monitor, Trash2, Code2, Zap, Crown, Upload, ChevronDown,
-  Lightbulb, Edit3, Check, PanelLeftClose, PanelLeftOpen, Wand2
+  Lightbulb, Edit3, Check, PanelLeftClose, PanelLeftOpen, Wand2, MoreHorizontal
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -296,8 +296,6 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
   }, []);
   const [aiStatus, setAiStatus] = useState("");
   const [showBatchModal, setShowBatchModal] = useState(false);
-  const [isAiUiLoading, setIsAiUiLoading] = useState(false);
-  const [uiTheme, setUiTheme] = useState('glassmorphism');
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [isZodGenerating, setIsZodGenerating] = useState(false);
   const [hasParseError, setHasParseError] = useState(false);
@@ -512,7 +510,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
         setIsProLicensed(true);
         setLicenseKeyInput("");
         if (!providedKey) {
-          setToastMsg("Pro Subscription Activated! ✨");
+          setToastMsg("Pro Subscription Activated! ");
           setShowToast(true);
           setTimeout(() => setShowToast(false), 3000);
         }
@@ -723,7 +721,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
         if (!proceed) return;
       } else {
         finalInput = piiResult.maskedText;
-        setToastMsg("Privacy Shield: Sensitive data masked! 🔒");
+        setToastMsg("Privacy Shield: Sensitive data masked! ");
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
       }
@@ -767,7 +765,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (text) {
         setAiStatus("Success!");
-        setInput(text.replace(/```json/g, '').replace(/```/g, '').trim());
+        setInput(text.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim());
       }
     } catch (e) { 
       setAiStatus("Failed.");
@@ -780,74 +778,6 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
       }, 1000);
     }
   }, [geminiKey]); // Only depend on geminiKey
-
-  // ─── AI Transform: natural-language JSON mutation ─────────────────────────
-  const [isAiTransformLoading, setIsAiTransformLoading] = useState(false);
-  const [showTransformModal, setShowTransformModal] = useState(false);
-  const [transformInstruction, setTransformInstruction] = useState('');
-
-  const handleAiTransform = useCallback(async () => {
-    if (!input.trim()) {
-      alert('Please enter some JSON first.');
-      return;
-    }
-    if (!geminiKey) {
-      if (window.confirm('Gemini API Key is required for AI Transform.\n\nWould you like to get a FREE API Key from Google AI Studio?')) {
-        window.open('https://aistudio.google.com/app/apikey', '_blank');
-      }
-      return;
-    }
-    setShowTransformModal(true);
-  }, [geminiKey, input]);
-
-  const executeAiTransform = useCallback(async () => {
-    if (!transformInstruction.trim()) return;
-    setShowTransformModal(false);
-    setIsAiTransformLoading(true);
-    setAiStatus('Transforming...');
-    try {
-      const prompt = `You are a JSON transformation engine.
-The user has given you this JSON:
-\`\`\`json
-${input}
-\`\`\`
-
-User instruction: "${transformInstruction}"
-
-Rules:
-1. Apply the instruction and return ONLY the transformed JSON — no markdown fences, no explanation.
-2. Keep the JSON syntactically valid and well-formatted (2-space indent).
-3. If the instruction is ambiguous, make a sensible best-effort transformation.
-4. NEVER add or invent new top-level keys unless the instruction explicitly asks for them.`;
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey.trim()}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-        }
-      );
-      const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) {
-        const cleaned = text.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
-        setInput(cleaned);
-        setTransformInstruction('');
-        setToastMsg('✨ JSON transformed by AI!');
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2500);
-      } else {
-        alert('AI returned no output. Please try again.');
-      }
-    } catch (e) {
-      console.error(e);
-      alert('AI Transform failed. Please check your API key.');
-    } finally {
-      setIsAiTransformLoading(false);
-      setAiStatus('');
-    }
-  }, [transformInstruction, input, geminiKey]);
 
   // ─── Streaming helper ────────────────────────────────────────────────────
   const streamGemini = useCallback(async function* (prompt: string): AsyncGenerator<string> {
@@ -882,122 +812,6 @@ Rules:
     }
   }, [geminiKey]);
 
-  const handleAiUiGenerate = useCallback(async () => {
-    if (!checkAndConsumeTrial()) return;
-
-    // PII Detection & Masking
-    const piiResult = processPii(inputRef.current, isProLicensed);
-    let finalInput = inputRef.current;
-    if (piiResult.detectedTypes.length > 0) {
-      if (!isProLicensed) {
-        if (!window.confirm("⚠️ Privacy Warning: Detected sensitive data. Proceed without masking?")) return;
-      } else {
-        finalInput = piiResult.maskedText;
-        setToastMsg("Privacy Shield: Sensitive data masked! 🔒");
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
-      }
-    }
-
-    if (!geminiKey) {
-      if (window.confirm("Gemini API Key is required to generate custom UI.\n\nWould you like to get a FREE API Key from Google AI Studio right now?\n\n(Click 'Cancel' to view a Demo UI)")) {
-        window.open('https://aistudio.google.com/app/apikey', '_blank');
-        return;
-      }
-      setIsAiUiLoading(true);
-      setTimeout(() => {
-        const demoCode = `import React from 'react';\n\nexport const ComponentCard = ({ data }) => {\n  return (\n    <div className="p-6 max-w-sm mx-auto bg-white rounded-xl shadow-lg flex items-center space-x-4">\n      <div className="shrink-0">\n        <div className="h-12 w-12 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-xl">D</div>\n      </div>\n      <div>\n        <div className="text-xl font-medium text-black">Demo Component</div>\n        <p className="text-slate-500">Add a Gemini API Key to generate real custom UIs!</p>\n      </div>\n    </div>\n  );\n};`;
-        setOutputs((prev: any) => ({ ...prev, ui: demoCode }));
-        setOutputTab('ui');
-        setToastMsg("Demo UI Loaded!");
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2000);
-        setIsAiUiLoading(false);
-      }, 1000);
-      return;
-    }
-    const targetData = jsonData || finalInput;
-    if (!targetData) {
-      alert("Please enter some input data first.");
-      return;
-    }
-    setIsAiUiLoading(true);
-    try {
-      let themePrompt = '';
-      if (uiTheme === 'glassmorphism') {
-        themePrompt = `
-        THEME STYLE: Glassmorphism (Frosted glass elegance)
-        - Background: Semi-transparent backdrop blur (bg-white/10 dark:bg-slate-900/40 backdrop-blur-md).
-        - Borders: Subtle white/slate borders (border border-white/20 dark:border-slate-800/50).
-        - Glow/Shadows: Smooth, deep, soft shadows (shadow-2xl shadow-indigo-500/10).
-        - Colors: Elegant indigo, violet, and slate shades. Soft HSL gradients.
-        `;
-      } else if (uiTheme === 'cyberpunk') {
-        themePrompt = `
-        THEME STYLE: Cyberpunk Neon (Futuristic, high-contrast gaming/cyber vibes)
-        - Background: Deep pitch-black background (bg-[#030712] dark:bg-black).
-        - Borders: Vibrant glowing neon borders (border border-cyan-500/40 dark:border-pink-500/40). Use glow effects on hover.
-        - Glow/Shadows: Intense neon drop shadows (shadow-[0_0_15px_rgba(6,182,212,0.35)]).
-        - Colors: Electric cyan, toxic lime green, glowing pink, bright yellow. Use dark/neon contrast.
-        `;
-      } else if (uiTheme === 'minimalist') {
-        themePrompt = `
-        THEME STYLE: Minimal Stark (Ultra-clean high-fashion minimalist)
-        - Background: Pure solid white or stark pitch-black (bg-white dark:bg-slate-950).
-        - Borders: Super thin stark black/white lines (border border-slate-900 dark:border-slate-100). No rounded corners or very sharp 4px corners (rounded-none or rounded-md).
-        - Glow/Shadows: Flat shadows or absolutely no shadow (shadow-none) for that high-art gallery feel.
-        - Colors: Monochromatic grayscale (stark black, pure white, gray-500/800). No colorful gradients. Extremely clean typography.
-        `;
-      }
-
-      const prompt = `
-        You are an Elite Frontend Architect at a top-tier design lab.
-        TASK: Create an extremely stunning, production-ready, high-fidelity React component named "ComponentCard" that beautifully represents the provided data structure.
-        
-        DATA:
-        ${typeof targetData === 'string' ? targetData : JSON.stringify(targetData, null, 2)}
-        
-        ${themePrompt}
-        
-        STYLING & CODING RULES:
-        1. Write a pure React functional component using TypeScript:
-           export const ComponentCard = ({ data }: { data: any }) => { ... }
-        2. Leverage Tailwind CSS for top-tier aesthetics matching the SPECIFIED THEME STYLE.
-        3. Render properties intelligently:
-           - Emails/URLs -> Beautiful clickable elements.
-           - Badges/Status -> Rounded capsules with pulsing indicators.
-           - Arrays -> Elegant flex lists or chip lists.
-           - Profile/User -> Prominent premium header card layout.
-        4. To prevent render failures, do NOT import external icons/images (like lucide-react). For visual flair, draw clean vector inline SVGs with Tailwind styling, or use elegant unicode.
-        5. Return ONLY the compile-ready React code starting directly with 'import React'. Do NOT wrap in markdown backticks.
-      `;
-
-      // Show output tab immediately so user sees streaming
-      setOutputTab('ui');
-      setOutputs((prev: any) => ({ ...prev, ui: '' }));
-
-      let accumulated = '';
-      for await (const chunk of streamGemini(prompt)) {
-        accumulated += chunk;
-        setOutputs((prev: any) => ({ ...prev, ui: accumulated }));
-      }
-
-      // Strip markdown fences at the end
-      const match = accumulated.match(/```(?:tsx|ts|jsx|js)?\n([\s\S]*?)```/i);
-      const finalText = match ? match[1].trim() : accumulated.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
-      setOutputs((prev: any) => ({ ...prev, ui: finalText }));
-
-      setToastMsg('Premium UI Created!');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 2000);
-    } catch (e: any) {
-      console.error(e);
-      alert(`AI UI Generation failed: ${e.message || 'Invalid API response'}`);
-    } finally {
-      setIsAiUiLoading(false);
-    }
-  }, [geminiKey, input, jsonData, uiTheme, setOutputTab, isProLicensed, streamGemini]);
-
   const handleAiSynthesizeData = useCallback(async () => {
     if (!checkAndConsumeTrial()) return;
 
@@ -1009,7 +823,7 @@ Rules:
         if (!window.confirm("⚠️ Privacy Warning: Detected sensitive data. Proceed without masking?")) return;
       } else {
         finalInput = piiResult.maskedText;
-        setToastMsg("Privacy Shield: Sensitive data masked! 🔒");
+        setToastMsg("Privacy Shield: Sensitive data masked! ");
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
       }
@@ -1066,7 +880,7 @@ Rules:
       }
 
       // Clean up markdown fences then parse JSON
-      const rawText = accumulated.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
+      const rawText = accumulated.replace(/^\`\`\`[a-z]*\n?/i, '').replace(/\n?\`\`\`$/i, '').trim();
       try {
         const parsed = JSON.parse(rawText);
         const finalText = JSON.stringify(Array.isArray(parsed) ? parsed : [parsed], null, 2);
@@ -1146,7 +960,7 @@ Rules:
         if (!window.confirm("⚠️ Privacy Warning: Detected sensitive data. Proceed without masking?")) return;
       } else {
         finalInput = piiResult.maskedText;
-        setToastMsg("Privacy Shield: Sensitive data masked! 🔒");
+        setToastMsg("Privacy Shield: Sensitive data masked! ");
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
       }
@@ -1204,7 +1018,7 @@ Rules:
       }
 
       // Strip markdown fences
-      const finalText = accumulated.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
+      const finalText = accumulated.replace(/^\`\`\`[a-z]*\n?/i, '').replace(/\n?\`\`\`$/i, '').trim();
       setOutputs((prev: any) => ({ ...prev, zod: finalText }));
 
       setToastMsg('Semantic Zod Generated!');
@@ -1226,10 +1040,10 @@ Rules:
     let finalInput = inputRef.current;
     if (piiResult.detectedTypes.length > 0) {
       if (!isProLicensed) {
-        if (!window.confirm("⚠️ Privacy Warning: Detected sensitive data. Proceed without masking?")) return;
+        if (!window.confirm("⚠️ Privacy Warning: Detected sensitive data. \|Proceed without masking?")) return;
       } else {
         finalInput = piiResult.maskedText;
-        setToastMsg("Privacy Shield: Sensitive data masked! 🔒");
+        setToastMsg("Privacy Shield: Sensitive data masked! ");
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
       }
@@ -1279,7 +1093,7 @@ Rules:
       const data = await response.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (text) {
-        const healed = text.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
+        const healed = text.replace(/^\`\`\`[a-z]*\n?/i, '').replace(/\n?\`\`\`$/i, '').trim();
         setInput(healed);
         setHasParseError(false);
         setToastMsg("Syntax Healed by AI!");
@@ -1457,7 +1271,7 @@ Rules:
     isGeneratingRef.current = false; // Finish generating (sync case)
   }, [input, slug, genSettings, reportConvertIfNew, outputTab]);
 
-  useEffect(() => { 
+  useEffect(() => {
     const len = input.length;
     let delay = 300;
     if (len > 50000) delay = 2000;
@@ -1533,7 +1347,7 @@ Rules:
         // --- Mode 1: URL Hash (100% Private, no server involved) ---
         window.history.replaceState(null, '', `#data=${compressed}`);
         await navigator.clipboard.writeText(candidateUrl);
-        setToastMsg("🔒 Private Link Copied! (URL Mode)");
+        setToastMsg("Private Link Copied! (URL Mode)");
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
       } else {
@@ -1615,21 +1429,24 @@ Rules:
           lastLogin: "2026-05-17T13:45:00Z"
         }, null, 2),
         'curl-to-fetch': `curl -X GET 'https://api.example.com/v1/users/usr_9f82d1a3c7' \\\n  -H 'Authorization: Bearer dev_token_xyz' \\\n  -H 'Content-Type: application/json'`,
-        'sql-to-zod': `CREATE TABLE users (\n  id VARCHAR(36) PRIMARY KEY,\n  username VARCHAR(50) UNIQUE NOT NULL,\n  email VARCHAR(255) NOT NULL,\n  status VARCHAR(20) DEFAULT 'active',\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);`
+        'sql-to-zod': `CREATE TABLE users (\\n  id VARCHAR(36) PRIMARY KEY,\\n  username VARCHAR(50) UNIQUE NOT NULL,\\n  email VARCHAR(255) NOT NULL,\\n  status VARCHAR(20) DEFAULT 'active',\\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\\n);`
       };
       setTimeout(() => {
-        setInput(samples[slug] || `{\n  "status": "ready",\n  "tool": "${slug}"\n}`);
+        setInput(samples[slug] || `{\\n  "status": "ready",\\n  "tool": "${slug}"\\n}`);
       }, 0);
     }
     lastSlug.current = slug;
   }, [slug, geminiKey]); // Removed handleAiSmartParse from dependency
 
-  const tabs = [
+  const mainTabs = [
     { id: 'typescript', label: 'TS' },
     { id: 'zod', label: 'Zod' },
     { id: 'go', label: 'Go' },
-    { id: 'rust', label: 'Rust' },
     { id: 'python', label: 'Python' },
+    { id: 'rust', label: 'Rust' },
+  ];
+
+  const moreTabs = [
     { id: 'dart', label: 'Dart' },
     { id: 'php', label: 'PHP' },
     { id: 'java', label: 'Java' },
@@ -1642,11 +1459,13 @@ Rules:
     { id: 'jsonschema', label: 'Schema' },
     { id: 'mock', label: 'Mock Data' },
     { id: 'ui', label: 'UI' },
-    { id: 'playground', label: '⚡ Run' },
+    { id: 'playground', label: 'Run' },
     { id: 'graph', label: 'Graph' },
     { id: 'doc', label: 'Doc' },
     { id: 'json', label: 'JSON' }
   ];
+
+  const tabs = [...mainTabs, ...moreTabs];
 
   return (
     <div 
@@ -1666,19 +1485,19 @@ Rules:
               <Terminal size={14} className="text-slate-400 dark:text-slate-300" /> Input Source
             </span>
             {geminiKey ? (
-              <span className="flex items-center gap-1 text-[8px] font-mono uppercase tracking-widest text-indigo-650 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-900/50 animate-pulse font-bold">
-                ✨ AI Mode (BYOK Cloud)
+              <span className="flex items-center gap-1 text-[8px] font-mono uppercase tracking-widest text-indigo-650 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-900/50 font-bold">
+                AI Mode (BYOK Cloud)
               </span>
             ) : (
               <span className="flex items-center gap-1 text-[8px] font-mono uppercase tracking-widest text-emerald-650 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-900/50 font-bold">
-                🔒 Local Mode (100% Private)
+                Local Mode (100% Private)
               </span>
             )}
             {hasParseError && (
               <button
                 onClick={handleAiSchemaHeal}
                 disabled={isAiLoading}
-                className="flex items-center gap-1.5 text-[9px] font-mono uppercase text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 px-2.5 py-1.5 rounded-lg border border-red-200 dark:border-red-900/50 hover:bg-red-600 dark:hover:bg-red-600 hover:text-white dark:hover:text-white transition-all animate-pulse"
+                className="flex items-center gap-1.5 text-[9px] font-mono uppercase text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 px-2.5 py-1.5 rounded-lg border border-red-200 dark:border-red-900/50 hover:bg-red-600 dark:hover:bg-red-600 hover:text-white dark:hover:text-white transition-all"
                 title="AI detects a syntax error. Click to auto-heal!"
               >
                 <Sparkles size={10} className="animate-spin" style={{ animationDuration: '3s' }} />
@@ -1687,76 +1506,40 @@ Rules:
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowBatchModal(true)}
-              className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-slate-500 dark:text-slate-300 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-500/50 dark:hover:border-blue-500/50 hover:text-blue-600 dark:hover:text-blue-400 transition-all shadow-sm"
-            >
-              <FolderOpen size={12} /> <span>Folder Bulk</span>
-            </button>
-            <button 
-              onClick={handleAiSmartParse}
-              className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-slate-500 dark:text-slate-300 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-500/50 dark:hover:border-blue-500/50 hover:text-blue-600 dark:hover:text-blue-400 transition-all shadow-sm"
-            >
-              {isAiLoading ? (
-                <div className="flex items-center gap-2">
-                  <Loader2 size={12} className="animate-spin" />
-                  <span>{aiStatus}</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Sparkles size={12} />
-                  <span>AI Smart Parse</span>
-                </div>
-              )}
-            </button>
-            <button
-              onClick={handleAiTransform}
-              disabled={isAiTransformLoading}
-              className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/30 px-3 py-1.5 rounded-xl border border-violet-200 dark:border-violet-900/50 hover:bg-violet-600 hover:text-white dark:hover:bg-violet-600 dark:hover:text-white transition-all shadow-sm disabled:opacity-50"
-              title="Ask AI to transform your JSON (e.g. 'rename all keys to camelCase')"
-            >
-              {isAiTransformLoading ? (
-                <div className="flex items-center gap-2">
-                  <Loader2 size={12} className="animate-spin" />
-                  <span>{aiStatus}</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Wand2 size={12} />
-                  <span>AI Transform</span>
-                </div>
-              )}
-            </button>
-            <div className="flex items-center bg-white dark:bg-slate-800 rounded-xl p-0.5 border border-slate-200 dark:border-slate-700 hover:border-blue-500/50 dark:hover:border-blue-500/50 transition-all">
-              <select
-                value={uiTheme}
-                onChange={(e) => setUiTheme(e.target.value)}
-                className="bg-transparent text-[10px] font-mono uppercase text-slate-600 dark:text-slate-300 px-2 py-1 outline-none cursor-pointer"
+            {/* ⋯ More Menu */}
+            <div className="relative group/more">
+              <button
+                className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-slate-500 dark:text-slate-300 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-500/50 dark:hover:border-blue-500/50 hover:text-blue-600 dark:hover:text-blue-400 transition-all shadow-sm"
               >
-                <option value="glassmorphism" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">✨ Glass</option>
-                <option value="cyberpunk" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">⚡ Neon</option>
-                <option value="minimalist" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">🖤 Stark</option>
-              </select>
+                <MoreHorizontal size={12} />
+              </button>
+              <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl opacity-0 invisible group-hover/more:opacity-100 group-hover/more:visible transition-all z-50 overflow-hidden">
+                <button
+                  onClick={() => setShowBatchModal(true)}
+                  className="flex items-center gap-2 w-full text-left text-[10px] font-mono uppercase text-slate-600 dark:text-slate-300 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                >
+                  <FolderOpen size={12} /> <span>Folder Bulk</span>
+                </button>
+                <button 
+                  onClick={handleAiSmartParse}
+                  className="flex items-center gap-2 w-full text-left text-[10px] font-mono uppercase text-slate-600 dark:text-slate-300 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                >
+                  {isAiLoading ? (
+                    <>
+                      <Loader2 size={12} className="animate-spin" />
+                      <span>{aiStatus}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={12} />
+                      <span>AI Smart Parse</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
             <button 
-              onClick={handleAiUiGenerate}
-              disabled={isAiUiLoading}
-              className="flex items-center gap-1.5 text-[10px] font-black uppercase text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 px-3.5 py-1.5 rounded-xl border border-transparent shadow-md hover:shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-50"
-            >
-              {isAiUiLoading ? (
-                <div className="flex items-center gap-2">
-                  <Loader2 size={12} className="animate-spin" />
-                  <span>Synthesizing...</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Sparkles size={12} className="text-white animate-pulse" />
-                  <span>AI UI Gen</span>
-                </div>
-              )}
-            </button>
-            <button 
-              onClick={() => { setInput(""); setHideEmptyState(true); resetBaseline(null); }} 
+              onClick={() => { setInput(""); setHideEmptyState(true); resetBaseline(null); }}
               className="flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 bg-white dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-red-200 dark:hover:border-red-900/30 active:scale-95 transition-all"
               title="Clear Editor"
             >
@@ -1769,7 +1552,7 @@ Rules:
         <div className="flex flex-col gap-2 mb-3">
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
             <span className="flex items-center gap-1 text-[8px] font-mono uppercase text-slate-500 dark:text-slate-350 tracking-wider shrink-0 font-bold">
-              <Zap size={10} className="text-yellow-500 animate-pulse" /> Presets:
+              <Zap size={10} className="text-yellow-500" /> Presets:
             </span>
             {PRESETS.map((p, i) => (
               <button 
@@ -1891,7 +1674,7 @@ Rules:
             <div className="absolute inset-0 bg-slate-50/95 dark:bg-slate-950/40 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-6 text-center select-none overflow-y-auto no-scrollbar">
               {/* Dashed drop area */}
               <div 
-                className="w-full max-w-lg border-2 border-dashed border-slate-300 dark:border-blue-500/20 rounded-2xl p-8 flex flex-col items-center gap-4 bg-white/40 dark:bg-slate-900/40 hover:border-blue-500 dark:hover:border-blue-500/80 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300 group/drop cursor-pointer"
+                className="w-full max-w-lg border-2 border-dashed border-slate-300 dark:border-blue-500/20 rounded-2xl p-8 flex flex-col items-center gap-4 bg-white/40 dark:bg-slate-900/40 hover:border-blue-500 dark:hover:border-blue-500/80 hover:shadow-lg transition-all duration-300 group/drop cursor-pointer"
                 onClick={() => {
                   const fileInput = document.createElement('input');
                   fileInput.type = 'file';
@@ -1911,12 +1694,12 @@ Rules:
                 }}
               >
                 <div className="p-4 rounded-2xl bg-blue-500/10 text-blue-500 dark:text-blue-400 group-hover/drop:scale-110 transition-transform duration-300">
-                  <Upload size={32} className="animate-pulse" />
+                  <Upload size={32} className="" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-1 font-sans">
+                  <div className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-1 font-sans">
                     Drag & Drop Schema File
-                  </h3>
+                  </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-300 max-w-xs mx-auto font-sans">
                     Supports JSON, XML, YAML, SQL or cURL format. Click to browse local files.
                   </p>
@@ -1933,7 +1716,7 @@ Rules:
                     <button
                       key={i}
                       onClick={() => setInput(typeof p.data === 'string' ? p.data : JSON.stringify(p.data, null, 2))}
-                      className="flex flex-col items-start p-4 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/50 hover:border-blue-500/50 dark:hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/5 hover:-translate-y-0.5 transition-all text-left group"
+                      className="flex flex-col items-start p-4 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/50 hover:border-blue-500/50 dark:hover:border-blue-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-all text-left group"
                     >
                       <span className="text-[10px] font-mono text-blue-600 dark:text-blue-400 font-bold mb-1 flex items-center gap-1">
                         <Zap size={10} className="text-yellow-500" /> Preset {i + 1}
@@ -1971,7 +1754,7 @@ Rules:
         {/* Toggle button */}
         <button
           onClick={toggleLeftPanel}
-          className="absolute top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-6 h-10 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-md hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:border-blue-400 dark:hover:border-blue-500/50 hover:shadow-blue-500/10 transition-all group/toggle"
+          className="absolute top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-6 h-10 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-md hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:border-blue-400 dark:hover:border-blue-500/50 hover: transition-all group/toggle"
           title={isLeftCollapsed ? 'Show input panel' : 'Hide input panel'}
         >
           {isLeftCollapsed ? (
@@ -1996,16 +1779,36 @@ Rules:
       <div className={`flex flex-col min-w-0 h-full transition-all duration-300 ease-in-out ${isLeftCollapsed ? 'w-full md:flex-1' : 'w-full md:flex-none md:w-[calc(var(--right-width)-12px)]'}`}>
         <div className="flex justify-between items-center mb-3">
           {/* Desktop tabs navigation */}
-          <div className="hidden md:flex items-center gap-1 overflow-x-auto no-scrollbar pb-1 max-w-[calc(100%-100px)]">
-            {tabs.map(tab => (
+          <div className="hidden md:flex items-center gap-1 overflow-visible no-scrollbar pb-1 max-w-[calc(100%-100px)]">
+            {mainTabs.map(tab => (
               <button 
                 key={tab.id}
                 onClick={() => setOutputTab(tab.id)}
-                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${outputTab === tab.id ? 'bg-blue-600 text-white shadow-md shadow-blue-600/10' : 'text-slate-500 dark:text-slate-400 hover:text-blue-600 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${outputTab === tab.id ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:text-blue-600 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
               >
                 <span>{tab.label}</span>
               </button>
             ))}
+            {/* + More ▼ dropdown */}
+            <div className="relative group/more-tabs">
+              <button
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${moreTabs.some(t => t.id === outputTab) ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:text-blue-600 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+              >
+                <span>+ {moreTabs.some(t => t.id === outputTab) ? `More (${moreTabs.find(t => t.id === outputTab)?.label})` : 'More'}</span>
+                <ChevronDown size={10} />
+              </button>
+              <div className="absolute left-0 top-full mt-1 w-44 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl opacity-0 invisible group-hover/more-tabs:opacity-100 group-hover/more-tabs:visible transition-all z-[9999] overflow-visible">
+                {moreTabs.map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setOutputTab(tab.id)}
+                    className={`flex items-center gap-2 w-full text-left text-[10px] font-mono uppercase px-4 py-2.5 transition-colors ${outputTab === tab.id ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-bold' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                  >
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Mobile bottom sheet trigger button */}
@@ -2019,7 +1822,7 @@ Rules:
           <div className="flex items-center gap-2">
             <button 
               onClick={handleSelectSyncFile}
-              className={`flex items-center gap-1.5 text-[10px] font-mono uppercase px-3 py-1.5 rounded-xl border transition-all shadow-sm ${localFileHandle ? 'bg-blue-600 text-white border-blue-500 animate-pulse' : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:text-blue-600 dark:hover:text-blue-400'}`}
+              className={`flex items-center gap-1.5 text-[10px] font-mono uppercase px-3 py-1.5 rounded-xl border transition-all shadow-sm ${localFileHandle ? 'bg-blue-600 text-white border-blue-500' : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:text-blue-600 dark:hover:text-blue-400'}`}
               title={localFileHandle ? `Syncing to: ${localFileHandle.name}` : "Sync to local file (Auto-save)"}
             >
               <FolderOpen size={12} /> <span>{localFileHandle ? 'Syncing' : 'Sync'}</span>
@@ -2129,7 +1932,7 @@ Rules:
                         <button 
                           onClick={() => handleActivatePro()}
                           disabled={isVerifying}
-                          className="w-full flex items-center justify-center gap-1.5 text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 py-1.5 rounded-lg transition-all active:scale-95 disabled:opacity-50 shadow-md shadow-blue-600/20"
+                          className="w-full flex items-center justify-center gap-1.5 text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 py-1.5 rounded-lg transition-all active:scale-95 disabled:opacity-50 shadow-md"
                         >
                           {isVerifying ? <Loader2 size={12} className="animate-spin" /> : <Crown size={12} />}
                           <span>Activate Pro</span>
@@ -2144,7 +1947,7 @@ Rules:
                     </h5>
                     {IS_BETA ? (
                       <div className="text-[10px] text-blue-600 dark:text-blue-400 font-bold px-2 py-1.5 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-100 dark:border-blue-900/50">
-                        ✨ Full Access Unlocked for Beta
+                        Full Access Unlocked for Beta
                       </div>
                     ) : (
                       <div className="text-[9px] text-slate-500 dark:text-slate-400">
@@ -2205,14 +2008,14 @@ Rules:
                 template="react-ts"
                 theme={isDark ? "dark" : "light"}
                 files={outputTab === 'ui' ? {
-                  "/public/index.html": `<!DOCTYPE html>\n<html lang="en" class="${isDark ? 'dark' : ''}">\n  <head>\n    <script src="https://cdn.tailwindcss.com"></script>\n    <script>tailwind.config = { darkMode: 'class' }</script>\n  </head>\n  <body class="bg-slate-50 dark:bg-slate-900">\n    <div id="root"></div>\n  </body>\n</html>`,
-                  "/App.tsx": `import { ComponentCard } from './Component';\n\nexport default function App() {\n  const mockData = ${outputs['mock'] || '{}'};\n  return (\n    <div className="p-8 flex items-start justify-center min-h-screen">\n      <div className="w-full max-w-2xl">\n        <ComponentCard data={mockData} />\n      </div>\n    </div>\n  );\n}`,
+                  "/public/index.html": `<!DOCTYPE html>\\n<html lang="en" class="${isDark ? 'dark' : ''}">\\n  <head>\\n    <script src="https://cdn.tailwindcss.com"><\/script>\\n    <script>tailwind.config = { darkMode: 'class' }</script>\\n  </head>\\n  <body class="bg-slate-50 dark:bg-slate-900">\\n    <div id="root"></div>\\n  </body>\\n</html>`,
+                  "/App.tsx": `import { ComponentCard } from './Component';\\n\\nexport default function App() {\\n  const mockData = ${outputs['mock'] || '{}'};\\n  return (\\n    <div className="p-8 flex items-start justify-center min-h-screen">\\n      <div className="w-full max-w-2xl">\\n        <ComponentCard data={mockData} />\\n      </div>\\n    </div>\\n  );\\n}`,
                   "/Component.tsx": (outputs['ui'] || "export const ComponentCard = () => <div>No UI generated</div>;")
                 } : {
-                  "/public/index.html": `<!DOCTYPE html>\n<html lang="en" class="${isDark ? 'dark' : ''}">\n  <head>\n    <script src="https://cdn.tailwindcss.com"></script>\n  </head>\n  <body class="bg-slate-50 dark:bg-[#0b0f19]">\n    <div id="root"></div>\n  </body>\n</html>`,
-                  "/App.tsx": `import React, { useState } from 'react';\nimport { Root } from './types';\nimport mockData from './mockData';\n\nexport default function App() {\n  // ⚡ Write type-safe React code here!\n  // Try changing properties to trigger typescript compiler check errors in real-time.\n  const [data, setData] = useState<Root>(mockData as Root);\n\n  return (\n    <div className="p-6 font-sans leading-relaxed text-slate-800 dark:text-slate-100 min-h-screen bg-slate-50 dark:bg-[#0b0f19]">\n      <h2 className="text-lg font-black text-blue-600 dark:text-blue-400 border-b border-slate-200 dark:border-slate-800 pb-2 mb-4 flex items-center gap-2">\n        ⚡ TypeMorph Live Playground\n      </h2>\n      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">\n        The inferred interfaces are loaded in <code>types.ts</code>. Change variable bindings in <code>App.tsx</code> to see compile validation checks!\n      </p>\n      <div className="bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">\n        <h4 className="text-xs font-bold text-slate-450 mb-2">Injected State Data:</h4>\n        <pre className="text-[10px] overflow-auto max-h-48 bg-slate-50 dark:bg-slate-950 p-3 rounded border border-slate-200 dark:border-slate-850 font-mono text-slate-800 dark:text-slate-200">\n          {JSON.stringify(data, null, 2)}\n        </pre>\n      </div>\n    </div>\n  );\n}`,
+                  "/public/index.html": `<!DOCTYPE html>\\n<html lang="en" class="${isDark ? 'dark' : ''}">\\n  <head>\\n    <script src="https://cdn.tailwindcss.com"><\/script>\\n  </head>\\n  <body class="bg-slate-50 dark:bg-[#0b0f19]">\\n    <div id="root"></div>\\n  </body>\\n</html>`,
+                  "/App.tsx": `import React, { useState } from 'react';\\nimport { Root } from './types';\\nimport mockData from './mockData';\\n\\nexport default function App() {\\n  // Write type-safe React code here!\\n  // Try changing properties to trigger typescript compiler check errors in real-time.\\n  const [data, setData] = useState<Root>(mockData as Root);\\n\\n  return (\\n    <div className="p-6 font-sans leading-relaxed text-slate-800 dark:text-slate-100 min-h-screen bg-slate-50 dark:bg-[#0b0f19]">\\n      <h2 className="text-lg font-black text-blue-600 dark:text-blue-400 border-b border-slate-200 dark:border-slate-800 pb-2 mb-4 flex items-center gap-2">\\n        TypeMorph Live Playground\\n      </h2>\\n      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">\\n        The inferred interfaces are loaded in <code>types.ts</code>. Change variable bindings in <code>App.tsx</code> to see compile validation checks!\\n      </p>\\n      <div className="bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">\\n        <h4 className="text-xs font-bold text-slate-450 mb-2">Injected State Data:</h4>\\n        <pre className="text-[10px] overflow-auto max-h-48 bg-slate-50 dark:bg-slate-950 p-3 rounded border border-slate-200 dark:border-slate-850 font-mono text-slate-800 dark:text-slate-200">\\n          {JSON.stringify(data, null, 2)}\\n        </pre>\\n      </div>\\n    </div>\\n  );\\n}`,
                   "/types.ts": (outputs['typescript'] || "export interface Root {}"),
-                  "/mockData.ts": `const mockData = ${outputs['mock'] || '{}'};\nexport default mockData;`
+                  "/mockData.ts": `const mockData = ${outputs['mock'] || '{}'};\\nexport default mockData;`
                 }}
                 options={{
                   editorHeight: "100%",
@@ -2227,7 +2030,7 @@ Rules:
               {outputTab === 'mock' && (
                 <div className="flex items-center justify-between px-6 py-3 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-700/50 z-10 animate-fade-in">
                   <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-300 tracking-wider flex items-center gap-1.5 font-bold">
-                    <Zap size={12} className="text-blue-600 animate-pulse" /> AI Data Synthesizer
+                    <Zap size={12} className="text-blue-600" /> AI Data Synthesizer
                   </span>
                   <div className="flex items-center gap-2">
                     <button
@@ -2242,7 +2045,7 @@ Rules:
                         </>
                       ) : (
                         <>
-                          <Sparkles size={10} className="text-blue-600 animate-pulse" />
+                          <Sparkles size={10} className="text-blue-600" />
                           <span>Synthesize 50 Rows</span>
                         </>
                       )}
@@ -2265,7 +2068,7 @@ Rules:
               {outputTab === 'zod' && (
                 <div className="flex items-center justify-between px-6 py-3 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-700/50 z-10 animate-fade-in">
                   <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-300 tracking-wider flex items-center gap-1.5 font-bold">
-                    <Sparkles size={12} className="text-emerald-500 animate-pulse" /> Semantic Validator
+                    <Sparkles size={12} className="text-emerald-500" /> Semantic Validator
                   </span>
                   <div className="flex items-center gap-2">
                     <button
@@ -2280,7 +2083,7 @@ Rules:
                         </>
                       ) : (
                         <>
-                          <Sparkles size={10} className="text-emerald-600 animate-pulse" />
+                          <Sparkles size={10} className="text-emerald-600" />
                           <span>AI Deep Validation</span>
                         </>
                       )}
@@ -2295,7 +2098,7 @@ Rules:
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="flex items-center justify-center w-5 h-5 rounded-lg bg-amber-500/10 text-amber-500">
-                        <Zap size={12} className="animate-pulse" />
+                        <Zap size={12} className="" />
                       </span>
                       <span className="font-mono uppercase tracking-wider text-[10px] text-slate-700 dark:text-slate-350 font-bold">
                         Schema Migration Impact ({schemaDiffs.length} Change{schemaDiffs.length > 1 ? 's' : ''} Detected)
@@ -2319,9 +2122,9 @@ Rules:
                       };
 
                       const severityBadges = {
-                        error: '⚡ Breaking',
+                        error: 'Breaking',
                         warning: '⚠️ Warning',
-                        info: '✨ Added'
+                        info: 'Added'
                       };
 
                       return (
@@ -2357,7 +2160,7 @@ Rules:
                       onClick={() => setShowDecisions(!showDecisions)}
                       className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                     >
-                      <span className="flex items-center justify-center w-5 h-5 rounded-lg bg-yellow-500/10 text-yellow-500 animate-pulse">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-lg bg-yellow-500/10 text-yellow-500">
                         <Lightbulb size={12} />
                       </span>
                       <span className="font-mono uppercase tracking-wider text-[10px] text-slate-700 dark:text-slate-300">Explainable Logic ({decisions.length} Decisions)</span>
@@ -2372,12 +2175,12 @@ Rules:
                   
                   {showDecisions && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-3 max-h-48 overflow-y-auto no-scrollbar pb-1">
-                      {decisions.map(decision => {
+                      {decisions.map((decision, decisionIndex) => {
                         const isDisabled = decision.meta.disabled;
                         
                         return (
                           <div 
-                            key={decision.id} 
+                            key={`${decision.id}-${decisionIndex}`} 
                             className={`p-3 rounded-xl border transition-all flex flex-col justify-between ${isDisabled ? 'bg-slate-100/50 dark:bg-slate-950/20 border-slate-200/55 dark:border-slate-850 opacity-60' : 'bg-white dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 hover:border-blue-500/30 dark:hover:border-blue-500/40 shadow-sm'}`}
                             onMouseEnter={() => !isDisabled && highlightDecisionInCode(decision)}
                             onMouseLeave={clearDecisionHighlight}
@@ -2606,7 +2409,7 @@ Rules:
                     setOutputTab(tab.id);
                     setShowMobileLangs(false);
                   }}
-                  className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border text-center transition-all active:scale-95 ${outputTab === tab.id ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-blue-500/35 hover:text-blue-600'}`}
+                  className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border text-center transition-all active:scale-95 ${outputTab === tab.id ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-blue-500/35 hover:text-blue-600'}`}
                 >
                   <span className="text-[10px] font-black uppercase tracking-wider">{tab.label}</span>
                 </button>
@@ -2625,7 +2428,7 @@ Rules:
             animate={{ opacity: 1, scale: 1, y: 0 }}
             className="relative w-full max-w-md bg-white dark:bg-[#0a0f1c] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-6 overflow-hidden flex flex-col items-center text-center"
           >
-            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
+            <div className="absolute top-0 inset-x-0 h-1 bg-blue-500" />
             <div className="w-16 h-16 bg-blue-50 dark:bg-blue-950/30 rounded-2xl flex items-center justify-center mb-4 border border-blue-100 dark:border-blue-900/50">
               <Crown size={32} className="text-blue-600 dark:text-blue-400" />
             </div>
@@ -2634,7 +2437,7 @@ Rules:
               Unlock TypeMorph
             </h2>
             <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-6 font-sans">
-              You&apos;ve reached your free daily limit for AI features. Upgrade to <b>TypeMorph</b> to unlock unlimited, 100% private conversions.
+              You've reached your free daily limit for AI features. Upgrade to <b>TypeMorph</b> to unlock unlimited, 100% private conversions.
             </p>
 
             <div className="w-full flex flex-col gap-3">
@@ -2643,7 +2446,7 @@ Rules:
                   trackProClick('workbench_paywall_pricing');
                   window.open('https://typemorph.dev/pricing', '_blank');
                 }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-950 dark:bg-white text-white dark:text-slate-950 font-bold text-sm shadow-xl shadow-slate-900/10 dark:shadow-white/5 hover:scale-[1.02] active:scale-95 transition-all"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-950 dark:bg-white text-white dark:text-slate-950 font-bold text-sm shadow-xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
               >
                 Subscribe to Pro 
                 <span className="text-xs opacity-70 bg-white/20 dark:bg-black/10 px-2 py-0.5 rounded-full">$4.99/mo</span>
