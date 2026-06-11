@@ -1474,7 +1474,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
         ['--left-width' as any]: isLeftCollapsed ? '0%' : `${leftWidth}%`,
         ['--right-width' as any]: isLeftCollapsed ? '100%' : `${100 - leftWidth}%`
       }}
-      className={`flex flex-col md:flex-row h-[calc(100vh-80px)] p-6 bg-slate-50 dark:bg-[#0A0A0A] relative ${isResizing ? 'cursor-col-resize select-none' : ''}`}
+      className={`flex flex-col md:flex-row h-[calc(100vh-80px)] px-6 pt-6 pb-0 bg-slate-50 dark:bg-[#0A0A0A] relative ${isResizing ? 'cursor-col-resize select-none' : ''}`}
     >
       <div 
         className={`flex flex-col min-w-0 h-full transition-all duration-300 ease-in-out overflow-hidden ${isLeftCollapsed ? 'w-0 md:w-0 opacity-0 pointer-events-none' : 'w-full md:flex-none md:w-[calc(var(--left-width)-12px)] opacity-100'}`}
