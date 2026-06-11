@@ -160,10 +160,10 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
                 </button>
               )}
               <button onClick={() => setView('landing')} className="flex items-center gap-3 group text-left">
-                <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-slate-950 shadow-md group-hover:scale-105 transition-all">
+                <div className="w-9 h-9 bg-slate-950 dark:bg-white rounded-xl flex items-center justify-center text-white dark:text-slate-950 group-hover:scale-105 transition-all">
                   <ShieldCheck size={20} />
                 </div>
-                <span className="text-lg font-black tracking-tighter dark:text-white">TypeMorph <span className="text-blue-600 italic">Pro</span></span>
+                <span className="text-lg font-black tracking-tighter dark:text-white">TypeMorph <span className="italic">Pro</span></span>
               </button>
             </div>
             
