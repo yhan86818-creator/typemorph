@@ -1481,15 +1481,15 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
       >
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-3">
-            <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-300 tracking-wider flex items-center gap-1.5 font-bold">
-              <Terminal size={14} className="text-slate-400 dark:text-slate-300" /> Input Source
+            <span className="text-[10px] font-mono text-slate-500 dark:text-slate-300 flex items-center gap-1.5 font-bold">
+              <Terminal size={14} className="text-slate-400 dark:text-slate-300" /> Input
             </span>
             {geminiKey ? (
-              <span className="flex items-center gap-1 text-[8px] font-mono uppercase tracking-widest text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full font-medium">
+              <span className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 font-medium">
                 AI Mode
               </span>
             ) : (
-              <span className="flex items-center gap-1 text-[8px] font-mono uppercase tracking-widest text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full font-medium">
+              <span className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 font-medium">
                 Local Mode
               </span>
             )}
@@ -1584,7 +1584,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                         resetBaseline(null);
                       }
                     }}
-                className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[9px] font-bold text-slate-500 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 transition-all truncate max-w-[120px] shrink-0"
+                className="px-2.5 py-1 rounded-lg text-xs text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all truncate max-w-[120px] shrink-0"
                     title={h.content.slice(0, 100)}
                   >
                     {h.content.trim().slice(0, 15)}...
