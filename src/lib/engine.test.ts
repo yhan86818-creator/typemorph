@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { inferSchema, runEngine, getDecisions } from './engine';
 import { parseCurl, parseSQLToZod } from './parsers';
 
@@ -368,6 +368,44 @@ describe('TypeMorph Engine', () => {
       expect(zodSql).toContain('name: z.string(),');
       expect(zodSql).not.toContain('FOREIGN');
     });
+
+    // -----------------------------------------------------------------------
+    // Bug-fix regression tests
+    // -----------------------------------------------------------------------
+
+    it('[bugfix] DEPENDENCY_COMMENTS should use exact match, not includes()', () => {
+      const json = { id: 1 };
+      // sql-insert should NOT get the Prisma comment (which is for 'sql')
+      const result = runEngine(json, 'sql-insert');
+      expect(result).not.toContain('Prisma schema format');
+      expect(result).not.toContain('npx prisma generate');
+      // 'sql' (prisma) should still get its own comment
+      const prismaResult = runEngine(json, 'sql');
+      expect(prismaResult).toContain('Prisma schema format');
+    });
+
+    it('[bugfix] parseCurl should handle -d with no space before quote', () => {
+      const parsed = parseCurl(`curl -d'{"name":"test"}' https://api.example.com`);
+      expect(parsed.method).toBe('POST');
+      expect(parsed.bodyJson).toEqual({ name: 'test' });
+    });
+
+    it('[bugfix] parseCurl should handle -d with no space before double-quote', () => {
+      const parsed = parseCurl(`curl -d"{\\"name\\":\\"test\\"}" https://api.example.com`);
+      expect(parsed.method).toBe('POST');
+      expect(parsed.bodyJson).toEqual({ name: 'test' });
+    });
+
+    it('[bugfix] parseCurl should extract unquoted JSON body', () => {
+      const parsed = parseCurl(`curl -X POST https://api.example.com -d {"name":"test"}`);
+      expect(parsed.method).toBe('POST');
+      expect(parsed.bodyJson).toEqual({ name: 'test' });
+    });
+
+    it('[bugfix] parseCurl should auto-detect POST when -d has no space before quote', () => {
+      const parsed = parseCurl(`curl -d'{"x":1}' https://api.example.com`);
+      expect(parsed.method).toBe('POST');
+    });
   });
 
   describe('Explainable Logic Decisions', () => {
@@ -493,6 +531,112 @@ describe('TypeMorph Engine', () => {
       expect(schema.fields!.plan.enumValues).toBeDefined();
       expect(schema.fields!.tier.enumValues).toBeDefined();
       expect(schema.fields!.severity.enumValues).toBeDefined();
+    });
+  });
+
+  describe('Generator Quality Improvements (P0-P3)', () => {
+    // Flat JSON with nested object field (profile) and array field (tags)
+    const flatJson = {
+      name: "Alice",
+      profile: {
+        bio: "Hello",
+        avatar: "https://example.com/avatar.png"
+      },
+      tags: ["typescript", "rust"]
+    };
+
+    it('[P0] csv should expand nested objects and use proper sample values', () => {
+      const result = runEngine(flatJson, 'csv');
+      expect(result).toContain('name,profile,tags');
+      // nested object should be expanded as JSON string, not [object Object]
+      expect(result).toContain('"sample"');
+      expect(result).not.toContain('[object Object]');
+    });
+
+    it('[P0] sql-insert should expand nested objects and use proper sample values', () => {
+      const result = runEngine(flatJson, 'sql-insert');
+      expect(result).toContain('INSERT INTO');
+      expect(result).toContain('"sample"');
+      expect(result).not.toContain('[object Object]');
+    });
+
+    it('[P0] markdown should expand nested objects and use proper sample values', () => {
+      const result = runEngine(flatJson, 'markdown');
+      expect(result).toContain('|');
+      expect(result).toContain('sample');
+      expect(result).not.toContain('[object Object]');
+    });
+
+    it('[P0] latex should expand nested objects and use proper sample values', () => {
+      const result = runEngine(flatJson, 'latex');
+      expect(result).toContain('\\begin{tabular}');
+      expect(result).toContain('\\end{tabular}');
+      expect(result).not.toContain('[object Object]');
+    });
+
+    it('[P1] env should flatten nested objects and use proper sample values', () => {
+      const result = runEngine(flatJson, 'env');
+      expect(result).toContain('PROFILE_BIO=your_value_here');
+      expect(result).toContain('PROFILE_AVATAR=https://example.com');
+      expect(result).toContain('TAGS=');
+      expect(result).not.toContain('[object Object]');
+    });
+
+    it('[P1] properties should flatten nested objects and use proper sample values', () => {
+      const result = runEngine(flatJson, 'properties');
+      expect(result).toContain('profile.bio=sample_value');
+      expect(result).toContain('profile.avatar=sample_value');
+      expect(result).not.toContain('[object Object]');
+    });
+
+    it('[P1] curl should expand nested objects and use proper sample values', () => {
+      const result = runEngine(flatJson, 'curl');
+      expect(result).toContain('curl -X POST');
+      expect(result).toContain('"sample"');
+      expect(result).not.toContain('[object Object]');
+    });
+
+    it('[P2] solidity should generate nested structs for object fields', () => {
+      const result = runEngine(flatJson, 'solidity');
+      expect(result).toContain('struct Profile');
+      expect(result).toContain('pragma solidity');
+      expect(result).toContain('contract RootStore');
+    });
+
+    it('[P2] cobol should expand nested objects with sub-levels', () => {
+      const result = runEngine(flatJson, 'cobol');
+      expect(result).toContain('PIC');
+      expect(result).toContain('05');
+      expect(result).toContain('10');
+    });
+
+    it('[P2] clojure should handle arrays and nested objects', () => {
+      const result = runEngine(flatJson, 'clojure');
+      expect(result).toContain('(ns com.example.');
+      expect(result).toContain('(s/def');
+      expect(result).toContain('s/coll-of');
+    });
+
+    it('[P2] r should handle object/array types and format-specific values', () => {
+      const result = runEngine(flatJson, 'r');
+      expect(result).toContain('data.frame');
+      expect(result).toContain('list()');
+      expect(result).toContain('sample_value');
+    });
+
+    it('[P3] toml should use itemType sample for arrays and fixed datetime', () => {
+      const json = { items: [1, 2, 3], created: "2024-01-01T00:00:00Z" };
+      const result = runEngine(json, 'toml');
+      expect(result).toContain('items = [0]');
+      expect(result).toContain('2024-01-01T00:00:00Z');
+    });
+
+    it('[P3] yaml should use fixed datetime instead of dynamic Date', () => {
+      const json = { created: "2024-01-01T00:00:00Z" };
+      const result = runEngine(json, 'yaml');
+      expect(result).toContain('2024-01-01T00:00:00Z');
+      // should NOT contain a dynamic ISO timestamp (which would vary per run)
+      expect(result).not.toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/);
     });
   });
 });
