@@ -228,7 +228,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
                 href="https://aistudio.google.com/app/apikey" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-[8px] font-black uppercase tracking-wider text-blue-600 hover:text-blue-700 transition-colors mt-1 pr-1"
+                className="text-[8px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors mt-1 pr-1"
               >
                 Get Free API Key
               </a>
