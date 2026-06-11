@@ -5,7 +5,7 @@ import Editor, { useMonaco } from '@monaco-editor/react';
 import LZString from 'lz-string';
 import { 
   Terminal, Share2, Copy, FileJson, Sparkles, Settings, Loader2, Monitor, Trash2, Code2, Zap, Crown, Upload, ChevronDown,
-  Lightbulb, Edit3, Check, PanelLeftClose, PanelLeftOpen, Wand2, MoreHorizontal
+  Lightbulb, Edit3, Check, PanelLeftClose, PanelLeftOpen, MoreHorizontal
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
