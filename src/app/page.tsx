@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { 
   Sun, Moon, ShieldCheck, Download, Crown, 
   Search, ExternalLink, GitBranch, X, MessageSquare,
-  Wand2, LayoutTemplate, Settings, Home, Sparkles, Zap, Layers, Key,
+  LayoutTemplate, Settings, Home, Key,
   PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,13 +17,6 @@ import dynamic from 'next/dynamic';
 
 // Heavy Components (Lazy Loaded)
 const Workbench = dynamic(() => import('@/components/Workbench').then(mod => mod.Workbench), { ssr: false });
-const LogicLabView = dynamic(() => import('@/components/LogicLabView').then(mod => mod.LogicLabView), { ssr: false });
-const SmartDiffView = dynamic(() => import('@/components/SmartDiffView').then(mod => mod.SmartDiffView), { ssr: false });
-const RegexBuilderView = dynamic(() => import('@/components/RegexBuilderView').then(mod => mod.RegexBuilderView), { ssr: false });
-const ArchitectureView = dynamic(() => import('@/components/ArchitectureView').then(mod => mod.ArchitectureView), { ssr: false });
-const MicroSaaSView = dynamic(() => import('@/components/MicroSaaSView').then(mod => mod.MicroSaaSView), { ssr: false });
-const I18nView = dynamic(() => import('@/components/I18nView').then(mod => mod.I18nView), { ssr: false });
-const FullStackArchitectView = dynamic(() => import('@/components/FullStackArchitectView').then(mod => mod.FullStackArchitectView), { ssr: false });
 
 import { useUser } from '@/hooks/useUser';
 import { AuthModal } from '@/components/AuthModal';
@@ -167,7 +160,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
                 </button>
               )}
               <button onClick={() => setView('landing')} className="flex items-center gap-3 group text-left">
-                <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-slate-950 shadow-md shadow-blue-600/10 group-hover:scale-105 transition-all">
+                <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-slate-950 shadow-md group-hover:scale-105 transition-all">
                   <ShieldCheck size={20} />
                 </div>
                 <span className="text-lg font-black tracking-tighter dark:text-white">TypeMorph <span className="text-blue-600 italic">Pro</span></span>
@@ -175,21 +168,16 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
             </div>
             
             <div className="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200/50 dark:border-slate-800/80">
-              {['landing', 'app', 'architect', 'lab', 'visual', 'smart-diff', 'regex-builder'].map((v) => (
+              {['landing', 'app'].map((v) => (
                 <button 
                   key={v}
                   onClick={() => setView(v)} 
                   className={`px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${view === v ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
                 >
-                  {v === 'architect' && <Sparkles size={11} className="text-emerald-500" />}
-                  {v === 'lab' && <Sparkles size={11} />}
-                  {v === 'visual' && <Layers size={11} />}
-                  {v === 'smart-diff' && <Wand2 size={11} />}
-                  {v === 'regex-builder' && <Search size={11} />}
-                  {v === 'landing' ? 'Explore' : v === 'app' ? 'Workbench' : v === 'architect' ? 'Architect' : v === 'lab' ? 'Labs' : v === 'visual' ? 'Visuals' : v === 'smart-diff' ? 'Diff' : 'Regex'}
+                  {v === 'landing' ? 'Explore' : 'Workbench'}
                 </button>
               ))}
-              <Link prefetch={false} href="/converters/" className="px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-400 hover:text-blue-600 bg-blue-600/10 dark:bg-blue-600/10 transition-all flex items-center gap-1.5"><Layers size={11}/> 290+ Tools</Link>
+<Link prefetch={false} href="/converters/" className="px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-400 hover:text-blue-600 bg-blue-600/10 dark:bg-blue-600/10 transition-all flex items-center gap-1.5"><LayoutTemplate size={11}/> 200+ Tools</Link>
               <Link prefetch={false} href="/blog/" className="px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-blue-600 transition-all">Blog</Link>
             </div>
 
@@ -259,7 +247,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => trackProClick('header_upgrade')}
-                className="bg-[#0F172A] dark:bg-blue-600 text-white dark:text-white px-5 py-2 rounded-xl text-xs font-black hover:scale-102 transition-all shadow-md shadow-blue-600/10"
+                className="bg-[#0F172A] dark:bg-blue-600 text-white dark:text-white px-5 py-2 rounded-xl text-xs font-black hover:scale-102 transition-all shadow-md"
               >
                 Upgrade
               </a>
@@ -295,7 +283,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
               Beta Mode
             </div>
             <p className="text-[11px] font-bold tracking-tight">
-              Professional Features Unlocked: <span className="hidden sm:inline">Local Sync, PII Masking, and Bulk Folders are currently </span><span className="text-blue-100 uppercase">FREE for all testers! ✨</span>
+              Professional Features Unlocked: <span className="hidden sm:inline">Local Sync, PII Masking, and Bulk Folders are currently </span><span className="text-blue-100 uppercase">FREE for all testers!</span>
             </p>
             <button 
               onClick={() => setShowFeedbackModal(true)}
@@ -307,9 +295,6 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
 
           <div className="flex-1 h-full w-full">
             {view === 'landing' && <LandingView onSelect={handleSelectTool} />}
-            {view === 'architect' && (
-              <FullStackArchitectView isDark={isDark} geminiKey={geminiKey} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
-            )}
             {view === 'app' && (
               <Workbench 
                 slug={selectedSlug} 
@@ -326,24 +311,6 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
                 onEmptyChange={setIsEditorEmpty}
                 onEditorError={setEditorError}
               />
-            )}
-            {view === 'smart-diff' && (
-              <SmartDiffView isDark={isDark} geminiKey={geminiKey} setGeminiKey={(k) => setGeminiKey(k)} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
-            )}
-            {view === 'regex-builder' && (
-              <RegexBuilderView isDark={isDark} geminiKey={geminiKey} setGeminiKey={(k) => setGeminiKey(k)} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
-            )}
-            {view === 'lab' && (
-              <LogicLabView isDark={isDark} geminiKey={geminiKey} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
-            )}
-            {view === 'visual' && (
-              <ArchitectureView isDark={isDark} geminiKey={geminiKey} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
-            )}
-            {view === 'micro-saas' && (
-              <MicroSaaSView isDark={isDark} geminiKey={geminiKey} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
-            )}
-            {view === 'i18n' && (
-              <I18nView isDark={isDark} geminiKey={geminiKey} isPro={isPro} trialCount={trialCount} setTrialCount={setTrialCount} />
             )}
           </div>
         </main>

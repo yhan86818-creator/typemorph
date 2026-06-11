@@ -1,19 +1,19 @@
 {
   "huge.json": {
     "default": {
-      "durationMs": 6,
+      "durationMs": 9,
       "fields": 14,
       "anyCount": 0,
       "enumCount": 0
     },
     "shallow_max3": {
-      "durationMs": 4,
+      "durationMs": 11,
       "fields": 11,
       "anyCount": 4,
       "enumCount": 0
     },
     "enum_min4": {
-      "durationMs": 4,
+      "durationMs": 17,
       "fields": 14,
       "anyCount": 0,
       "enumCount": 0
@@ -25,7 +25,7 @@
       "enumCount": 0
     },
     "include_meta": {
-      "durationMs": 3,
+      "durationMs": 5,
       "fields": 14,
       "anyCount": 0,
       "enumCount": 0
@@ -36,36 +36,36 @@
       "durationMs": 1,
       "fields": 27,
       "anyCount": 0,
-      "enumCount": 1
+      "enumCount": 0
     },
     "shallow_max3": {
       "durationMs": 0,
       "fields": 22,
       "anyCount": 6,
-      "enumCount": 1
+      "enumCount": 0
     },
     "enum_min4": {
       "durationMs": 0,
       "fields": 27,
       "anyCount": 0,
-      "enumCount": 1
+      "enumCount": 0
     },
     "deep_max20_enum6": {
       "durationMs": 0,
       "fields": 27,
       "anyCount": 0,
-      "enumCount": 1
+      "enumCount": 0
     },
     "include_meta": {
       "durationMs": 0,
       "fields": 27,
       "anyCount": 0,
-      "enumCount": 1
+      "enumCount": 0
     }
   },
   "medium.json": {
     "default": {
-      "durationMs": 0,
+      "durationMs": 1,
       "fields": 17,
       "anyCount": 0,
       "enumCount": 1
@@ -83,13 +83,13 @@
       "enumCount": 1
     },
     "deep_max20_enum6": {
-      "durationMs": 0,
+      "durationMs": 1,
       "fields": 17,
       "anyCount": 0,
       "enumCount": 1
     },
     "include_meta": {
-      "durationMs": 0,
+      "durationMs": 1,
       "fields": 17,
       "anyCount": 0,
       "enumCount": 1
@@ -97,7 +97,7 @@
   },
   "small.json": {
     "default": {
-      "durationMs": 1,
+      "durationMs": 0,
       "fields": 8,
       "anyCount": 0,
       "enumCount": 0
@@ -109,7 +109,7 @@
       "enumCount": 0
     },
     "enum_min4": {
-      "durationMs": 0,
+      "durationMs": 1,
       "fields": 8,
       "anyCount": 0,
       "enumCount": 0

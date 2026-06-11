@@ -2,7 +2,7 @@
 
 import { trackProClick } from '@/lib/analytics';
 import React, { useState, useEffect } from 'react';
-import { Layout, Search, Code2, Crown, History, Wand2, Zap, Sparkles, Layers, ShieldCheck, AppWindow, Globe2 } from 'lucide-react';
+import { Layout, Search, Code2, Crown, History, ShieldCheck } from 'lucide-react';
 import { converters } from '@/data/converters';
 
 interface SidebarProps {
@@ -41,19 +41,12 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView, 
 
 
         <h3 className="text-[10px] font-mono uppercase text-slate-400 tracking-wider mb-4 flex items-center gap-1.5">
-          <ShieldCheck size={12} className="text-blue-600"/> [advanced-workbenches]
+          <ShieldCheck size={12} className="text-blue-600"/> [workbench]
         </h3>
         
         <div className="space-y-1 mb-8">
           {[
             { id: 'app', label: 'Workbench', icon: <Layout size={14}/> },
-            { id: 'architect', label: 'Full-Stack Architect', icon: <Sparkles size={14} className="text-emerald-500"/> },
-            { id: 'micro-saas', label: 'Micro-SaaS', icon: <AppWindow size={14}/> },
-            { id: 'i18n', label: 'i18n Auto-Gen', icon: <Globe2 size={14}/> },
-            { id: 'lab', label: 'Logic Lab', icon: <Zap size={14}/> },
-            { id: 'visual', label: 'Architecture', icon: <Layers size={14}/> },
-            { id: 'smart-diff', label: 'Smart Diff', icon: <Wand2 size={14}/> },
-            { id: 'regex-builder', label: 'AI Regex', icon: <Search size={14}/> },
           ].map((v) => (
             <button 
               key={v.id}
@@ -67,7 +60,7 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView, 
         </div>
 
         <h3 className="text-[10px] font-mono uppercase text-slate-400 tracking-wider mb-4 flex items-center gap-1.5">
-          <Layout size={12} className="text-slate-400"/> [all-converters]
+          <Layout size={12} className="text-slate-400"/> Converters
         </h3>
         
         <div className="relative mb-4">
@@ -94,18 +87,44 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView, 
         </div>
 
         <div className="space-y-1 overflow-y-auto flex-1 max-h-[calc(100vh-420px)] no-scrollbar pr-2">
-          {filtered.map(tab => (
-            <button 
-              key={tab.slug} 
-              onClick={() => onSelect(tab.slug)} 
-              className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all ${selectedSlug === tab.slug ? 'bg-blue-600/10 text-blue-700 dark:text-blue-400 shadow-sm border border-blue-600/20' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'}`}
-            >
-              <span className="flex items-center gap-2 truncate pr-2">
-                <Code2 size={12} className={selectedSlug === tab.slug ? 'text-blue-600' : 'text-slate-400'} /> 
-                <span className="truncate">{tab.title.split(' - ')[0]}</span>
-              </span>
-            </button>
-          ))}
+          {/* Fixed top converters — always visible regardless of search/filter */}
+          {(() => {
+            const pinnedSlugs = ['json-to-typescript', 'json-to-zod', 'sql-to-zod'];
+            const pinned = pinnedSlugs.map(slug => converters.find(c => c.slug === slug)).filter(Boolean) as typeof converters;
+            return pinned.map(tab => (
+              <button 
+                key={tab.slug} 
+                onClick={() => onSelect(tab.slug)} 
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all ${selectedSlug === tab.slug ? 'bg-blue-600/10 text-blue-700 dark:text-blue-400 shadow-sm border border-blue-600/20' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'}`}
+              >
+                <span className="flex items-center gap-2 truncate pr-2">
+                  <Code2 size={12} className={selectedSlug === tab.slug ? 'text-blue-600' : 'text-slate-400'} /> 
+                  <span className="truncate">{tab.title.split(' - ')[0]}</span>
+                </span>
+              </button>
+            ));
+          })()}
+          {/* Separator line when there are filtered results */}
+          {filtered.length > 0 && (
+            <div className="border-t border-slate-100 dark:border-slate-800 my-2" />
+          )}
+          {filtered.map(tab => {
+            // Skip pinned items to avoid duplicates
+            const pinnedSlugs = ['json-to-typescript', 'json-to-zod', 'sql-to-zod'];
+            if (pinnedSlugs.includes(tab.slug)) return null;
+            return (
+              <button 
+                key={tab.slug} 
+                onClick={() => onSelect(tab.slug)} 
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all ${selectedSlug === tab.slug ? 'bg-blue-600/10 text-blue-700 dark:text-blue-400 shadow-sm border border-blue-600/20' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'}`}
+              >
+                <span className="flex items-center gap-2 truncate pr-2">
+                  <Code2 size={12} className={selectedSlug === tab.slug ? 'text-blue-600' : 'text-slate-400'} /> 
+                  <span className="truncate">{tab.title.split(' - ')[0]}</span>
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
       
