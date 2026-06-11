@@ -306,7 +306,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
   const [localFileHandle, setLocalFileHandle] = useState<any>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const IS_BETA = true; // ベ�Eタ期間中はtrueに設宁E
+  const IS_BETA = true; // ベ�Eタ期間中はtrueに設宁E
   const [isProLicensed, setIsProLicensed] = useState(IS_BETA);
 
   const handleSelectSyncFile = async () => {
@@ -340,7 +340,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
         await writable.close();
       } catch (e) {
         console.error("Sync failed:", e);
-        setLocalFileHandle(null); // エラー時�E解除
+        setLocalFileHandle(null); // エラー時�E解除
       } finally {
         setIsSyncing(false);
       }
@@ -366,7 +366,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
         setTimeout(() => setSaveCloudHistory(saved === 'true'), 0);
       }
       
-      // ベ�Eタ版でなぁE��合�Eみローカル証明書をチェチE��
+      // ベ�Eタ版でなぁE��合�Eみローカル証明書をチェチE��
       if (!IS_BETA) {
         const cert = localStorage.getItem('typemorph_pro_cert');
         if (cert) {
@@ -532,7 +532,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     }
   };
 
-  // JWTの有効期限チェチE��ユーチE��リチE��
+  // JWTの有効期限チェチE��ユーチE��リチE��
   const isTokenExpired = (token: string) => {
     try {
       const parts = token.split('.');
@@ -552,7 +552,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
       if (cert) {
         if (isTokenExpired(cert)) {
           if (savedKey) {
-            // ト�Eクンが�EれてぁE��がキーがある場合、バチE��グラウンドで再認証
+            // ト�Eクンが�EれてぁE��がキーがある場合、バチE��グラウンドで再認証
             await handleActivatePro(savedKey);
           } else {
             setIsProLicensed(false);
@@ -567,19 +567,19 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
 
   // Helper to consume trial and check paywall
   const checkAndConsumeTrial = useCallback((): boolean => {
-    if (isProLicensed) return true; // Pro版�E無制陁E
+    if (isProLicensed) return true; // Pro版�E無制陁E
     if (localTrialCount > 0) {
       const newCount = localTrialCount - 1;
       setLocalTrialCount(newCount);
       localStorage.setItem('typemorph_trial_count', String(newCount));
       
-      // トライアル消費のト�Eスト通知
+      // トライアル消費のト�Eスト通知
       setToastMsg(`Free Trial Used (${newCount} left today)`);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2500);
       return true;
     }
-    // トライアル刁E��の場合�Eペイウォールを表示して実行ブロチE��
+    // トライアル刁E��の場合�Eペイウォールを表示して実行ブロチE��
     setShowPaywall(true);
     return false;
   }, [isProLicensed, localTrialCount, setLocalTrialCount, setShowPaywall, setToastMsg, setShowToast]);
@@ -716,7 +716,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     if (piiResult.detectedTypes.length > 0) {
       if (!isProLicensed) {
         const proceed = window.confirm(
-          `⚠�E�EPrivacy Warning: We detected sensitive data (${piiResult.detectedTypes.join(', ')}) in your input.\n\nFree users send data as-is. Upgrade to Pro for automatic local masking before sending to AI.\n\nDo you want to proceed anyway?`
+          `⚠�E�EPrivacy Warning: We detected sensitive data (${piiResult.detectedTypes.join(', ')}) in your input.\n\nFree users send data as-is. Upgrade to Pro for automatic local masking before sending to AI.\n\nDo you want to proceed anyway?`
         );
         if (!proceed) return;
       } else {
@@ -820,7 +820,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     let finalInput = inputRef.current;
     if (piiResult.detectedTypes.length > 0) {
       if (!isProLicensed) {
-        if (!window.confirm("⚠�E�EPrivacy Warning: Detected sensitive data. Proceed without masking?")) return;
+        if (!window.confirm("⚠�E�EPrivacy Warning: Detected sensitive data. Proceed without masking?")) return;
       } else {
         finalInput = piiResult.maskedText;
         setToastMsg("Privacy Shield: Sensitive data masked! ");
@@ -957,7 +957,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     let finalInput = inputRef.current;
     if (piiResult.detectedTypes.length > 0) {
       if (!isProLicensed) {
-        if (!window.confirm("⚠�E�EPrivacy Warning: Detected sensitive data. Proceed without masking?")) return;
+        if (!window.confirm("⚠�E�EPrivacy Warning: Detected sensitive data. Proceed without masking?")) return;
       } else {
         finalInput = piiResult.maskedText;
         setToastMsg("Privacy Shield: Sensitive data masked! ");
@@ -1040,7 +1040,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     let finalInput = inputRef.current;
     if (piiResult.detectedTypes.length > 0) {
       if (!isProLicensed) {
-        if (!window.confirm("⚠�E�EPrivacy Warning: Detected sensitive data. \|Proceed without masking?")) return;
+        if (!window.confirm("⚠�E�EPrivacy Warning: Detected sensitive data. \|Proceed without masking?")) return;
       } else {
         finalInput = piiResult.maskedText;
         setToastMsg("Privacy Shield: Sensitive data masked! ");
@@ -1118,7 +1118,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
       return;
     }
 
-    // 基本変換の回数制限チェチE��
+    // 基本変換の回数制限チェチE��
     if (!checkAndConsumeBasicTrial()) return;
 
     isGeneratingRef.current = true; // Start generating
@@ -1372,7 +1372,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
 
         const shortUrl = `${window.location.origin}${window.location.pathname}?share=${data.id}`;
         await navigator.clipboard.writeText(shortUrl);
-        setToastMsg("☁E��ECloud Link Copied! (Schema stored securely)");
+        setToastMsg("☁E��ECloud Link Copied! (Schema stored securely)");
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
       }
@@ -2103,7 +2103,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
 
                       const severityBadges = {
                         error: 'Breaking',
-                        warning: '⚠�E�EWarning',
+                        warning: '⚠�E�EWarning',
                         info: 'Added'
                       };
 
