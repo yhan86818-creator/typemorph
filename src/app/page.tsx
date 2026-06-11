@@ -160,9 +160,6 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
                 </button>
               )}
               <button onClick={() => setView('landing')} className="flex items-center gap-3 group text-left">
-                <div className="w-9 h-9 bg-slate-950 dark:bg-white rounded-xl flex items-center justify-center text-white dark:text-slate-950 group-hover:scale-105 transition-all">
-                  <ShieldCheck size={20} />
-                </div>
                 <span className="text-lg font-black tracking-tighter dark:text-white">TypeMorph <span className="italic">Pro</span></span>
               </button>
             </div>
@@ -241,21 +238,6 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
               {isDark ? <Sun size={16} /> : <Moon size={16} />}
             </button>
             
-            {!isPro ? (
-              <a
-                href="https://yhanster206.gumroad.com/l/zjcuuu"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => trackProClick('header_upgrade')}
-                className="bg-[#0F172A] dark:bg-blue-600 text-white dark:text-white px-5 py-2 rounded-xl text-xs font-black hover:scale-102 transition-all shadow-md"
-              >
-                Upgrade
-              </a>
-            ) : (
-              <div className="flex items-center gap-1.5 text-white font-black text-[10px] bg-slate-950 dark:bg-blue-600 px-3.5 py-2 rounded-xl">
-                <Crown size={12} /> PRO
-              </div>
-            )}
 
           </div>
         </div>
