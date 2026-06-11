@@ -153,7 +153,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
               {view !== 'landing' && (
                 <button 
                   onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                  className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-[#141414]/80 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-all border border-slate-200 dark:border-slate-700"
+                  className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
                   title="Toggle Sidebar (Cmd+B)"
                 >
                   {isSidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
@@ -167,12 +167,12 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
               </button>
             </div>
             
-            <div className="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200/50 dark:border-[#1A1A1A]/80">
+            <div className="hidden md:flex items-center gap-1">
               {['landing', 'app'].map((v) => (
                 <button 
                   key={v}
                   onClick={() => setView(v)} 
-                  className={`px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${view === v ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                  className={`px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${view === v ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
                 >
                   {v === 'landing' ? 'Explore' : 'Workbench'}
                 </button>
@@ -182,7 +182,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
             </div>
 
             {/* Language Switcher */}
-            <div className="hidden sm:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200/50 dark:border-[#1A1A1A]/80 ml-4">
+            <div className="hidden sm:flex items-center gap-1 ml-4">
               <Link prefetch={false} href={initialSlug ? `/converters/${initialSlug}` : '/'}
                 className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mounted && !window.location.pathname.includes('/jp/') ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-400'}`}
               >
@@ -198,7 +198,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
 
           <div className="flex items-center gap-4">
             {deferredPrompt && (
-              <button onClick={handleInstall} className="hidden md:flex items-center gap-2 px-3.5 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-[9px] font-black uppercase tracking-wider border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-700 transition-all">
+              <button onClick={handleInstall} className="hidden md:flex items-center gap-2 px-3.5 py-1.5 text-slate-500 dark:text-slate-400 rounded-xl text-[9px] font-black uppercase tracking-wider hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
                 <Download size={12} /> Install App
               </button>
             )}
@@ -237,7 +237,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
               </a>
             </div>
 
-            <button onClick={toggleTheme} className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-[#141414]/80 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-all border border-slate-200 dark:border-slate-700">
+            <button onClick={toggleTheme} className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
               {isDark ? <Sun size={16} /> : <Moon size={16} />}
             </button>
             
@@ -252,7 +252,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
                 Upgrade
               </a>
             ) : (
-              <div className="flex items-center gap-1.5 text-blue-600 font-black text-[10px] bg-blue-600/10 px-3.5 py-2 rounded-xl border border-blue-600/20">
+              <div className="flex items-center gap-1.5 text-white font-black text-[10px] bg-slate-950 dark:bg-blue-600 px-3.5 py-2 rounded-xl">
                 <Crown size={12} /> PRO
               </div>
             )}
@@ -278,18 +278,18 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
 
         <main className={`flex-1 min-w-0 ${initialSlug ? '' : 'overflow-y-auto'} relative no-scrollbar flex flex-col`}>
           {/* Beta Mode Promotion Banner */}
-          <div className="flex-none bg-[#111111] text-slate-400 px-6 py-1.5 flex items-center justify-center gap-3 border-b border-[#222222] z-50">
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#222222] text-[9px] font-medium uppercase tracking-widest border border-[#333333] text-slate-300">
-              Beta Mode
+          <div className="flex-none bg-amber-50/80 dark:bg-amber-950/20 text-slate-600 dark:text-slate-400 px-6 py-2 flex items-center justify-between border-b border-amber-200/50 dark:border-amber-900/30 z-50">
+            <div className="flex items-center gap-3">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+              <p className="text-[11px] font-medium tracking-tight">
+                Pro features are free during beta
+              </p>
             </div>
-            <p className="text-[10px] font-medium tracking-tight">
-              Professional Features Unlocked: <span className="hidden sm:inline">Local Sync, PII Masking, and Bulk Folders are currently </span><span className="text-blue-100 uppercase">FREE for all testers!</span>
-            </p>
             <button 
               onClick={() => setShowFeedbackModal(true)}
-              className="ml-auto hidden md:flex items-center gap-1 text-[9px] font-medium uppercase bg-[#222222] hover:bg-[#333333] px-3 py-1 rounded-lg border border-[#333333] text-slate-400 transition-all active:scale-95"
+              className="flex items-center gap-1 text-[9px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
             >
-              <MessageSquare size={10} /> Share Feedback
+              <MessageSquare size={10} /> Feedback
             </button>
           </div>
 
