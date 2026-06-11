@@ -1784,7 +1784,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
               <button 
                 key={tab.id}
                 onClick={() => setOutputTab(tab.id)}
-                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${outputTab === tab.id ? 'bg-slate-950 dark:bg-white text-white dark:text-slate-950' : 'text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${outputTab === tab.id ? 'text-slate-950 dark:text-white font-black' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
               >
                 <span>{tab.label}</span>
               </button>
@@ -1792,7 +1792,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
             {/* + More ▼ dropdown */}
             <div className="relative group/more-tabs">
               <button
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${moreTabs.some(t => t.id === outputTab) ? 'bg-slate-950 dark:bg-white text-white dark:text-slate-950' : 'text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${moreTabs.some(t => t.id === outputTab) ? 'text-slate-950 dark:text-white font-black' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
               >
                 <span>+ {moreTabs.some(t => t.id === outputTab) ? `More (${moreTabs.find(t => t.id === outputTab)?.label})` : 'More'}</span>
                 <ChevronDown size={10} />
@@ -1848,7 +1848,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                   setShowToast(false);
                 }, 2000);
               }}
-              className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-white dark:text-slate-950 bg-slate-950 dark:bg-white px-4 py-1.5 rounded-xl hover:opacity-90 transition-all shrink-0"
+              className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-slate-950 dark:text-white px-4 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shrink-0"
             >
               <Copy size={12} /> <span>{isCopied ? 'Copied' : 'Copy'}</span>
             </button>
