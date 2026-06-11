@@ -80,11 +80,11 @@ export const JsonVisualizer = ({ data, name = "root", depth = 0 }: { data: any, 
     <div className="ml-4">
       <div className="flex items-center gap-2 cursor-pointer py-1 group hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded px-1 transition-colors" onClick={() => setIsOpen(!isOpen)}>
         <ChevronRight size={12} className={`text-slate-300 dark:text-slate-600 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
-        <div className={`w-4 h-4 rounded flex items-center justify-center ${isArr ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-500' : 'bg-purple-50 dark:bg-purple-900/30 text-purple-500'}`}>
+        <div className="w-4 h-4 rounded flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
           {isArr ? <Table size={10} /> : <Layers size={10} />}
         </div>
         <span className="text-slate-900 dark:text-white font-bold font-mono text-[10px]">{name}</span>
-        <span className="text-slate-300 dark:text-slate-500 text-[9px] font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-full">
+              <span className="text-slate-400 dark:text-slate-500 text-[9px] font-mono px-1.5 py-0.5">
           {isArr ? `${data.length} items` : `${Object.keys(data).length} props`}
         </span>
       </div>
