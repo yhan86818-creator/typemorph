@@ -172,24 +172,24 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
                 <button 
                   key={v}
                   onClick={() => setView(v)} 
-                  className={`px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${view === v ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                  className={`px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${view === v ? 'text-slate-950 dark:text-white font-black' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
                 >
                   {v === 'landing' ? 'Explore' : 'Workbench'}
                 </button>
               ))}
-<Link prefetch={false} href="/converters/" className="px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-400 hover:text-blue-600 bg-blue-600/10 dark:bg-blue-600/10 transition-all flex items-center gap-1.5"><LayoutTemplate size={11}/> 200+ Tools</Link>
+<Link prefetch={false} href="/converters/" className="px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all flex items-center gap-1.5"><LayoutTemplate size={11}/> 200+ Tools</Link>
               <Link prefetch={false} href="/blog/" className="px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-blue-600 transition-all">Blog</Link>
             </div>
 
             {/* Language Switcher */}
             <div className="hidden sm:flex items-center gap-1 ml-4">
               <Link prefetch={false} href={initialSlug ? `/converters/${initialSlug}` : '/'}
-                className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mounted && !window.location.pathname.includes('/jp/') ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-400'}`}
+                className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mounted && !window.location.pathname.includes('/jp/') ? 'text-slate-950 dark:text-white font-black' : 'text-slate-400'}`}
               >
                 EN
               </Link>
               <Link prefetch={false} href={initialSlug ? `/jp/converters/${initialSlug}` : '/jp'}
-                className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mounted && window.location.pathname.includes('/jp/') ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-400'}`}
+                className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mounted && window.location.pathname.includes('/jp/') ? 'text-slate-950 dark:text-white font-black' : 'text-slate-400'}`}
               >
                 JP
               </Link>
