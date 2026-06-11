@@ -139,13 +139,13 @@ export default function TypeGraphPanel({ tsCode, isDark }: Props) {
     );
   }
 
-  // Color palette per node depth (root = indigo, children = different hues)
+  // Single hue + opacity for depth hierarchy (Linear-style)
   const nodeColors = [
-    { header: isDark ? '#312e81' : '#e0e7ff', border: '#6366f1', text: isDark ? '#a5b4fc' : '#4338ca' },
-    { header: isDark ? '#164e63' : '#cffafe', border: '#06b6d4', text: isDark ? '#67e8f9' : '#0e7490' },
-    { header: isDark ? '#14532d' : '#dcfce7', border: '#22c55e', text: isDark ? '#86efac' : '#15803d' },
-    { header: isDark ? '#7c2d12' : '#ffedd5', border: '#f97316', text: isDark ? '#fdba74' : '#c2410c' },
-    { header: isDark ? '#1e1b4b' : '#ede9fe', border: '#8b5cf6', text: isDark ? '#c4b5fd' : '#6d28d9' },
+    { header: isDark ? '#1e293b' : '#f1f5f9', border: isDark ? '#334155' : '#cbd5e1', text: isDark ? '#e2e8f0' : '#334155' },
+    { header: isDark ? '#1e293b' : '#f1f5f9', border: isDark ? '#475569' : '#94a3b8', text: isDark ? '#cbd5e1' : '#475569' },
+    { header: isDark ? '#1e293b' : '#f1f5f9', border: isDark ? '#64748b' : '#64748b', text: isDark ? '#94a3b8' : '#64748b' },
+    { header: isDark ? '#1e293b' : '#f1f5f9', border: isDark ? '#94a3b8' : '#475569', text: isDark ? '#64748b' : '#94a3b8' },
+    { header: isDark ? '#1e293b' : '#f1f5f9', border: isDark ? '#cbd5e1' : '#334155', text: isDark ? '#475569' : '#cbd5e1' },
   ];
 
   const getNodeColor = (nodeId: string) => {
