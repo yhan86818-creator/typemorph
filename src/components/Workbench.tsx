@@ -1821,41 +1821,21 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
           </button>
           <div className="flex items-center gap-2">
             <button 
-              onClick={handleSelectSyncFile}
-              className={`flex items-center gap-1.5 text-[10px] font-mono uppercase px-3 py-1.5 rounded-xl border transition-all shadow-sm ${localFileHandle ? 'bg-blue-600 text-white border-blue-500' : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:text-blue-600 dark:hover:text-blue-400'}`}
-              title={localFileHandle ? `Syncing to: ${localFileHandle.name}` : "Sync to local file (Auto-save)"}
-            >
-              <FolderOpen size={12} /> <span>{localFileHandle ? 'Syncing' : 'Sync'}</span>
-            </button>
-            <button 
               onClick={handleSmartShare}
               disabled={isSharing}
-              className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-slate-500 dark:text-slate-300 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:text-blue-600 dark:hover:text-blue-400 transition-all disabled:opacity-50 shadow-sm"
+              className="flex items-center justify-center text-slate-500 dark:text-slate-300 bg-white dark:bg-slate-800 w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-700 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-500/50 dark:hover:border-blue-500/50 transition-all disabled:opacity-50 shadow-sm"
               title="Copy shareable link (auto-selects URL or Cloud based on size)"
             >
-              {isSharing ? <Loader2 size={12} className="animate-spin" /> : <Share2 size={12} />}
-              <span>{isSharing ? 'Sharing...' : 'Share'}</span>
+              {isSharing ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
             </button>
             <button 
               onClick={() => {
                 setShowGenSettings(!showGenSettings);
               }}
-              className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-slate-500 dark:text-slate-300 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:text-blue-600 dark:hover:text-blue-400 transition-all shadow-sm"
+              className="flex items-center justify-center text-slate-500 dark:text-slate-300 bg-white dark:bg-slate-800 w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-700 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-500/50 dark:hover:border-blue-500/50 transition-all shadow-sm"
+              title="Settings"
             >
-              <Settings size={12} /> <span>Config</span>
-            </button>
-            <button 
-              onClick={() => {
-                const code = outputs[outputTab] || "";
-                const prompt = `Here is a ${outputTab} definition. Please write a production-ready React component or service that utilizes this structure:\n\n\`\`\`${outputTab}\n${code}\n\`\`\``;
-                navigator.clipboard.writeText(prompt);
-                setToastMsg("Prompt Copied!");
-                setShowToast(true);
-                setTimeout(() => setShowToast(false), 2000);
-              }}
-              className="hidden sm:flex items-center gap-1.5 text-[10px] font-mono uppercase text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-xl border border-blue-200 dark:border-blue-800/50 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-500 dark:hover:text-white transition-all shadow-sm"
-            >
-              <Zap size={12} /> <span>AI Prompt</span>
+              <Settings size={14} />
             </button>
             <button 
               onClick={() => {
