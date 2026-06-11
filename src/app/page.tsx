@@ -169,13 +169,13 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
                 <button 
                   key={v}
                   onClick={() => setView(v)} 
-                  className={`px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${view === v ? 'text-slate-950 dark:text-white font-black' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${view === v ? 'text-slate-950 dark:text-white font-black' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
                 >
                   {v === 'landing' ? 'Explore' : 'Workbench'}
                 </button>
               ))}
-<Link prefetch={false} href="/converters/" className="px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all flex items-center gap-1.5"><LayoutTemplate size={11}/> 200+ Tools</Link>
-              <Link prefetch={false} href="/blog/" className="px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-blue-600 transition-all">Blog</Link>
+<Link prefetch={false} href="/converters/" className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all flex items-center gap-1.5"><LayoutTemplate size={11}/> 200+ Tools</Link>
+              <Link prefetch={false} href="/blog/" className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-blue-600 transition-all">Blog</Link>
             </div>
 
             {/* Language Switcher */}
