@@ -79,7 +79,7 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView, 
             <button
               key={cat}
               onClick={() => setCategoryFilter(cat)}
-              className={`px-2.5 py-1 rounded-lg text-[9px] font-mono uppercase tracking-wider whitespace-nowrap transition-all ${categoryFilter === cat ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-blue-600'}`}
+              className={`px-2.5 py-1 rounded-lg text-[9px] font-mono uppercase tracking-wider whitespace-nowrap transition-all ${categoryFilter === cat ? 'bg-slate-950 dark:bg-white text-white dark:text-slate-950 shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-blue-600'}`}
             >
               {cat}
             </button>
@@ -95,7 +95,7 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView, 
               <button 
                 key={tab.slug} 
                 onClick={() => onSelect(tab.slug)} 
-                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all ${selectedSlug === tab.slug ? 'bg-blue-600/10 text-blue-700 dark:text-blue-400 shadow-sm border border-blue-600/20' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'}`}
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all ${selectedSlug === tab.slug ? 'bg-slate-100 dark:bg-slate-800 text-slate-950 dark:text-white shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'}`}
               >
                 <span className="flex items-center gap-2 truncate pr-2">
                   <Code2 size={12} className={selectedSlug === tab.slug ? 'text-blue-600' : 'text-slate-400'} /> 
@@ -116,7 +116,7 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView, 
               <button 
                 key={tab.slug} 
                 onClick={() => onSelect(tab.slug)} 
-                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all ${selectedSlug === tab.slug ? 'bg-blue-600/10 text-blue-700 dark:text-blue-400 shadow-sm border border-blue-600/20' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'}`}
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all ${selectedSlug === tab.slug ? 'bg-slate-100 dark:bg-slate-800 text-slate-950 dark:text-white shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'}`}
               >
                 <span className="flex items-center gap-2 truncate pr-2">
                   <Code2 size={12} className={selectedSlug === tab.slug ? 'text-blue-600' : 'text-slate-400'} /> 
