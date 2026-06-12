@@ -92,7 +92,16 @@ export default function TypeGraphPanel({ tsCode, isDark }: Props) {
     try { return extractTypeGraph(tsCode); } catch { return { nodes: [], edges: [] }; }
   }, [tsCode]);
 
-  const nodePositions = useMemo(() => layoutNodes(graph), [graph]);
+  const nodePositions = useMemo(() => {
+    const positions = layoutNodes(graph);
+    // Deduplicate by id to prevent React duplicate key warnings
+    const seen = new Set<string>();
+    return positions.filter(p => {
+      if (seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    });
+  }, [graph]);
 
   const svgWidth = useMemo(() => {
     if (nodePositions.length === 0) return 600;
