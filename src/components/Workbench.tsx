@@ -28,6 +28,7 @@ import SuperBatchModal from './SuperBatchModal';
 import dynamic from 'next/dynamic';
 import { SmartDiffView } from '@/components/SmartDiffView';
 import { FullStackArchitectView } from '@/components/FullStackArchitectView';
+import { sqlToMermaidERGen } from '@/lib/generators-extended';
 const TypeGraphPanel = dynamic(() => import('./TypeGraphPanel'), { ssr: false, loading: () => <div className="flex items-center justify-center h-full text-xs text-slate-400 font-mono">Loading graph…</div> });
 
 interface WorkbenchProps {
@@ -1149,10 +1150,16 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
         }
       } catch (e) {}
     } 
-    else if (trimmed.toUpperCase().startsWith('CREATE TABLE')) {
+    else if (trimmed.toUpperCase().replace(/\s+/g, ' ').trim().startsWith('CREATE TABLE') ||
+             (trimmed.toUpperCase().includes('CREATE TABLE') && 
+              !trimmed.trim().startsWith('{') && 
+              !trimmed.trim().startsWith('['))) {
       try {
         res.zod = parseSQLToZod(trimmed);
-        if (res.zod) {
+        res.er = sqlToMermaidERGen.generate(trimmed);
+        setJsonData(null);
+        setSchemaDiffs([]);
+        if (res.zod || res.er) {
           success = true;
           reportConvertIfNew(trimmed, 'zod');
         }
@@ -1466,6 +1473,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
   ];
 
   const moreTabs = [
+    { id: 'er', label: 'ER Diagram' },
     { id: 'diff', label: 'Diff' },
     { id: 'architect', label: 'Architect' },
     { id: 'dart', label: 'Dart' },
@@ -2326,7 +2334,38 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                   )}
                 </div>
               )}
-              {outputTab === 'history' ? (
+              {outputTab === 'er' ? (
+                <div className="flex flex-col h-full bg-white dark:bg-[#0A0A0A]">
+                  <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-100 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#0F0F0F] shrink-0">
+                    <span className="text-[10px] font-mono uppercase text-slate-400">ER Diagram (Mermaid)</span>
+                    <a 
+                      href="https://mermaid.live"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[9px] font-mono text-blue-500 hover:text-blue-400 transition-colors"
+                    >
+                      Open in Mermaid Live ↗
+                    </a>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    <Editor
+                      height="100%"
+                      language="markdown"
+                      value={outputs['er'] || '%% Paste a SQL CREATE TABLE statement on the left'}
+                      theme={isDark ? 'vs-dark' : 'light'}
+                      options={{
+                        minimap: { enabled: false },
+                        fontSize: 13,
+                        readOnly: true,
+                        scrollBeyondLastLine: false,
+                        padding: { top: 16, bottom: 16 },
+                        wordWrap: 'on',
+                        automaticLayout: true,
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : outputTab === 'history' ? (
                 <div className="flex flex-col h-full p-4 gap-3 bg-white dark:bg-[#0A0A0A] overflow-y-auto">
                   <div className="flex items-center justify-between">
                     <div>

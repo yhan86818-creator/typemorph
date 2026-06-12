@@ -1870,3 +1870,139 @@ export const use${entityName}Delete = () => {
 `;
   }
 };
+
+// ─── SQL to Mermaid ER Diagram ────────────────────────────────────────────────
+export const sqlToMermaidERGen = {
+  generate: (sql: string): string => {
+    if (!sql || !sql.trim().toUpperCase().includes('CREATE TABLE')) {
+      return `erDiagram\n  %% Paste a SQL CREATE TABLE statement to generate an ER diagram`;
+    }
+
+    const tables: {
+      name: string;
+      columns: { name: string; type: string; isPk: boolean; isNullable: boolean }[];
+    }[] = [];
+
+    const relations: { from: string; to: string; label: string }[] = [];
+
+    // 複数のCREATE TABLE文を処理
+    const tableRegex = /CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?(\w+)["`]?\s*\(([^;]*)\)/gi;
+    let tableMatch: RegExpExecArray | null;
+
+    while ((tableMatch = tableRegex.exec(sql)) !== null) {
+      const tableName = tableMatch[1];
+      const body = tableMatch[2];
+
+      const columns: typeof tables[0]['columns'] = [];
+
+      // カラム行を上位カンマで分割
+      const splitTopLevel = (s: string): string[] => {
+        const parts: string[] = [];
+        let depth = 0, inStr = false, strChar = '', cur = '';
+        for (let i = 0; i < s.length; i++) {
+          const ch = s[i];
+          if (!inStr && (ch === "'" || ch === '"' || ch === '`')) {
+            inStr = true; strChar = ch; cur += ch; continue;
+          }
+          if (inStr) {
+            if (ch === '\\') { cur += ch + s[++i]; continue; }
+            if (ch === strChar) inStr = false;
+            cur += ch; continue;
+          }
+          if (ch === '(') { depth++; cur += ch; continue; }
+          if (ch === ')') { depth--; cur += ch; continue; }
+          if (ch === ',' && depth === 0) { parts.push(cur.trim()); cur = ''; continue; }
+          cur += ch;
+        }
+        if (cur.trim()) parts.push(cur.trim());
+        return parts;
+      };
+
+      const sqlKeywords = new Set([
+        'PRIMARY', 'KEY', 'FOREIGN', 'REFERENCES', 'CONSTRAINT',
+        'UNIQUE', 'INDEX', 'CHECK', 'CREATE', 'TABLE'
+      ]);
+
+      for (const line of splitTopLevel(body)) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+
+        // FOREIGN KEY検出
+        const fkMatch = trimmed.match(/FOREIGN KEY\s*\(["`]?(\w+)["`]?\)\s*REFERENCES\s*["`]?(\w+)["`]?/i);
+        if (fkMatch) {
+          relations.push({ from: tableName, to: fkMatch[2], label: fkMatch[1] });
+          continue;
+        }
+
+        // 通常カラム
+        const colMatch = trimmed.match(/^["`]?(\w+)["`]?\s+(\w+)/);
+        if (!colMatch) continue;
+
+        const colName = colMatch[1];
+        const colType = colMatch[2].toUpperCase();
+        if (sqlKeywords.has(colName.toUpperCase())) continue;
+        if (/^\d+$/.test(colName)) continue;
+
+        const isPk = /PRIMARY KEY/i.test(trimmed) || colName.toLowerCase() === 'id';
+        const isNullable = /\bNULL\b/i.test(trimmed) && !/NOT\s+NULL/i.test(trimmed);
+
+        // Mermaid互換の型名に変換
+        const mermaidType = (() => {
+          if (['INT', 'INTEGER', 'BIGINT', 'SMALLINT', 'TINYINT', 'SERIAL', 'BIGSERIAL'].includes(colType)) return 'int';
+          if (['FLOAT', 'DOUBLE', 'DECIMAL', 'NUMERIC', 'REAL'].includes(colType)) return 'float';
+          if (['BOOLEAN', 'BOOL', 'BIT'].includes(colType)) return 'boolean';
+          if (['DATE', 'DATETIME', 'TIMESTAMP', 'TIME'].includes(colType)) return 'datetime';
+          if (['JSON', 'JSONB'].includes(colType)) return 'json';
+          if (colType === 'UUID') return 'uuid';
+          if (['TEXT', 'LONGTEXT', 'MEDIUMTEXT', 'TINYTEXT', 'CLOB'].includes(colType)) return 'text';
+          return 'string';
+        })();
+
+        columns.push({ name: colName, type: mermaidType, isPk, isNullable });
+      }
+
+      if (columns.length > 0) {
+        tables.push({ name: tableName, columns });
+      }
+    }
+
+    if (tables.length === 0) {
+      return `erDiagram\n  %% No valid CREATE TABLE statements found`;
+    }
+
+    // Mermaid erDiagram形式で出力
+    let out = `erDiagram\n`;
+
+    for (const table of tables) {
+      out += `  ${table.name} {\n`;
+      for (const col of table.columns) {
+        const pk = col.isPk ? ' PK' : '';
+        const nullable = col.isNullable ? ' "nullable"' : '';
+        out += `    ${col.type} ${col.name}${pk}${nullable}\n`;
+      }
+      out += `  }\n\n`;
+    }
+
+    // リレーション出力
+    for (const rel of relations) {
+      out += `  ${rel.from} }o--|| ${rel.to} : "${rel.label}"\n`;
+    }
+
+    // REFERENCES キーワードからもリレーションを検出（FOREIGN KEY句なしのケース）
+    const refRegex = /["`]?(\w+)["`]?\s+\w+[^,\n]*REFERENCES\s+["`]?(\w+)["`]?/gi;
+    let refMatch: RegExpExecArray | null;
+    const existingRels = new Set(relations.map(r => `${r.from}-${r.to}`));
+    while ((refMatch = refRegex.exec(sql)) !== null) {
+      const from = tables.find(t =>
+        t.columns.some(c => c.name === refMatch![1])
+      )?.name;
+      const to = refMatch[2];
+      if (from && to && !existingRels.has(`${from}-${to}`)) {
+        out += `  ${from} }o--|| ${to} : "${refMatch[1]}"\n`;
+        existingRels.add(`${from}-${to}`);
+      }
+    }
+
+    return out.trimEnd();
+  }
+};
