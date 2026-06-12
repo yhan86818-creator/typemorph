@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { swiftGen, kotlinGen, zodGen, protoGen, gqlGen, tsGen, goGen, rustGen, jsonSchemaGen } from './generators';
+import { swiftGen, kotlinGen, zodGen, protoGen, gqlGen, tsGen, goGen, rustGen, jsonSchemaGen, mockGen, prismaGen } from './generators';
 import { inferSchema } from './engine';
 
 describe('generators', () => {
@@ -159,6 +159,98 @@ describe('generators', () => {
       expect(result).toContain('z.union([z.string(), z.number()])');
       // Must NOT contain invalid patterns like z.classRef()
       expect(result).not.toMatch(/z\.classRef\(/);
+    });
+  });
+
+  describe('mockGen', () => {
+    it('should generate 50 items for array schema', () => {
+      const json = [{ id: 1, name: 'Alice', email: 'a@example.com' }];
+      const schema = inferSchema(json);
+      const result = mockGen.generate(schema);
+      const parsed = JSON.parse(result);
+      expect(Array.isArray(parsed)).toBe(true);
+      expect(parsed.length).toBe(50);
+    });
+
+    it('should generate realistic email values', () => {
+      const json = [{ email: 'test@example.com' }];
+      const schema = inferSchema(json);
+      const result = mockGen.generate(schema);
+      const parsed = JSON.parse(result);
+      expect(parsed[0].email).toContain('@');
+    });
+
+    it('should generate varied name values across items', () => {
+      const json = [{ name: 'Alice' }];
+      const schema = inferSchema(json);
+      const result = mockGen.generate(schema);
+      const parsed = JSON.parse(result);
+      const names = new Set(parsed.map((item: any) => item.name));
+      expect(names.size).toBeGreaterThan(1);
+    });
+  });
+
+  describe('zodGen - Semantic Validator', () => {
+    it('should add .min(0) for age field', () => {
+      const json = { age: 25 };
+      const schema = inferSchema(json);
+      const result = zodGen.generate(schema, 'Root');
+      expect(result).toContain('z.number().min(0)');
+    });
+
+    it('should add .min(0) for price field', () => {
+      const json = { price: 19.99 };
+      const schema = inferSchema(json);
+      const result = zodGen.generate(schema, 'Root');
+      expect(result).toContain('z.number().min(0)');
+    });
+
+    it('should add .email() for email field without format', () => {
+      const json = { email: 'test@example.com' };
+      const schema = inferSchema(json);
+      // Remove format to test name-based inference
+      if (schema.fields?.email) schema.fields.email.format = undefined;
+      const result = zodGen.generate(schema, 'Root');
+      expect(result).toContain('z.string().email()');
+    });
+
+    it('should add .url() for url field', () => {
+      const json = { website: 'https://example.com' };
+      const schema = inferSchema(json);
+      if (schema.fields?.website) schema.fields.website.format = undefined;
+      const result = zodGen.generate(schema, 'Root');
+      expect(result).toContain('z.string().url()');
+    });
+  });
+
+  describe('customFieldNames', () => {
+    const json = { user: { firstName: 'Alice', lastName: 'Smith' } };
+
+    it('tsGen should apply customFieldNames', () => {
+      const schema = inferSchema(json);
+      const result = tsGen.generate(schema, 'Root', {
+        customFieldNames: { 'RootUser.firstName': 'first_name' }
+      });
+      expect(result).toContain('first_name');
+      expect(result).not.toContain('firstName');
+    });
+
+    it('zodGen should apply customFieldNames', () => {
+      const schema = inferSchema(json);
+      const result = zodGen.generate(schema, 'Root', {
+        customFieldNames: { 'RootUser.firstName': 'first_name' }
+      });
+      expect(result).toContain('first_name');
+      expect(result).not.toContain('firstName');
+    });
+
+    it('prismaGen should apply customFieldNames', () => {
+      const schema = inferSchema(json);
+      const result = prismaGen.generate(schema, 'Root', {
+        customFieldNames: { 'RootUser.firstName': 'first_name' }
+      });
+      expect(result).toContain('first_name');
+      expect(result).not.toContain('firstName');
     });
   });
 });
