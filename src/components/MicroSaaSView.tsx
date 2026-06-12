@@ -107,8 +107,8 @@ ${schemaInput}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-black uppercase tracking-widest flex items-center gap-3">
-              <AppWindow className="text-blue-600" size={24} /> 
-              Micro-SaaS Engine <span className="px-2 py-0.5 bg-blue-600/20 text-blue-400 rounded-md text-[10px] ml-2">V5 BETA</span>
+              <AppWindow className="text-slate-700 dark:text-white" size={24} />
+              Micro-SaaS Engine <span className="px-2 py-0.5 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white border border-slate-200 dark:border-white/10 rounded-md text-[10px] ml-2">V5 BETA</span>
             </h1>
             <p className="text-xs text-slate-500 font-bold mt-2">Instantly synthesize a fully functional React + Tailwind CRUD dashboard from any schema.</p>
           </div>
@@ -140,7 +140,7 @@ ${schemaInput}
                <button
                  onClick={handleGenerate}
                  disabled={isGenerating}
-                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all flex justify-center items-center gap-2 shadow-lg shadow-blue-600/20 disabled:opacity-50"
+                 className="w-full py-3 text-slate-900 dark:text-white font-black text-xs uppercase tracking-widest rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all flex justify-center items-center gap-2 disabled:opacity-50"
                >
                  {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
                  {isGenerating ? 'Synthesizing...' : 'Generate Full-Stack App'}

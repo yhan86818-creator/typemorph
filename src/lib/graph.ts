@@ -24,10 +24,6 @@ export function extractTypeGraph(tsCode: string): TypeGraph {
   const nodes: TypeNode[] = [];
   const edges: TypeEdge[] = [];
 
-  // Match all interface declarations
-  const interfaceRegex = /(?:export\s+)?interface\s+(\w+)\s*(?:extends\s+[\w,\s]+)?\{([^}]*)\}/g;
-  let match: RegExpExecArray | null;
-
   const allInterfaceNames = new Set<string>();
   // First pass: collect all interface names
   const scanRegex = /(?:export\s+)?interface\s+(\w+)/g;
@@ -36,13 +32,27 @@ export function extractTypeGraph(tsCode: string): TypeGraph {
     allInterfaceNames.add(scanMatch[1]);
   }
 
+  // Extract interface declarations with balanced-brace body parsing so that
+  // field types containing '{...}' object literals don't truncate the body.
+  const extractedInterfaces: { name: string; body: string }[] = [];
+  const headerRe = /(?:export\s+)?interface\s+(\w+)\s*(?:extends\s+[\w,\s]+)?\s*\{/g;
+  let hm: RegExpExecArray | null;
+  while ((hm = headerRe.exec(tsCode)) !== null) {
+    const ifName = hm[1];
+    let depth = 1;
+    let pos = hm.index + hm[0].length;
+    while (pos < tsCode.length && depth > 0) {
+      const ch = tsCode[pos++];
+      if (ch === '{') depth++;
+      else if (ch === '}') depth--;
+    }
+    extractedInterfaces.push({ name: ifName, body: tsCode.slice(hm.index + hm[0].length, pos - 1) });
+  }
+
   const nodeMap = new Map<string, TypeNode>();
 
   // Second pass: extract fields and build nodes
-  while ((match = interfaceRegex.exec(tsCode)) !== null) {
-    const interfaceName = match[1];
-    const body = match[2];
-
+  for (const { name: interfaceName, body } of extractedInterfaces) {
     const fields: TypeNode['fields'] = [];
     const fieldLines = body.split('\n').map(l => l.trim()).filter(Boolean);
 

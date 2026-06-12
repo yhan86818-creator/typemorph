@@ -1,0 +1,32 @@
+{
+  "name": "typemorph-cli",
+  "version": "0.1.0",
+  "description": "Schema engineering CLI — convert JSON to 290+ code formats, diff schemas, and more.",
+  "keywords": [
+    "json",
+    "typescript",
+    "zod",
+    "schema",
+    "codegen",
+    "go",
+    "rust",
+    "prisma",
+    "graphql",
+    "openapi"
+  ],
+  "homepage": "https://typemorph.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devflow-labs/typemorph"
+  },
+  "license": "MIT",
+  "bin": {
+    "typemorph": "./cli.js"
+  },
+  "files": [
+    "cli.js"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

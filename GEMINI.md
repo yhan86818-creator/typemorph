@@ -1,7 +1,7 @@
-# TypeFlow Pro - Engineering Standards
+# TypeMorph - Engineering Standards
 
 ## Project Context
-TypeFlow Pro is a high-performance, local-first schema engineering workbench. Its core value proposition is **100% private**, local data processing combined with professional-grade code generation.
+TypeMorph is a high-performance, local-first schema engineering workbench. Its core value proposition is **100% private**, local data processing combined with professional-grade code generation.
 
 ## Core Mandates
 1. **Security**: No data should ever leave the browser unless explicitly requested (e.g., via the user's BYOK Gemini API key).
@@ -22,4 +22,4 @@ TypeFlow Pro is a high-performance, local-first schema engineering workbench. It
 ## Deployment Workflow
 - **Build**: `npm run build` (Ensures static page generation for 600+ paths).
 - **Verify**: Always run `npm test` before deploying.
-- **Deploy**: `npx wrangler pages deploy out --project-name typeflow-pro` (Cloudflare Pages).
+- **Deploy**: `npx wrangler pages deploy out --project-name typemorph` (Cloudflare Pages).

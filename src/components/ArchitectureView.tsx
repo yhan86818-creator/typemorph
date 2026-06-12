@@ -512,7 +512,7 @@ CREATE TABLE comments (
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
               className="max-w-md w-full bg-white dark:bg-slate-900 rounded-[3rem] p-12 text-center shadow-2xl border border-slate-200 dark:border-slate-800"
             >
-              <div className="w-20 h-20 bg-blue-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8 text-white shadow-xl">
+              <div className="w-20 h-20 bg-slate-900 dark:bg-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 text-white dark:text-slate-900 shadow-xl">
                 <Crown size={40} />
               </div>
               <h2 className="text-3xl font-black mb-4 dark:text-white">Pro Architect</h2>
@@ -520,7 +520,7 @@ CREATE TABLE comments (
                 Visualizing complex systems requires serious compute. Upgrade to Pro for unlimited AI diagrams and advanced SVG exports.
               </p>
               <div className="space-y-4">
-                <a href="https://yhanster206.gumroad.com/l/zjcuuu" target="_blank" rel="noopener noreferrer" onClick={() => trackProClick('architecture_paywall')} className="block w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:scale-105 transition-all">Unlock Unlimited Access</a>
+                <a href="https://yhanster206.gumroad.com/l/zjcuuu" target="_blank" rel="noopener noreferrer" onClick={() => trackProClick('architecture_paywall')} className="block w-full text-slate-900 dark:text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 transition-all">Unlock Unlimited Access</a>
                 <button onClick={() => setShowPaywall(false)} className="block w-full text-slate-400 font-bold text-xs uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-300 transition-colors">Maybe later</button>
               </div>
             </motion.div>
@@ -532,13 +532,13 @@ CREATE TABLE comments (
       <div className="h-20 border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-[#020617]/50 backdrop-blur-xl z-10 px-8 flex items-center justify-between">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+            <div className="w-10 h-10 bg-slate-900 dark:bg-white rounded-xl flex items-center justify-center text-white dark:text-slate-900 shadow-lg">
               <Layers size={22} />
             </div>
             <div>
               <h1 className="text-sm font-mono tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                 Visual Architecture 
-                <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded-md text-[8px] font-mono uppercase">v2.0 Beta</span>
+                <span className="px-2 py-0.5 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white border border-slate-200 dark:border-white/10 rounded-md text-[8px] font-mono uppercase">v2.0 Beta</span>
               </h1>
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
@@ -557,7 +557,7 @@ CREATE TABLE comments (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`px-4 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest flex items-center gap-2 transition-all ${activeTab === tab.id ? 'bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`px-4 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest flex items-center gap-2 transition-all ${activeTab === tab.id ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 {tab.icon} <span>{tab.label}</span>
               </button>
@@ -577,7 +577,7 @@ CREATE TABLE comments (
           <button
             onClick={generateDiagram}
             disabled={isGenerating}
-            className="group px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-mono text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-blue-600/10 disabled:opacity-50 flex items-center gap-2"
+            className="group px-6 py-3 text-slate-900 dark:text-white font-mono text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
           >
             {isGenerating ? <Loader2 className="animate-spin" size={16} /> : <Wand2 size={16} className="group-hover:rotate-12 transition-transform" />}
             <span>Synthesize Architecture</span>
@@ -633,7 +633,7 @@ CREATE TABLE comments (
                     transition={{ type: 'spring', damping: 20 }}
                     className="bg-white dark:bg-slate-900 p-16 rounded-[4rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)] border border-slate-200 dark:border-slate-800 relative group"
                   >
-                    <div className="absolute inset-0 bg-blue-600/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-[4rem] pointer-events-none" />
+                    <div className="absolute inset-0 bg-slate-900/[0.03] dark:bg-white/[0.03] opacity-0 group-hover:opacity-100 transition-opacity rounded-[4rem] pointer-events-none" />
                     <div 
                       className="max-w-full overflow-visible"
                       dangerouslySetInnerHTML={{ __html: svg }}
@@ -648,7 +648,7 @@ CREATE TABLE comments (
                     <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed mb-4">{svgError}</p>
                     <button
                       onClick={generateDiagram}
-                      className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all"
+                      className="px-5 py-2.5 text-slate-900 dark:text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-105 transition-all"
                     >
                       Regenerate
                     </button>
@@ -656,7 +656,7 @@ CREATE TABLE comments (
                 ) : (
                   <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center max-w-xs">
                     <div className="w-24 h-24 bg-white dark:bg-slate-800 rounded-[2.5rem] flex items-center justify-center mb-8 mx-auto shadow-2xl border border-slate-200 dark:border-slate-700">
-                      <Sparkles size={40} className="text-blue-500" />
+                      <Sparkles size={40} className="text-slate-300 dark:text-slate-600" />
                     </div>
                     <h3 className="text-lg font-black text-slate-900 dark:text-white mb-2">No Architecture Found</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">Paste your SQL schema or JSON data and let our AI engine visualize the internal relationships.</p>
@@ -694,7 +694,7 @@ CREATE TABLE comments (
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-2 p-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl z-20"
             >
-              <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="p-3 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-2xl transition-all"><ZoomIn size={18} /></button>
+              <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="p-3 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-2xl transition-all"><ZoomIn size={18} /></button>
               <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
               <button 
                 onClick={handleDownloadSVG} 
@@ -710,12 +710,12 @@ CREATE TABLE comments (
               </button>
               <button 
                 onClick={() => handleExportPNG(false)} 
-                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-slate-950 rounded-xl font-mono text-[9px] uppercase tracking-widest hover:scale-105 transition-all shrink-0 shadow-lg shadow-blue-600/10"
+                className="flex items-center gap-2 px-4 py-2.5 text-slate-900 dark:text-white rounded-xl font-mono text-[9px] uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-105 transition-all shrink-0"
               >
                 <Download size={12} /> <span>PNG (Solid)</span>
               </button>
               <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
-              <button className="p-3 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-2xl transition-all"><Share2 size={18} /></button>
+              <button className="p-3 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-2xl transition-all"><Share2 size={18} /></button>
             </motion.div>
           )}
         </div>
@@ -725,20 +725,20 @@ CREATE TABLE comments (
       <div className="h-10 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#020617] px-8 flex items-center justify-between text-[9px] font-mono uppercase tracking-widest text-slate-400">
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2">
-            <MousePointer2 size={12} className="text-blue-600" />
+            <MousePointer2 size={12} className="text-slate-400" />
             Interactive Viewport Ready
           </div>
           <div className="flex items-center gap-2">
-            <RefreshCw size={12} className="text-blue-600" />
+            <RefreshCw size={12} className="text-slate-400" />
             Engine: Mermaid v10.9
           </div>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-slate-300">TypeMorph</span>
           <div className="flex gap-1">
-            <div className="w-1 h-1 rounded-full bg-blue-600" />
-            <div className="w-1 h-1 rounded-full bg-blue-600/50" />
-            <div className="w-1 h-1 rounded-full bg-blue-600/20" />
+            <div className="w-1 h-1 rounded-full bg-slate-400" />
+            <div className="w-1 h-1 rounded-full bg-slate-400/50" />
+            <div className="w-1 h-1 rounded-full bg-slate-400/20" />
           </div>
         </div>
       </div>

@@ -24,6 +24,7 @@ import { FeedbackModal } from '@/components/FeedbackModal';
 import { supabase } from '@/lib/supabase';
 import { User as UserIcon, LogOut } from 'lucide-react';
 import { trackWorkbenchOpen, trackProClick } from '@/lib/analytics';
+import { resolveSlugTarget } from '@/lib/targets';
 
 export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug = "" }) {
   const [view, setView] = useState<any>(initialSlug ? 'app' : defaultView);
@@ -33,14 +34,9 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
   const [licenseKey, setLicenseKey] = useState("");
   const [geminiKey, setGeminiKey] = useState("");
   const [selectedSlug, setSelectedSlug] = useState(initialSlug || 'json-to-typescript');
-  const getInitialTab = (s: string) => {
-    if (s.includes('zod')) return 'zod';
-    if (s.includes('go')) return 'go';
-    if (s.includes('rust')) return 'rust';
-    if (s.includes('python')) return 'python';
-    if (s.includes('dart')) return 'dart';
-    return 'typescript';
-  };
+  // slug が約束する出力形式を初期タブに設定する。
+  // 解決できない（runEngine 未対応の）slug は 'typescript' にフォールバック。
+  const getInitialTab = (s: string) => resolveSlugTarget(s)?.key ?? 'typescript';
   const [outputTab, setOutputTab] = useState(getInitialTab(initialSlug || 'json-to-typescript'));
   const [isVerifying, setIsVerifying] = useState(false);
   const [vMsg, setVMsg] = useState({ type: '', text: '' });
@@ -151,9 +147,9 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
           <div className="flex items-center gap-10">
             <div className="flex items-center gap-4">
               {view !== 'landing' && (
-                <button 
+                <button
                   onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all"
                   title="Toggle Sidebar (Cmd+B)"
                 >
                   {isSidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
@@ -169,24 +165,24 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
                 <button 
                   key={v}
                   onClick={() => setView(v)} 
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${view === v ? 'text-slate-950 dark:text-white font-black' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${view === v ? 'bg-slate-100 dark:bg-white/10 text-slate-900 dark:text-white' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
                 >
                   {v === 'landing' ? 'Explore' : 'Workbench'}
                 </button>
               ))}
-<Link prefetch={false} href="/converters/" className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all flex items-center gap-1.5"><LayoutTemplate size={11}/> 200+ Tools</Link>
-              <Link prefetch={false} href="/blog/" className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-blue-600 transition-all">Blog</Link>
+              <Link prefetch={false} href="/converters/" className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all flex items-center gap-1.5"><LayoutTemplate size={11}/> 200+ Tools</Link>
+              <Link prefetch={false} href="/blog/" className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-all">Blog</Link>
             </div>
 
             {/* Language Switcher */}
             <div className="hidden sm:flex items-center gap-1 ml-4">
               <Link prefetch={false} href={initialSlug ? `/converters/${initialSlug}` : '/'}
-                className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mounted && !window.location.pathname.includes('/jp/') ? 'text-slate-950 dark:text-white font-black' : 'text-slate-400'}`}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${mounted && !window.location.pathname.includes('/jp/') ? 'text-slate-950 dark:text-white font-black' : 'text-slate-400'}`}
               >
                 EN
               </Link>
               <Link prefetch={false} href={initialSlug ? `/jp/converters/${initialSlug}` : '/jp'}
-                className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mounted && window.location.pathname.includes('/jp/') ? 'text-slate-950 dark:text-white font-black' : 'text-slate-400'}`}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${mounted && window.location.pathname.includes('/jp/') ? 'text-slate-950 dark:text-white font-black' : 'text-slate-400'}`}
               >
                 JP
               </Link>
@@ -195,15 +191,15 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
 
           <div className="flex items-center gap-4">
             {deferredPrompt && (
-              <button onClick={handleInstall} className="hidden md:flex items-center gap-2 px-3.5 py-1.5 text-slate-500 dark:text-slate-400 rounded-xl text-[9px] font-black uppercase tracking-wider hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+              <button onClick={handleInstall} className="hidden md:flex items-center gap-2 px-3.5 py-1.5 text-slate-500 dark:text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
                 <Download size={12} /> Install App
               </button>
             )}
 
             {!isPro && (
-              <button onClick={() => setShowLicenseModal(true)} className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/10 rounded-xl border border-blue-600/20 hover:scale-102 transition-all">
-                <Crown size={12} className="text-blue-600" />
-                <span className="text-[9px] font-black text-blue-700 dark:text-blue-400 uppercase">{trialCount} Trials</span>
+              <button onClick={() => setShowLicenseModal(true)} className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-white/10 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/20 transition-all">
+                <Crown size={12} className="text-slate-700 dark:text-white" />
+                <span className="text-[10px] font-black text-slate-700 dark:text-white uppercase">{trialCount} Trials</span>
               </button>
             )}
             
@@ -211,7 +207,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
             <div className="relative group flex flex-col items-end">
               <div className="relative">
                 <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                  <Key size={12} className={geminiKey ? 'text-blue-600' : 'text-slate-400'} />
+                  <Key size={12} className={geminiKey ? 'text-slate-700 dark:text-white' : 'text-slate-400'} />
                 </div>
                 <input 
                   type="password" 
@@ -221,20 +217,20 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
                     setGeminiKey(e.target.value);
                     localStorage.setItem('typemorph_gemini_key', e.target.value);
                   }}
-                  className="w-40 bg-slate-100 dark:bg-slate-900 border-none outline-none pl-8 pr-3 py-1.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:ring-1 focus:ring-blue-600 transition-all placeholder:text-slate-400"
+                  className="w-40 bg-slate-100 dark:bg-white/10 border-none outline-none pl-8 pr-3 py-1.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:ring-1 focus:ring-slate-900 dark:focus:ring-white transition-all placeholder:text-slate-400"
                 />
               </div>
               <a 
                 href="https://aistudio.google.com/app/apikey" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-[8px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors mt-1 pr-1"
+                className="text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors mt-1 pr-1"
               >
                 Get Free API Key
               </a>
             </div>
 
-            <button onClick={toggleTheme} className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+            <button onClick={toggleTheme} className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
               {isDark ? <Sun size={16} /> : <Moon size={16} />}
             </button>
             
@@ -260,16 +256,16 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
 
         <main className={`flex-1 min-w-0 ${initialSlug ? '' : 'overflow-y-auto'} relative no-scrollbar flex flex-col`}>
           {/* Beta Mode Promotion Banner */}
-          <div className="flex-none bg-amber-50/80 dark:bg-amber-950/20 text-slate-600 dark:text-slate-400 px-6 py-2 flex items-center justify-between border-b border-amber-200/50 dark:border-amber-900/30 z-50">
+          <div className="flex-none bg-slate-50 dark:bg-white/[0.03] text-slate-500 dark:text-slate-400 px-6 py-2 flex items-center justify-between border-b border-slate-100 dark:border-white/[0.06] z-50">
             <div className="flex items-center gap-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500 shrink-0" />
               <p className="text-[11px] font-medium tracking-tight">
                 Pro features are free during beta
               </p>
             </div>
             <button 
               onClick={() => setShowFeedbackModal(true)}
-              className="flex items-center gap-1 text-[9px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+              className="flex items-center gap-1 text-[10px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
             >
               <MessageSquare size={10} /> Feedback
             </button>
@@ -312,12 +308,12 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
                   placeholder="Paste License Key..." 
                   value={licenseKey}
                   onChange={(e) => setLicenseKey(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 rounded-xl text-xs outline-none focus:border-blue-600 dark:text-white"
+                  className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-4 py-3 rounded-xl text-xs outline-none focus:border-slate-900 dark:focus:border-white dark:text-white transition-colors"
                 />
                 <button 
                   onClick={handleVerify}
                   disabled={isVerifying}
-                  className="w-full bg-blue-600 text-white py-3 rounded-xl font-black text-xs shadow-xl hover:scale-[1.02] transition-all"
+                  className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-3 rounded-xl font-black text-xs hover:opacity-80 transition-opacity"
                 >
                   {isVerifying ? 'Verifying...' : 'Activate License'}
                 </button>
@@ -339,7 +335,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
         isDark={mounted ? isDark : false}
       />
       {/* Deployment Verification Tag */}
-      <div className="fixed bottom-2 right-2 text-[8px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-700 pointer-events-none z-[500]">
+      <div className="fixed bottom-2 right-2 text-[10px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-700 pointer-events-none z-[500]">
         v1.2.5-PRICING-19
       </div>
     </div>

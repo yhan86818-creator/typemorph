@@ -8,7 +8,16 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  runEngine, parseYAML, parseXML, parseCurl, curlToTypeScript, parseSQLToZod, getDecisions, type Decision 
+  runEngine, 
+  parseYAML, 
+  parseXML, 
+  parseCurl, 
+  curlToTypeScript, 
+  parseSQLToZod, 
+  parseOpenAPI,
+  parseTypeScriptToSchema,
+  getDecisions,
+  type Decision
 } from '@/lib/engine';
 import { compareSchemas, type SchemaDiff } from '@/lib/diff';
 import {
@@ -23,6 +32,7 @@ import { JsonVisualizer, Toast } from './SharedUI';
 import { History as HistoryIcon, Clock, FolderOpen } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getWorkbenchEditorText, WorkbenchOutputStatus } from './workbench-utils';
+import { resolveSlugTarget, monacoLanguageForTarget } from '@/lib/targets';
 import { User } from '@supabase/supabase-js';
 import SuperBatchModal from './SuperBatchModal';
 import dynamic from 'next/dynamic';
@@ -298,6 +308,11 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
   }, []);
   const [aiStatus, setAiStatus] = useState("");
   const [showBatchModal, setShowBatchModal] = useState(false);
+  const [showGraphBadge, setShowGraphBadge] = useState(false);
+
+  useEffect(() => {
+    if (!localStorage.getItem('typemorph_graph_tab_visited')) setShowGraphBadge(true);
+  }, []);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [isZodGenerating, setIsZodGenerating] = useState(false);
   const [hasParseError, setHasParseError] = useState(false);
@@ -616,7 +631,15 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
           const compressed = hash.substring(6);
           const decompressed = LZString.decompressFromEncodedURIComponent(compressed);
           if (decompressed) {
-            setTimeout(() => setInput(decompressed), 0);
+            try {
+              const { input: savedInput, tab } = JSON.parse(decompressed);
+              setTimeout(() => {
+                setInput(savedInput);
+                if (tab) setOutputTab(tab);
+              }, 0);
+            } catch {
+              setTimeout(() => setInput(decompressed), 0);
+            }
           }
         } catch (e) {
           console.error('Failed to decompress state from URL hash', e);
@@ -647,7 +670,13 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
 
         const decompressed = LZString.decompressFromEncodedURIComponent(data.compressed_data);
         if (decompressed) {
-          setInput(decompressed);
+          try {
+            const { input: savedInput, tab } = JSON.parse(decompressed);
+            setInput(savedInput);
+            if (tab) setOutputTab(tab);
+          } catch {
+            setInput(decompressed);
+          }
           // Clean ?share= from URL after loading so sharing is non-intrusive
           window.history.replaceState(null, '', window.location.pathname);
         }
@@ -1167,7 +1196,16 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     }
     else {
       try {
-        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        const tsRes = (trimmed.includes('interface ') || trimmed.includes('type ')) ? parseTypeScriptToSchema(trimmed) : null;
+        if (tsRes) {
+          jsonObj = tsRes;
+          success = true;
+        } else {
+          const openApiRes = parseOpenAPI(trimmed);
+          if (openApiRes) {
+            jsonObj = openApiRes;
+            success = true;
+          } else if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
           jsonObj = JSON.parse(trimmed);
           success = true;
         }
@@ -1183,6 +1221,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
           if (yamlResult && Object.keys(yamlResult).length > 0) {
             jsonObj = yamlResult;
             success = true;
+          }
           }
         }
       } catch (e) {}
@@ -1215,7 +1254,11 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
         }
         const activeLang = outputTabRef.current || 'typescript';
         const taskId = ++taskIdRef.current;
-        const langs = ['typescript', 'zod', 'go', 'rust', 'java', 'python', 'dart', 'php', 'csharp', 'protobuf', 'graphql', 'swift', 'kotlin', 'sql', 'jsonschema', 'mock', 'ui', 'doc'].filter(l => l !== activeLang);
+        // slug 専用ターゲット（mongoose/drizzle/csv 等）も先読み生成対象に含める
+        const slugTargetKey = resolveSlugTarget(slug)?.key;
+        const baseLangs = ['typescript', 'zod', 'go', 'rust', 'java', 'python', 'dart', 'php', 'csharp', 'protobuf', 'graphql', 'swift', 'kotlin', 'sql', 'jsonschema', 'mock', 'ui', 'doc'];
+        if (slugTargetKey && !baseLangs.includes(slugTargetKey)) baseLangs.push(slugTargetKey);
+        const langs = baseLangs.filter(l => l !== activeLang);
         const allTargets = [activeLang, ...langs];
 
         setOutputs((prev: any) => ({
@@ -1363,7 +1406,8 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     }
     setIsSharing(true);
     try {
-      const compressed = LZString.compressToEncodedURIComponent(input);
+      const payload = JSON.stringify({ input, tab: outputTab });
+      const compressed = LZString.compressToEncodedURIComponent(payload);
       const candidateUrl = `${window.location.origin}${window.location.pathname}#data=${compressed}`;
 
       // URL-safe threshold: keep well below browser/sharing-tool limits
@@ -1464,7 +1508,10 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     lastSlug.current = slug;
   }, [slug, geminiKey]); // Removed handleAiSmartParse from dependency
 
-  const mainTabs = [
+  // このコンバータ slug が約束している出力形式（runEngine 対応のもの）
+  const slugTarget = resolveSlugTarget(slug);
+
+  const baseMainTabs = [
     { id: 'typescript', label: 'TS' },
     { id: 'zod', label: 'Zod' },
     { id: 'go', label: 'Go' },
@@ -1491,6 +1538,16 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     { id: 'doc', label: 'Doc' },
     { id: 'json', label: 'JSON' }
   ];
+
+  // slug の目的形式が標準タブに無い場合（mongoose, drizzle, csv, toml 等）は
+  // 専用タブを先頭に注入し、ページが約束どおりの出力を必ず出せるようにする。
+  const mainTabs = (() => {
+    const existing = new Set([...baseMainTabs, ...moreTabs].map(t => t.id));
+    if (slugTarget && !existing.has(slugTarget.key)) {
+      return [{ id: slugTarget.key, label: slugTarget.label }, ...baseMainTabs];
+    }
+    return baseMainTabs;
+  })();
 
   const tabs = [...mainTabs, ...moreTabs];
 
@@ -1524,7 +1581,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
               <button
                 onClick={handleAiSchemaHeal}
                 disabled={isAiLoading}
-                className="flex items-center gap-1.5 text-[9px] font-mono uppercase text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 px-2.5 py-1.5 rounded-lg border border-red-200 dark:border-red-900/50 hover:bg-red-600 hover:text-white transition-all"
+                className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 px-2.5 py-1.5 rounded-lg border border-red-200 dark:border-red-900/50 hover:bg-red-600 hover:text-white transition-all"
                 title="AI detects a syntax error. Click to auto-heal!"
               >
                 <Sparkles size={10} />
@@ -1536,7 +1593,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
             {/* ⋯ More Menu */}
             <div className="relative group/more">
               <button
-                className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-slate-500 dark:text-slate-300 px-3 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 transition-all"
+                className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-slate-500 dark:text-slate-300 px-3 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all"
               >
                 <MoreHorizontal size={12} />
               </button>
@@ -1578,14 +1635,14 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
         {/* Presets and History Chips */}
         <div className="flex flex-col gap-2 mb-3">
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-            <span className="flex items-center gap-1 text-[8px] font-mono uppercase text-slate-500 dark:text-slate-350 tracking-wider shrink-0 font-bold">
+            <span className="flex items-center gap-1 text-[10px] font-mono uppercase text-slate-500 dark:text-slate-350 tracking-wider shrink-0 font-bold">
               <Zap size={10} className="text-slate-400" /> Presets:
             </span>
             {PRESETS.map((p, i) => (
               <button 
                 key={i}
                 onClick={() => { setInput(typeof p.data === 'string' ? p.data : JSON.stringify(p.data, null, 2)); resetBaseline(p.data); }}
-                className="px-2.5 py-1 rounded-lg text-[9px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white transition-all shrink-0"
+                className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white transition-all shrink-0"
               >
                 {p.label}
               </button>
@@ -1596,7 +1653,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
             const filteredHistory = history.filter(h => h.content.trim() !== input.trim());
             return filteredHistory.length > 0 && (
               <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-                <span className="flex items-center gap-1 text-[8px] font-mono uppercase text-slate-500 dark:text-slate-350 tracking-wider shrink-0 font-bold">
+                <span className="flex items-center gap-1 text-[10px] font-mono uppercase text-slate-500 dark:text-slate-350 tracking-wider shrink-0 font-bold">
                   <Clock size={10} /> History:
                 </span>
                 {filteredHistory.map((h, i) => (
@@ -1701,7 +1758,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
             <div className="absolute inset-0 bg-slate-50/95 dark:bg-slate-950/40 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-6 text-center select-none overflow-y-auto no-scrollbar">
               {/* Dashed drop area */}
               <div 
-                className="w-full max-w-lg border-2 border-dashed border-slate-300 dark:border-blue-500/20 rounded-2xl p-8 flex flex-col items-center gap-4 bg-white/40 dark:bg-slate-900/40 hover:border-blue-500 dark:hover:border-blue-500/80 hover:shadow-lg transition-all duration-300 group/drop cursor-pointer"
+                className="w-full max-w-lg border-2 border-dashed border-slate-300 dark:border-white/10 rounded-2xl p-8 flex flex-col items-center gap-4 bg-white/40 dark:bg-slate-900/40 hover:border-slate-400 dark:hover:border-white/30 hover:shadow-lg transition-all duration-300 group/drop cursor-pointer"
                 onClick={() => {
                   const fileInput = document.createElement('input');
                   fileInput.type = 'file';
@@ -1720,7 +1777,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                   fileInput.click();
                 }}
               >
-                <div className="p-4 rounded-2xl bg-blue-500/10 text-blue-500 dark:text-blue-400 group-hover/drop:scale-110 transition-transform duration-300">
+                <div className="p-4 rounded-2xl bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 group-hover/drop:scale-110 transition-transform duration-300">
                   <Upload size={32} className="" />
                 </div>
                 <div>
@@ -1743,15 +1800,15 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                     <button
                       key={i}
                       onClick={() => setInput(typeof p.data === 'string' ? p.data : JSON.stringify(p.data, null, 2))}
-                      className="flex flex-col items-start p-4 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-[#222222]/50 hover:border-blue-500/50 dark:hover:border-blue-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-all text-left group"
+                      className="flex flex-col items-start p-4 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-[#222222]/50 hover:border-slate-300 dark:hover:border-white/20 hover:shadow-lg hover:-translate-y-0.5 transition-all text-left group"
                     >
-                      <span className="text-[10px] font-mono text-blue-600 dark:text-blue-400 font-bold mb-1 flex items-center gap-1">
+                      <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 font-bold mb-1 flex items-center gap-1">
                         <Zap size={10} className="text-yellow-500" /> Preset {i + 1}
                       </span>
-                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 group-hover:text-blue-500 transition-colors font-sans">
+                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors font-sans">
                         {p.label}
                       </span>
-                      <span className="text-[9px] text-slate-500 dark:text-slate-400 mt-1 block leading-tight font-sans">
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block leading-tight font-sans">
                         {p.label === 'SWIFT MT103' && 'Raw SWIFT MT103 customer credit transfer message.'}
                         {p.label === 'Team Project' && 'Complex deep nesting, arrays, ISO dates, location.'}
                         {p.label === 'E-commerce Order' && 'Product arrays, currencies, shipping info.'}
@@ -1781,13 +1838,13 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
         {/* Toggle button */}
         <button
           onClick={toggleLeftPanel}
-          className="absolute top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-6 h-10 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-md hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:border-blue-400 dark:hover:border-blue-500/50 hover: transition-all group/toggle"
+          className="absolute top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-6 h-10 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-md hover:bg-slate-100 dark:hover:bg-white/10 hover:border-slate-300 dark:hover:border-white/20 transition-all group/toggle"
           title={isLeftCollapsed ? 'Show input panel' : 'Hide input panel'}
         >
           {isLeftCollapsed ? (
-            <PanelLeftOpen size={14} className="text-slate-400 dark:text-slate-500 group-hover/toggle:text-blue-600 dark:group-hover/toggle:text-blue-400 transition-colors" />
+            <PanelLeftOpen size={14} className="text-slate-400 dark:text-slate-500 group-hover/toggle:text-slate-900 dark:group-hover/toggle:text-white transition-colors" />
           ) : (
-            <PanelLeftClose size={14} className="text-slate-400 dark:text-slate-500 group-hover/toggle:text-blue-600 dark:group-hover/toggle:text-blue-400 transition-colors" />
+            <PanelLeftClose size={14} className="text-slate-400 dark:text-slate-500 group-hover/toggle:text-slate-900 dark:group-hover/toggle:text-white transition-colors" />
           )}
         </button>
 
@@ -1798,7 +1855,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
             className="w-6 h-full cursor-col-resize flex items-center justify-center group"
             title="Drag to resize panes"
           >
-            <div className={`w-[2px] h-full transition-all duration-150 ${isResizing ? 'bg-blue-600 dark:bg-blue-500 shadow-[0_0_10px_rgba(37,99,235,0.8)] scale-x-125' : 'bg-slate-200 dark:bg-slate-800/80 group-hover:bg-blue-500/50 dark:group-hover:bg-blue-500/50'}`} />
+            <div className={`w-[2px] h-full transition-all duration-150 ${isResizing ? 'bg-slate-900 dark:bg-white scale-x-125' : 'bg-slate-200 dark:bg-slate-800/80 group-hover:bg-slate-400 dark:group-hover:bg-slate-500'}`} />
           </div>
         )}
       </div>
@@ -1808,10 +1865,10 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
           {/* Desktop tabs navigation */}
           <div className="hidden md:flex items-center gap-1 overflow-visible no-scrollbar pb-1 max-w-[calc(100%-100px)]">
             {mainTabs.map(tab => (
-              <button 
+              <button
                 key={tab.id}
                 onClick={() => setOutputTab(tab.id)}
-                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${outputTab === tab.id ? 'text-slate-950 dark:text-white font-black' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all shrink-0 ${outputTab === tab.id ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
               >
                 <span>{tab.label}</span>
               </button>
@@ -1819,7 +1876,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
             {/* + More ▼ dropdown */}
             <div className="relative group/more-tabs">
               <button
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${moreTabs.some(t => t.id === outputTab) ? 'text-slate-950 dark:text-white font-black' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all shrink-0 ${moreTabs.some(t => t.id === outputTab) ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
               >
                 <span>+ {moreTabs.some(t => t.id === outputTab) ? `More (${moreTabs.find(t => t.id === outputTab)?.label})` : 'More'}</span>
                 <ChevronDown size={10} />
@@ -1828,10 +1885,19 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                 {moreTabs.map(tab => (
                   <button
                     key={tab.id}
-                    onClick={() => setOutputTab(tab.id)}
+                    onClick={() => {
+                      setOutputTab(tab.id);
+                      if (tab.id === 'graph' && showGraphBadge) {
+                        localStorage.setItem('typemorph_graph_tab_visited', '1');
+                        setShowGraphBadge(false);
+                      }
+                    }}
                     className={`flex items-center gap-2 w-full text-left text-[10px] font-mono uppercase px-4 py-2.5 transition-colors ${outputTab === tab.id ? 'bg-slate-100 dark:bg-slate-700 text-slate-950 dark:text-white font-bold' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
                   >
                     <span>{tab.label}</span>
+                    {tab.id === 'graph' && showGraphBadge && (
+                      <span className="ml-auto text-[8px] font-black uppercase tracking-wider bg-indigo-500 text-white px-1.5 py-0.5 rounded-full leading-none">NEW</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -1841,7 +1907,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
           {/* Mobile bottom sheet trigger button */}
           <button 
             onClick={() => setShowMobileLangs(true)}
-            className="md:hidden flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50/40 dark:bg-blue-950/40 px-3.5 py-1.5 rounded-xl border border-blue-200 dark:border-blue-900/50 hover:bg-blue-600 hover:text-white transition-all shrink-0 active:scale-95"
+            className="md:hidden flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white bg-slate-100 dark:bg-white/10 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-900 hover:text-white dark:hover:bg-white dark:hover:text-slate-900 transition-all shrink-0 active:scale-95"
           >
             <span>{tabs.find(t => t.id === outputTab)?.label || outputTab.toUpperCase()}</span>
             <ChevronDown size={12} />
@@ -1851,7 +1917,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
             <div className="hidden md:flex items-center gap-1">
               <button
                 onClick={() => setOutputTab('history')}
-                className="flex items-center justify-center text-slate-500 dark:text-slate-300 w-9 h-9 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 transition-all"
+                className="flex items-center justify-center text-slate-500 dark:text-slate-300 w-9 h-9 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all"
                 title="Schema Change History"
               >
                 <Clock size={14} />
@@ -1861,7 +1927,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
             <button 
               onClick={handleSmartShare}
               disabled={isSharing}
-              className="flex items-center justify-center text-slate-500 dark:text-slate-300 w-9 h-9 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 transition-all disabled:opacity-50"
+              className="flex items-center justify-center text-slate-500 dark:text-slate-300 w-9 h-9 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all disabled:opacity-50"
               title="Copy shareable link (auto-selects URL or Cloud based on size)"
             >
               {isSharing ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
@@ -1870,7 +1936,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
               onClick={() => {
                 setShowGenSettings(!showGenSettings);
               }}
-              className="flex items-center justify-center text-slate-500 dark:text-slate-300 w-9 h-9 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 transition-all"
+              className="flex items-center justify-center text-slate-500 dark:text-slate-300 w-9 h-9 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all"
               title="Settings"
             >
               <Settings size={14} />
@@ -1905,31 +1971,31 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                 <h4 className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 mb-4 tracking-wider">Code Generation Rules</h4>
                 <div className="space-y-3">
                   <label className="flex items-center gap-2 text-xs font-bold dark:text-[#E8E8E8] cursor-pointer">
-                    <input type="checkbox" checked={genSettings.exportDefault} onChange={e => setGenSettings(s => ({...s, exportDefault: e.target.checked}))} className="rounded text-blue-600 focus:ring-blue-600/20" />
+                    <input type="checkbox" checked={genSettings.exportDefault} onChange={e => setGenSettings(s => ({...s, exportDefault: e.target.checked}))} className="rounded text-slate-900 dark:text-white focus:ring-slate-900/20 dark:focus:ring-white/20" />
                     Use `export default` (TS)
                   </label>
                   <label className="flex items-center gap-2 text-xs font-bold dark:text-[#E8E8E8] cursor-pointer">
-                    <input type="checkbox" checked={genSettings.optionalFields} onChange={e => setGenSettings(s => ({...s, optionalFields: e.target.checked}))} className="rounded text-blue-600 focus:ring-blue-600/20" />
+                    <input type="checkbox" checked={genSettings.optionalFields} onChange={e => setGenSettings(s => ({...s, optionalFields: e.target.checked}))} className="rounded text-slate-900 dark:text-white focus:ring-slate-900/20 dark:focus:ring-white/20" />
                     Make all fields optional
                   </label>
                   <label className="flex items-center gap-2 text-xs font-bold dark:text-[#E8E8E8] cursor-pointer">
-                    <input type="checkbox" checked={genSettings.useUUID} onChange={e => setGenSettings(s => ({...s, useUUID: e.target.checked}))} className="rounded text-blue-600 focus:ring-blue-600/20" />
+                    <input type="checkbox" checked={genSettings.useUUID} onChange={e => setGenSettings(s => ({...s, useUUID: e.target.checked}))} className="rounded text-slate-900 dark:text-white focus:ring-slate-900/20 dark:focus:ring-white/20" />
                     Infer UUIDs for `*id` (Zod)
                   </label>
 
                   <div className="flex flex-col gap-1 mt-2">
-                    <span className="text-[9px] font-mono uppercase text-slate-500 dark:text-slate-400">Shared Type Prefix</span>
+                    <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400">Shared Type Prefix</span>
                     <input 
                       type="text" 
                       placeholder="e.g. Shared, Common, or empty" 
                       value={genSettings.sharedPrefix !== undefined ? genSettings.sharedPrefix : 'Shared'} 
                       onChange={e => setGenSettings(s => ({...s, sharedPrefix: e.target.value}))} 
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 dark:text-[#E8E8E8] outline-none focus:border-blue-500 dark:focus:border-blue-500 dark:focus:ring-2 dark:focus:ring-blue-500/50 transition-all font-sans"
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 dark:text-[#E8E8E8] outline-none focus:border-slate-900 dark:focus:border-white dark:focus:ring-2 dark:focus:ring-white/20 transition-all font-sans"
                     />
                   </div>
 
                   <div className="border-t border-slate-200 dark:border-slate-800 my-3 pt-3">
-                    <h5 className="text-[9px] font-mono uppercase text-slate-500 dark:text-slate-400 mb-2 tracking-wider flex items-center gap-1.5">
+                    <h5 className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 mb-2 tracking-wider flex items-center gap-1.5">
                       <Crown size={12} className="text-yellow-500" /> TypeMorph License
                     </h5>
                     {isProLicensed ? (
@@ -1944,13 +2010,13 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                           placeholder="Enter License Key (e.g. TF-PRO-...)" 
                           value={licenseKeyInput} 
                           onChange={e => setLicenseKeyInput(e.target.value)} 
-                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 dark:text-[#E8E8E8] outline-none focus:border-blue-500 dark:focus:border-blue-500 dark:focus:ring-2 dark:focus:ring-blue-500/50 transition-all font-mono"
+                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 dark:text-[#E8E8E8] outline-none focus:border-slate-900 dark:focus:border-white dark:focus:ring-2 dark:focus:ring-white/20 transition-all font-mono"
                         />
-                        {licenseError && <p className="text-[9px] text-red-500">{licenseError}</p>}
+                        {licenseError && <p className="text-[10px] text-red-500">{licenseError}</p>}
                         <button 
                           onClick={() => handleActivatePro()}
                           disabled={isVerifying}
-                          className="w-full flex items-center justify-center gap-1.5 text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 py-1.5 rounded-lg transition-all active:scale-95 disabled:opacity-50 shadow-md"
+                          className="w-full flex items-center justify-center gap-1.5 text-[10px] font-bold text-white bg-slate-900 dark:bg-white dark:text-slate-900 hover:opacity-80 py-1.5 rounded-lg transition-all active:scale-95 disabled:opacity-50"
                         >
                           {isVerifying ? <Loader2 size={12} className="animate-spin" /> : <Crown size={12} />}
                           <span>Activate Pro</span>
@@ -1960,24 +2026,24 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                   </div>
 
                   <div className="border-t border-slate-200 dark:border-slate-800 my-3 pt-3">
-                    <h5 className="text-[9px] font-mono uppercase text-slate-500 dark:text-slate-400 mb-2 tracking-wider flex items-center gap-1.5">
+                    <h5 className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 mb-2 tracking-wider flex items-center gap-1.5">
                       {IS_BETA ? "Beta Access Status" : "Subscription Status"}
                     </h5>
                     {IS_BETA ? (
-                      <div className="text-[10px] text-blue-600 dark:text-blue-400 font-bold px-2 py-1.5 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-100 dark:border-blue-900/50">
+                      <div className="text-[10px] text-slate-700 dark:text-white font-bold px-2 py-1.5 bg-slate-100 dark:bg-white/10 rounded-lg border border-slate-200 dark:border-white/10">
                         Full Access Unlocked for Beta
                       </div>
                     ) : (
-                      <div className="text-[9px] text-slate-500 dark:text-slate-400">
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400">
                         {isProLicensed ? "Your lifetime license is active." : "Free version with limited features."}
                       </div>
                     )}
                   </div>
 
                   <div className="border-t border-slate-200 dark:border-slate-800 my-3 pt-3">
-                    <h5 className="text-[9px] font-mono uppercase text-slate-500 dark:text-slate-400 mb-2 tracking-wider">Privacy & Data Control</h5>
+                    <h5 className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 mb-2 tracking-wider">Privacy & Data Control</h5>
                     <label className="flex items-center gap-2 text-xs font-bold dark:text-[#E8E8E8] cursor-pointer mb-3">
-                      <input type="checkbox" checked={saveCloudHistory} onChange={e => handleSaveCloudHistoryChange(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-600/20" />
+                      <input type="checkbox" checked={saveCloudHistory} onChange={e => handleSaveCloudHistoryChange(e.target.checked)} className="rounded text-slate-900 dark:text-white focus:ring-slate-900/20 dark:focus:ring-white/20" />
                       Save History to Cloud (Supabase)
                     </label>
 
@@ -1992,7 +2058,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                           setTimeout(() => setShowToast(false), 2000);
                         }
                       }}
-                      className="w-full mb-2 flex items-center justify-center gap-1.5 text-[9px] font-mono uppercase text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 py-2 rounded-lg border border-red-200 dark:border-red-900/50 hover:bg-red-600 hover:text-white transition-all active:scale-95"
+                      className="w-full mb-2 flex items-center justify-center gap-1.5 text-[10px] font-mono uppercase text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 py-2 rounded-lg border border-red-200 dark:border-red-900/50 hover:bg-red-600 hover:text-white transition-all active:scale-95"
                     >
                       Wipe Local History
                     </button>
@@ -2006,7 +2072,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                           setTimeout(() => setShowToast(false), 2000);
                         }
                       }}
-                      className="w-full flex items-center justify-center gap-1.5 text-[9px] font-mono uppercase text-slate-600 dark:text-slate-350 bg-slate-100 dark:bg-slate-800/80 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-500/50 transition-all active:scale-95"
+                      className="w-full flex items-center justify-center gap-1.5 text-[10px] font-mono uppercase text-slate-600 dark:text-slate-350 bg-slate-100 dark:bg-slate-800/80 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-white/20 transition-all active:scale-95"
                     >
                       Wipe URL State
                     </button>
@@ -2038,13 +2104,13 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
               {outputTab === 'mock' && (
                 <div className="flex items-center justify-between px-6 py-3 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-[#222222]/50 z-10 animate-fade-in">
                   <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-300 tracking-wider flex items-center gap-1.5 font-bold">
-                    <Zap size={12} className="text-blue-600" /> AI Data Synthesizer
+                    <Zap size={12} className="text-slate-500 dark:text-slate-400" /> AI Data Synthesizer
                   </span>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handleAiSynthesizeData}
                       disabled={isSynthesizing}
-                      className="flex items-center gap-1.5 text-[9px] font-mono uppercase text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900/50 hover:bg-blue-700 dark:hover:bg-blue-700 hover:text-white dark:hover:text-white transition-all disabled:opacity-50"
+                      className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-slate-900 dark:text-white px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all disabled:opacity-50"
                     >
                       {isSynthesizing ? (
                         <>
@@ -2053,20 +2119,20 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                         </>
                       ) : (
                         <>
-                          <Sparkles size={10} className="text-blue-600" />
+                          <Sparkles size={10} />
                           <span>Synthesize 50 Rows</span>
                         </>
                       )}
                     </button>
                     <button
                       onClick={downloadMockJson}
-                      className="flex items-center gap-1.5 text-[9px] font-mono uppercase text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-600/25 transition-all"
+                      className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-white/20 transition-all"
                     >
                       <span>Download JSON</span>
                     </button>
                     <button
                       onClick={downloadMockCsv}
-                      className="flex items-center gap-1.5 text-[9px] font-mono uppercase text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-600/25 transition-all"
+                      className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-white/20 transition-all"
                     >
                       <span>Download CSV</span>
                     </button>
@@ -2082,7 +2148,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                     <button
                       onClick={handleAiSemanticZod}
                       disabled={isZodGenerating}
-                      className="flex items-center gap-1.5 text-[9px] font-mono uppercase text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-900/50 hover:bg-emerald-700 dark:hover:bg-emerald-700 hover:text-white dark:hover:text-white transition-all disabled:opacity-50"
+                      className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-900/50 hover:bg-emerald-700 dark:hover:bg-emerald-700 hover:text-white dark:hover:text-white transition-all disabled:opacity-50"
                     >
                       {isZodGenerating ? (
                         <>
@@ -2114,7 +2180,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                     </div>
                     <button 
                       onClick={acceptNewBaseline}
-                      className="text-[9px] font-mono font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 hover:bg-amber-600 hover:text-white dark:hover:bg-amber-600 dark:hover:text-white px-2.5 py-1 rounded border border-amber-250 dark:border-amber-900/50 transition-all shadow-sm cursor-pointer"
+                      className="text-[10px] font-mono font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 hover:bg-amber-600 hover:text-white dark:hover:bg-amber-600 dark:hover:text-white px-2.5 py-1 rounded border border-amber-250 dark:border-amber-900/50 transition-all shadow-sm cursor-pointer"
                       title="Set current schema as the new baseline Reference"
                     >
                       Accept Changes (Set Baseline)
@@ -2126,7 +2192,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                       const severityColors = {
                         error: 'bg-red-50/50 dark:bg-red-950/20 border-red-200 dark:border-red-900/40 text-red-700 dark:text-red-400',
                         warning: 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40 text-amber-750 dark:text-amber-400',
-                        info: 'bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/40 text-blue-750 dark:text-blue-400'
+                        info: 'bg-slate-50 dark:bg-white/[0.03] border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300'
                       };
 
                       const severityBadges = {
@@ -2142,10 +2208,10 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                         >
                           <div>
                             <div className="flex items-center justify-between mb-1">
-                              <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 truncate max-w-[120px]" title={diff.path}>
+                              <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 truncate max-w-[120px]" title={diff.path}>
                                 {diff.path}
                               </span>
-                              <span className="text-[8px] font-mono uppercase tracking-widest font-black shrink-0">
+                              <span className="text-[10px] font-mono uppercase tracking-widest font-black shrink-0">
                                 {severityBadges[diff.severity]}
                               </span>
                             </div>
@@ -2175,7 +2241,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                     </button>
                     <button 
                       onClick={() => setShowDecisions(!showDecisions)}
-                      className="text-[9px] font-mono text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                      className="text-[10px] font-mono text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                     >
                       {showDecisions ? "Hide" : "Show"}
                     </button>
@@ -2202,7 +2268,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                                   {decision.type === 'unification' ? 'Unification' : decision.type === 'timestamp' ? 'Inheritance' : 'Flattening'}
                                 </span>
                               </div>
-                              <p className="text-[9px] text-slate-400 dark:text-slate-500 leading-snug mb-2 font-sans">
+                              <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-snug mb-2 font-sans">
                                 {decision.description}
                               </p>
                             </div>
@@ -2219,7 +2285,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                                             value={renameValue} 
                                             onChange={e => setRenameValue(e.target.value)}
                                             placeholder="New name..."
-                                            className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2.5 py-1 text-[10px] font-bold text-slate-800 dark:text-[#E8E8E8] outline-none focus:border-blue-500 transition-all"
+                                            className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2.5 py-1 text-[10px] font-bold text-slate-800 dark:text-[#E8E8E8] outline-none focus:border-slate-900 dark:focus:border-white transition-all"
                                             onKeyDown={e => {
                                               if (e.key === 'Enter') {
                                                 const originalName = decision.meta.originalName!;
@@ -2267,7 +2333,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                                                 disabledUnifications: [...(s.disabledUnifications || []), decision.meta.originalName!]
                                               }));
                                             }}
-                                            className="text-[9px] font-mono font-bold text-red-600 dark:text-red-400 bg-red-500/5 dark:bg-red-500/10 hover:text-white hover:bg-red-600 dark:hover:bg-red-600 px-2 py-1 rounded border border-red-200 dark:border-red-800 transition-colors"
+                                            className="text-[10px] font-mono font-bold text-red-600 dark:text-red-400 bg-red-500/5 dark:bg-red-500/10 hover:text-white hover:bg-red-600 dark:hover:bg-red-600 px-2 py-1 rounded border border-red-200 dark:border-red-800 transition-colors"
                                           >
                                             Split
                                           </button>
@@ -2276,7 +2342,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                                               setRenamingId(decision.id);
                                               setRenameValue(decision.meta.semanticName || "");
                                             }}
-                                            className="text-[9px] font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-500/5 dark:bg-blue-500/10 hover:text-white hover:bg-blue-600 dark:hover:bg-blue-600 px-2 py-1 rounded border border-blue-200 dark:border-blue-800 transition-colors"
+                                            className="text-[10px] font-mono font-bold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-white/5 hover:text-white dark:hover:text-slate-900 hover:bg-slate-900 dark:hover:bg-white px-2 py-1 rounded border border-slate-200 dark:border-white/10 transition-colors"
                                           >
                                             Rename
                                           </button>
@@ -2291,7 +2357,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                                           disabledUnifications: (s.disabledUnifications || []).filter(name => name !== decision.meta.originalName!)
                                         }));
                                       }}
-                                      className="text-[9px] font-mono font-bold text-slate-600 dark:text-slate-350 bg-slate-500/5 dark:bg-slate-500/10 hover:bg-slate-200 dark:hover:bg-slate-800 px-2 py-1 rounded border border-slate-300 dark:border-slate-850 transition-colors"
+                                      className="text-[10px] font-mono font-bold text-slate-600 dark:text-slate-350 bg-slate-500/5 dark:bg-slate-500/10 hover:bg-slate-200 dark:hover:bg-slate-800 px-2 py-1 rounded border border-slate-300 dark:border-slate-850 transition-colors"
                                     >
                                       Re-unify
                                     </button>
@@ -2307,7 +2373,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                                       extractTimestamps: !s.extractTimestamps
                                     }));
                                   }}
-                                  className={`text-[9px] font-mono font-bold px-2 py-1 rounded border transition-colors ${isDisabled ? 'text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800' : 'text-red-600 dark:text-red-400 border-red-250 dark:border-red-900/60 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 dark:hover:text-white'}`}
+                                  className={`text-[10px] font-mono font-bold px-2 py-1 rounded border transition-colors ${isDisabled ? 'text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800' : 'text-red-600 dark:text-red-400 border-red-250 dark:border-red-900/60 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 dark:hover:text-white'}`}
                                 >
                                   {isDisabled ? "Re-enable" : "Split Model"}
                                 </button>
@@ -2321,7 +2387,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                                       flattenWrappers: !s.flattenWrappers
                                     }));
                                   }}
-                                  className={`text-[9px] font-mono font-bold px-2 py-1 rounded border transition-colors ${isDisabled ? 'text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800' : 'text-red-600 dark:text-red-400 border-red-250 dark:border-red-900/60 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 dark:hover:text-white'}`}
+                                  className={`text-[10px] font-mono font-bold px-2 py-1 rounded border transition-colors ${isDisabled ? 'text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800' : 'text-red-600 dark:text-red-400 border-red-250 dark:border-red-900/60 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 dark:hover:text-white'}`}
                                 >
                                   {isDisabled ? "Re-enable" : "Disable"}
                                 </button>
@@ -2342,7 +2408,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                       href="https://mermaid.live"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[9px] font-mono text-blue-500 hover:text-blue-400 transition-colors"
+                      className="text-[10px] font-mono text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
                     >
                       Open in Mermaid Live ↗
                     </a>
@@ -2397,17 +2463,17 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                             </span>
                             <div className="flex items-center gap-2">
                               {entry.diffs.filter(d => d.severity === 'error').length > 0 && (
-                                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
                                   {entry.diffs.filter(d => d.severity === 'error').length} breaking
                                 </span>
                               )}
                               {entry.diffs.filter(d => d.severity === 'warning').length > 0 && (
-                                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400">
+                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400">
                                   {entry.diffs.filter(d => d.severity === 'warning').length} warning
                                 </span>
                               )}
                               {entry.diffs.filter(d => d.severity === 'info').length > 0 && (
-                                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white">
                                   {entry.diffs.filter(d => d.severity === 'info').length} added
                                 </span>
                               )}
@@ -2416,7 +2482,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                           <div className="flex flex-col gap-1">
                             {entry.diffs.map((d, j) => (
                               <div key={j} className="flex items-center gap-2 text-[10px]">
-                                <span className={`font-mono ${d.severity === 'error' ? 'text-red-500' : d.severity === 'warning' ? 'text-yellow-500' : 'text-blue-500'}`}>
+                                <span className={`font-mono ${d.severity === 'error' ? 'text-red-500' : d.severity === 'warning' ? 'text-yellow-500' : 'text-slate-500'}`}>
                                   {d.type === 'removed' ? '−' : d.type === 'added' ? '+' : '~'}
                                 </span>
                                 <code className="font-mono text-slate-600 dark:text-[#A0A0A0]">{d.path}</code>
@@ -2440,11 +2506,17 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                   <SmartDiffView isDark={isDark} />
                 </div>
               ) : (
-                <div className="flex-1 min-h-0">
+                <div className="flex-1 min-h-0 flex flex-col">
+                  {slugTarget?.tier === 2 && slugTarget.key === outputTab && (
+                    <div className="flex-none px-4 py-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-b border-amber-200 dark:border-amber-500/20">
+                      {slugTarget.label} output is a scaffold — review and adjust types, constraints, and relations before production use.
+                    </div>
+                  )}
+                  <div className="flex-1 min-h-0">
                   <Editor
                     height="100%"
                     theme={isDark ? "vs-dark" : "light"}
-                    language={outputTab === 'doc' ? 'markdown' : outputTab}
+                    language={outputTab === 'doc' ? 'markdown' : monacoLanguageForTarget(outputTab)}
                     value={getWorkbenchEditorText(outputTab, outputs, outputState)}
                     onMount={(editor, monaco) => {
                       outputEditorRef.current = editor;
@@ -2461,11 +2533,12 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                       renderLineHighlight: 'none'
                     }}
                   />
+                  </div>
                 </div>
               )}
             </div>
           )}
-          
+
           {jsonData && (
             <div className="absolute bottom-6 right-6 w-80 max-h-80 overflow-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl z-50 no-scrollbar">
               <JsonVisualizer data={jsonData} />
@@ -2509,7 +2582,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
               </h3>
               <button 
                 onClick={() => setShowMobileLangs(false)}
-                className="text-[10px] font-mono uppercase text-blue-600 dark:text-blue-400 font-bold hover:text-slate-950 dark:hover:text-white"
+                className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 font-bold hover:text-slate-950 dark:hover:text-white"
               >
                 Close
               </button>
@@ -2524,7 +2597,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                     setOutputTab(tab.id);
                     setShowMobileLangs(false);
                   }}
-                  className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border text-center transition-all active:scale-95 ${outputTab === tab.id ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-blue-500/35 hover:text-blue-600'}`}
+                  className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border text-center transition-all active:scale-95 ${outputTab === tab.id ? 'bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900 shadow-md' : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
                 >
                   <span className="text-[10px] font-black uppercase tracking-wider">{tab.label}</span>
                 </button>
@@ -2543,9 +2616,9 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
             animate={{ opacity: 1, scale: 1, y: 0 }}
             className="relative w-full max-w-md bg-white dark:bg-[#0a0f1c] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-6 overflow-hidden flex flex-col items-center text-center"
           >
-            <div className="absolute top-0 inset-x-0 h-1 bg-blue-500" />
-            <div className="w-16 h-16 bg-blue-50 dark:bg-blue-950/30 rounded-2xl flex items-center justify-center mb-4 border border-blue-100 dark:border-blue-900/50">
-              <Crown size={32} className="text-blue-600 dark:text-blue-400" />
+            <div className="absolute top-0 inset-x-0 h-1 bg-slate-900 dark:bg-white" />
+            <div className="w-16 h-16 bg-slate-100 dark:bg-white/10 rounded-2xl flex items-center justify-center mb-4 border border-slate-200 dark:border-white/10">
+              <Crown size={32} className="text-slate-700 dark:text-white" />
             </div>
             
             <h2 className="text-lg font-black text-slate-900 dark:text-[#E8E8E8] mb-2 font-sans tracking-tight">

@@ -1,5 +1,5 @@
 import { Schema, ASTType, ASTClass } from './types';
-import { schemaToAST } from './ast';
+import { schemaToAST, rootArrayItemClassName } from './ast';
 
 const toPascalCase = (str: string) => str.replace(/(^\w|_\w)/g, m => m.replace(/_/, '').toUpperCase());
 
@@ -45,8 +45,16 @@ const printASTType = (type: ASTType): string => {
 export const tsGen = {
   generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
     // 1. スキーマを AST へ一括コンパイル
-    const astClasses = schemaToAST(schema, name);
+    const astClasses = schemaToAST(schema, name, options);
     let res = "";
+
+    // 0. トップレベルが配列の場合は配列ラッパー型エイリアスを出力（要素型情報の欠落を防止）
+    {
+      const itemName = rootArrayItemClassName(schema, name);
+      if (itemName && astClasses.some(c => c.name === itemName)) {
+        res += `export type ${toPascalCase(name)} = ${itemName}[];\n\n`;
+      }
+    }
 
     // 2. 平坦化されたクラスを順番に出力（再帰は不要！）
     for (const cls of astClasses) {
@@ -182,7 +190,7 @@ const printZodASTType = (type: ASTType, cyclicClassRefs: Set<string>, options: a
 export const zodGen = {
   generate: (schema: Schema, name: string = 'root', options: any = {}): string => {
     // 1. スキーマを AST へ一括コンパイル
-    const astClasses = schemaToAST(schema, toPascalCase(name));
+    const astClasses = schemaToAST(schema, toPascalCase(name), options);
     let res = "";
 
     // 2. 各クラス（構造体）に対応する Zod スキーマを平坦に出力
@@ -219,7 +227,7 @@ export const zodGen = {
         if (field.fieldType.kind === 'string' && !field.fieldType.format) {
           if (k.includes('email')) zType = 'z.string().email()';
           else if (k.includes('url') || k.includes('link') || k.includes('website')) zType = 'z.string().url()';
-          else if (k.includes('uuid') || k === 'id' || k.endsWith('_id') || k.endsWith('id')) zType = 'z.string().uuid()';
+          else if (k.includes('uuid') || k === 'id' || k.endsWith('_id') || /Id$/.test(displayName) || /ID$/.test(displayName)) zType = 'z.string().uuid()';
           else if (k.includes('phone') || k.includes('tel')) zType = 'z.string().regex(/^\\+?[\\d\\s\\-\\.\\(\\)]{7,15}$/)';
         }
 
@@ -227,6 +235,15 @@ export const zodGen = {
       }
       res += `});\n`;
       res += `export type ${cls.name} = z.infer<typeof ${camelName}Schema>;\n\n`;
+    }
+
+    // トップレベルが配列の場合は配列スキーマのエイリアスを出力
+    const itemName = rootArrayItemClassName(schema, toPascalCase(name));
+    if (itemName && astClasses.some(c => c.name === itemName)) {
+      const rootPascal = toPascalCase(name);
+      const rootCamel = toCamelCase(rootPascal);
+      res += `export const ${rootCamel}Schema = z.array(${toCamelCase(itemName)}Schema);\n`;
+      res += `export type ${rootPascal} = z.infer<typeof ${rootCamel}Schema>;\n\n`;
     }
 
     return res;
@@ -502,9 +519,14 @@ const printRustASTType = (type: ASTType): string => {
 };
 
 export const rustGen = {
-  generate: (schema: Schema, name: string = 'Root', _options = {}): string => {
-    const astClasses = schemaToAST(schema, toPascalCase(name));
+  generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
+    const astClasses = schemaToAST(schema, toPascalCase(name), options);
     let res = "use serde::{Serialize, Deserialize};\n\n";
+
+    const rustItemName = rootArrayItemClassName(schema, toPascalCase(name));
+    if (rustItemName && astClasses.some(c => c.name === rustItemName)) {
+      res += `pub type ${toPascalCase(name)} = Vec<${rustItemName}>;\n\n`;
+    }
 
     for (const cls of astClasses) {
       const baseStruct = getBaseClass(cls);
@@ -561,14 +583,19 @@ const printGoASTType = (type: ASTType): string => {
 };
 
 export const goGen = {
-  generate: (schema: Schema, name: string = 'Root', _options = {}): string => {
-    const astClasses = schemaToAST(schema, toPascalCase(name));
+  generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
+    const astClasses = schemaToAST(schema, toPascalCase(name), options);
     const usesTime = astClasses.some(cls =>
   cls.fields.some(f => f.fieldType.kind === 'date' || f.fieldType.kind === 'datetime')
 );
 let res = usesTime
   ? "package main\n\nimport \"time\"\n\n"
   : "package main\n\n";
+
+    const goItemName = rootArrayItemClassName(schema, toPascalCase(name));
+    if (goItemName && astClasses.some(c => c.name === goItemName)) {
+      res += `type ${toPascalCase(name)} []${goItemName}\n\n`;
+    }
 
     for (const cls of astClasses) {
       const baseStruct = getBaseClass(cls);
@@ -591,21 +618,21 @@ let res = usesTime
   }
 };
 
-const printJavaASTType = (type: ASTType): string => {
+const printJavaASTType = (type: ASTType, isNullable: boolean): string => {
   switch (type.kind) {
     case 'union': return 'Object';
     case 'enum': return 'String';
-    case 'date':
-    case 'datetime': return 'Date';
+    case 'date': return 'LocalDate';
+    case 'datetime': return 'LocalDateTime';
     case 'classRef': return type.classRefName ?? 'Object';
     case 'array':
       if (type.itemType) {
-        return `List<${printJavaASTType(type.itemType)}>`;
+        return `List<${printJavaASTType(type.itemType, true)}>`;
       }
       return 'List<Object>';
     case 'string': return 'String';
-    case 'number': return type.format === 'int' ? 'Long' : 'Double';
-    case 'boolean': return 'Boolean';
+    case 'number': return type.format === 'int' ? (isNullable ? 'Integer' : 'int') : (isNullable ? 'Double' : 'double');
+    case 'boolean': return isNullable ? 'Boolean' : 'boolean';
     default: return 'Object';
   }
 };
@@ -615,18 +642,61 @@ export const javaGen = {
     const astClasses = schemaToAST(schema, toPascalCase(name), options);
     let res = "";
 
+    let needsList = false;
+    let needsLocalDate = false;
+    let needsLocalDateTime = false;
+    let needsNullable = false;
+
+    for (const cls of astClasses) {
+      for (const field of cls.fields) {
+        if (field.fieldType.kind === 'array') needsList = true;
+        if (field.fieldType.kind === 'date') needsLocalDate = true;
+        if (field.fieldType.kind === 'datetime') needsLocalDateTime = true;
+        if (field.isOptional) needsNullable = true;
+      }
+    }
+
+    if (needsList) res += "import java.util.List;\n";
+    if (needsLocalDate) res += "import java.time.LocalDate;\n";
+    if (needsLocalDateTime) res += "import java.time.LocalDateTime;\n";
+    if (needsNullable) res += "import javax.annotation.Nullable;\n";
+    if (res !== "") res += "\n";
+
     for (const cls of astClasses) {
       const baseClass = getBaseClass(cls);
       const inheritance = baseClass ? ` extends ${baseClass}` : '';
 
       res += `public class ${cls.name}${inheritance} {\n`;
       for (const field of cls.fields) {
-        const javaType = printJavaASTType(field.fieldType);
-        res += `  private ${javaType} ${field.name};\n`;
+        const isNullable = field.isOptional || field.isNullable;
+        const javaType = printJavaASTType(field.fieldType, isNullable);
+        
+        if (field.isOptional) {
+          res += `  @Nullable\n`;
+        }
+        
+        let comment = '';
+        if (field.fieldType.kind === 'enum' && field.fieldType.enumValues && field.fieldType.enumValues.length > 0) {
+          comment = ` // enum: ${field.fieldType.enumValues.map((v: string) => `"${v}"`).join(' | ')}`;
+        }
+        
+        res += `  private ${javaType} ${field.name};${comment}\n`;
       }
+
+      if (cls.fields.length > 0) res += "\n";
+
+      for (const field of cls.fields) {
+        const isNullable = field.isOptional || field.isNullable;
+        const javaType = printJavaASTType(field.fieldType, isNullable);
+        const capitalizedName = field.name.charAt(0).toUpperCase() + field.name.slice(1);
+        
+        res += `  public ${javaType} get${capitalizedName}() { return ${field.name}; }\n`;
+        res += `  public void set${capitalizedName}(${javaType} ${field.name}) { this.${field.name} = ${field.name}; }\n`;
+      }
+
       res += `}\n\n`;
     }
-    return res;
+    return res.trim() + "\n";
   }
 };
 

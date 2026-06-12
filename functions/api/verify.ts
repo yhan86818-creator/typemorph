@@ -23,7 +23,7 @@ export async function onRequestPost(context: any) {
   // 環境変数から JWT シークレットと Gumroad (またはLemon Squeezy) の API キーを取得
   // Cloudflare ダッシュボードで設定するまでフォールバック値を使用
   const JWT_SECRET = context.env.JWT_SECRET || "fallback_secret_key_for_dev_only_12345";
-  const GUMROAD_PRODUCT_PERMALINK = context.env.GUMROAD_PRODUCT_PERMALINK || "typeflow_pro";
+  const GUMROAD_PRODUCT_PERMALINK = context.env.GUMROAD_PRODUCT_PERMALINK || "typemorph_pro";
   
   try {
     const request = context.request;
@@ -38,7 +38,7 @@ export async function onRequestPost(context: any) {
     }
 
     let isValid = false;
-    let subject = "typeflow-pro-user";
+    let subject = "typemorph-user";
 
     // 1. Gumroad API による検証
     try {

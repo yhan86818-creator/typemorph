@@ -81,6 +81,7 @@ function getEdgePath(from: NodePos, to: NodePos): string {
 
 export default function TypeGraphPanel({ tsCode, isDark, onFieldRename }: Props) {
   const [editingField, setEditingField] = useState<{ nodeId: string; fieldName: string } | null>(null);
+  const [hoveredField, setHoveredField] = useState<{ nodeId: string; fieldName: string } | null>(null);
   const [editValue, setEditValue] = useState('');
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
@@ -91,6 +92,16 @@ export default function TypeGraphPanel({ tsCode, isDark, onFieldRename }: Props)
   const containerRef2 = useRef<HTMLDivElement>(null);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const svgRef = useRef<SVGSVGElement>(null);
+  const [showHint, setShowHint] = useState(false);
+
+  useEffect(() => {
+    if (!localStorage.getItem('typemorph_graph_hint_dismissed')) setShowHint(true);
+  }, []);
+
+  const dismissHint = () => {
+    localStorage.setItem('typemorph_graph_hint_dismissed', '1');
+    setShowHint(false);
+  };
 
   const graph = useMemo(() => {
     if (!tsCode || tsCode.trim().length === 0) return { nodes: [], edges: [] };
@@ -168,8 +179,8 @@ export default function TypeGraphPanel({ tsCode, isDark, onFieldRename }: Props)
   if (graph.nodes.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
-        <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-4">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-blue-500">
+        <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-white/10 flex items-center justify-center mb-4">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-600 dark:text-slate-300">
             <circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/>
             <path d="M7 12h8M17 6l-8 5M17 18l-8-5"/>
           </svg>
@@ -199,21 +210,21 @@ export default function TypeGraphPanel({ tsCode, isDark, onFieldRename }: Props)
   const bg = isDark ? '#0f172a' : '#f8fafc';
   const fieldBg = isDark ? '#1e293b' : '#ffffff';
   const fieldText = isDark ? '#94a3b8' : '#475569';
-  const typeText = isDark ? '#60a5fa' : '#2563eb';
+  const typeText = isDark ? '#94a3b8' : '#64748b';
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50/80 dark:bg-slate-900/50 shrink-0">
-        <div className="flex items-center gap-2">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-blue-500">
+        <div className="flex items-center gap-2 flex-wrap">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-slate-500 dark:text-slate-400">
             <circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/>
             <path d="M7 12h8M17 6l-8 5M17 18l-8-5"/>
           </svg>
           <span className="text-[10px] font-mono uppercase font-bold text-slate-500 dark:text-slate-350 tracking-wider">
             Type Relationship Graph
           </span>
-          <span className="text-[9px] font-mono bg-blue-600 text-white px-1.5 py-0.5 rounded-full">
+          <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500">
             {graph.nodes.length} types · {graph.edges.length} refs
           </span>
         </div>
@@ -248,12 +259,28 @@ export default function TypeGraphPanel({ tsCode, isDark, onFieldRename }: Props)
               setZoom(newZoom);
               setDragOffset({ x: offsetX, y: offsetY });
             }}
-            className="text-[9px] font-mono text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 transition-all"
+            className="text-[9px] font-mono text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 transition-all"
           >
             Reset View
           </button>
         </div>
       </div>
+
+      {/* One-time hint banner */}
+      {showHint && (
+        <div className="flex items-center justify-between px-4 py-2 bg-indigo-50 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900/50 shrink-0">
+          <p className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300">
+            ✦ Click any field name to rename it — the change rewrites all output languages instantly
+          </p>
+          <button
+            onClick={dismissHint}
+            className="ml-4 text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-200 transition-colors text-xs font-black leading-none"
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* SVG Canvas */}
       <div className="flex-1 overflow-hidden relative" style={{ background: bg }}>
@@ -438,13 +465,15 @@ export default function TypeGraphPanel({ tsCode, isDark, onFieldRename }: Props)
                       <g
                         key={field.name}
                         transform={`translate(0,${fy})`}
-                        onMouseEnter={e => {
+                        onMouseEnter={() => {
                           if (onFieldRename) {
-                            (e.currentTarget as SVGGElement).style.opacity = '0.7';
+                            setHoveredField({ nodeId: pos.id, fieldName: field.name });
                           }
                         }}
-                        onMouseLeave={e => {
-                          (e.currentTarget as SVGGElement).style.opacity = '1';
+                        onMouseLeave={() => {
+                          if (onFieldRename) {
+                            setHoveredField(null);
+                          }
                         }}
                       >
                         <rect
@@ -494,17 +523,23 @@ export default function TypeGraphPanel({ tsCode, isDark, onFieldRename }: Props)
                             />
                           </foreignObject>
                         ) : (
-                          <text
-                            x={12} y={19}
-                            fontSize={12}
-                            fontFamily="monospace"
-                            fill={fieldText}
-                            style={{ pointerEvents: 'none' }}
-                          >
-                            {field.optional ? (
-                              <tspan fill={isDark ? '#64748b' : '#94a3b8'}>{field.name}?</tspan>
-                            ) : field.name}
-                          </text>
+                          (() => {
+                            const isHoveredField = hoveredField?.nodeId === pos.id && hoveredField?.fieldName === field.name;
+                            return (
+                              <text
+                                x={12} y={19}
+                                fontSize={12}
+                                fontFamily="monospace"
+                                fill={isHoveredField ? (isDark ? '#ffffff' : '#000000') : fieldText}
+                                style={{ pointerEvents: 'none' }}
+                              >
+                                {field.optional ? (
+                                  <tspan fill={isHoveredField ? (isDark ? '#ffffff' : '#000000') : (isDark ? '#64748b' : '#94a3b8')}>{field.name}?</tspan>
+                                ) : field.name}
+                                {isHoveredField && <tspan fill={isDark ? '#94a3b8' : '#475569'} dx="4">✎</tspan>}
+                              </text>
+                            );
+                          })()
                         )}
                         <text x={pos.width - 8} y={19} textAnchor="end" fontSize={11} fontFamily="monospace" fill={typeText} fontWeight="600" style={{ pointerEvents: 'none' }}>
                           {typeStr}
@@ -538,11 +573,11 @@ export default function TypeGraphPanel({ tsCode, isDark, onFieldRename }: Props)
           return (
             <div className="absolute bottom-4 left-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-3 w-48 pointer-events-none z-10">
               <p className="text-[10px] font-mono font-bold text-slate-800 dark:text-white mb-2">
-                {node.isRoot ? '⬡ Root' : '◇ Interface'}: <span className="text-indigo-600 dark:text-indigo-400">{node.id}</span>
+                {node.isRoot ? '⬡ Root' : '◇ Interface'}: <span className="text-slate-700 dark:text-slate-200">{node.id}</span>
               </p>
               <p className="text-[9px] font-mono text-slate-500 dark:text-slate-400">{node.fields.length} fields</p>
               {refs.length > 0 && <p className="text-[9px] font-mono text-amber-600 dark:text-amber-400">Referenced by: {refs.join(', ')}</p>}
-              {deps.length > 0 && <p className="text-[9px] font-mono text-blue-600 dark:text-blue-400">References: {deps.join(', ')}</p>}
+              {deps.length > 0 && <p className="text-[9px] font-mono text-slate-600 dark:text-slate-400">References: {deps.join(', ')}</p>}
             </div>
           );
         })()}

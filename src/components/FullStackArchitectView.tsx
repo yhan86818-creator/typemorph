@@ -112,11 +112,11 @@ export function FullStackArchitectView({ isDark }: Props) {
           <button
             onClick={generate}
             disabled={isProcessing}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 text-slate-900 dark:text-white text-xs font-bold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all disabled:opacity-50"
             title="Cmd+Enter or Ctrl+Enter"
           >
             {isProcessing ? 'Generating...' : 'Generate'}
-            <span className="text-[9px] opacity-60 border border-white/30 px-1 py-0.5 rounded">⌘↵</span>
+            <span className="text-[9px] opacity-50 border border-slate-300 dark:border-slate-600 px-1 py-0.5 rounded">⌘↵</span>
           </button>
         </div>
       </div>
@@ -154,7 +154,7 @@ export function FullStackArchitectView({ isDark }: Props) {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-medium transition-all ${activeTab === tab.id ? 'bg-blue-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-medium transition-all ${activeTab === tab.id ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'}`}
                 >
                   {tab.icon}
                   {tab.label}
@@ -163,7 +163,7 @@ export function FullStackArchitectView({ isDark }: Props) {
             </div>
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"
+              className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
             >
               {copied ? <CheckCircle2 size={12} className="text-green-500" /> : <Copy size={12} />}
               {copied ? 'Copied' : 'Copy'}

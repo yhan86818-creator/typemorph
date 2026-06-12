@@ -45,13 +45,13 @@ export function SmartDiffView({ isDark }: { isDark: boolean }) {
   const severityIcon = (s: SchemaDiff['severity']) => {
     if (s === 'error') return <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />;
     if (s === 'warning') return <TriangleAlert size={14} className="text-yellow-500 shrink-0 mt-0.5" />;
-    return <Info size={14} className="text-blue-500 shrink-0 mt-0.5" />;
+    return <Info size={14} className="text-slate-500 dark:text-slate-400 shrink-0 mt-0.5" />;
   };
 
   const severityBg = (s: SchemaDiff['severity']) => {
     if (s === 'error') return 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/50';
     if (s === 'warning') return 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-900/50';
-    return 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/50';
+    return 'bg-slate-50 dark:bg-white/[0.03] border-slate-200 dark:border-white/10';
   };
 
   const typeBadge = (t: SchemaDiff['type']) => {
@@ -71,12 +71,12 @@ export function SmartDiffView({ isDark }: { isDark: boolean }) {
         </div>
         <button
           onClick={handleCompare}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-all"
+          className="flex items-center gap-2 px-4 py-2 text-slate-900 dark:text-white text-xs font-bold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
           title="Cmd+Enter or Ctrl+Enter"
         >
           <ArrowLeftRight size={13} />
           Compare
-          <span className="text-[9px] opacity-60 border border-white/30 px-1 py-0.5 rounded">⌘↵</span>
+          <span className="text-[9px] opacity-50 border border-slate-300 dark:border-slate-600 px-1 py-0.5 rounded">⌘↵</span>
         </button>
       </div>
 
@@ -143,7 +143,7 @@ export function SmartDiffView({ isDark }: { isDark: boolean }) {
                   </span>
                 )}
                 {infos.length > 0 && (
-                  <span className="text-[10px] font-mono px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                  <span className="text-[10px] font-mono px-2 py-1 rounded bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white">
                     {infos.length} added
                   </span>
                 )}

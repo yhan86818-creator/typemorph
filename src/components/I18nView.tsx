@@ -115,13 +115,13 @@ ${sourceJson}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-black uppercase tracking-widest flex items-center gap-3">
-              <Globe2 className="text-blue-600" size={24} /> 
-              i18n Auto-Gen <span className="px-2 py-0.5 bg-blue-600/20 text-blue-400 rounded-md text-[10px] ml-2">V5 BETA</span>
+              <Globe2 className="text-slate-700 dark:text-white" size={24} />
+              i18n Auto-Gen <span className="px-2 py-0.5 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white border border-slate-200 dark:border-white/10 rounded-md text-[10px] ml-2">V5 BETA</span>
             </h1>
             <p className="text-xs text-slate-500 font-bold mt-2">Instantly translate your source dictionary into 5 global languages with high-context software accuracy.</p>
           </div>
           {results && (
-            <button onClick={handleDownloadAll} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-600/20">
+            <button onClick={handleDownloadAll} className="flex items-center gap-2 px-4 py-2 text-slate-900 dark:text-white rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
               <Download size={14} /> Download All (5 files)
             </button>
           )}
@@ -149,7 +149,7 @@ ${sourceJson}
                <button
                  onClick={handleGenerate}
                  disabled={isGenerating}
-                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all flex justify-center items-center gap-2 shadow-lg shadow-blue-600/20 disabled:opacity-50"
+                 className="w-full py-3 text-slate-900 dark:text-white font-black text-xs uppercase tracking-widest rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all flex justify-center items-center gap-2 disabled:opacity-50"
                >
                  {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
                  {isGenerating ? 'Translating into 5 languages...' : 'Generate Localizations'}
@@ -174,7 +174,7 @@ ${sourceJson}
                     <button
                       key={lang.code}
                       onClick={() => setActiveTab(lang.code)}
-                      className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${activeTab === lang.code ? 'bg-blue-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+                      className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${activeTab === lang.code ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
                     >
                       {lang.label} ({lang.code})
                     </button>
@@ -188,7 +188,7 @@ ${sourceJson}
                   />
                   <button 
                     onClick={() => handleDownloadSingle(activeTab)}
-                    className="absolute bottom-4 right-4 p-2 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-blue-600 hover:text-white transition-all shadow-md"
+                    className="absolute bottom-4 right-4 p-2 text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all"
                     title={`Download ${activeTab}.json`}
                   >
                     <Download size={14} />

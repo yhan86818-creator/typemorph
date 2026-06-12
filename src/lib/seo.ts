@@ -33,11 +33,9 @@ export const INDEXED_EN_SLUGS = new Set([
   'json-to-rust-struct',
   'json-to-java-class',
   'json-to-python-dataclass',
-  'json-to-csharp-class',
   'json-to-dart-class',
   'json-to-kotlin-class',
   'json-to-swift-struct',
-  'json-to-php-dto-class',
   'json-to-elixir-struct',
   'json-to-lua-table',
 
@@ -45,7 +43,6 @@ export const INDEXED_EN_SLUGS = new Set([
   'fix-to-typescript',
   'fix-to-json',
   'swift-to-typescript',
-  'swift-mt-to-mx',
   'swift-mt103-to-json',
   'iso-20022-to-typescript',
   'protobuf-to-typescript',
@@ -98,33 +95,6 @@ export const INDEXED_EN_SLUGS = new Set([
   'json-to-grpc-web',
 
   // Niche Communities (Low Competition, High Rankability)
-  'json-to-react-query',
-  'json-to-redux-slice',
-  'json-to-pinia-store',
-  'json-to-supabase-type',
-  'json-to-pocketbase-type',
-  'json-to-lucia-auth-schema',
-  'json-to-nextauth-config',
-  'json-to-scala-case-class',
-  'json-to-elm-decoder',
-  'json-to-ruby-struct',
-  'json-to-graphql-resolver',
-  'json-to-django-rest-serializer',
-  'json-to-spring-boot-jpa',
-  'json-to-csharp-dto',
-  'json-to-superstruct',
-  'json-to-joi',
-  'json-to-ajv',
-  'json-to-knex-migration',
-  'json-to-typeorm-entity',
-  'json-to-yup',
-  'json-to-solidity',        // Web3 / Blockchain
-  'json-to-arduino',         // IoT / Maker community
-  'json-to-godot-gdscript',  // Indie game dev
-  'json-to-r-dataframe',     // Data science / R users
-  'json-to-haskell-type',    // Functional programming
-  'yaml-to-rust',            // Rust ecosystem / DevOps
-  'toml-to-typescript',      // Rust/Cargo users who also do TypeScript
 ]);
 
 /**
