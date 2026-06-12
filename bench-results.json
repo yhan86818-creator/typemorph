@@ -1,31 +1,31 @@
 {
   "huge.json": {
     "default": {
-      "durationMs": 15,
+      "durationMs": 7,
       "fields": 14,
       "anyCount": 0,
       "enumCount": 0
     },
     "shallow_max3": {
-      "durationMs": 7,
+      "durationMs": 3,
       "fields": 11,
       "anyCount": 4,
       "enumCount": 0
     },
     "enum_min4": {
-      "durationMs": 12,
+      "durationMs": 6,
       "fields": 14,
       "anyCount": 0,
       "enumCount": 0
     },
     "deep_max20_enum6": {
-      "durationMs": 3,
+      "durationMs": 16,
       "fields": 14,
       "anyCount": 0,
       "enumCount": 0
     },
     "include_meta": {
-      "durationMs": 5,
+      "durationMs": 3,
       "fields": 14,
       "anyCount": 0,
       "enumCount": 0
@@ -33,7 +33,7 @@
   },
   "large.json": {
     "default": {
-      "durationMs": 1,
+      "durationMs": 0,
       "fields": 27,
       "anyCount": 0,
       "enumCount": 1
@@ -51,7 +51,7 @@
       "enumCount": 1
     },
     "deep_max20_enum6": {
-      "durationMs": 0,
+      "durationMs": 1,
       "fields": 27,
       "anyCount": 0,
       "enumCount": 1
@@ -65,7 +65,7 @@
   },
   "medium.json": {
     "default": {
-      "durationMs": 2,
+      "durationMs": 0,
       "fields": 17,
       "anyCount": 0,
       "enumCount": 2
@@ -89,7 +89,7 @@
       "enumCount": 2
     },
     "include_meta": {
-      "durationMs": 0,
+      "durationMs": 1,
       "fields": 17,
       "anyCount": 0,
       "enumCount": 2

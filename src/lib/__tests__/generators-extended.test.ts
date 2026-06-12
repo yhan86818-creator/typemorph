@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { avroGen, mongooseGen, openApiGen, valibotGen, yupGen, typeormGen, drizzleGen, bigQueryGen, dynamoDBGen } from '../generators-extended';
+import { avroGen, mongooseGen, openApiGen, valibotGen, yupGen, typeormGen, drizzleGen, bigQueryGen, dynamoDBGen, sqlToMermaidERGen, apiRouteGen, reactHookGen } from '../generators-extended';
 import { mockGen } from '../generators';
 import { inferSchema } from '../engine';
 import { Schema } from '../types';
@@ -284,5 +284,66 @@ describe('generators-extended', () => {
       expect(parsed.city).toBe('Tokyo');
     });
   });
-});
 
+  describe('sqlToMermaidERGen', () => {
+    it('should generate erDiagram for single table', () => {
+      const sql = `
+        CREATE TABLE users (
+          id UUID PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          email VARCHAR(255) NOT NULL
+        );
+      `;
+      const result = sqlToMermaidERGen.generate(sql);
+      expect(result).toContain('erDiagram');
+      expect(result).toContain('users');
+      expect(result).toContain('id PK');
+      expect(result).toContain('name');
+      expect(result).toContain('email');
+    });
+
+    it('should detect FOREIGN KEY relations', () => {
+      const sql = `
+        CREATE TABLE users (id UUID PRIMARY KEY);
+        CREATE TABLE posts (
+          id UUID PRIMARY KEY,
+          user_id UUID NOT NULL REFERENCES users(id)
+        );
+      `;
+      const result = sqlToMermaidERGen.generate(sql);
+      expect(result).toContain('posts');
+      expect(result).toContain('users');
+      expect(result).toContain('user_id');
+    });
+
+    it('should return placeholder for non-SQL input', () => {
+      const result = sqlToMermaidERGen.generate('{ "not": "sql" }');
+      expect(result).toContain('erDiagram');
+      expect(result).toContain('%%');
+    });
+  });
+
+  describe('apiRouteGen', () => {
+    it('should generate Next.js API Route with GET and POST', () => {
+      const schema = inferSchema({ name: 'Alice', email: 'a@example.com' });
+      const result = apiRouteGen.generate(schema, 'User');
+      expect(result).toContain('NextRequest');
+      expect(result).toContain('NextResponse');
+      expect(result).toContain('export async function GET');
+      expect(result).toContain('export async function POST');
+      expect(result).toContain('UserSchema');
+    });
+  });
+
+  describe('reactHookGen', () => {
+    it('should generate React Query hooks', () => {
+      const schema = inferSchema({ name: 'Alice', email: 'a@example.com' });
+      const result = reactHookGen.generate(schema, 'User');
+      expect(result).toContain('useQuery');
+      expect(result).toContain('useMutation');
+      expect(result).toContain('useUserList');
+      expect(result).toContain('useUserCreate');
+      expect(result).toContain('useUserDelete');
+    });
+  });
+});
