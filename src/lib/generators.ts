@@ -200,8 +200,25 @@ export const zodGen = {
       for (const field of cls.fields) {
         const isOpt = (options.optionalFields || field.isOptional) ? '.optional()' : '';
         const isNull = field.isNullable ? '.nullable()' : '';
-        const zType = printZodASTType(field.fieldType, cyclicClassRefs, options);
-        
+        let zType = printZodASTType(field.fieldType, cyclicClassRefs, options);
+
+        // Semantic Validator: フィールド名からバリデーションを自動付与
+        const k = field.name.toLowerCase();
+        if (field.fieldType.kind === 'number') {
+          if (['age', 'price', 'amount', 'cost', 'fee', 'quantity', 'count', 'score', 'rating', 'rank'].some(w => k.includes(w))) {
+            zType = zType + '.min(0)';
+          }
+          if (k.includes('rating') || k.includes('score')) {
+            zType = zType + '.max(100)';
+          }
+        }
+        if (field.fieldType.kind === 'string' && !field.fieldType.format) {
+          if (k.includes('email')) zType = 'z.string().email()';
+          else if (k.includes('url') || k.includes('link') || k.includes('website')) zType = 'z.string().url()';
+          else if (k.includes('uuid') || k === 'id' || k.endsWith('_id') || k.endsWith('id')) zType = 'z.string().uuid()';
+          else if (k.includes('phone') || k.includes('tel')) zType = 'z.string().regex(/^\\+?[\\d\\s\\-\\.\\(\\)]{7,15}$/)';
+        }
+
         res += `  ${field.name}: ${zType}${isNull}${isOpt},\n`;
       }
       res += `});\n`;
@@ -697,35 +714,75 @@ export const uiGen = {
 
 export const mockGen = {
   generate: (schema: Schema): string => {
-    const generateMock = (s: Schema, key: string = ""): any => {
+    let _arrayIndex = 0;
+    const generateMock = (s: Schema, key: string = "", parentKey: string = ""): any => {
       if (s.type === 'object' && s.fields) {
         const obj: any = {};
         for (const [k, v] of Object.entries(s.fields)) {
-          obj[k] = generateMock(v, k);
+          obj[k] = generateMock(v, k, key);
         }
         return obj;
       }
       if (s.type === 'array') {
         const itemSchema = s.itemType || { type: 'string' };
-        return Array.from({ length: 3 }, () => generateMock(itemSchema, key));
+        const prevIndex = _arrayIndex;
+        _arrayIndex = 0;
+        const arr = Array.from({ length: 50 }, (_, i) => {
+          _arrayIndex = i + 1;
+          return generateMock(itemSchema, key, parentKey);
+        });
+        _arrayIndex = prevIndex;
+        return arr;
       }
-      if (s.type === 'number') return key.toLowerCase().includes('id') ? 1 : 42;
+      if (s.type === 'number') {
+        if (key.toLowerCase().includes('id') || key.toLowerCase().includes('price') || key.toLowerCase().includes('amount')) {
+          return _arrayIndex > 0 ? _arrayIndex : 1;
+        }
+        if (key.toLowerCase().includes('age')) return 28;
+        return 42;
+      }
       if (s.type === 'boolean') return true;
       if (s.type === 'string') {
-        if (s.format === 'uuid') return 'uuid-1234-5678-9012';
+        if (s.format === 'uuid') return `550e8400-e29b-41d4-a716-${String(_arrayIndex || 1).padStart(12, '0')}`;
         if (s.format === 'email') return 'test@example.com';
         if (s.format === 'url') return 'https://example.com/api';
         if (s.format === 'datetime') return new Date().toISOString();
 
         const k = key.toLowerCase();
-        if (k.includes('name')) return 'John Doe';
-        if (k.includes('email')) return 'john@example.com';
-        if (k.includes('url') || k.includes('link')) return 'https://example.com';
-        if (k.includes('id')) return 'uuid-1234-5678-9012';
-        if (k.includes('date') || k.includes('time')) return new Date().toISOString();
-        if (k.includes('city')) return 'Tokyo';
-        if (k.includes('phone')) return '+81-90-1234-5678';
-        if (k.includes('desc') || k.includes('memo') || k.includes('text')) return 'This is a sample generated text to simulate a realistic description or content block.';
+        const pk = parentKey.toLowerCase();
+        // Context-aware: if parent is "items" or "products", generate item-like names
+        const isItemContext = pk === 'items' || pk === 'products' || pk === 'entries' || pk === 'records';
+        
+        if (k.includes('name')) {
+          if (isItemContext) return `Item ${String.fromCharCode(64 + (_arrayIndex || 1))}`;
+          const names = ['Alice Johnson', 'Bob Smith', 'Carol White', 'David Brown', 'Emma Davis', 'Frank Wilson', 'Grace Lee', 'Henry Taylor'];
+          return names[((_arrayIndex || 1) - 1) % names.length];
+        }
+        if (k.includes('email')) {
+          const domains = ['example.com', 'test.org', 'demo.io', 'sample.net'];
+          return `user${_arrayIndex || 1}@${domains[((_arrayIndex || 1) - 1) % domains.length]}`;
+        }
+        if (k.includes('url') || k.includes('link') || k.includes('avatar') || k.includes('image')) return 'https://example.com/sample.png';
+        if (k.includes('id')) return `550e8400-e29b-41d4-a716-${String(_arrayIndex || 1).padStart(12, '0')}`;
+        if (k.includes('date') || k.includes('time') || k.includes('created') || k.includes('updated')) return new Date().toISOString();
+        if (k.includes('city')) {
+          const cities = ['Tokyo', 'New York', 'London', 'Paris', 'Sydney', 'Berlin', 'Singapore', 'Toronto'];
+          return cities[((_arrayIndex || 1) - 1) % cities.length];
+        }
+        if (k.includes('street') || k.includes('address')) return '123 Main Street';
+        if (k.includes('zip') || k.includes('postal')) return '100-0001';
+        if (k.includes('phone') || k.includes('tel')) return '+81-90-1234-5678';
+        if (k.includes('role') || k.includes('type') || k.includes('status') || k.includes('category')) {
+          const roles = ['admin', 'user', 'guest', 'moderator'];
+          return roles[((_arrayIndex || 1) - 1) % roles.length];
+        }
+        if (k.includes('desc') || k.includes('memo') || k.includes('text') || k.includes('bio') || k.includes('note')) return 'This is a sample generated text to simulate a realistic description or content block.';
+        if (k.includes('title')) return 'Sample Title';
+        if (k.includes('price') || k.includes('cost')) return (19.99 + (_arrayIndex || 0) * 10).toFixed(2);
+        if (k.includes('color')) return '#3366ff';
+        if (k.includes('country')) return 'Japan';
+        if (k.includes('lang') || k.includes('locale')) return 'en-US';
+        
         return 'sample_' + key;
       }
       return null;

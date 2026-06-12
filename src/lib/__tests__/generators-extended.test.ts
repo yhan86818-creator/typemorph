@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { avroGen, mongooseGen, openApiGen, valibotGen, yupGen, typeormGen, drizzleGen } from '../generators-extended';
+import { avroGen, mongooseGen, openApiGen, valibotGen, yupGen, typeormGen, drizzleGen, bigQueryGen, dynamoDBGen } from '../generators-extended';
+import { mockGen } from '../generators';
 import { inferSchema } from '../engine';
 import { Schema } from '../types';
 
@@ -180,6 +181,107 @@ describe('generators-extended', () => {
       // Should not have multiple 'id' or 'createdAt' declarations
       expect((drizzleOut.match(/id:/g) || []).length).toBe(1);
       expect((drizzleOut.match(/createdAt:/g) || []).length).toBe(1);
+    });
+  });
+
+  describe('bigQueryGen', () => {
+    it('should expand nested objects as RECORD type', () => {
+      const json = { user: { id: 1, name: 'Alice', address: { city: 'Tokyo', zip: '150-0002' } } };
+      const schema = inferSchema(json);
+      const result = bigQueryGen.generate(schema);
+      const parsed = JSON.parse(result);
+      // user should be a RECORD with nested fields
+      const userField = parsed.find((f: any) => f.name === 'user');
+      expect(userField).toBeDefined();
+      expect(userField.type).toBe('RECORD');
+      expect(userField.fields).toBeDefined();
+      expect(userField.fields.length).toBeGreaterThanOrEqual(3);
+      // address should be a nested RECORD inside user
+      const addrField = userField.fields.find((f: any) => f.name === 'address');
+      expect(addrField).toBeDefined();
+      expect(addrField.type).toBe('RECORD');
+      expect(addrField.fields).toBeDefined();
+      expect(addrField.fields.find((f: any) => f.name === 'city')).toBeDefined();
+    });
+
+    it('should expand arrays as REPEATED RECORD', () => {
+      const json = { items: [{ id: 1, name: 'Item A', price: 19.99 }] };
+      const schema = inferSchema(json);
+      const result = bigQueryGen.generate(schema);
+      const parsed = JSON.parse(result);
+      const itemsField = parsed.find((f: any) => f.name === 'items');
+      expect(itemsField).toBeDefined();
+      expect(itemsField.mode).toBe('REPEATED');
+      expect(itemsField.type).toBe('RECORD');
+      expect(itemsField.fields).toBeDefined();
+      expect(itemsField.fields.find((f: any) => f.name === 'name')).toBeDefined();
+    });
+  });
+
+  describe('dynamoDBGen', () => {
+    it('should expand nested objects as M with nested keys', () => {
+      const json = { user: { id: 1, name: 'Alice', address: { city: 'Tokyo' } } };
+      const schema = inferSchema(json);
+      const result = dynamoDBGen.generate(schema, 'Root');
+      const parsed = JSON.parse(result);
+      expect(parsed.Item.user.M).toBeDefined();
+      expect(parsed.Item.user.M.id.N).toBe('0');
+      expect(parsed.Item.user.M.name.S).toBeDefined();
+      // address should be a nested M inside user
+      expect(parsed.Item.user.M.address.M).toBeDefined();
+      expect(parsed.Item.user.M.address.M.city.S).toBeDefined();
+    });
+
+    it('should expand arrays as L with nested items', () => {
+      const json = { items: [{ id: 1, name: 'Item A' }] };
+      const schema = inferSchema(json);
+      const result = dynamoDBGen.generate(schema, 'Root');
+      const parsed = JSON.parse(result);
+      expect(parsed.Item.items.L).toBeDefined();
+      expect(Array.isArray(parsed.Item.items.L)).toBe(true);
+      expect(parsed.Item.items.L.length).toBeGreaterThanOrEqual(1);
+      expect(parsed.Item.items.L[0].M).toBeDefined();
+      expect(parsed.Item.items.L[0].M.id.N).toBe('0');
+      expect(parsed.Item.items.L[0].M.name.S).toBeDefined();
+    });
+  });
+
+  describe('mockGen', () => {
+    it('should generate context-aware mock values for nested arrays', () => {
+      const json = { items: [{ id: 1, name: 'Item A', price: 19.99 }] };
+      const schema = inferSchema(json);
+      const result = mockGen.generate(schema);
+      const parsed = JSON.parse(result);
+      expect(Array.isArray(parsed.items)).toBe(true);
+      expect(parsed.items.length).toBeGreaterThanOrEqual(2);
+      // items[].name should be item-like (e.g. "Item A"), not a person name
+      for (const item of parsed.items) {
+        expect(item.name).toMatch(/^Item /);
+      }
+      // items[].id should be incrementing
+      expect(parsed.items[0].id).toBe(1);
+      expect(parsed.items[1].id).toBe(2);
+    });
+
+    it('should generate role-like values for role/status/type keys', () => {
+      const json = { role: 'admin', status: 'active', type: 'premium' };
+      const schema = inferSchema(json);
+      const result = mockGen.generate(schema);
+      const parsed = JSON.parse(result);
+      const validRoles = ['admin', 'user', 'guest', 'moderator'];
+      expect(validRoles).toContain(parsed.role);
+      expect(validRoles).toContain(parsed.status);
+      expect(validRoles).toContain(parsed.type);
+    });
+
+    it('should generate realistic address-related mock values', () => {
+      const json = { street: 'Shibuya', zip: '150-0002', city: 'Tokyo' };
+      const schema = inferSchema(json);
+      const result = mockGen.generate(schema);
+      const parsed = JSON.parse(result);
+      expect(parsed.street).toBe('123 Main Street');
+      expect(parsed.zip).toBe('100-0001');
+      expect(parsed.city).toBe('Tokyo');
     });
   });
 });

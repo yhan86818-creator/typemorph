@@ -33,8 +33,8 @@ describe('TypeMorph Engine', () => {
       // price is a floatKeyPattern match, but the value is a string → should be string, not number
       const schema = inferSchema({ price: "19.99" });
       expect(schema.fields?.price.type).toBe('string');
-      // format is still 'float' because key-name-based format inference is valid
-      expect(schema.fields?.price.format).toBe('float');
+      // format is no longer 'float' because format:'float' is semantically invalid on type:'string'
+      expect(schema.fields?.price.format).toBeUndefined();
 
       // amount is also a floatKeyPattern match, but value is a non-numeric string
       const schema2 = inferSchema({ amount: "free" });
@@ -406,6 +406,69 @@ describe('TypeMorph Engine', () => {
       const parsed = parseCurl(`curl -d'{"x":1}' https://api.example.com`);
       expect(parsed.method).toBe('POST');
     });
+
+    // -----------------------------------------------------------------------
+    // Bug-fix regression tests for 2026-06-12 fixes
+    // -----------------------------------------------------------------------
+
+    it('[bugfix] mergeSchemas should only keep format when BOTH sides agree (not just s1)', () => {
+      // Fix: L109 changed from (s1.format && s2.format) ? s1.format : undefined
+      //                        to (s1.format === s2.format) ? s1.format : undefined
+      const json = {
+        events: [
+          { date: "2024-01-01" },           // inferSchema → format: 'date'
+          { date: "2024-01-01T00:00:00Z" }, // inferSchema → format: 'datetime'
+        ]
+      };
+      const result = runEngine(json, 'typescript');
+      // date + datetime differ → format should be dropped → plain string
+      expect(result).toContain('date: string;');
+      expect(result).not.toContain('date: Date;');
+    });
+
+    it('[bugfix] mergeIsomorphicObjects should cap enumValues at 6', () => {
+      // Fix: L598-600 now has merged.length <= 6 guard
+      const json = {
+        items: [
+          { status: "active" },
+          { status: "pending" },
+          { status: "success" },
+          { status: "error" },
+          { status: "failed" },
+          { status: "cancelled" },
+          { status: "expired" },  // 7th unique value → should drop enum, become plain string
+        ]
+      };
+      const result = runEngine(json, 'typescript');
+      // 7 unique values exceeds cap → should be string, not a union literal
+      expect(result).toContain('status: string;');
+      expect(result).not.toMatch(/status:\s*"/); // no union literal like "active" | "pending" | ...
+    });
+
+    it('[bugfix] DEPENDENCY_COMMENTS should be emitted for previously missing targets', () => {
+      // Fix: added 14 entries to DEPENDENCY_COMMENTS + matchedKey normalization for r-lang
+      const json = { id: 1 };
+
+      // mongodb → mongoose dispatch, now has DEPENDENCY_COMMENTS entry
+      const mongoResult = runEngine(json, 'mongodb');
+      expect(mongoResult).toContain('npm install mongoose');
+
+      // dynamodb → now has DEPENDENCY_COMMENTS entry
+      const dynamoResult = runEngine(json, 'dynamodb');
+      expect(dynamoResult).toContain('@aws-sdk/client-dynamodb');
+
+      // bigquery → now has DEPENDENCY_COMMENTS entry
+      const bqResult = runEngine(json, 'bigquery');
+      expect(bqResult).toContain('@google-cloud/bigquery');
+
+      // r-lang → matchedKey normalized to 'r-lang', now has DEPENDENCY_COMMENTS entry
+      const rResult = runEngine(json, 'r');
+      expect(rResult).toContain('R dataframe scaffold');
+
+      // solidity → now has DEPENDENCY_COMMENTS entry
+      const solResult = runEngine(json, 'solidity');
+      expect(solResult).toContain('SPDX-License-Identifier: MIT');
+    });
   });
 
   describe('Explainable Logic Decisions', () => {
@@ -521,7 +584,7 @@ describe('TypeMorph Engine', () => {
       const schema = inferSchema(json);
       // キー名だけで format を推論できるべき
       expect(schema.fields!.avatar.format).toBe('url');
-      expect(schema.fields!.price.format).toBe('float');
+      expect(schema.fields!.price.format).toBeUndefined();
       expect(schema.fields!.user_email.format).toBe('email');
     });
 

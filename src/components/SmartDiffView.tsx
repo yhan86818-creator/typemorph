@@ -1,213 +1,176 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { ArrowLeftRight, Settings, Wand2, Copy, CheckCircle2, AlertCircle } from 'lucide-react';
-import Editor from '@monaco-editor/react';
-import { callGeminiWithRetry } from '@/lib/gemini';
+'use client';
 
-export function SmartDiffView({ geminiKey, setGeminiKey, isPro, trialCount, setTrialCount, isDark }: { geminiKey: string, setGeminiKey: (k: string) => void, isPro: boolean, trialCount: number, setTrialCount: (c: number) => void, isDark: boolean }) {
+import React, { useState, useCallback } from 'react';
+import { ArrowLeftRight, Copy, CheckCircle2, AlertCircle, Info, TriangleAlert } from 'lucide-react';
+import Editor from '@monaco-editor/react';
+import { compareSchemas, SchemaDiff } from '@/lib/diff';
+
+export function SmartDiffView({ isDark }: { isDark: boolean }) {
   const [jsonA, setJsonA] = useState('{\n  "id": 101,\n  "user": "jdoe",\n  "status": "active"\n}');
   const [jsonB, setJsonB] = useState('{\n  "id": 101,\n  "username": "jdoe",\n  "status": "pending",\n  "tags": ["beta"]\n}');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [result, setResult] = useState('');
-  const [schemaType, setSchemaType] = useState('zod');
-  const [copied, setCopied] = useState(false);
+  const [diffs, setDiffs] = useState<SchemaDiff[]>([]);
   const [error, setError] = useState('');
+  const [hasRun, setHasRun] = useState(false);
 
-  const handleMerge = async () => {
-    if (!isPro && trialCount <= 0) {
-      setError('Free trial limit reached. Please activate a Pro license to continue using Advanced AI features.');
-      return;
-    }
-    if (!geminiKey) {
-      setError('Please set your Gemini API Key in the top navigation first.');
-      return;
-    }
-    
-    setIsAnalyzing(true);
+  const handleCompare = useCallback(() => {
     setError('');
-    setResult('');
-
     try {
-      if (!isPro) {
-        const newCount = trialCount - 1;
-        setTrialCount(newCount);
-        localStorage.setItem('typemorph_trial_count', newCount.toString());
-      }
-      const prompt = `You are an expert developer. Analyze these two JSON payloads (A and B).
-      Generate a single unified ${schemaType === 'zod' ? 'Zod Schema (const schema = z.object(...))' : 'TypeScript Interface'} that can safely handle both formats.
-      Make fields optional if they appear in one but not the other.
-      Return ONLY the raw code block without markdown formatting or backticks. Do not include explanations.
-
-      --- JSON A ---
-      ${jsonA}
-
-      --- JSON B ---
-      ${jsonB}
-      `;
-
-      let resultText = await callGeminiWithRetry(geminiKey, prompt, 0.1);
-      resultText = resultText.replace(/^```(typescript|ts|javascript|js)?\n/i, '').replace(/\n```$/i, '').trim();
-      
-      setResult(resultText);
+      const a = JSON.parse(jsonA);
+      const b = JSON.parse(jsonB);
+      const result = compareSchemas(a, b);
+      setDiffs(result);
+      setHasRun(true);
     } catch (err: any) {
-      setError(err.message || 'Failed to generate schema.');
-    } finally {
-      setIsAnalyzing(false);
+      setError('Invalid JSON: ' + (err?.message ?? 'Parse error'));
+      setDiffs([]);
     }
-  };
+  }, [jsonA, jsonB]);
 
-  useEffect(() => {
+  // Cmd+Enter / Ctrl+Enter で比較
+  React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
-        if (!isAnalyzing) {
-          handleMerge();
-        }
+        handleCompare();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleMerge, isAnalyzing]);
+  }, [handleCompare]);
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(result);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const errors = diffs.filter(d => d.severity === 'error');
+  const warnings = diffs.filter(d => d.severity === 'warning');
+  const infos = diffs.filter(d => d.severity === 'info');
+
+  const severityIcon = (s: SchemaDiff['severity']) => {
+    if (s === 'error') return <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />;
+    if (s === 'warning') return <TriangleAlert size={14} className="text-yellow-500 shrink-0 mt-0.5" />;
+    return <Info size={14} className="text-blue-500 shrink-0 mt-0.5" />;
+  };
+
+  const severityBg = (s: SchemaDiff['severity']) => {
+    if (s === 'error') return 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/50';
+    if (s === 'warning') return 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-900/50';
+    return 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/50';
+  };
+
+  const typeBadge = (t: SchemaDiff['type']) => {
+    if (t === 'removed') return <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">removed</span>;
+    if (t === 'added') return <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">added</span>;
+    return <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400">changed</span>;
   };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-7xl mx-auto pt-32 pb-20 px-6 min-h-screen"
-    >
-      <div className="mb-12 text-center">
-        <h1 className="text-4xl md:text-6xl font-black tracking-tighter mb-4 text-slate-900 dark:text-white">
-          Smart JSON Diff <span className="text-blue-600">AI</span>
-        </h1>
-        <p className="text-slate-500 font-medium max-w-2xl mx-auto">
-          Compare structures and instantly generate perfectly merged Zod schemas or TypeScript interfaces using Gemini AI. 100% Local-first privacy.
-        </p>
+    <div className="flex flex-col h-full p-4 gap-4 bg-white dark:bg-[#0A0A0A]">
+
+      {/* ヘッダー */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-800 dark:text-[#E8E8E8]">Schema Diff</h2>
+          <p className="text-xs text-slate-400 dark:text-[#707070]">Detect breaking changes between two JSON payloads</p>
+        </div>
+        <button
+          onClick={handleCompare}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-all"
+          title="Cmd+Enter or Ctrl+Enter"
+        >
+          <ArrowLeftRight size={13} />
+          Compare
+          <span className="text-[9px] opacity-60 border border-white/30 px-1 py-0.5 rounded">⌘↵</span>
+        </button>
       </div>
 
+      {/* エラー表示 */}
       {error && (
-        <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl flex items-center gap-3 text-red-600 dark:text-red-400">
-          <AlertCircle size={20} />
-          <span className="text-sm font-bold">{error}</span>
+        <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-lg text-xs text-red-600 dark:text-red-400">
+          <AlertCircle size={13} />
+          {error}
         </div>
       )}
 
-      <div className="grid lg:grid-cols-2 gap-8 mb-8">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-xl shadow-slate-200/50 dark:shadow-none flex flex-col h-[400px]">
-          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-red-500"></div>
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Original JSON (A)</span>
-            </div>
+      {/* エディター2面 */}
+      <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
+        <div className="flex flex-col border border-slate-200 dark:border-[#1A1A1A] rounded-lg overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#0F0F0F]">
+            <div className="w-2 h-2 rounded-full bg-red-400" />
+            <span className="text-[10px] font-mono uppercase text-slate-400">JSON A (Original)</span>
           </div>
           <Editor
             height="100%"
             defaultLanguage="json"
             value={jsonA}
             onChange={(v) => setJsonA(v || '')}
-            theme={isDark ? "vs-dark" : "light"}
-            options={{ 
-              minimap: { enabled: false }, 
-              fontSize: 13, 
-              scrollBeyondLastLine: false, 
-              padding: { top: 16, bottom: 16 },
-              automaticLayout: true,
-              wordWrap: 'on',
-              scrollbar: { vertical: 'auto', horizontal: 'auto' }
-            }}
+            theme={isDark ? 'vs-dark' : 'light'}
+            options={{ minimap: { enabled: false }, fontSize: 12, scrollBeyondLastLine: false, padding: { top: 12, bottom: 12 }, automaticLayout: true, wordWrap: 'on' }}
           />
         </div>
-
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-xl shadow-slate-200/50 dark:shadow-none flex flex-col h-[400px]">
-          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-500"></div>
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Modified JSON (B)</span>
-            </div>
+        <div className="flex flex-col border border-slate-200 dark:border-[#1A1A1A] rounded-lg overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#0F0F0F]">
+            <div className="w-2 h-2 rounded-full bg-green-400" />
+            <span className="text-[10px] font-mono uppercase text-slate-400">JSON B (Modified)</span>
           </div>
           <Editor
             height="100%"
             defaultLanguage="json"
             value={jsonB}
             onChange={(v) => setJsonB(v || '')}
-            theme={isDark ? "vs-dark" : "light"}
-            options={{ 
-              minimap: { enabled: false }, 
-              fontSize: 13, 
-              scrollBeyondLastLine: false, 
-              padding: { top: 16, bottom: 16 },
-              automaticLayout: true,
-              wordWrap: 'on',
-              scrollbar: { vertical: 'auto', horizontal: 'auto' }
-            }}
+            theme={isDark ? 'vs-dark' : 'light'}
+            options={{ minimap: { enabled: false }, fontSize: 12, scrollBeyondLastLine: false, padding: { top: 12, bottom: 12 }, automaticLayout: true, wordWrap: 'on' }}
           />
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-        <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2 rounded-2xl shadow-sm">
-          <select 
-            value={schemaType} 
-            onChange={(e) => setSchemaType(e.target.value)}
-            className="bg-transparent text-sm font-bold text-slate-700 dark:text-slate-300 outline-none px-4 py-2 cursor-pointer"
-          >
-            <option value="zod">Zod Schema</option>
-            <option value="typescript">TypeScript Interface</option>
-          </select>
-        </div>
-        
-        <button 
-          onClick={handleMerge}
-          disabled={isAnalyzing}
-          className="group relative px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black text-sm uppercase tracking-widest hover:scale-105 transition-all shadow-xl disabled:opacity-50 flex items-center gap-3 overflow-hidden"
-          title="Press Cmd+Enter or Ctrl+Enter"
-        >
-          {isAnalyzing ? (
-            <span className="flex items-center gap-2"><ArrowLeftRight className="animate-spin" size={18} /> Analyzing...</span>
-          ) : (
-            <span className="flex items-center gap-2"><Wand2 size={18} /> AI Merge Schema <span className="text-[10px] opacity-50 ml-2 border border-current px-1.5 py-0.5 rounded">⌘↵</span></span>
-          )}
-          <div className="absolute inset-0 bg-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-        </button>
-      </div>
+      {/* 結果 */}
+      {hasRun && (
+        <div className="flex flex-col gap-3 max-h-[280px] overflow-y-auto">
 
-      {result && (
-        <div className="bg-slate-50 dark:bg-[#020617] border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xl transition-all duration-300">
-          <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Generated {schemaType === 'zod' ? 'Zod' : 'TypeScript'}</span>
-            <button 
-              onClick={copyToClipboard}
-              className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"
-            >
-              {copied ? <CheckCircle2 size={14} className="text-green-500 dark:text-green-400" /> : <Copy size={14} />}
-              <span>{copied ? 'Copied' : 'Copy Code'}</span>
-            </button>
+          {/* サマリー */}
+          <div className="flex items-center gap-3">
+            {diffs.length === 0 ? (
+              <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1.5">
+                <CheckCircle2 size={13} /> No differences detected
+              </span>
+            ) : (
+              <>
+                {errors.length > 0 && (
+                  <span className="text-[10px] font-mono px-2 py-1 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+                    {errors.length} breaking
+                  </span>
+                )}
+                {warnings.length > 0 && (
+                  <span className="text-[10px] font-mono px-2 py-1 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400">
+                    {warnings.length} warning
+                  </span>
+                )}
+                {infos.length > 0 && (
+                  <span className="text-[10px] font-mono px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                    {infos.length} added
+                  </span>
+                )}
+              </>
+            )}
           </div>
-          <div className="h-[400px]">
-            <Editor
-              height="100%"
-              defaultLanguage="typescript"
-              value={result}
-              theme={isDark ? "vs-dark" : "light"}
-              options={{ 
-                minimap: { enabled: false }, 
-                fontSize: 13, 
-                scrollBeyondLastLine: false, 
-                padding: { top: 16, bottom: 16 }, 
-                readOnly: true,
-                automaticLayout: true,
-                wordWrap: 'on',
-                scrollbar: { vertical: 'auto', horizontal: 'auto' }
-              }}
-            />
+
+          {/* 差分リスト */}
+          <div className="flex flex-col gap-2">
+            {diffs.map((d, i) => (
+              <div key={i} className={`flex items-start gap-2 p-3 rounded-lg border text-xs ${severityBg(d.severity)}`}>
+                {severityIcon(d.severity)}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <code className="font-mono text-slate-700 dark:text-[#E8E8E8] truncate">{d.path}</code>
+                    {typeBadge(d.type)}
+                    {d.oldType && d.newType && (
+                      <span className="text-slate-400 font-mono text-[10px]">{d.oldType} → {d.newType}</span>
+                    )}
+                  </div>
+                  <p className="text-slate-500 dark:text-[#707070] leading-relaxed">{d.description}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }
