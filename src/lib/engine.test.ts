@@ -469,6 +469,50 @@ describe('TypeMorph Engine', () => {
       const solResult = runEngine(json, 'solidity');
       expect(solResult).toContain('SPDX-License-Identifier: MIT');
     });
+
+    it('[bugfix BUG-01] floatKeyPattern should not suppress statistical enum detection on high-confidence float-named fields', () => {
+      // Previously floatKeyPattern fired BEFORE allowedEnumKeys check.
+      // "rate" matches floatKeyPattern but when it appears with only 2 distinct string
+      // values across 12+ items, statistical enum detection should win.
+      const json = Array.from({ length: 12 }, (_, i) => ({
+        rate: i % 2 === 0 ? 'annual' : 'monthly',
+        count: i + 1,
+      }));
+      const schema = inferSchema(json);
+      const rateField = schema.itemType!.fields!.rate;
+      expect(rateField.type).toBe('string');
+      expect(rateField.enumValues).toBeDefined();
+      expect(rateField.enumValues).toContain('annual');
+      expect(rateField.enumValues).toContain('monthly');
+    });
+
+    it('[bugfix BUG-03] mergeSchemas should drop format when two string schema formats differ', () => {
+      // Previously a dead ternary `(s1.format === s2.format) ? s1.format : undefined`
+      // always fell to `undefined` but the return statement also included `format: mergedFormat`
+      // which could pass `undefined` through and confuse downstream generators.
+      // After the fix the return simply omits `format` when formats differ.
+      const json = [
+        { contact: 'alice@example.com' },
+        { contact: '550e8400-e29b-41d4-a716-000000000001' },
+      ];
+      const schema = inferSchema(json);
+      const contactField = schema.itemType!.fields!.contact;
+      expect(contactField.type).toBe('string');
+      expect(contactField.format).toBeUndefined();
+    });
+
+    it('[bugfix BUG-06] mergeIsomorphicObjects should merge primitive array itemType across unified types (int vs float → float)', () => {
+      // Previously same-type primitives inside arrays of unified objects were NOT merged;
+      // `scores: []int64` (from admin) would override `scores: []float64` (from user) or vice versa.
+      // After the fix, mergeSchemas is called on matching primitive itemTypes.
+      const json = {
+        user:  { scores: [1.5, 2.7], name: 'Alice' },
+        admin: { scores: [10, 20],   name: 'Bob' },
+      };
+      const goResult = runEngine(json, 'go');
+      expect(goResult).toContain('Scores []float64');
+      expect(goResult).not.toContain('Scores []int64');
+    });
   });
 
   describe('Explainable Logic Decisions', () => {
@@ -702,4 +746,28 @@ describe('TypeMorph Engine', () => {
       expect(result).not.toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/);
     });
   });
+
+  describe('End-to-End Feature Integration', () => {
+    it('should generate Java POJO when lang is java', () => {
+      const json = { id: 1, name: "Alice" };
+      const out = runEngine(json, 'java', 'json-to-java-class');
+      expect(out).toContain('public class Root');
+      expect(out).toContain('private int id');
+      expect(out).toContain('private String name');
+      expect(out).toContain('public int getId()');
+    });
+
+    it('should bypass inferSchema when input is already an OpenAPI Schema', () => {
+      const schemaFromOpenAPI = {
+        _isTypeMorphSchema: true,
+        type: 'object',
+        fields: {
+          isActive: { type: 'boolean' }
+        }
+      };
+      const out = runEngine(schemaFromOpenAPI, 'typescript', 'json-to-typescript');
+      expect(out).toContain('isActive: boolean;');
+    });
+  });
 });
+

@@ -31,19 +31,19 @@ const uniqueInsightsJP = {
 const secFrags = (t) => [
   `I don't trust random websites with my <strong>${t.from}</strong> data. Period.`,
   `If you're pasting sensitive payloads into some server-side converter, you're asking for trouble.`,
-  `TypeFlow Pro is strictly local; it runs in your browser's JS engine.`,
+  `TypeMorph is strictly local; it runs in your browser's JS engine.`,
   `No logs, no data harvesting, no nonsense—just <strong>${t.title}</strong> on your own machine.`,
   `Data privacy isn't a feature for <strong>${t.to}</strong> generation; it's a requirement.`,
   `Most online tools log your <strong>${t.from}</strong> inputs to train their models or sell your data. We don't.`,
   `Your proprietary schemas stay on your hard drive where they belong.`,
   `Security is the reason I built this local-first <strong>${t.title}</strong> tool.`,
   `Sending your internal API specs to a third-party server is a SOC2 nightmare waiting to happen.`,
-  `TypeFlow Pro is a zero-trust utility for your <strong>${t.to}</strong> needs.`,
+  `TypeMorph is a zero-trust utility for your <strong>${t.to}</strong> needs.`,
   `It satisfies GDPR and company security policies by simply never seeing your data.`,
   `Server-side conversion is a security hole that many <strong>${t.from}</strong> users overlook.`,
   `This tool uses your machine's CPU to do the work, ensuring <strong>${t.to}</strong> safety.`,
   `It's faster, it's private, and it ensures that your sensitive infrastructure definitions never leak.`,
-  `No server, no risk—that is the TypeFlow Pro promise for <strong>${t.title}</strong>.`,
+  `No server, no risk—that is the TypeMorph promise for <strong>${t.title}</strong>.`,
   `Local processing means your <strong>${t.from}</strong> never touches our cloud.`,
   `Privacy-first <strong>${t.title}</strong> is non-negotiable in 2026.`,
   `I built this specifically because I didn't want to leak my client's <strong>${t.from}</strong> schemas.`,
@@ -54,19 +54,19 @@ const secFrags = (t) => [
 const secFragsJP = (t) => [
   `機密性の高い<strong>${t.from}</strong>データを、どこの誰が作ったかわからないウェブサイトに貼り付けるのは、あまりにも危険です。`,
   `サーバーサイドで変換を行うツールは、あなたのデータをログに記録している可能性があります。`,
-  `TypeFlow Proは完全にローカルで動作します。すべての処理はあなたのブラウザ内で行われます。`,
+  `TypeMorphは完全にローカルで動作します。すべての処理はあなたのブラウザ内で行われます。`,
   `データの収集もログもありません。<strong>${t.title}</strong>の変換は、あなたのマシン上だけで完結します。`,
   `データプライバシーは<strong>${t.to}</strong>生成における「機能」ではなく、「絶対条件」です。`,
   `多くのオンラインツールは、モデルのトレーニングやデータ転送のためにあなたの入力を利用します。私たちは違います。`,
   `独自のスキーマやAPI仕様は、あるべき場所、つまりあなたの手元に留めておくべきです。`,
   `この「ローカルファースト」の<strong>${t.title}</strong>ツールを開発した最大の理由は、セキュリティです。`,
   `社内のAPI仕様をサードパーティのサーバーに送信することは、SOC2コンプライアンス上の大きなリスクとなります。`,
-  `TypeFlow Proは、<strong>${t.to}</strong>生成におけるゼロトラスト・ユーティリティです。`,
+  `TypeMorphは、<strong>${t.to}</strong>生成におけるゼロトラスト・ユーティリティです。`,
   `データが私たちのサーバーに届くことは物理的にありません。これによりGDPRや社内セキュリティポリシーを完全に満たせます。`,
   `サーバーサイド変換は、多くの<strong>${t.from}</strong>ユーザーが見落としがちなセキュリティホールです。`,
   `このツールはあなたのマシンのCPUパワーを使い、<strong>${t.to}</strong>への変換を安全に行います。`,
   `高速でプライベート。そして機密性の高いインフラ定義が漏洩することを防ぎます。`,
-  `サーバーがない＝リスクがない。それがTypeFlow Proが提供する<strong>${t.title}</strong>の約束です。`,
+  `サーバーがない＝リスクがない。それがTypeMorphが提供する<strong>${t.title}</strong>の約束です。`,
   `ローカル処理により、あなたの<strong>${t.from}</strong>データがクラウドに触れることはありません。`,
   `2026年において、プライバシーを優先した<strong>${t.title}</strong>ツールは妥協できない選択肢です。`,
   `クライアントの重要な<strong>${t.from}</strong>スキーマを漏洩させたくない。その思いがこのツールを作りました。`,
@@ -205,7 +205,7 @@ const generatePage = (tool, lang = 'en') => {
     { h2: headers.tip, p: tipsPara },
     { h2: headers.tech, p: techPara },
     { h2: headers.faq, p: faqPara },
-    { h2: headers.stop, p: lang === 'jp' ? `手動で <strong>${tool.title}</strong> を行う毎分は、新機能のリリースを遅らせているのと同じです。コードを入手し、監査を行い、本来の仕事に戻りましょう。TypeFlow Proは生産性を最大化するためのツールです。` : `Seriously. Every minute spent on manual <strong>${tool.title}</strong> is a minute you aren't shipping features. Get the code, do a quick audit, and get back to work. TypeFlow Pro is about velocity, not boilerplate.` }
+    { h2: headers.stop, p: lang === 'jp' ? `手動で <strong>${tool.title}</strong> を行う毎分は、新機能のリリースを遅らせているのと同じです。コードを入手し、監査を行い、本来の仕事に戻りましょう。TypeMorphは生産性を最大化するためのツールです。` : `Seriously. Every minute spent on manual <strong>${tool.title}</strong> is a minute you aren't shipping features. Get the code, do a quick audit, and get back to work. TypeMorph is about velocity, not boilerplate.` }
   ];
 
   let sections = shuffle(allSections);
@@ -216,7 +216,7 @@ const generatePage = (tool, lang = 'en') => {
     html += `<h2>${s.h2}</h2><p>${s.p}</p>`;
   }
   
-  html += `<h2>Done.</h2><p>${lang === 'jp' ? '人生は手動マッピングをするには短すぎます。 - TypeFlow Pro チーム' : 'Life is too short for manual mapping. - TypeFlow Pro Team'}</p>`;
+  html += `<h2>Done.</h2><p>${lang === 'jp' ? '人生は手動マッピングをするには短すぎます。 - TypeMorph チーム' : 'Life is too short for manual mapping. - TypeMorph Team'}</p>`;
 
   return html;
 };

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseYAML, parseXML, parseSQLToZod, parseCurl, curlToTypeScript } from './parsers';
+import { parseYAML, parseXML, parseSQLToZod, parseCurl, curlToTypeScript, parseOpenAPI, parseTypeScriptToSchema } from './parsers';
 
 describe('parsers', () => {
   describe('parseYAML', () => {
@@ -152,6 +152,17 @@ describe('parsers', () => {
       expect(result).not.toMatch(/^\s+b:/m);
       expect(result).not.toMatch(/^\s+c':/m);
     });
+
+    it('should correctly parse ENUM to z.enum', () => {
+      const sql = `
+        CREATE TABLE users (
+          id INT PRIMARY KEY,
+          role ENUM('admin', 'member', 'guest') NOT NULL
+        );
+      `;
+      const result = parseSQLToZod(sql);
+      expect(result).toContain("role: z.enum(['admin', 'member', 'guest'])");
+    });
   });
 
   describe('parseCurl [regression]', () => {
@@ -173,5 +184,134 @@ describe('parsers', () => {
       expect(tsCode).toContain("body: 'hello \\'world\\' and \\\\slash'");
     });
   });
+
+  describe('parseOpenAPI', () => {
+    it('should parse OpenAPI 3.0 YAML spec', () => {
+      const yaml = `
+openapi: 3.0.0
+components:
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+        - username
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        age:
+          type: integer
+          format: int32
+        isActive:
+          type: boolean
+        role:
+          type: string
+          enum: [admin, user, guest]
+`;
+      const result = parseOpenAPI(yaml);
+      expect(result).not.toBeNull();
+      expect(result?.type).toBe('object');
+      expect(result?.fields?.id.format).toBe('uuid');
+      expect(result?.fields?.id.optional).toBeFalsy();
+      expect(result?.fields?.age.format).toBe('int');
+      expect(result?.fields?.isActive.type).toBe('boolean');
+      expect(result?.fields?.role.enumValues).toEqual(['admin', 'user', 'guest']);
+    });
+
+    it('should parse Swagger 2.0 JSON spec', () => {
+      const json = JSON.stringify({
+        swagger: "2.0",
+        definitions: {
+          Product: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              price: { type: "number", format: "double" }
+            }
+          }
+        }
+      });
+      const result = parseOpenAPI(json);
+      expect(result).not.toBeNull();
+      expect(result?.type).toBe('object');
+      expect(result?.fields?.name.type).toBe('string');
+      expect(result?.fields?.price.format).toBe('float');
+    });
+
+    it('should resolve $ref references', () => {
+      const yaml = `
+openapi: 3.0.0
+components:
+  schemas:
+    Order:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+`;
+      const result = parseOpenAPI(yaml);
+      expect(result).not.toBeNull();
+      expect(result?.fields?.user.type).toBe('object');
+      expect(result?.fields?.user.fields?.id.format).toBe('uuid');
+    });
+  });
+
+  describe('parseTypeScriptToSchema', () => {
+    it('should parse basic TypeScript interfaces', () => {
+      const ts = `
+        interface User {
+          id: string;
+          age: number;
+          isActive: boolean;
+        }
+      `;
+      const schema = parseTypeScriptToSchema(ts);
+      expect(schema).toBeDefined();
+      expect(schema?.type).toBe('object');
+      expect((schema as any)._isTypeMorphSchema).toBe(true);
+      expect(schema?.fields?.id?.type).toBe('string');
+      expect(schema?.fields?.age?.type).toBe('number');
+      expect(schema?.fields?.isActive?.type).toBe('boolean');
+    });
+
+    it('should parse optional fields and Date types', () => {
+      const ts = `
+        export type Post = {
+          title: string;
+          content?: string;
+          createdAt: Date;
+        }
+      `;
+      const schema = parseTypeScriptToSchema(ts);
+      expect(schema?.fields?.content?.type).toBe('string');
+      expect(schema?.fields?.content?.optional).toBe(true);
+      expect(schema?.fields?.createdAt?.type).toBe('string');
+      expect(schema?.fields?.createdAt?.format).toBe('datetime');
+    });
+
+    it('should parse arrays and literal unions', () => {
+      const ts = `
+        interface Config {
+          tags: string[];
+          role: 'admin' | 'user' | 'guest';
+        }
+      `;
+      const schema = parseTypeScriptToSchema(ts);
+      expect(schema?.fields?.tags?.type).toBe('array');
+      expect(schema?.fields?.tags?.itemType?.type).toBe('string');
+      expect(schema?.fields?.role?.type).toBe('string');
+      expect(schema?.fields?.role?.enumValues).toEqual(['admin', 'user', 'guest']);
+    });
+  });
 });
+
 

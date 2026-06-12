@@ -10,7 +10,20 @@ const toSnakeCase = (s: string) =>
   s.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
 const toScreamingSnake = (s: string) => toSnakeCase(s).toUpperCase();
 
-const getFields = (schema: Schema): Record<string, Schema> => schema.fields ?? {};
+// トップレベルが配列（行の集合）の場合は要素オブジェクトのフィールドを解決する。
+// CSV / SQL INSERT / Markdown テーブルなどの主たる入力形状は「オブジェクトの配列」であり、
+// 以前は配列ルートに対して空を返していたため出力が空になっていた。
+const getFields = (schema: Schema): Record<string, Schema> => {
+  if (schema.type === 'array' && schema.itemType) {
+    return schema.itemType.fields ?? {};
+  }
+  return schema.fields ?? {};
+};
+
+// トップレベルが「オブジェクトの配列」の場合は要素オブジェクトを正準ルートとして扱う。
+// レコード/モデル/バリデータ系ジェネレータは単一の構造を期待するため。
+const rootObject = (s: Schema): Schema =>
+  (s.type === 'array' && s.itemType) ? s.itemType : s;
 
 // ─── SQL type mapping ────────────────────────────────────────────────────────
 const sqlType = (
@@ -759,6 +772,7 @@ export const curlOutputGen = {
 // ─── Mongoose Schema & Model ──────────────────────────────────────────────────
 export const mongooseGen = {
   generate: (schema: Schema, name: string = 'Root'): string => {
+    schema = rootObject(schema);
     const modelName = toPascalCase(name);
     const schemaName = `${modelName}Schema`;
 
@@ -970,6 +984,7 @@ export const kyselyGen = {
 // ─── Yup Schema ───────────────────────────────────────────────────────────────
 export const yupGen = {
   generate: (schema: Schema, name: string = 'root', _seen: Set<string> = new Set()): string => {
+    schema = rootObject(schema);
     if (schema.type === 'object' && schema.fields) {
       if (_seen.has(name)) return '';
       _seen.add(name);
@@ -1028,6 +1043,7 @@ export const yupGen = {
 // ─── Joi Schema ───────────────────────────────────────────────────────────────
 export const joiGen = {
   generate: (schema: Schema, name: string = 'root', _seen: Set<string> = new Set()): string => {
+    schema = rootObject(schema);
     if (schema.type === 'object' && schema.fields) {
       if (_seen.has(name)) return '';
       _seen.add(name);
@@ -1083,6 +1099,7 @@ export const joiGen = {
 // ─── Valibot Schema ───────────────────────────────────────────────────────────
 export const valibotGen = {
   generate: (schema: Schema, name: string = 'root', _seen: Set<string> = new Set()): string => {
+    schema = rootObject(schema);
     if (schema.type === 'object' && schema.fields) {
       if (_seen.has(name)) return '';
       _seen.add(name);
@@ -1142,6 +1159,7 @@ export const valibotGen = {
 // ─── Superstruct Schema ────────────────────────────────────────────────────────
 export const superstructGen = {
   generate: (schema: Schema, name: string = 'root', _seen: Set<string> = new Set()): string => {
+    schema = rootObject(schema);
     if (schema.type === 'object' && schema.fields) {
       if (_seen.has(name)) return '';
       _seen.add(name);

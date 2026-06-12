@@ -51,4 +51,31 @@ describe('compareSchemas', () => {
     expect(removed).toBeTruthy();
     expect(removed?.type).toBe('removed');
   });
+
+  it('[bugfix] should NOT report a false-positive type_changed when only primitive array element order differs', () => {
+    // Previously flattenSchema used nonObjectElements[0] for the path[] type.
+    // Swapping element order (string first vs number first) triggered a spurious diff.
+    const oldJson = { values: ['hello', 1, null] };
+    const newJson = { values: [1, 'hello', null] };
+    const diffs = compareSchemas(oldJson, newJson);
+    // No type_changed for values[] — same element types, only order changed
+    const falsePositive = diffs.find(d => d.path === 'values[]' && d.type === 'type_changed');
+    expect(falsePositive).toBeUndefined();
+  });
+
+  it('[bugfix] should still detect a genuine type change when all primitive array elements change type', () => {
+    const oldJson = { ids: [1, 2, 3] };
+    const newJson = { ids: ['a', 'b', 'c'] };
+    const diffs = compareSchemas(oldJson, newJson);
+    const changed = diffs.find(d => d.type === 'type_changed');
+    expect(changed).toBeDefined();
+  });
+
+  it('[bugfix] should correctly represent mixed-type arrays using a union type signature', () => {
+    const oldJson = { tags: [1, 'hello'] };
+    const newJson = { tags: [1, 'world'] };
+    const diffs = compareSchemas(oldJson, newJson);
+    // Both arrays are [number, string] — no diff expected
+    expect(diffs).toHaveLength(0);
+  });
 });

@@ -17,11 +17,11 @@ import {
 } from './generators-extended';
 import { Schema, SchemaType } from './types';
 import { createHash } from 'crypto';
-import { parseYAML, parseXML, parseCurl, parseSQLToZod, curlToTypeScript } from './parsers';
+import { parseYAML, parseXML, parseCurl, parseSQLToZod, curlToTypeScript, parseOpenAPI, parseTypeScriptToSchema } from './parsers';
 import { trackInferenceError, trackInferenceFallback, trackUnsupportedOutputTarget } from './analytics';
 
 export { type Schema };
-export { parseYAML, parseXML, parseCurl, parseSQLToZod, curlToTypeScript };
+export { parseYAML, parseXML, parseCurl, parseSQLToZod, curlToTypeScript, parseOpenAPI, parseTypeScriptToSchema };
 
 // ---------------------------------------------------------------------------
 // Primitive types that can participate in a union (non-object, non-array)
@@ -1047,7 +1047,7 @@ export const inferSchemaAsync = async (json: any, options: InferOptions = {}) =>
 
 export const runEngine = (json: any, lang: string, slug: string = "", options: any = {}): any => {
   try {
-    const schema = inferSchema(json);
+    const schema = json && json._isTypeMorphSchema ? json : inferSchema(json);
     extractSharedTypes(schema, options); // 共通型のハッシュ抽出＆マーク
     let out = "";
     let matchedKey = "";
@@ -1117,6 +1117,7 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     else if (s.includes('arduino')) out = arduinoGen.generate(schema, 'Data');
     else if (s.includes('mock')) out = mockGen.generate(schema);
     else if (s.includes('ui')) out = uiGen.generate(schema, 'Component');
+    else if (s.includes('asciidoc')) out = asciidocTableGen.generate(schema);
     else if (s.includes('doc')) out = docGen.generate(schema);
     else if (s.includes('avro')) out = avroGen.generate(schema, 'Root');
     else if (s.includes('toml')) out = tomlGen.generate(schema, 'config');
@@ -1124,7 +1125,6 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     else if (s.includes('env')) out = envGen.generate(schema);
     else if (s.includes('properties')) out = propertiesGen.generate(schema);
     else if (s.includes('markdown')) out = markdownTableGen.generate(schema);
-    else if (s.includes('asciidoc')) out = asciidocTableGen.generate(schema);
     else if (s.includes('latex')) out = latexTableGen.generate(schema);
     else if (s.includes('mermaid')) out = mermaidERGen.generate(schema, 'Root');
     else if (s.includes('bigquery')) out = bigQueryGen.generate(schema);
@@ -1143,9 +1143,19 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     else if (s.includes('scala')) out = scalaGen.generate(schema, 'Root');
     else if (s.includes('solidity')) out = solidityGen.generate(schema, 'Root');
 
+    // Whether the requested target matched a known generator branch above.
+    // (Used to avoid mislabelling a *recognised* target that legitimately produced
+    //  an empty string — e.g. an empty input — as "unsupported".)
+    const KNOWN_TARGETS_EXACT = new Set(['typescript', 'ts', 'zod', 'go', 'golang', 'rust', 'java', 'python', 'php', 'sql', 'prisma', 'proto', 'protobuf', 'graphql', 'gql', 'json', 'r']);
+    const KNOWN_TARGET_SUBSTR = ['csv', 'sql-insert', 'mysql', 'postgres', 'sqlite', 'snowflake', 'mongodb', 'mongoose', 'ruby', 'rails', 'django', 'dart', 'flutter', 'swift', 'kotlin', 'csharp', 'c-sharp', 'openapi', 'jsonschema', 'yup', 'joi', 'valibot', 'react-props', 'vue-props', 'svelte-props', 'solid-props', 'react-context', 'react-query', 'api-route', 'nextjs-api', 'redux-slice', 'pinia', 'sequelize', 'typeorm', 'drizzle', 'kysely', 'superstruct', 'arduino', 'mock', 'ui', 'doc', 'avro', 'toml', 'yaml', 'env', 'properties', 'markdown', 'asciidoc', 'latex', 'mermaid', 'bigquery', 'dynamodb', 'postman', 'http', 'vscode', 'curl', 'cobol', 'clojure', 'elixir', 'elm', 'godot', 'gdscript', 'haskell', 'r-lang', 'scala', 'solidity'];
+    const targetMatched = KNOWN_TARGETS_EXACT.has(s) || KNOWN_TARGET_SUBSTR.some(k => s.includes(k));
+
     // Explicit JSON output when requested, otherwise surface unsupported targets.
     if (s === 'json') {
       out = JSON.stringify(json, null, 2);
+    } else if (!out && targetMatched) {
+      // Target was recognised but produced no output (e.g. empty/array-less input).
+      out = `// No output generated for "${lang || slug || s}". The input may be empty or lack the structure this format expects.`;
     } else if (!out) {
       matchedKey = 'unsupported';
       trackUnsupportedOutputTarget(lang || slug || 'unknown', s);

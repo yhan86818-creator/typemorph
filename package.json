@@ -2,9 +2,14 @@
   "name": "typemorph",
   "version": "0.1.0",
   "private": true,
+  "bin": {
+    "typemorph": "./dist/cli.js"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:cli": "node scripts/build-cli.js",
+    "publish:cli": "npm run build:cli && npm publish dist/",
     "start": "next start",
     "lint": "eslint",
     "test": "tsc --noEmit && vitest run",

@@ -64,6 +64,7 @@ vi.mock('@/lib/engine', () => {
     parseCurl: vi.fn(),
     curlToTypeScript: vi.fn(),
     parseSQLToZod: vi.fn(),
+    parseOpenAPI: vi.fn(),
     getDecisions: vi.fn(() => []),
   };
 });

@@ -26,7 +26,7 @@ const PRESETS = [
   { 
     id: 'nextjs-api', 
     label: 'Prisma ➡ Next.js API', 
-    icon: <Sparkles size={14} className="text-blue-600" />, 
+    icon: <Sparkles size={14} className="text-slate-700 dark:text-white" />, 
     prompt: 'Generate highly optimized, production-ready Next.js 15/16 App Router API routes (GET, POST, PUT, DELETE) utilizing Prisma Client for this Prisma Schema or model definition. CRITICAL: For dynamic routes like [userId] or [postId], implement Next.js 15/16 asynchronous params: define parameter types as Promise<{ userId: string }> and perform `const { userId } = await params;` to prevent runtime errors. Implement robust input validation, Prisma transactions, correct relational query includes, strict error handling with appropriate HTTP status codes, and return beautifully structured JSON responses. Output ONLY the Next.js API route code with clear directory layout comments.' 
   }
 ];

@@ -2,6 +2,34 @@ import { Schema, SchemaType, ASTClass, ASTField, ASTType, ASTTypeKind } from './
 
 const toPascalCase = (str: string) => str.replace(/(^\w|_\w)/g, m => m.replace(/_/, '').toUpperCase());
 
+// ASTType が特定のクラス名を参照しているか（配列要素も再帰的に確認）
+const astTypeRefersTo = (type: ASTType | undefined, name: string): boolean => {
+  if (!type) return false;
+  if (type.kind === 'classRef') return type.classRefName === name;
+  if (type.kind === 'array') return astTypeRefersTo(type.itemType, name);
+  return false;
+};
+
+/**
+ * トップレベルが配列の場合に生成される「要素クラス」の最終的な PascalCase 名を返す。
+ * schemaToAST の traverse() / resolveNameCollisions() と同じ命名規則を用いるため、
+ * 生成済みクラス名と確実に一致する。配列でない場合は null。
+ */
+export const rootArrayItemClassName = (schema: Schema, rootName: string): string | null => {
+  if (schema.type !== 'array' || !schema.itemType) return null;
+  let childItemName = schema.itemType._sharedTypeName;
+  if (!childItemName) {
+    if (rootName.endsWith('ies')) childItemName = rootName.slice(0, -3) + 'y';
+    else if (rootName.endsWith('s')) childItemName = rootName.slice(0, -1);
+    else if (rootName.endsWith('List')) childItemName = rootName.slice(0, -4);
+    else childItemName = rootName + 'Item';
+  }
+  // resolveNameCollisions と同じ PascalCase 化
+  return childItemName.includes('_')
+    ? childItemName.split('_').map(part => toPascalCase(part)).join('')
+    : toPascalCase(childItemName);
+};
+
 // Schema の個別の型表現から ASTType へのコンバーター
 export const convertToASTType = (v: Schema, parentClassPrefix: string, fieldKey: string): ASTType => {
   if (v.type === 'union' && v.unionTypes) {
@@ -161,8 +189,18 @@ export const optimizeAST = (
                 }
               }
 
-              // 不要になったターゲットクラスを除外
-              optimized = optimized.filter(c => c.name !== targetClassName);
+              // ターゲットがこのラッパー以外のクラスからも参照されている場合は削除しない。
+              // 削除すると残った参照が宙に浮き、未定義型（ダングリング参照）を生成してしまう。
+              const stillReferenced = optimized.some(c =>
+                c !== cls && c.name !== targetClassName && (
+                  c.fields.some(f => astTypeRefersTo(f.fieldType, targetClassName)) ||
+                  (c.annotations?.includes(`extends ${targetClassName}`) ?? false)
+                )
+              );
+              if (!stillReferenced) {
+                // 不要になったターゲットクラスを除外
+                optimized = optimized.filter(c => c.name !== targetClassName);
+              }
               flattenedNames.add(targetClassName);
               changed = true;
               break;

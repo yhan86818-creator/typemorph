@@ -5,6 +5,7 @@
 
 import yaml from 'js-yaml';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
+import { Schema } from './types';
 
 // ---------------------------------------------------------------------------
 // YAML Parser — uses js-yaml for full spec compliance
@@ -269,6 +270,18 @@ export const parseSQLToZod = (sql: string) => {
     if (['JSON', 'JSONB'].includes(type)) zodType = 'z.any() /* json */';
     if (type === 'UUID') zodType = 'z.string().uuid()';
 
+    if (type === 'ENUM') {
+      const enumMatch = trimmedLine.match(/ENUM\s*\(([^)]+)\)/i);
+      if (enumMatch) {
+        const values = enumMatch[1]
+          .split(',')
+          .map(v => v.trim().replace(/^['"`]|['"`]$/g, ''));
+        if (values.length > 0) {
+          zodType = `z.enum([${values.map(v => `'${v}'`).join(', ')}])`;
+        }
+      }
+    }
+
     // Mark optional if column allows NULL
     const isNullable = /\bNULL\b/i.test(trimmedLine) && !/NOT\s+NULL/i.test(trimmedLine);
     if (isNullable) zodType += '.nullable()';
@@ -312,4 +325,224 @@ export const curlToTypeScript = (parsed: any) => {
   out += `  return await res.json();\n`;
   out += `};`;
   return out;
+};
+
+// ---------------------------------------------------------------------------
+// OpenAPI / Swagger Parser
+// ---------------------------------------------------------------------------
+
+const resolveRef = (ref: string, spec: any): any => {
+  if (!ref.startsWith('#/')) return {};
+  const parts = ref.split('/').slice(1);
+  let current = spec;
+  for (const part of parts) {
+    if (!current) return {};
+    current = current[part.replace(/~1/g, '/').replace(/~0/g, '~')];
+  }
+  return current;
+};
+
+const openApiSchemaToSchema = (oaSchema: any, spec: any, depth: number = 0): Schema => {
+  if (depth > 10 || !oaSchema) return { type: 'any' };
+
+  if (oaSchema.$ref) {
+    const resolved = resolveRef(oaSchema.$ref, spec);
+    return openApiSchemaToSchema(resolved, spec, depth + 1);
+  }
+
+  if (oaSchema.allOf && Array.isArray(oaSchema.allOf)) {
+    const merged: any = { type: 'object', properties: {}, required: [] };
+    for (const sub of oaSchema.allOf) {
+      const subSchema = resolveRef(sub.$ref, spec) || sub;
+      if (subSchema.properties) {
+        Object.assign(merged.properties, subSchema.properties);
+      }
+      if (subSchema.required) {
+        merged.required.push(...subSchema.required);
+      }
+    }
+    oaSchema = { ...oaSchema, ...merged };
+  } else if (oaSchema.anyOf || oaSchema.oneOf) {
+    return { type: 'union' };
+  }
+
+  const typeMap: Record<string, 'string'|'number'|'boolean'|'object'|'array'|'any'> = {
+    'string': 'string',
+    'integer': 'number',
+    'number': 'number',
+    'boolean': 'boolean',
+    'object': 'object',
+    'array': 'array',
+  };
+
+  const schemaType = typeMap[oaSchema.type] || 'any';
+  const result: Schema = { type: schemaType as any };
+
+  if (schemaType === 'string' && oaSchema.format) {
+    if (oaSchema.format === 'email') result.format = 'email';
+    if (oaSchema.format === 'uri') result.format = 'url';
+    if (oaSchema.format === 'uuid') result.format = 'uuid';
+    if (oaSchema.format === 'date-time') result.format = 'datetime';
+  }
+
+  if (schemaType === 'number') {
+    if (oaSchema.type === 'integer' || oaSchema.format === 'int32' || oaSchema.format === 'int64') {
+      result.format = 'int';
+    } else if (oaSchema.format === 'float' || oaSchema.format === 'double') {
+      result.format = 'float';
+    }
+  }
+
+  if (oaSchema.enum && Array.isArray(oaSchema.enum)) {
+    result.type = 'string';
+    result.enumValues = oaSchema.enum.map(String);
+  }
+
+  if (schemaType === 'object' && oaSchema.properties) {
+    result.fields = {};
+    const requiredProps = Array.isArray(oaSchema.required) ? oaSchema.required : [];
+    for (const [key, propObj] of Object.entries(oaSchema.properties)) {
+      const fieldSchema = openApiSchemaToSchema(propObj, spec, depth + 1);
+      if (!requiredProps.includes(key)) {
+        fieldSchema.optional = true;
+      }
+      result.fields[key] = fieldSchema;
+    }
+  }
+
+  if (schemaType === 'array' && oaSchema.items) {
+    result.itemType = openApiSchemaToSchema(oaSchema.items, spec, depth + 1);
+  }
+
+  return result;
+};
+
+export const parseOpenAPI = (input: string): Schema | null => {
+  try {
+    let spec;
+    try {
+      spec = JSON.parse(input);
+    } catch {
+      spec = yaml.load(input);
+    }
+    
+    if (!spec || typeof spec !== 'object') return null;
+
+    const isOpenAPI3 = spec.openapi && String(spec.openapi).startsWith('3');
+    const isSwagger2 = spec.swagger && String(spec.swagger).startsWith('2');
+
+    if (!isOpenAPI3 && !isSwagger2) return null;
+
+    let targetSchemaObj = null;
+
+    if (isOpenAPI3 && spec.components?.schemas) {
+      const keys = Object.keys(spec.components.schemas);
+      if (keys.length > 0) targetSchemaObj = spec.components.schemas[keys[0]];
+    } else if (isSwagger2 && spec.definitions) {
+      const keys = Object.keys(spec.definitions);
+      if (keys.length > 0) targetSchemaObj = spec.definitions[keys[0]];
+    } else if (spec.paths) {
+      for (const path of Object.values(spec.paths)) {
+        const getOp = (path as any)?.get;
+        if (getOp?.responses?.['200']?.content?.['application/json']?.schema) {
+          targetSchemaObj = getOp.responses['200'].content['application/json'].schema;
+          break;
+        } else if (getOp?.responses?.['200']?.schema) {
+          targetSchemaObj = getOp.responses['200'].schema;
+          break;
+        }
+      }
+    }
+
+    if (!targetSchemaObj) return null;
+
+    const finalSchema = openApiSchemaToSchema(targetSchemaObj, spec);
+    (finalSchema as any)._isTypeMorphSchema = true;
+    return finalSchema;
+  } catch {
+    return null;
+  }
+};
+
+// ---------------------------------------------------------------------------
+// TypeScript Interface / Type Parser
+// ---------------------------------------------------------------------------
+
+const mapSimpleTsTypeToSchema = (typeStr: string): Schema => {
+  if (typeStr === 'string') return { type: 'string' };
+  if (typeStr === 'number') return { type: 'number' };
+  if (typeStr === 'boolean') return { type: 'boolean' };
+  if (typeStr === 'Date') return { type: 'string', format: 'datetime' };
+  return { type: 'any' };
+};
+
+export const parseTypeScriptToSchema = (str: string): Schema | null => {
+  try {
+    const interfaceMatch = str.match(/(?:export\s+)?(?:interface|type)\s+(\w+)\s*(?:=\s*)?\{([\s\S]+?)\}/);
+    if (!interfaceMatch) return null;
+
+    const body = interfaceMatch[2];
+
+    const result: Schema = {
+      type: 'object',
+      fields: {},
+    };
+    (result as any)._isTypeMorphSchema = true;
+
+    // Match patterns like: name?: string;
+    const fieldRegex = /(['"]?\w+['"]?)\s*(\??)\s*:\s*([^;,\n]+)/g;
+    let m;
+    while ((m = fieldRegex.exec(body)) !== null) {
+      let key = m[1].replace(/['"]/g, ''); // Remove quotes if any
+      const isOptional = m[2] === '?';
+      let typeStr = m[3].trim();
+      
+      // Remove inline comments
+      typeStr = typeStr.split('//')[0].trim();
+
+      let fieldSchema: Schema = { type: 'any' };
+
+      if (typeStr === 'string') {
+        fieldSchema.type = 'string';
+      } else if (typeStr === 'number') {
+        fieldSchema.type = 'number';
+      } else if (typeStr === 'boolean') {
+        fieldSchema.type = 'boolean';
+      } else if (typeStr === 'Date') {
+        fieldSchema.type = 'string';
+        fieldSchema.format = 'datetime';
+      } else if (typeStr.endsWith('[]')) {
+        fieldSchema.type = 'array';
+        const inner = typeStr.slice(0, -2).trim();
+        fieldSchema.itemType = mapSimpleTsTypeToSchema(inner);
+      } else if (typeStr.startsWith('Array<') && typeStr.endsWith('>')) {
+        fieldSchema.type = 'array';
+        const inner = typeStr.substring(6, typeStr.length - 1).trim();
+        fieldSchema.itemType = mapSimpleTsTypeToSchema(inner);
+      } else if (typeStr.includes('|')) {
+        const parts = typeStr.split('|').map(p => p.trim());
+        const isLiteralUnion = parts.every(p => /^['"].*['"]$/.test(p));
+        if (isLiteralUnion) {
+          fieldSchema.type = 'string';
+          fieldSchema.enumValues = parts.map(p => p.slice(1, -1));
+        } else {
+          fieldSchema.type = 'union';
+        }
+      }
+
+      if (isOptional) {
+        fieldSchema.optional = true;
+      }
+
+      if (result.fields) {
+        result.fields[key] = fieldSchema;
+      }
+    }
+
+    if (Object.keys(result.fields || {}).length === 0) return null;
+
+    return result;
+  } catch {
+    return null;
+  }
 };

@@ -26,9 +26,9 @@ targets.forEach(f => {
   
   // Replace all variations
   const before = content.length;
-  content = content.replace(/TypeFlow Pro/g, 'TypeMorph');
-  content = content.replace(/TypeFlow/g, 'TypeMorph');
-  content = content.replace(/typeflow/g, 'typemorph');
+  content = content.replace(/TypeMorph/g, 'TypeMorph');
+  content = content.replace(/TypeMorph/g, 'TypeMorph');
+  content = content.replace(/typemorph/g, 'typemorph');
   
   fs.writeFileSync(filePath, content, 'utf8');
   const count = (content.match(/typemorph/gi) || []).length - (content.match(/typemorph/gi) || []).length;

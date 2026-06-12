@@ -70,7 +70,7 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView, 
             placeholder="Search tools..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700 pl-9 pr-3 py-1.5 rounded-xl text-xs outline-none focus:border-blue-600 transition-all dark:text-white"
+            className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700 pl-9 pr-3 py-1.5 rounded-xl text-xs outline-none focus:border-slate-900 dark:focus:border-white transition-all dark:text-white"
           />
         </div>
 
@@ -79,7 +79,7 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView, 
             <button
               key={cat}
               onClick={() => setCategoryFilter(cat)}
-              className={`px-2 py-1 text-xs whitespace-nowrap transition-all ${categoryFilter === cat ? 'text-slate-950 dark:text-white font-bold' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+              className={`px-2.5 py-1 text-xs whitespace-nowrap rounded-md transition-all ${categoryFilter === cat ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white font-bold shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
             >
               {cat}
             </button>
@@ -98,7 +98,7 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView, 
                 className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all ${selectedSlug === tab.slug ? 'bg-slate-100 dark:bg-slate-800 text-slate-950 dark:text-white shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'}`}
               >
                 <span className="flex items-center gap-2 truncate pr-2">
-                  <Code2 size={12} className={selectedSlug === tab.slug ? 'text-blue-600' : 'text-slate-400'} /> 
+                  <Code2 size={12} className={selectedSlug === tab.slug ? 'text-slate-900 dark:text-white' : 'text-slate-400'} /> 
                   <span className="truncate">{tab.title.split(' - ')[0]}</span>
                 </span>
               </button>
@@ -119,7 +119,7 @@ export function Sidebar({ selectedSlug, onSelect, isDark, setView, currentView, 
                 className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all ${selectedSlug === tab.slug ? 'bg-slate-100 dark:bg-slate-800 text-slate-950 dark:text-white shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'}`}
               >
                 <span className="flex items-center gap-2 truncate pr-2">
-                  <Code2 size={12} className={selectedSlug === tab.slug ? 'text-blue-600' : 'text-slate-400'} /> 
+                  <Code2 size={12} className={selectedSlug === tab.slug ? 'text-slate-900 dark:text-white' : 'text-slate-400'} /> 
                   <span className="truncate">{tab.title.split(' - ')[0]}</span>
                 </span>
               </button>

@@ -47,8 +47,8 @@ export const AuthModal = ({ isOpen, onClose, isDark }: { isOpen: boolean, onClos
                   variables: {
                     default: {
                       colors: {
-                        brand: '#2563eb',
-                        brandAccent: '#1d4ed8',
+                        brand: '#0A0A0A',
+                        brandAccent: '#1A1A1A',
                       },
                       radii: {
                         borderRadiusButton: '12px',

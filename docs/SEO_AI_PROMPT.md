@@ -13,7 +13,7 @@ Use this when expanding the remaining **indexed** slugs in `src/lib/seo.ts`.
 ## Prompt template (paste into Gemini)
 
 ```
-Write an HTML fragment (no <html>/<body>, only h2/h3/p/ul/ol/pre/code/table) for TypeFlow Pro converter page: "{slug}".
+Write an HTML fragment (no <html>/<body>, only h2/h3/p/ul/ol/pre/code/table) for TypeMorph converter page: "{slug}".
 
 Audience: senior developers.
 Must include:

@@ -244,13 +244,13 @@ export default function SuperBatchModal({
           {/* Header */}
           <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/20">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-blue-600/10 text-blue-600 border border-blue-600/20">
+              <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white border border-slate-200 dark:border-white/10">
                 <Crown size={22} />
               </div>
               <div>
                 <h3 className="text-md font-black dark:text-white flex items-center gap-2">
                   Folder Bulk Mode
-                  <span className="text-[9px] bg-blue-600 text-white font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Pro</span>
+                  <span className="text-[9px] bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Pro</span>
                 </h3>
                 <p className="text-xs text-slate-400 font-medium">Enterprise folder-to-folder schema mass transformation</p>
               </div>
@@ -269,13 +269,13 @@ export default function SuperBatchModal({
             {/* Step 1: Idle - Select Directory */}
             {step === 'idle' && (
               <div className="space-y-6 text-center py-8">
-                <div className="mx-auto w-16 h-16 rounded-3xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center text-blue-500 border border-blue-100 dark:border-blue-900">
+                <div className="mx-auto w-16 h-16 rounded-3xl bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/10">
                   <FolderOpen size={32} />
                 </div>
                 <div className="max-w-md mx-auto space-y-2">
                   <h4 className="text-sm font-black dark:text-white">Choose Input Directory</h4>
                   <p className="text-xs text-slate-400 leading-relaxed">
-                    Select a folder on your local computer containing your schema files. We will automatically recursively scan for files matching <span className="font-extrabold text-blue-500">*{extension}</span>.
+                    Select a folder on your local computer containing your schema files. We will automatically recursively scan for files matching <span className="font-extrabold text-slate-700 dark:text-white">*{extension}</span>.
                   </p>
                   <p className="text-[10px] bg-emerald-500/10 text-emerald-500 dark:bg-emerald-950/20 p-2.5 rounded-xl border border-emerald-500/20 font-bold inline-block mt-2">
                     🔒 Privacy-First: All computation runs completely in your browser. Zero server uploads.
@@ -283,7 +283,7 @@ export default function SuperBatchModal({
                 </div>
                 <button
                   onClick={handleSelectInputFolder}
-                  className="flex items-center gap-2 mx-auto text-xs font-black uppercase text-white bg-blue-600 dark:bg-blue-600 px-6 py-3 rounded-2xl shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
+                  className="flex items-center gap-2 mx-auto text-xs font-black uppercase text-slate-900 dark:text-white px-6 py-3 rounded-2xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 hover:scale-[1.02] active:scale-[0.98] transition-all"
                 >
                   <FolderOpen size={16} />
                   Select Source Folder
@@ -307,12 +307,12 @@ export default function SuperBatchModal({
                   {/* Target Language Selection */}
                   <div className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 space-y-2">
                     <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1">
-                      <FileCode size={12} className="text-blue-500" /> Target Language
+                      <FileCode size={12} className="text-slate-500 dark:text-slate-400" /> Target Language
                     </span>
                     <select
                       value={targetLang}
                       onChange={(e) => setTargetLang(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold dark:text-white outline-none focus:border-blue-500"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold dark:text-white outline-none focus:border-slate-900 dark:focus:border-white"
                     >
                       {langs.map(l => (
                         <option key={l.id} value={l.id}>{l.label} ({l.ext})</option>
@@ -352,7 +352,7 @@ export default function SuperBatchModal({
                   <button
                     onClick={handleRunBatch}
                     disabled={!outputDirHandle || foundFiles.length === 0}
-                    className="flex items-center gap-2 text-xs font-black uppercase text-white bg-blue-600 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 px-6 py-2.5 rounded-2xl shadow-xl shadow-blue-600/10 hover:scale-[1.02] disabled:scale-100 transition-all"
+                    className="flex items-center gap-2 text-xs font-black uppercase text-slate-900 dark:text-white disabled:text-slate-400 dark:disabled:text-slate-500 px-6 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 disabled:border-slate-100 dark:disabled:border-white/5 hover:bg-slate-100 dark:hover:bg-white/10 hover:scale-[1.02] disabled:scale-100 disabled:opacity-50 transition-all"
                   >
                     <Play size={12} fill="currentColor" />
                     Run Mass Conversion
@@ -370,7 +370,7 @@ export default function SuperBatchModal({
                     <span className="flex items-center gap-1.5">
                       {step === 'processing' ? (
                         <>
-                          <Loader2 size={12} className="animate-spin text-blue-600" />
+                          <Loader2 size={12} className="animate-spin" />
                           <span>Converting files...</span>
                         </>
                       ) : (
@@ -386,7 +386,7 @@ export default function SuperBatchModal({
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: `${progress}%` }}
-                      className="bg-blue-600 h-full rounded-full"
+                      className="bg-slate-900 dark:bg-white h-full rounded-full"
                     />
                   </div>
                 </div>

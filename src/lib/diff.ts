@@ -53,7 +53,9 @@ export function compareSchemas(oldObj: any, newObj: any): SchemaDiff[] {
       } else {
         const nonObjectElements = obj.filter(x => x === null || typeof x !== 'object' || Array.isArray(x));
         if (nonObjectElements.length > 0) {
-          registry.set(`${path}[]`, getTypeSignature(nonObjectElements[0]));
+          const elementTypes = Array.from(new Set(nonObjectElements.map(x => getTypeSignature(x)))).sort();
+          const elementTypeSig = elementTypes.length === 1 ? elementTypes[0] : `(${elementTypes.join(' | ')})`;
+          registry.set(`${path}[]`, elementTypeSig);
         }
       }
     } else if (typeof obj === 'object') {

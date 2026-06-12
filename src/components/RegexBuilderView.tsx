@@ -150,7 +150,7 @@ export function RegexBuilderView({
               <button 
                 onClick={copyToClipboard}
                 disabled={!regex}
-                className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors disabled:opacity-50"
               >
                 {copied ? <CheckCircle2 size={14} className="text-green-500 dark:text-green-400" /> : <Copy size={14} />}
                 <span>{copied ? 'Copied' : 'Copy'}</span>
