@@ -205,7 +205,9 @@ export const zodGen = {
         let zType = printZodASTType(field.fieldType, cyclicClassRefs, options);
 
         // Semantic Validator: フィールド名からバリデーションを自動付与
-        const k = field.name.toLowerCase();
+        const customKey = `${cls.name}.${field.name}`;
+        const displayName = (options.customFieldNames as Record<string, string>)?.[customKey] ?? field.name;
+        const k = displayName.toLowerCase();
         if (field.fieldType.kind === 'number') {
           if (['age', 'price', 'amount', 'cost', 'fee', 'quantity', 'count', 'score', 'rating', 'rank'].some(w => k.includes(w))) {
             zType = zType + '.min(0)';
@@ -221,7 +223,7 @@ export const zodGen = {
           else if (k.includes('phone') || k.includes('tel')) zType = 'z.string().regex(/^\\+?[\\d\\s\\-\\.\\(\\)]{7,15}$/)';
         }
 
-        res += `  ${field.name}: ${zType}${isNull}${isOpt},\n`;
+        res += `  ${displayName}: ${zType}${isNull}${isOpt},\n`;
       }
       res += `});\n`;
       res += `export type ${cls.name} = z.infer<typeof ${camelName}Schema>;\n\n`;
@@ -674,7 +676,9 @@ export const prismaGen = {
         const prismaType = printPrismaASTType(field.fieldType);
         const isArray = field.fieldType.kind === 'array';
         const opt = (field.isOptional && !isArray) ? '?' : '';
-        const idTag = field.name === 'id' ? ' @id' : '';
+        const customKey2 = `${cls.name}.${field.name}`;
+        const displayName2 = (options.customFieldNames as Record<string, string>)?.[customKey2] ?? field.name;
+        const idTag = displayName2 === 'id' ? ' @id' : '';
         
         if (field.fieldType.kind === 'classRef') {
           const targetName = field.fieldType.classRefName;
@@ -685,10 +689,10 @@ export const prismaGen = {
           const targetIdField = targetCls?.fields.find(f => f.name === 'id');
           const targetIdType = targetIdField ? printPrismaASTType(targetIdField.fieldType) : 'String';
 
-          res += `  ${field.name} ${targetName}${opt} @relation(fields: [${relationField}], references: [id])\n`;
-          res += `  ${relationField} ${targetIdType}${opt}\n`;
+          res += `  ${displayName2} ${targetName}${opt} @relation(fields: [${displayName2}Id], references: [id])\n`;
+          res += `  ${displayName2}Id ${targetIdType}${opt}\n`;
         } else {
-          res += `  ${field.name} ${prismaType}${opt}${idTag}\n`;
+          res += `  ${displayName2} ${prismaType}${opt}${idTag}\n`;
         }
       }
       res += `}\n\n`;
