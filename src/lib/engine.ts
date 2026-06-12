@@ -12,7 +12,8 @@ import {
   kyselyGen, yupGen, joiGen, valibotGen, superstructGen, reactPropsGen,
   reactContextGen, reduxSliceGen, piniaStoreGen, vuePropsGen, sveltePropsGen,
   solidPropsGen, arduinoGen, cobolGen, clojureGen, elixirGen, elmGen,
-  godotGen, haskellGen, rGen, scalaGen, solidityGen, djangoGen, railsGen
+  godotGen, haskellGen, rGen, scalaGen, solidityGen, djangoGen, railsGen,
+  apiRouteGen, reactHookGen
 } from './generators-extended';
 import { Schema, SchemaType } from './types';
 import { createHash } from 'crypto';
@@ -104,10 +105,8 @@ const mergeSchemas = (s1: Schema, s2: Schema, depth: number = 0): Schema => {
     if (s1.format === s2.format) {
       return { ...s1, optional, nullable, enumValues };
     }
-    // Formats differ: only keep a format if BOTH sides agree on one.
-    // If one side has no format (plain string), the result is a plain string.
-    const mergedFormat = (s1.format === s2.format) ? s1.format : undefined;
-    return { type: 'string', format: mergedFormat, optional, nullable, enumValues };
+    // Formats differ → no shared format
+    return { type: 'string', optional, nullable, enumValues };
   }
 
   if (s1.type === 'object' && s2.type === 'object') {
@@ -349,8 +348,7 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
       if (uuidKeyPattern.test(keyName)) return addMeta({ type: 'string', format: 'uuid' }, 'format:uuid:keyname');
       if (emailKeyPattern.test(keyName)) return addMeta({ type: 'string', format: 'email' }, 'format:email:keyname');
       if (urlKeyPattern.test(keyName)) return addMeta({ type: 'string', format: 'url' }, 'format:url:keyname');
-      if (floatKeyPattern.test(keyName)) return addMeta({ type: 'string' }, 'format:float:keyname');
-      
+
       if (allowedEnumKeys) {
         // 統計判定情報が存在する場合はそれを利用
         isEnumCandidate = allowedEnumKeys.has(keyName);
@@ -365,6 +363,10 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
             isEnumCandidate = true;
           }
         }
+      }
+      // float key: 統計的enum判定が優先。判定されなかった場合のみ float として扱う
+      if (!isEnumCandidate && floatKeyPattern.test(keyName)) {
+        return addMeta({ type: 'string' }, 'format:float:keyname');
       }
     }
 
@@ -452,6 +454,9 @@ const DEPENDENCY_COMMENTS: Record<string, string> = {
   'scala': '// Scala case class\n\n',
   'solidity': '// SPDX-License-Identifier: MIT\n\n',
   'r-lang': '# R dataframe scaffold\n\n',
+  'react-query': '// Required dependencies: npm install @tanstack/react-query\n\n',
+  'api-route': '// Generated Next.js App Router API Route\n// Required: Next.js 13+ with App Router enabled\n\n',
+  'nextjs-api': '// Generated Next.js App Router API Route\n// Required: Next.js 13+ with App Router enabled\n\n',
 };
 
 const cleanAndFormatCode = (code: string): string => {
@@ -622,6 +627,8 @@ const mergeIsomorphicObjects = (target: Schema, source: Schema) => {
           t.itemType = { ...v.itemType };
         } else if (t.itemType.type === 'object' && v.itemType.type === 'object') {
           mergeIsomorphicObjects(t.itemType, v.itemType);
+        } else if (t.itemType.type === v.itemType.type) {
+          t.itemType = mergeSchemas(t.itemType, v.itemType);
         }
       }
     }
@@ -1049,27 +1056,30 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     const s = (lang || slug || "").toLowerCase();
     matchedKey = s;
 
+    const rootName: string = options.rootName ?? 'Root';
+    const rootNameLower = rootName.charAt(0).toLowerCase() + rootName.slice(1);
+
     // Explicit Language Mappings
     if (s === 'typescript' || s === 'ts') {
-      out = `/**\n * TypeMorph Generated TypeScript Interface\n */\n` + tsGen.generate(schema, 'Root', options);
+      out = `/**\n * TypeMorph Generated TypeScript Interface\n */\n` + tsGen.generate(schema, rootName, options);
     } else if (s === 'zod') {
-      out = `import { z } from "zod";\n\n` + zodGen.generate(schema, 'root', options);
+      out = `import { z } from "zod";\n\n` + zodGen.generate(schema, rootNameLower, options);
     } else if (s === 'go' || s === 'golang') {
-      out = goGen.generate(schema, 'Root', options);
+      out = goGen.generate(schema, rootName, options);
     } else if (s === 'rust') {
-      out = rustGen.generate(schema, 'Root', options);
+      out = rustGen.generate(schema, rootName, options);
     } else if (s === 'java') {
-      out = javaGen.generate(schema, 'Root', options);
+      out = javaGen.generate(schema, rootName, options);
     } else if (s === 'python') {
-      out = `from pydantic import BaseModel\n\n` + pythonGen.generate(schema, 'Root', options);
+      out = `from pydantic import BaseModel\n\n` + pythonGen.generate(schema, rootName, options);
     } else if (s === 'php') {
-      out = `<?php\n\n` + phpGen.generate(schema, 'Root', options);
+      out = `<?php\n\n` + phpGen.generate(schema, rootName, options);
     } else if (s === 'sql' || s === 'prisma') {
-      out = prismaGen.generate(schema, 'Root', options);
+      out = prismaGen.generate(schema, rootName, options);
     } else if (s === 'proto' || s === 'protobuf') {
-      out = `// Protocol Buffers v3 specification\n\nsyntax = "proto3";\n\n` + protoGen.generate(schema, 'Root', options);
+      out = `// Protocol Buffers v3 specification\n\nsyntax = "proto3";\n\n` + protoGen.generate(schema, rootName, options);
     } else if (s === 'graphql' || s === 'gql') {
-      out = gqlGen.generate(schema, 'Root', options);
+      out = gqlGen.generate(schema, rootName, options);
     } 
     // Extended & Framework Specific (Slug matching)
     else if (s.includes('csv')) out = csvGen.generate(schema);
@@ -1095,7 +1105,8 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     else if (s.includes('svelte-props')) out = sveltePropsGen.generate(schema, 'Component');
     else if (s.includes('solid-props')) out = solidPropsGen.generate(schema, 'Component');
     else if (s.includes('react-context')) out = reactContextGen.generate(schema, 'Root');
-    // react-query is not yet implemented; fall through to unsupported
+    else if (s.includes('react-query')) out = reactHookGen.generate(schema, rootName);
+    else if (s.includes('api-route') || s.includes('nextjs-api')) out = apiRouteGen.generate(schema, rootName);
     else if (s.includes('redux-slice')) out = reduxSliceGen.generate(schema, 'root');
     else if (s.includes('pinia')) out = piniaStoreGen.generate(schema, 'root');
     else if (s.includes('sequelize')) out = sequelizeGen.generate(schema, 'Root');
