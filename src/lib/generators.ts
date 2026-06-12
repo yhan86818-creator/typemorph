@@ -62,13 +62,15 @@ export const tsGen = {
 
       for (const field of cls.fields) {
         const optMark = (forceOptional || field.isOptional) ? '?' : '';
-        let tsType = printASTType(field.fieldType);
+        const customKey = `${cls.name}.${field.name}`;
+        const displayName = (options.customFieldNames as Record<string, string>)?.[customKey] ?? field.name;
 
+        let tsType = printASTType(field.fieldType);
         if (field.isNullable) {
           tsType = `(${tsType}) | null`;
         }
 
-        res += `  ${field.name}${optMark}: ${tsType};\n`;
+        res += `  ${displayName}${optMark}: ${tsType};\n`;
       }
       res += `}\n\n`;
     }

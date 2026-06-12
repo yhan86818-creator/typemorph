@@ -5,6 +5,7 @@ import { extractTypeGraph, type TypeNode, type TypeGraph } from '@/lib/graph';
 interface Props {
   tsCode: string;
   isDark: boolean;
+  onFieldRename?: (nodeId: string, fieldName: string, newName: string) => void;
 }
 
 interface NodePos {
@@ -15,11 +16,11 @@ interface NodePos {
   height: number;
 }
 
-const NODE_WIDTH = 180;
-const NODE_HEADER = 32;
-const FIELD_HEIGHT = 20;
-const H_GAP = 60;
-const V_GAP = 40;
+const NODE_WIDTH = 240;
+const NODE_HEADER = 36;
+const FIELD_HEIGHT = 28;
+const H_GAP = 80;
+const V_GAP = 48;
 
 function layoutNodes(graph: TypeGraph): NodePos[] {
   // Layered layout: roots on left, children cascade right
@@ -78,12 +79,16 @@ function getEdgePath(from: NodePos, to: NodePos): string {
   return `M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}`;
 }
 
-export default function TypeGraphPanel({ tsCode, isDark }: Props) {
+export default function TypeGraphPanel({ tsCode, isDark, onFieldRename }: Props) {
+  const [editingField, setEditingField] = useState<{ nodeId: string; fieldName: string } | null>(null);
+  const [editValue, setEditValue] = useState('');
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const containerRef2 = useRef<HTMLDivElement>(null);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -111,6 +116,33 @@ export default function TypeGraphPanel({ tsCode, isDark }: Props) {
   const svgHeight = useMemo(() => {
     if (nodePositions.length === 0) return 400;
     return Math.max(...nodePositions.map(p => p.y + p.height)) + 80;
+  }, [nodePositions]);
+
+  useEffect(() => {
+    if (nodePositions.length === 0) return;
+    const container = svgRef.current?.parentElement;
+    if (!container) return;
+
+    const containerW = container.clientWidth;
+    const containerH = container.clientHeight;
+
+    const minX = Math.min(...nodePositions.map(p => p.x));
+    const maxX = Math.max(...nodePositions.map(p => p.x + p.width));
+    const minY = Math.min(...nodePositions.map(p => p.y));
+    const maxY = Math.max(...nodePositions.map(p => p.y + p.height));
+
+    const graphW = maxX - minX + 80;
+    const graphH = maxY - minY + 80;
+
+    const scaleX = containerW / graphW;
+    const scaleY = containerH / graphH;
+    const newZoom = Math.min(scaleX, scaleY, 1);
+
+    const offsetX = (containerW - graphW * newZoom) / 2 - minX * newZoom + 40 * newZoom;
+    const offsetY = (containerH - graphH * newZoom) / 2 - minY * newZoom + 40 * newZoom;
+
+    setZoom(newZoom);
+    setDragOffset({ x: offsetX, y: offsetY });
   }, [nodePositions]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
@@ -190,7 +222,32 @@ export default function TypeGraphPanel({ tsCode, isDark }: Props) {
             Scroll to zoom · Drag to pan
           </span>
           <button 
-            onClick={() => { setZoom(1); setDragOffset({ x: 0, y: 0 }); }}
+            onClick={() => {
+              if (nodePositions.length === 0) return;
+              const container = svgRef.current?.parentElement;
+              if (!container) return;
+
+              const containerW = container.clientWidth;
+              const containerH = container.clientHeight;
+
+              const minX = Math.min(...nodePositions.map(p => p.x));
+              const maxX = Math.max(...nodePositions.map(p => p.x + p.width));
+              const minY = Math.min(...nodePositions.map(p => p.y));
+              const maxY = Math.max(...nodePositions.map(p => p.y + p.height));
+
+              const graphW = maxX - minX + 80;
+              const graphH = maxY - minY + 80;
+
+              const scaleX = containerW / graphW;
+              const scaleY = containerH / graphH;
+              const newZoom = Math.min(scaleX, scaleY, 1);
+
+              const offsetX = (containerW - graphW * newZoom) / 2 - minX * newZoom + 40 * newZoom;
+              const offsetY = (containerH - graphH * newZoom) / 2 - minY * newZoom + 40 * newZoom;
+
+              setZoom(newZoom);
+              setDragOffset({ x: offsetX, y: offsetY });
+            }}
             className="text-[9px] font-mono text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 transition-all"
           >
             Reset View
@@ -353,7 +410,7 @@ export default function TypeGraphPanel({ tsCode, isDark }: Props) {
                   {/* Interface name */}
                   <text
                     x={12} y={21}
-                    fontSize={11}
+                    fontSize={13}
                     fontFamily="monospace"
                     fontWeight="bold"
                     fill={color.text}
@@ -363,8 +420,8 @@ export default function TypeGraphPanel({ tsCode, isDark }: Props) {
 
                   {/* Ref count badge */}
                   {refCount > 0 && (
-                    <g transform={`translate(${pos.width - 28}, 8)`}>
-                      <rect width={20} height={16} rx={8} fill={color.border} opacity={0.2} />
+                    <g transform={`translate(${pos.width - 32}, 10)`}>
+                      <rect width={24} height={16} rx={8} fill={color.border} opacity={0.2} />
                       <text x={10} y={11.5} textAnchor="middle" fontSize={8} fontFamily="monospace" fontWeight="bold" fill={color.text}>
                         ×{refCount}
                       </text>
@@ -374,21 +431,82 @@ export default function TypeGraphPanel({ tsCode, isDark }: Props) {
                   {/* Fields */}
                   {node.fields.map((field, fi) => {
                     const fy = NODE_HEADER + fi * FIELD_HEIGHT + 4;
-                    // Truncate long types
                     const typeStr = field.type.length > 16 ? field.type.slice(0, 14) + '…' : field.type;
+                    const isEditing = editingField?.nodeId === pos.id && editingField?.fieldName === field.name;
 
                     return (
-                      <g key={field.name} transform={`translate(0,${fy})`}>
-                        {/* Alternate row background */}
+                      <g
+                        key={field.name}
+                        transform={`translate(0,${fy})`}
+                        onMouseEnter={e => {
+                          if (onFieldRename) {
+                            (e.currentTarget as SVGGElement).style.opacity = '0.7';
+                          }
+                        }}
+                        onMouseLeave={e => {
+                          (e.currentTarget as SVGGElement).style.opacity = '1';
+                        }}
+                      >
+                        <rect
+                          width={pos.width}
+                          height={FIELD_HEIGHT}
+                          fill="transparent"
+                          style={{ cursor: onFieldRename ? 'text' : 'default' }}
+                          onClick={() => {
+                            if (onFieldRename) {
+                              setEditingField({ nodeId: pos.id, fieldName: field.name });
+                              setEditValue(field.name);
+                            }
+                          }}
+                        />
                         {fi % 2 === 0 && (
-                          <rect width={pos.width} height={FIELD_HEIGHT} fill={isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)'} />
+                          <rect width={pos.width} height={FIELD_HEIGHT} fill={isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)'} style={{ pointerEvents: 'none' }} />
                         )}
-                        <text x={12} y={13} fontSize={9.5} fontFamily="monospace" fill={fieldText}>
-                          {field.optional ? (
-                            <tspan fill={isDark ? '#64748b' : '#94a3b8'}>{field.name}?</tspan>
-                          ) : field.name}
-                        </text>
-                        <text x={pos.width - 8} y={13} textAnchor="end" fontSize={9} fontFamily="monospace" fill={typeText} fontWeight="600">
+                        {isEditing ? (
+                          <foreignObject x={8} y={2} width={pos.width - 16} height={FIELD_HEIGHT - 2}>
+                            <input
+                              type="text"
+                              value={editValue}
+                              autoFocus
+                              onChange={e => setEditValue(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  if (editValue.trim() && onFieldRename) {
+                                    onFieldRename(pos.id, field.name, editValue.trim());
+                                  }
+                                  setEditingField(null);
+                                } else if (e.key === 'Escape') {
+                                  setEditingField(null);
+                                }
+                              }}
+                              onBlur={() => setEditingField(null)}
+                              style={{
+                                width: '100%',
+                                fontSize: '9px',
+                                fontFamily: 'monospace',
+                                background: isDark ? '#1e40af' : '#dbeafe',
+                                color: isDark ? '#e2e8f0' : '#1e3a8a',
+                                border: 'none',
+                                outline: 'none',
+                                padding: '2px 4px',
+                                borderRadius: '2px',
+                              }}
+                            />
+                          </foreignObject>
+                        ) : (
+                          <text
+                            x={12} y={19}
+                            fontSize={12}
+                            fontFamily="monospace"
+                            fill={fieldText}
+                            style={{ pointerEvents: 'none' }}
+                          >
+                            {field.optional ? (
+                              <tspan fill={isDark ? '#64748b' : '#94a3b8'}>{field.name}?</tspan>
+                            ) : field.name}
+                          </text>
+                        )}
+                        <text x={pos.width - 8} y={19} textAnchor="end" fontSize={11} fontFamily="monospace" fill={typeText} fontWeight="600" style={{ pointerEvents: 'none' }}>
                           {typeStr}
                         </text>
                       </g>

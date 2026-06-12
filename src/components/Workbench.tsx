@@ -392,6 +392,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     sharedPrefix: 'Shared',
     disabledUnifications: [] as string[],
     customTypeNames: {} as Record<string, string>,
+    customFieldNames: {} as Record<string, string>, // "ClassName.fieldName" → "newName"
     extractTimestamps: true,
     flattenWrappers: true,
     showExplainableLogic: true,
@@ -402,6 +403,13 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
   const [previousJsonData, setPreviousJsonData] = useState<any>(null);
   const [schemaDiffs, setSchemaDiffs] = useState<SchemaDiff[]>([]);
   const baselineJsonRef = useRef<any>(null);
+
+  interface SchemaHistoryEntry {
+    timestamp: Date;
+    diffs: SchemaDiff[];
+    inputSnapshot: string;
+  }
+  const [schemaHistory, setSchemaHistory] = useState<SchemaHistoryEntry[]>([]);
 
   const acceptNewBaseline = () => {
     if (jsonData) {
@@ -1181,6 +1189,16 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
           try {
             const diffs = compareSchemas(baselineJsonRef.current, jsonObj);
             setSchemaDiffs(diffs);
+            if (diffs.length > 0) {
+              setSchemaHistory(prev => [
+                {
+                  timestamp: new Date(),
+                  diffs,
+                  inputSnapshot: JSON.stringify(jsonObj).slice(0, 200)
+                },
+                ...prev.slice(0, 19) // 最大20件保持
+              ]);
+            }
           } catch (e) {
             console.error(e);
           }
@@ -1448,8 +1466,8 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
   ];
 
   const moreTabs = [
-    { id: 'architect', label: 'Architect' },
     { id: 'diff', label: 'Diff' },
+    { id: 'architect', label: 'Architect' },
     { id: 'dart', label: 'Dart' },
     { id: 'php', label: 'PHP' },
     { id: 'java', label: 'Java' },
@@ -1821,6 +1839,17 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
             <ChevronDown size={12} />
           </button>
           <div className="flex items-center gap-2">
+            {/* 機能ボタン群 */}
+            <div className="hidden md:flex items-center gap-1">
+              <button
+                onClick={() => setOutputTab('history')}
+                className="flex items-center justify-center text-slate-500 dark:text-slate-300 w-9 h-9 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 transition-all"
+                title="Schema Change History"
+              >
+                <Clock size={14} />
+              </button>
+            </div>
+
             <button 
               onClick={handleSmartShare}
               disabled={isSharing}
@@ -1981,7 +2010,20 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
 
           {outputTab === 'graph' ? (
             <div className="w-full h-full p-0 overflow-hidden bg-slate-50 dark:bg-[#0f172a]">
-              <TypeGraphPanel tsCode={outputs['typescript'] || ""} isDark={isDark} />
+              <TypeGraphPanel
+                tsCode={outputs['typescript'] || ""}
+                isDark={isDark}
+                onFieldRename={(nodeId, fieldName, newName) => {
+                  const key = `${nodeId}.${fieldName}`;
+                  setGenSettings(s => ({
+                    ...s,
+                    customFieldNames: {
+                      ...s.customFieldNames,
+                      [key]: newName
+                    }
+                  }));
+                }}
+              />
             </div>
           ) : (
             <div className="w-full h-full flex flex-col relative">
@@ -2284,7 +2326,73 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                   )}
                 </div>
               )}
-              {outputTab === 'architect' ? (
+              {outputTab === 'history' ? (
+                <div className="flex flex-col h-full p-4 gap-3 bg-white dark:bg-[#0A0A0A] overflow-y-auto">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-sm font-semibold text-slate-800 dark:text-[#E8E8E8]">Schema Change History</h2>
+                      <p className="text-xs text-slate-400 dark:text-[#707070]">Changes detected since baseline</p>
+                    </div>
+                    {schemaHistory.length > 0 && (
+                      <button
+                        onClick={() => setSchemaHistory([])}
+                        className="text-[10px] font-mono text-slate-400 hover:text-red-500 transition-colors"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  {schemaHistory.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center flex-1 text-center">
+                      <p className="text-xs text-slate-400 dark:text-[#707070]">No changes detected yet</p>
+                      <p className="text-[10px] text-slate-300 dark:text-[#505050] mt-1">Edit your JSON to track schema changes</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      {schemaHistory.map((entry, i) => (
+                        <div key={i} className="border border-slate-200 dark:border-[#1A1A1A] rounded-lg p-3 flex flex-col gap-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-mono text-slate-400 dark:text-[#707070]">
+                              {entry.timestamp.toLocaleTimeString()}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              {entry.diffs.filter(d => d.severity === 'error').length > 0 && (
+                                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+                                  {entry.diffs.filter(d => d.severity === 'error').length} breaking
+                                </span>
+                              )}
+                              {entry.diffs.filter(d => d.severity === 'warning').length > 0 && (
+                                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400">
+                                  {entry.diffs.filter(d => d.severity === 'warning').length} warning
+                                </span>
+                              )}
+                              {entry.diffs.filter(d => d.severity === 'info').length > 0 && (
+                                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                                  {entry.diffs.filter(d => d.severity === 'info').length} added
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            {entry.diffs.map((d, j) => (
+                              <div key={j} className="flex items-center gap-2 text-[10px]">
+                                <span className={`font-mono ${d.severity === 'error' ? 'text-red-500' : d.severity === 'warning' ? 'text-yellow-500' : 'text-blue-500'}`}>
+                                  {d.type === 'removed' ? '−' : d.type === 'added' ? '+' : '~'}
+                                </span>
+                                <code className="font-mono text-slate-600 dark:text-[#A0A0A0]">{d.path}</code>
+                                {d.oldType && d.newType && (
+                                  <span className="text-slate-400 dark:text-[#707070]">{d.oldType} → {d.newType}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : outputTab === 'architect' ? (
                 <div className="flex-1 min-h-0 overflow-hidden">
                   <FullStackArchitectView isDark={isDark} />
                 </div>
