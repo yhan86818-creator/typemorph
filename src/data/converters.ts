@@ -171,9 +171,16 @@ export const converters: Converter[] = [
   {
     category: "Web & Frontend",
     slug: "json-to-react-query",
-    title: "Generate React Query Hooks from JSON",
-    description: "Automate your data fetching layer with TanStack Query.",
-    h1: "React Query Automation: Generating Type-Safe Hooks"
+    title: "Generate TanStack React Query Hooks from JSON - Data Fetching Guide",
+    description: "Automatically generate type-safe TanStack Query (React Query v5) hooks — useQuery, useMutation, useQueryClient — from your JSON schema. The definitive guide to automating your data fetching layer.",
+    h1: "React Query Automation: Generating Type-Safe Hooks from JSON"
+  },
+  {
+    category: "Web & Frontend",
+    slug: "json-to-nextjs-api",
+    title: "Generate Next.js App Router API Routes from JSON - Full-Stack Guide",
+    description: "Instantly scaffold production-ready Next.js 13+ App Router API route handlers (GET, POST) with Zod validation from your JSON schema. The definitive guide to type-safe Next.js backend development.",
+    h1: "Next.js API Route Generator: From JSON to Full-Stack in Seconds"
   },
   {
     category: "Web & Frontend",
