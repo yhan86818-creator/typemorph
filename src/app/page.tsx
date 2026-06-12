@@ -29,7 +29,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
   const [view, setView] = useState<any>(initialSlug ? 'app' : defaultView);
   const [isPro, setIsPro] = useState(true);
   const [trialCount, setTrialCount] = useState(100);
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState(false);
   const [licenseKey, setLicenseKey] = useState("");
   const [geminiKey, setGeminiKey] = useState("");
   const [selectedSlug, setSelectedSlug] = useState(initialSlug || 'json-to-typescript');
@@ -249,8 +249,8 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
           <Sidebar 
             selectedSlug={selectedSlug} 
             onSelect={handleSelectTool} 
-            isDark={isDark} 
-            setView={setView} 
+            isDark={mounted ? isDark : false} 
+            setView={setView}
             currentView={view} 
             isCollapsed={isSidebarCollapsed}
             cursorPos={cursorPos}
@@ -280,8 +280,8 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
             {view === 'app' && (
               <Workbench 
                 slug={selectedSlug} 
-                isDark={isDark} 
-                geminiKey={geminiKey} 
+                isDark={mounted ? isDark : false} 
+                geminiKey={geminiKey}
                 outputTab={outputTab} 
                 setOutputTab={setOutputTab} 
                 isPro={isPro} 
@@ -331,12 +331,12 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
       <AuthModal 
         isOpen={showAuthModal} 
         onClose={() => setShowAuthModal(false)} 
-        isDark={isDark} 
+        isDark={mounted ? isDark : false} 
       />
       <FeedbackModal
         isOpen={showFeedbackModal}
         onClose={() => setShowFeedbackModal(false)}
-        isDark={isDark}
+        isDark={mounted ? isDark : false}
       />
       {/* Deployment Verification Tag */}
       <div className="fixed bottom-2 right-2 text-[8px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-700 pointer-events-none z-[500]">

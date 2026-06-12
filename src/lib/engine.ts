@@ -104,8 +104,10 @@ const mergeSchemas = (s1: Schema, s2: Schema, depth: number = 0): Schema => {
     if (s1.format === s2.format) {
       return { ...s1, optional, nullable, enumValues };
     }
-    // Formats differ (e.g. 'email' vs 'url'); keep the first format as a best-effort
-    return { type: 'string', format: s1.format ?? s2.format, optional, nullable, enumValues };
+    // Formats differ: only keep a format if BOTH sides agree on one.
+    // If one side has no format (plain string), the result is a plain string.
+    const mergedFormat = (s1.format === s2.format) ? s1.format : undefined;
+    return { type: 'string', format: mergedFormat, optional, nullable, enumValues };
   }
 
   if (s1.type === 'object' && s2.type === 'object') {
@@ -180,9 +182,9 @@ const calcEnumConfidence = (key: string, values: string[], options?: InferOption
   const minSamples = options?.enumMinSamples ?? 3;
   const keywordMatch = Array.from(enumKeywordsSet).some(kw => k.includes(kw));
 
-  // 1. キーワードマッチは小サンプルでは弱めに扱う
+  // 1. キーワードマッチはサンプル数に関わらずフル加点
   if (keywordMatch) {
-    score += values.length >= minSamples ? 0.4 : 0.2;
+    score += 0.4;
   }
 
   const unique = new Set(values);
@@ -193,6 +195,12 @@ const calcEnumConfidence = (key: string, values: string[], options?: InferOption
     score += 0.4;
   } else if (uniqueRatio <= 0.4 && values.length >= minSamples) {
     score += 0.2;
+  }
+
+  // 少数値に収束している = enum らしい分布
+  const maxUnique = options?.enumMaxUnique ?? 6;
+  if (unique.size >= 2 && unique.size <= maxUnique) {
+    score += 0.25;
   }
 
   if (values.length >= 10) score += 0.2;
@@ -330,13 +338,7 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
     let isEnumCandidate = false;
     if (keyName) {
       const k = keyName.toLowerCase();
-      const enumKeywords = [
-        // 既存
-        'status', 'type', 'role', 'gender', 'state', 'category', 'mode', 'level', 'phase', 'kind', 'visibility', 'scope', 'method', 'action', 'currency', 'priority',
-        // 追加
-        'tier', 'plan', 'severity', 'permission', 'provider', 'platform', 'environment',
-        'locale', 'theme', 'layout', 'variant', 'direction', 'alignment', 'position',
-      ];
+      const enumKeywords = Array.from(enumKeywordsSet);
 
       // キー名に基づいた format 推論辞書（値パターンマッチの前に適用）
       const floatKeyPattern = /price|amount|cost|fee|tax|rate|ratio|percent|score|weight|height|width|balance|salary|revenue/i;
@@ -347,7 +349,7 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
       if (uuidKeyPattern.test(keyName)) return addMeta({ type: 'string', format: 'uuid' }, 'format:uuid:keyname');
       if (emailKeyPattern.test(keyName)) return addMeta({ type: 'string', format: 'email' }, 'format:email:keyname');
       if (urlKeyPattern.test(keyName)) return addMeta({ type: 'string', format: 'url' }, 'format:url:keyname');
-      if (floatKeyPattern.test(keyName)) return addMeta({ type: 'string', format: 'float' }, 'format:float:keyname');
+      if (floatKeyPattern.test(keyName)) return addMeta({ type: 'string' }, 'format:float:keyname');
       
       if (allowedEnumKeys) {
         // 統計判定情報が存在する場合はそれを利用
@@ -434,6 +436,22 @@ const DEPENDENCY_COMMENTS: Record<string, string> = {
   'haskell': '-- Required GHC extensions and packages: aeson\n\n',
   'django': '# Required dependencies: pip install django djangorestframework\n\n',
   'rails': '# Rails ActiveRecord Migration template\n\n',
+
+  // Extended targets — previously missing entries
+  'mongodb': '// Required dependencies: npm install mongoose\n\n',
+  'dynamodb': '// AWS SDK required: npm install @aws-sdk/client-dynamodb\n\n',
+  'bigquery': '// Required dependencies: npm install @google-cloud/bigquery\n\n',
+  'openapi': '// OpenAPI 3.0 specification (YAML format)\n\n',
+  'avro': '// Apache Avro schema format\n\n',
+  'mermaid': '// Mermaid ER Diagram — paste into https://mermaid.live\n\n',
+  'postman': '// Postman Collection v2.1 format\n\n',
+  'http': '// HTTP file format (JetBrains IDE / VS Code REST Client compatible)\n\n',
+  'vscode': '// VS Code snippet format — paste into .vscode/snippets.json\n\n',
+  'curl': '// cURL command\n\n',
+  'cobol': '* COBOL Copybook format\n\n',
+  'scala': '// Scala case class\n\n',
+  'solidity': '// SPDX-License-Identifier: MIT\n\n',
+  'r-lang': '# R dataframe scaffold\n\n',
 };
 
 const cleanAndFormatCode = (code: string): string => {
@@ -594,7 +612,8 @@ const mergeIsomorphicObjects = (target: Schema, source: Schema) => {
         target.fields[k] = { ...v, optional: t.optional, nullable: t.nullable };
       } else if (t.type === 'string' && v.type === 'string') {
         if (t.enumValues || v.enumValues) {
-          t.enumValues = Array.from(new Set([...(t.enumValues ?? []), ...(v.enumValues ?? [])]));
+          const merged = Array.from(new Set([...(t.enumValues ?? []), ...(v.enumValues ?? [])]));
+          t.enumValues = merged.length <= 6 ? merged : undefined;
         }
       } else if (t.type === 'object' && v.type === 'object') {
         mergeIsomorphicObjects(t, v);
@@ -1109,7 +1128,7 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     else if (s.includes('elm')) out = elmGen.generate(schema, 'Root');
     else if (s.includes('godot') || s.includes('gdscript')) out = godotGen.generate(schema, 'Root');
     else if (s.includes('haskell')) out = haskellGen.generate(schema, 'Root');
-    else if (s.includes('r-lang') || s === 'r') out = rGen.generate(schema, 'Root');
+    else if (s.includes('r-lang') || s === 'r') { out = rGen.generate(schema, 'Root'); matchedKey = 'r-lang'; }
     else if (s.includes('scala')) out = scalaGen.generate(schema, 'Root');
     else if (s.includes('solidity')) out = solidityGen.generate(schema, 'Root');
 
@@ -1128,7 +1147,7 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     let depHeader = "";
     const lowerKey = matchedKey.toLowerCase();
     for (const [k, comment] of Object.entries(DEPENDENCY_COMMENTS)) {
-      if (lowerKey.includes(k)) {
+      if (lowerKey === k) {
         depHeader = comment;
         break;
       }

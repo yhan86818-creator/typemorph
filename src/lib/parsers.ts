@@ -102,7 +102,7 @@ export const parseCurl = (curl: string) => {
   const methodMatch = cleanCurl.match(/(?:-X|--request)\s+(\w+)/i);
   if (methodMatch) {
     method = methodMatch[1].toUpperCase();
-  } else if (/(?:-d|--data|--data-raw|--data-binary)\s+/.test(cleanCurl)) {
+  } else if (/(?:-d|--data|--data-raw|--data-binary)\s*\S/.test(cleanCurl)) {
     method = 'POST'; // Default to POST if data is present but no method specified
   }
 
@@ -130,41 +130,30 @@ export const parseCurl = (curl: string) => {
   }
 
   // Extract Body
-  // Bug 5 fix: previous regex used '[^']*' which stops at the first embedded single quote.
-  // New approach: try single-quoted first with escaped-quote support, then double-quoted,
-  // then fall back to the rest of the string after the flag.
+  // Try single-quoted first (with escaped-quote support), then double-quoted,
+  // then unquoted.  \s* allows -d'...' (no space between flag and quote).
   let body = '';
   let bodyJson = null;
 
-  // Try single-quoted body with POSIX-escaped inner quotes (it'\''s fine)
-  const bodySingleMatch = cleanCurl.match(
-    /(?:-d|--data|--data-raw|--data-binary)\s+'((?:[^'\\]|\\.)*)'/i
-  );
-  // Try double-quoted body
-  const bodyDoubleMatch = cleanCurl.match(
-    /(?:-d|--data|--data-raw|--data-binary)\s+"((?:[^"\\]|\\.)*)"/i
-  );
-  // Try unquoted body: capture everything after the flag up to the next flag (-X) or end of string
+  const bodySingleMatch =
+    cleanCurl.match(/(?:-d|--data|--data-raw|--data-binary)\s*'((?:[^'\\]|\\.)*)'/i) ||
+    joinedCurl.match(/(?:-d|--data|--data-raw|--data-binary)\s*'((?:[^'\\]|\\.)*)'/i);
+
+  const bodyDoubleMatch =
+    cleanCurl.match(/(?:-d|--data|--data-raw|--data-binary)\s*"((?:[^"\\]|\\.)*)"/i) ||
+    joinedCurl.match(/(?:-d|--data|--data-raw|--data-binary)\s*"((?:[^"\\]|\\.)*)"/i);
+
+  // Unquoted body: capture non-flag tokens after the data flag
   const bodyUnquotedMatch = cleanCurl.match(
-    /(?:-d|--data|--data-raw|--data-binary)\s+((?:(?!\s+-[a-zA-Z-])[^\s])[^\s]*(?:\s+(?:(?!\s+-[a-zA-Z-])[^\s][^\s]*))*)/i
+    /(?:-d|--data|--data-raw|--data-binary)\s+(\S+(?:\s+(?!-[a-zA-Z])\S+)*)/i
   );
 
-  // Extract body from the original joined (non-collapsed) string to preserve JSON whitespace
   if (bodySingleMatch) {
     body = bodySingleMatch[1];
   } else if (bodyDoubleMatch) {
     body = bodyDoubleMatch[1].replace(/\\"/g, '"');
-  } else {
-    // Fallback: try on the original joined curl to preserve whitespace
-    const singleFromRaw = joinedCurl.match(
-      /(?:-d|--data|--data-raw|--data-binary)\s+'((?:[^'\\]|\\.)*)'/i
-    );
-    const doubleFromRaw = joinedCurl.match(
-      /(?:-d|--data|--data-raw|--data-binary)\s+"((?:[^"\\]|\\.)*)"/i
-    );
-    if (singleFromRaw) body = singleFromRaw[1];
-    else if (doubleFromRaw) body = doubleFromRaw[1].replace(/\\"/g, '"');
-    else if (bodyUnquotedMatch) body = bodyUnquotedMatch[1];
+  } else if (bodyUnquotedMatch) {
+    body = bodyUnquotedMatch[1];
   }
 
   if (body) {

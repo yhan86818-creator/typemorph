@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Sandpack } from '@codesandbox/sandpack-react';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import LZString from 'lz-string';
 import { 
@@ -27,6 +26,8 @@ import { getWorkbenchEditorText, WorkbenchOutputStatus } from './workbench-utils
 import { User } from '@supabase/supabase-js';
 import SuperBatchModal from './SuperBatchModal';
 import dynamic from 'next/dynamic';
+import { SmartDiffView } from '@/components/SmartDiffView';
+import { FullStackArchitectView } from '@/components/FullStackArchitectView';
 const TypeGraphPanel = dynamic(() => import('./TypeGraphPanel'), { ssr: false, loading: () => <div className="flex items-center justify-center h-full text-xs text-slate-400 font-mono">Loading graph…</div> });
 
 interface WorkbenchProps {
@@ -1447,6 +1448,8 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
   ];
 
   const moreTabs = [
+    { id: 'architect', label: 'Architect' },
+    { id: 'diff', label: 'Diff' },
     { id: 'dart', label: 'Dart' },
     { id: 'php', label: 'PHP' },
     { id: 'java', label: 'Java' },
@@ -1458,8 +1461,6 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     { id: 'sql', label: 'SQL' },
     { id: 'jsonschema', label: 'Schema' },
     { id: 'mock', label: 'Mock Data' },
-    { id: 'ui', label: 'UI' },
-    { id: 'playground', label: 'Run' },
     { id: 'graph', label: 'Graph' },
     { id: 'doc', label: 'Doc' },
     { id: 'json', label: 'JSON' }
@@ -1982,29 +1983,6 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
             <div className="w-full h-full p-0 overflow-hidden bg-slate-50 dark:bg-[#0f172a]">
               <TypeGraphPanel tsCode={outputs['typescript'] || ""} isDark={isDark} />
             </div>
-          ) : ['ui', 'playground'].includes(outputTab) ? (
-            <div className="w-full h-full p-2 overflow-hidden [&_.sp-wrapper]:h-full [&_.sp-layout]:h-full [&_.sp-layout]:rounded-xl [&_.sp-layout]:border-none [&_.sp-stack]:h-full">
-              <Sandpack
-                template="react-ts"
-                theme={isDark ? "dark" : "light"}
-                files={outputTab === 'ui' ? {
-                  "/public/index.html": `<!DOCTYPE html>\\n<html lang="en" class="${isDark ? 'dark' : ''}">\\n  <head>\\n    <script src="https://cdn.tailwindcss.com"><\/script>\\n    <script>tailwind.config = { darkMode: 'class' }</script>\\n  </head>\\n  <body class="bg-slate-50 dark:bg-slate-900">\\n    <div id="root"></div>\\n  </body>\\n</html>`,
-                  "/App.tsx": `import { ComponentCard } from './Component';\\n\\nexport default function App() {\\n  const mockData = ${outputs['mock'] || '{}'};\\n  return (\\n    <div className="p-8 flex items-start justify-center min-h-screen">\\n      <div className="w-full max-w-2xl">\\n        <ComponentCard data={mockData} />\\n      </div>\\n    </div>\\n  );\\n}`,
-                  "/Component.tsx": (outputs['ui'] || "export const ComponentCard = () => <div>No UI generated</div>;")
-                } : {
-                  "/public/index.html": `<!DOCTYPE html>\\n<html lang="en" class="${isDark ? 'dark' : ''}">\\n  <head>\\n    <script src="https://cdn.tailwindcss.com"><\/script>\\n  </head>\\n  <body class="bg-slate-50 dark:bg-[#0b0f19]">\\n    <div id="root"></div>\\n  </body>\\n</html>`,
-                  "/App.tsx": `import React, { useState } from 'react';\\nimport { Root } from './types';\\nimport mockData from './mockData';\\n\\nexport default function App() {\\n  // Write type-safe React code here!\\n  // Try changing properties to trigger typescript compiler check errors in real-time.\\n  const [data, setData] = useState<Root>(mockData as Root);\\n\\n  return (\\n    <div className="p-6 font-sans leading-relaxed text-slate-800 dark:text-slate-100 min-h-screen bg-slate-50 dark:bg-[#0b0f19]">\\n      <h2 className="text-lg font-black text-blue-600 dark:text-blue-400 border-b border-slate-200 dark:border-slate-800 pb-2 mb-4 flex items-center gap-2">\\n        TypeMorph Live Playground\\n      </h2>\\n      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">\\n        The inferred interfaces are loaded in <code>types.ts</code>. Change variable bindings in <code>App.tsx</code> to see compile validation checks!\\n      </p>\\n      <div className="bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">\\n        <h4 className="text-xs font-bold text-slate-450 mb-2">Injected State Data:</h4>\\n        <pre className="text-[10px] overflow-auto max-h-48 bg-slate-50 dark:bg-slate-950 p-3 rounded border border-slate-200 dark:border-slate-850 font-mono text-slate-800 dark:text-slate-200">\\n          {JSON.stringify(data, null, 2)}\\n        </pre>\\n      </div>\\n    </div>\\n  );\\n}`,
-                  "/types.ts": (outputs['typescript'] || "export interface Root {}"),
-                  "/mockData.ts": `const mockData = ${outputs['mock'] || '{}'};\\nexport default mockData;`
-                }}
-                options={{
-                  editorHeight: "100%",
-                  showLineNumbers: true,
-                  showNavigator: false,
-                  showTabs: true
-                }}
-              />
-            </div>
           ) : (
             <div className="w-full h-full flex flex-col relative">
               {outputTab === 'mock' && (
@@ -2306,28 +2284,38 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                   )}
                 </div>
               )}
-              <div className="flex-1 min-h-0">
-                <Editor
-                  height="100%"
-                  theme={isDark ? "vs-dark" : "light"}
-                  language={outputTab === 'doc' ? 'markdown' : outputTab}
-                  value={getWorkbenchEditorText(outputTab, outputs, outputState)}
-                  onMount={(editor, monaco) => {
-                    outputEditorRef.current = editor;
-                    monacoRef.current = monaco;
-                  }}
-                  options={{ 
-                    minimap: { enabled: false }, 
-                    fontSize: 13, 
-                    readOnly: true, 
-                    automaticLayout: true, 
-                    padding: { top: 24, bottom: 24 },
-                    wordWrap: 'on',
-                    scrollbar: { vertical: 'auto', horizontal: 'auto' },
-                    renderLineHighlight: 'none'
-                  }}
-                />
-              </div>
+              {outputTab === 'architect' ? (
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <FullStackArchitectView isDark={isDark} />
+                </div>
+              ) : outputTab === 'diff' ? (
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <SmartDiffView isDark={isDark} />
+                </div>
+              ) : (
+                <div className="flex-1 min-h-0">
+                  <Editor
+                    height="100%"
+                    theme={isDark ? "vs-dark" : "light"}
+                    language={outputTab === 'doc' ? 'markdown' : outputTab}
+                    value={getWorkbenchEditorText(outputTab, outputs, outputState)}
+                    onMount={(editor, monaco) => {
+                      outputEditorRef.current = editor;
+                      monacoRef.current = monaco;
+                    }}
+                    options={{ 
+                      minimap: { enabled: false }, 
+                      fontSize: 13, 
+                      readOnly: true, 
+                      automaticLayout: true, 
+                      padding: { top: 24, bottom: 24 },
+                      wordWrap: 'on',
+                      scrollbar: { vertical: 'auto', horizontal: 'auto' },
+                      renderLineHighlight: 'none'
+                    }}
+                  />
+                </div>
+              )}
             </div>
           )}
           
