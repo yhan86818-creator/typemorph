@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { compareSchemas } from './diff';
+import { compareSchemas, compareSchemaTypes } from './diff';
+import { inferSchema } from './engine';
 
 describe('compareSchemas', () => {
   it('should detect removed fields as breaking', () => {
@@ -77,5 +78,117 @@ describe('compareSchemas', () => {
     const diffs = compareSchemas(oldJson, newJson);
     // Both arrays are [number, string] — no diff expected
     expect(diffs).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// compareSchemaTypes — semantic Schema-level diff
+// ---------------------------------------------------------------------------
+describe('compareSchemaTypes', () => {
+  it('detects required field removal as breaking', () => {
+    const old = inferSchema({ id: 1, name: 'Alice', email: 'a@b.com' });
+    const next = inferSchema({ id: 1, name: 'Alice' });
+    const diffs = compareSchemaTypes(old, next);
+    const removed = diffs.find(d => d.path === 'email' && d.type === 'removed');
+    expect(removed?.severity).toBe('error');
+  });
+
+  it('detects optional field removal as warning', () => {
+    const old = inferSchema([{ id: 1, name: 'Alice', nickname: 'ali' }, { id: 2, name: 'Bob' }]);
+    const next = inferSchema([{ id: 1, name: 'Alice' }, { id: 2, name: 'Bob' }]);
+    // nickname was optional (missing in some items) → removal is warning
+    const diffs = compareSchemaTypes(old, next);
+    const removed = diffs.find(d => d.path.includes('nickname') && d.type === 'removed');
+    expect(removed).toBeDefined();
+    expect(removed?.severity).toBe('warning');
+  });
+
+  it('detects type change as breaking', () => {
+    const old = inferSchema({ id: 1 });
+    const next = inferSchema({ id: 'uuid-1234' });
+    const diffs = compareSchemaTypes(old, next);
+    expect(diffs.find(d => d.type === 'type_changed' && d.severity === 'error')).toBeDefined();
+  });
+
+  it('detects optional→required as breaking', () => {
+    const old: any = { type: 'object', fields: { name: { type: 'string', optional: true } } };
+    const next: any = { type: 'object', fields: { name: { type: 'string' } } };
+    const diffs = compareSchemaTypes(old, next);
+    const d = diffs.find(d => d.type === 'required_changed');
+    expect(d?.severity).toBe('error');
+  });
+
+  it('detects required→optional as warning', () => {
+    const old: any = { type: 'object', fields: { name: { type: 'string' } } };
+    const next: any = { type: 'object', fields: { name: { type: 'string', optional: true } } };
+    const diffs = compareSchemaTypes(old, next);
+    const d = diffs.find(d => d.type === 'required_changed');
+    expect(d?.severity).toBe('warning');
+  });
+
+  it('detects enum value removal as breaking', () => {
+    const old: any = { type: 'object', fields: {
+      status: { type: 'string', enumValues: ['active', 'inactive', 'pending'] }
+    }};
+    const next: any = { type: 'object', fields: {
+      status: { type: 'string', enumValues: ['active', 'inactive'] }
+    }};
+    const diffs = compareSchemaTypes(old, next);
+    const d = diffs.find(d => d.type === 'enum_changed' && d.severity === 'error');
+    expect(d).toBeDefined();
+    expect(d?.description).toContain('pending');
+  });
+
+  it('detects enum value addition as info', () => {
+    const old: any = { type: 'object', fields: {
+      role: { type: 'string', enumValues: ['admin', 'user'] }
+    }};
+    const next: any = { type: 'object', fields: {
+      role: { type: 'string', enumValues: ['admin', 'user', 'moderator'] }
+    }};
+    const diffs = compareSchemaTypes(old, next);
+    const d = diffs.find(d => d.type === 'enum_changed' && d.severity === 'info');
+    expect(d).toBeDefined();
+    expect(d?.description).toContain('moderator');
+  });
+
+  it('detects format change', () => {
+    const old: any = { type: 'object', fields: { id: { type: 'string', format: 'uuid' } } };
+    const next: any = { type: 'object', fields: { id: { type: 'string' } } };
+    const diffs = compareSchemaTypes(old, next);
+    expect(diffs.find(d => d.type === 'format_changed')).toBeDefined();
+  });
+
+  it('detects nullable added as info', () => {
+    const old: any = { type: 'object', fields: { note: { type: 'string' } } };
+    const next: any = { type: 'object', fields: { note: { type: 'string', nullable: true } } };
+    const diffs = compareSchemaTypes(old, next);
+    expect(diffs.find(d => d.type === 'nullable_changed' && d.severity === 'info')).toBeDefined();
+  });
+
+  it('detects nullable removed as warning', () => {
+    const old: any = { type: 'object', fields: { note: { type: 'string', nullable: true } } };
+    const next: any = { type: 'object', fields: { note: { type: 'string' } } };
+    const diffs = compareSchemaTypes(old, next);
+    expect(diffs.find(d => d.type === 'nullable_changed' && d.severity === 'warning')).toBeDefined();
+  });
+
+  it('returns no diffs for identical schemas', () => {
+    const s = inferSchema({ id: 1, name: 'Alice', active: true });
+    expect(compareSchemaTypes(s, s)).toHaveLength(0);
+  });
+
+  it('recursively checks nested object fields', () => {
+    const old = inferSchema({ user: { id: 1, email: 'a@b.com' } });
+    const next = inferSchema({ user: { id: 1 } });
+    const diffs = compareSchemaTypes(old, next);
+    expect(diffs.find(d => d.path.includes('email'))).toBeDefined();
+  });
+
+  it('checks array item type changes', () => {
+    const old: any = { type: 'array', itemType: { type: 'string' } };
+    const next: any = { type: 'array', itemType: { type: 'number' } };
+    const diffs = compareSchemaTypes(old, next);
+    expect(diffs.find(d => d.type === 'type_changed')).toBeDefined();
   });
 });

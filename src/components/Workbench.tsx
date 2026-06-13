@@ -1,24 +1,26 @@
 'use client';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import LZString from 'lz-string';
-import { 
-  Terminal, Share2, Copy, FileJson, Sparkles, Settings, Loader2, Monitor, Trash2, Code2, Zap, Crown, Upload, ChevronDown,
-  Lightbulb, Edit3, Check, PanelLeftClose, PanelLeftOpen, MoreHorizontal
+import {
+  Terminal, Share2, Copy, FileJson, Settings, Loader2, Monitor, Trash2, Code2, Zap, Crown, Upload, ChevronDown,
+  Lightbulb, Edit3, Check, PanelLeftClose, PanelLeftOpen, MoreHorizontal, Link, Download, Archive
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  runEngine, 
-  parseYAML, 
-  parseXML, 
-  parseCurl, 
-  curlToTypeScript, 
-  parseSQLToZod, 
+import {
+  runEngine,
+  inferSchema,
+  parseYAML,
+  parseXML,
+  parseCurl,
+  curlToTypeScript,
+  parseSQLToZod,
   parseOpenAPI,
   parseTypeScriptToSchema,
   getDecisions,
   type Decision
 } from '@/lib/engine';
+import QualityScorePanel from '@/components/QualityScorePanel';
 import { compareSchemas, type SchemaDiff } from '@/lib/diff';
 import {
   trackWorkbenchOpen,
@@ -27,7 +29,6 @@ import {
   shouldReportConvert,
   trackInferenceError,
 } from '@/lib/analytics';
-import { processPii } from '@/lib/privacy';
 import { JsonVisualizer, Toast } from './SharedUI';
 import { History as HistoryIcon, Clock, FolderOpen } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -44,7 +45,6 @@ const TypeGraphPanel = dynamic(() => import('./TypeGraphPanel'), { ssr: false, l
 interface WorkbenchProps {
   slug: string;
   isDark: boolean;
-  geminiKey: string;
   outputTab: string;
   setOutputTab: (tab: string) => void;
   isPro?: boolean;
@@ -206,7 +206,18 @@ const PRESETS = [
   }
 ];
 
-export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, isPro, setShowLicenseModal, trialCount = 3, setTrialCount, user, onCursorChange, onEmptyChange, onEditorError }: WorkbenchProps) {
+function safeStringify(obj: unknown, indent?: number): string {
+  const seen = new WeakSet();
+  return JSON.stringify(obj, (_, val) => {
+    if (typeof val === 'object' && val !== null) {
+      if (seen.has(val)) return '[Circular]';
+      seen.add(val);
+    }
+    return val;
+  }, indent);
+}
+
+export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setShowLicenseModal, trialCount = 3, setTrialCount, user, onCursorChange, onEmptyChange, onEditorError }: WorkbenchProps) {
   const monaco = useMonaco();
   const [input, setInput] = useState(slug === 'json-to-typescript' ? (typeof PRESETS[1].data === 'string' ? PRESETS[1].data : JSON.stringify(PRESETS[1].data, null, 2)) : '');
   const inputModelUriRef = useRef<string | null>(null);
@@ -290,13 +301,15 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     };
   }, [isResizing, resize, stopResize]);
 
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const [showAiSettings, setShowAiSettings] = useState(false);
   const [isShareCopied, setIsShareCopied] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [outputs, setOutputs] = useState<any>({});
   const [outputState, setOutputState] = useState<Record<string, WorkbenchOutputStatus>>({});
   const [jsonData, setJsonData] = useState<any>(null);
+  const inferredSchema = useMemo(() => {
+    if (!jsonData) return null;
+    try { return inferSchema(jsonData); } catch { return null; }
+  }, [jsonData]);
   const [history, setHistory] = useState<any[]>([]);
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
@@ -306,15 +319,17 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
       [lang]: { status, message }
     }));
   }, []);
-  const [aiStatus, setAiStatus] = useState("");
   const [showBatchModal, setShowBatchModal] = useState(false);
+  const [showUrlBar, setShowUrlBar] = useState(false);
+  const [urlFetchInput, setUrlFetchInput] = useState('');
+  const [isFetchingUrl, setIsFetchingUrl] = useState(false);
+  const [urlFetchError, setUrlFetchError] = useState('');
+  const [corsBlockedUrl, setCorsBlockedUrl] = useState('');
   const [showGraphBadge, setShowGraphBadge] = useState(false);
 
   useEffect(() => {
     if (!localStorage.getItem('typemorph_graph_tab_visited')) setShowGraphBadge(true);
   }, []);
-  const [isSynthesizing, setIsSynthesizing] = useState(false);
-  const [isZodGenerating, setIsZodGenerating] = useState(false);
   const [hasParseError, setHasParseError] = useState(false);
   const [showMobileLangs, setShowMobileLangs] = useState(false);
   const [saveCloudHistory, setSaveCloudHistory] = useState<boolean>(true);
@@ -325,6 +340,77 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
 
   const IS_BETA = true; // ベ�Eタ期間中はtrueに設宁E
   const [isProLicensed, setIsProLicensed] = useState(IS_BETA);
+
+  const EXT_MAP: Record<string, string> = {
+    typescript: 'ts', zod: 'zod.ts', go: 'go', python: 'py', rust: 'rs',
+    dart: 'dart', php: 'php', java: 'java', kotlin: 'kt', swift: 'swift',
+    csharp: 'cs', protobuf: 'proto', graphql: 'graphql', sql: 'sql',
+    jsonschema: 'schema.json', mock: 'json', json: 'json', er: 'mmd', doc: 'md',
+  };
+  const VISUAL_TABS = new Set(['graph', 'history', 'diff', 'architect', 'ui']);
+
+  const handleDownload = () => {
+    const content = outputs[outputTab];
+    if (!content || VISUAL_TABS.has(outputTab)) return;
+    const ext = EXT_MAP[outputTab] ?? 'txt';
+    const filename = `${slug || 'typemorph-output'}.${ext}`;
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const ZIP_ENTRIES: { key: string; ext: string; filename: string }[] = [
+    { key: 'typescript',  ext: 'ts',          filename: 'output.ts' },
+    { key: 'zod',         ext: 'zod.ts',       filename: 'output.zod.ts' },
+    { key: 'go',          ext: 'go',           filename: 'output.go' },
+    { key: 'python',      ext: 'py',           filename: 'output.py' },
+    { key: 'rust',        ext: 'rs',           filename: 'output.rs' },
+    { key: 'java',        ext: 'java',         filename: 'output.java' },
+    { key: 'kotlin',      ext: 'kt',           filename: 'output.kt' },
+    { key: 'swift',       ext: 'swift',        filename: 'output.swift' },
+    { key: 'csharp',      ext: 'cs',           filename: 'output.cs' },
+    { key: 'protobuf',    ext: 'proto',        filename: 'output.proto' },
+    { key: 'graphql',     ext: 'graphql',      filename: 'output.graphql' },
+    { key: 'sql',         ext: 'prisma',       filename: 'output.prisma' },
+    { key: 'jsonschema',  ext: 'schema.json',  filename: 'output.schema.json' },
+    { key: 'mock',        ext: 'json',         filename: 'mock-data.json' },
+  ];
+
+  const [isZipping, setIsZipping] = useState(false);
+
+  const handleDownloadZip = async () => {
+    if (isZipping) return;
+    setIsZipping(true);
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      let count = 0;
+      for (const { key, filename } of ZIP_ENTRIES) {
+        const content = outputs[key];
+        if (content?.trim() && !content.includes('Unsupported output target')) {
+          zip.file(filename, content);
+          count++;
+        }
+      }
+      if (count === 0) return;
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${slug || 'typemorph-output'}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setToastMsg(`ZIP downloaded (${count} files)`);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 2500);
+    } finally {
+      setIsZipping(false);
+    }
+  };
 
   const handleSelectSyncFile = async () => {
     if (!isProLicensed) {
@@ -416,6 +502,8 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
 
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [showDecisions, setShowDecisions] = useState(false);
+  const [showDecisionsBanner, setShowDecisionsBanner] = useState(false);
+  const decisionsBannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [previousJsonData, setPreviousJsonData] = useState<any>(null);
   const [schemaDiffs, setSchemaDiffs] = useState<SchemaDiff[]>([]);
   const baselineJsonRef = useRef<any>(null);
@@ -717,8 +805,17 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     if (jsonData) {
       const list = getDecisions(jsonData, genSettings);
       setTimeout(() => setDecisions(list), 0);
+      // Auto-show banner when engine makes decisions
+      if (list.length > 0) {
+        setShowDecisionsBanner(true);
+        if (decisionsBannerTimerRef.current) clearTimeout(decisionsBannerTimerRef.current);
+        decisionsBannerTimerRef.current = setTimeout(() => setShowDecisionsBanner(false), 5000);
+      } else {
+        setShowDecisionsBanner(false);
+      }
     } else {
       setTimeout(() => setDecisions([]), 0);
+      setShowDecisionsBanner(false);
     }
   }, [jsonData, genSettings]);
 
@@ -745,206 +842,63 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     [slug]
   );
 
-  const handleAiSmartParse = useCallback(async () => {
-    if (!checkAndConsumeTrial()) return;
+  const applyFetchedText = useCallback((text: string) => {
+    if (!text.trim()) throw new Error('Empty response from URL');
+    setInput(text.trim());
+    setUrlFetchInput('');
+    setShowUrlBar(false);
+    setUrlFetchError('');
+    setCorsBlockedUrl('');
+    setToastMsg('Loaded from URL');
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2500);
+  }, [setInput]);
 
-    // PII Detection & Masking
-    const piiResult = processPii(inputRef.current, isProLicensed);
-    let finalInput = inputRef.current;
-
-    if (piiResult.detectedTypes.length > 0) {
-      if (!isProLicensed) {
-        const proceed = window.confirm(
-          `⚠�E�EPrivacy Warning: We detected sensitive data (${piiResult.detectedTypes.join(', ')}) in your input.\n\nFree users send data as-is. Upgrade to Pro for automatic local masking before sending to AI.\n\nDo you want to proceed anyway?`
-        );
-        if (!proceed) return;
-      } else {
-        finalInput = piiResult.maskedText;
-        setToastMsg("Privacy Shield: Sensitive data masked! ");
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
-      }
-    }
-
-    if (!geminiKey) {
-      if (window.confirm("Gemini API Key is required for AI Smart Parse.\n\nWould you like to get a FREE API Key from Google AI Studio right now?\n\n(Click 'Cancel' to run local Demo mode)")) {
-        window.open('https://aistudio.google.com/app/apikey', '_blank');
-        return;
-      }
-      setIsAiLoading(true);
-      setAiStatus("Demo Mode: Formatting...");
-      setTimeout(() => {
-        try {
-          const fixed = finalInput.replace(/[']/g, '"').replace(/,\s*([\]}])/g, '$1');
-          const parsed = JSON.parse(fixed);
-          setInput(JSON.stringify(parsed, null, 2));
-          setToastMsg("Demo: Healed!");
-        } catch(e) {
-          setToastMsg("Demo: Needs real AI!");
-        }
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2000);
-        setIsAiLoading(false);
-        setAiStatus("");
-      }, 1000);
+  const handleFetchFromURL = useCallback(async (url: string) => {
+    const trimmed = url.trim();
+    if (!trimmed) return;
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      setUrlFetchError('URL must start with http:// or https://');
       return;
     }
-    setIsAiLoading(true);
+    setIsFetchingUrl(true);
+    setUrlFetchError('');
+    setCorsBlockedUrl('');
     try {
-      setAiStatus("Analyzing structure...");
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey.trim()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: `Clean this input into valid minified JSON. If it's a log, extract the primary object. Return ONLY the JSON: ${finalInput}` }] }]
-        })
+      const res = await fetch(trimmed, {
+        headers: { Accept: 'application/json, text/plain, application/yaml, */*' },
       });
-      setAiStatus("Extracting logic...");
-      const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) {
-        setAiStatus("Success!");
-        setInput(text.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim());
-      }
-    } catch (e) { 
-      setAiStatus("Failed.");
-      console.error(e); 
-    }
-    finally { 
-      setTimeout(() => {
-        setIsAiLoading(false);
-        setAiStatus("");
-      }, 1000);
-    }
-  }, [geminiKey]); // Only depend on geminiKey
-
-  // ─── Streaming helper ────────────────────────────────────────────────────
-  const streamGemini = useCallback(async function* (prompt: string): AsyncGenerator<string> {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${geminiKey.trim()}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-      }
-    );
-    if (!res.ok || !res.body) throw new Error(`Gemini API error: ${res.status}`);
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const jsonStr = line.slice(6).trim();
-        if (jsonStr === '[DONE]') return;
-        try {
-          const parsed = JSON.parse(jsonStr);
-          const chunk = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (chunk) yield chunk;
-        } catch { /* skip malformed chunks */ }
-      }
-    }
-  }, [geminiKey]);
-
-  const handleAiSynthesizeData = useCallback(async () => {
-    if (!checkAndConsumeTrial()) return;
-
-    // PII Detection & Masking
-    const piiResult = processPii(inputRef.current, isProLicensed);
-    let finalInput = inputRef.current;
-    if (piiResult.detectedTypes.length > 0) {
-      if (!isProLicensed) {
-        if (!window.confirm("⚠�E�EPrivacy Warning: Detected sensitive data. Proceed without masking?")) return;
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      applyFetchedText(await res.text());
+    } catch (err: any) {
+      // CORS or network error — offer opt-in proxy instead of silently routing through server
+      const isCors = err instanceof TypeError || err?.message?.toLowerCase().includes('cors') || err?.message?.toLowerCase().includes('failed to fetch') || err?.message?.toLowerCase().includes('network');
+      if (isCors) {
+        setCorsBlockedUrl(trimmed);
+        setUrlFetchError('');
       } else {
-        finalInput = piiResult.maskedText;
-        setToastMsg("Privacy Shield: Sensitive data masked! ");
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
+        setUrlFetchError(err.message ?? 'Failed to fetch URL');
       }
-    }
-
-    if (!geminiKey) {
-      if (window.confirm("Gemini API Key is required for Data Synthesis.\n\nWould you like to get a FREE API Key from Google AI Studio right now?\n\n(Click 'Cancel' to view Demo Data)")) {
-        window.open('https://aistudio.google.com/app/apikey', '_blank');
-        return;
-      }
-      setIsSynthesizing(true);
-      setTimeout(() => {
-        const demoData = Array(5).fill(0).map((_, i) => ({
-          id: `demo_${i + 1}`,
-          status: "demo_mode",
-          message: "Please add an API key for real synthesis."
-        }));
-        setOutputs((prev: any) => ({ ...prev, mock: JSON.stringify(demoData, null, 2) }));
-        setToastMsg("Demo Data Generated!");
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2000);
-        setIsSynthesizing(false);
-      }, 1000);
-      return;
-    }
-    const targetData = jsonData || finalInput;
-    if (!targetData) {
-      alert("Please enter some input data first.");
-      return;
-    }
-    setIsSynthesizing(true);
-    try {
-      const prompt = `
-        You are an Expert Data Engineer at a top-tier systems design lab.
-        TASK: Generate exactly 50 highly realistic, diverse, global-spec (English names, real-looking email domains, international telephone numbers, ISO date-times, valid mock IDs) data rows matching the provided data schema.
-        
-        SCHEMA / PATTERN:
-        ${typeof targetData === 'string' ? targetData : JSON.stringify(targetData, null, 2)}
-        
-        RULES:
-        1. Return a single, valid JSON array containing exactly 50 objects.
-        2. Ensure all fields in the schema are populated with high-quality, realistic English data.
-        3. Do NOT include any explanations or markdown backticks. Return ONLY the raw valid minified JSON array.
-      `;
-
-      // Show output tab immediately and stream raw JSON text
-      setOutputTab('mock');
-      setOutputs((prev: any) => ({ ...prev, mock: '' }));
-
-      let accumulated = '';
-      for await (const chunk of streamGemini(prompt)) {
-        accumulated += chunk;
-        setOutputs((prev: any) => ({ ...prev, mock: accumulated }));
-      }
-
-      // Clean up markdown fences then parse JSON
-      const rawText = accumulated.replace(/^\`\`\`[a-z]*\n?/i, '').replace(/\n?\`\`\`$/i, '').trim();
-      try {
-        const parsed = JSON.parse(rawText);
-        const finalText = JSON.stringify(Array.isArray(parsed) ? parsed : [parsed], null, 2);
-        setOutputs((prev: any) => ({ ...prev, mock: finalText }));
-        setToastMsg('Synthesized 50 Global Rows!');
-      } catch {
-        // Try to extract JSON array even from dirty output
-        const match = rawText.match(/\[[\s\S]*\]/);
-        if (match) {
-          const parsed = JSON.parse(match[0]);
-          setOutputs((prev: any) => ({ ...prev, mock: JSON.stringify(parsed, null, 2) }));
-          setToastMsg('Synthesized 50 Global Rows!');
-        } else {
-          setToastMsg('Warning: Output may not be valid JSON.');
-        }
-      }
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 2000);
-    } catch (e: any) {
-      console.error(e);
-      alert(`Synthesis failed: ${e.message || 'Invalid API response'}`);
     } finally {
-      setIsSynthesizing(false);
+      setIsFetchingUrl(false);
     }
-  }, [geminiKey, input, jsonData, isProLicensed, streamGemini]);
+  }, [applyFetchedText]);
+
+  const handleFetchViaProxy = useCallback(async () => {
+    if (!corsBlockedUrl) return;
+    setIsFetchingUrl(true);
+    setUrlFetchError('');
+    try {
+      const proxy = await fetch(`/api/fetch-url?url=${encodeURIComponent(corsBlockedUrl)}`);
+      if (!proxy.ok) throw new Error(`Proxy: HTTP ${proxy.status} ${proxy.statusText}`);
+      applyFetchedText(await proxy.text());
+    } catch (err: any) {
+      setUrlFetchError(err.message ?? 'Failed to fetch via proxy');
+    } finally {
+      setIsFetchingUrl(false);
+    }
+  }, [corsBlockedUrl, applyFetchedText]);
+
 
   const downloadMockJson = useCallback(() => {
     const dataStr = outputs['mock'] || "";
@@ -988,165 +942,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     }
   }, [outputs, slug]);
 
-  const handleAiSemanticZod = useCallback(async () => {
-    if (!checkAndConsumeTrial()) return;
 
-    // PII Detection & Masking
-    const piiResult = processPii(inputRef.current, isProLicensed);
-    let finalInput = inputRef.current;
-    if (piiResult.detectedTypes.length > 0) {
-      if (!isProLicensed) {
-        if (!window.confirm("⚠�E�EPrivacy Warning: Detected sensitive data. Proceed without masking?")) return;
-      } else {
-        finalInput = piiResult.maskedText;
-        setToastMsg("Privacy Shield: Sensitive data masked! ");
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
-      }
-    }
-
-    if (!geminiKey) {
-      if (window.confirm("Gemini API Key is required for Semantic Zod Validation.\n\nWould you like to get a FREE API Key from Google AI Studio right now?\n\n(Click 'Cancel' to view Demo Zod)")) {
-        window.open('https://aistudio.google.com/app/apikey', '_blank');
-        return;
-      }
-      setIsZodGenerating(true);
-      setTimeout(() => {
-        const demoZod = `import { z } from "zod";\n\n// DEMO: Add API Key for real semantic validation\nexport const DemoSchema = z.object({\n  email: z.string().email(),\n  age: z.number().min(18)\n});`;
-        setOutputs((prev: any) => ({ ...prev, zod: demoZod }));
-        setOutputTab('zod');
-        setToastMsg("Demo Semantic Zod Generated!");
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2000);
-        setIsZodGenerating(false);
-      }, 1000);
-      return;
-    }
-    const targetData = jsonData || finalInput;
-    if (!targetData) {
-      alert("Please enter some input data first.");
-      return;
-    }
-    setIsZodGenerating(true);
-    try {
-      const prompt = `
-        You are an Expert TypeScript Security Engineer.
-        TASK: Create an advanced, semantically correct Zod validation schema for the following JSON data.
-        
-        DATA STRUCTURE:
-        ${typeof targetData === 'string' ? targetData : JSON.stringify(targetData, null, 2)}
-        
-        RULES:
-        1. Do NOT just output z.string() or z.number(). Infer the SEMANTIC meaning.
-        2. If a key is 'email', use z.string().email().
-        3. If a key is 'url' or 'website', use z.string().url().
-        4. If a key is 'uuid' or 'id', use z.string().uuid() if it looks like one.
-        5. If a date string, use z.string().datetime() or z.coerce.date().
-        6. Add reasonable .min(), .max(), .positive() where it makes logical sense (e.g. age, price).
-        7. Only output the valid TypeScript Zod code. No markdown formatting.
-      `;
-
-      // Show output tab immediately
-      setOutputTab('zod');
-      setOutputs((prev: any) => ({ ...prev, zod: '' }));
-
-      let accumulated = '';
-      for await (const chunk of streamGemini(prompt)) {
-        accumulated += chunk;
-        setOutputs((prev: any) => ({ ...prev, zod: accumulated }));
-      }
-
-      // Strip markdown fences
-      const finalText = accumulated.replace(/^\`\`\`[a-z]*\n?/i, '').replace(/\n?\`\`\`$/i, '').trim();
-      setOutputs((prev: any) => ({ ...prev, zod: finalText }));
-
-      setToastMsg('Semantic Zod Generated!');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 2000);
-    } catch (e: any) {
-      console.error(e);
-      alert(`Generation failed: ${e.message || 'Invalid API response'}`);
-    } finally {
-      setIsZodGenerating(false);
-    }
-  }, [geminiKey, input, jsonData, isProLicensed, streamGemini]);
-
-  const handleAiSchemaHeal = useCallback(async () => {
-    if (!checkAndConsumeTrial()) return;
-
-    // PII Detection & Masking
-    const piiResult = processPii(inputRef.current, isProLicensed);
-    let finalInput = inputRef.current;
-    if (piiResult.detectedTypes.length > 0) {
-      if (!isProLicensed) {
-        if (!window.confirm("⚠�E�EPrivacy Warning: Detected sensitive data. \|Proceed without masking?")) return;
-      } else {
-        finalInput = piiResult.maskedText;
-        setToastMsg("Privacy Shield: Sensitive data masked! ");
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
-      }
-    }
-
-    if (!geminiKey) {
-      if (window.confirm("Gemini API Key is required to heal schemas.\n\nWould you like to get a FREE API Key from Google AI Studio right now?\n\n(Click 'Cancel' to run local Demo mode)")) {
-        window.open('https://aistudio.google.com/app/apikey', '_blank');
-        return;
-      }
-      setIsAiLoading(true);
-      setAiStatus("Demo Mode: Healing...");
-      setTimeout(() => {
-        setToastMsg("Demo: Real AI required for complex healing.");
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2000);
-        setIsAiLoading(false);
-        setAiStatus("");
-      }, 1000);
-      return;
-    }
-    if (!finalInput.trim()) return;
-    setIsAiLoading(true);
-    setAiStatus("Healing syntax...");
-    try {
-      const prompt = `
-        You are an Elite Code and Schema Healing Engine.
-        TASK: Fix any broken syntax (missing commas, unclosed quotes, unbalanced brackets, trailing commas, or truncated lines) in the following text.
-        Ensure the output is 100% syntactically correct and well-formatted based on its apparent type (JSON, SQL, XML, or YAML).
-        
-        INPUT TO HEAL:
-        ${finalInput}
-        
-        RULES:
-        1. Fix all syntax errors, but PRESERVE all original keys, fields, and values.
-        2. Return ONLY the healed, pristine code. Do NOT wrap in markdown backticks.
-      `;
-
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey.trim()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
-      });
-
-      const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) {
-        const healed = text.replace(/^\`\`\`[a-z]*\n?/i, '').replace(/\n?\`\`\`$/i, '').trim();
-        setInput(healed);
-        setHasParseError(false);
-        setToastMsg("Syntax Healed by AI!");
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2000);
-      }
-    } catch (e) {
-      console.error(e);
-      alert("Failed to heal schema.");
-    } finally {
-      setIsAiLoading(false);
-      setAiStatus("");
-    }
-  }, [geminiKey, input, isProLicensed]);
 
   const processInput = useCallback(async () => {
     const trimmed = input.trim();
@@ -1201,11 +997,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
           jsonObj = tsRes;
           success = true;
         } else {
-          const openApiRes = parseOpenAPI(trimmed);
-          if (openApiRes) {
-            jsonObj = openApiRes;
-            success = true;
-          } else if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+          if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
           jsonObj = JSON.parse(trimmed);
           success = true;
         }
@@ -1240,7 +1032,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                 {
                   timestamp: new Date(),
                   diffs,
-                  inputSnapshot: JSON.stringify(jsonObj).slice(0, 200)
+                  inputSnapshot: safeStringify(jsonObj).slice(0, 200)
                 },
                 ...prev.slice(0, 19) // 最大20件保持
               ]);
@@ -1270,7 +1062,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
         // 1. Immediately calculate the active tab to make it feel instant!
         try {
           res[activeLang] = runEngine(jsonObj, activeLang, slug, genSettings);
-          res.json = JSON.stringify(jsonObj, null, 2);
+          res.json = safeStringify(jsonObj, 2);
 
           const isUnsupported = typeof res[activeLang] === 'string' && res[activeLang].startsWith('// Unsupported output target');
           setOutputStateFor(activeLang, isUnsupported ? 'unsupported' : 'idle', isUnsupported ? res[activeLang] : undefined);
@@ -1373,8 +1165,14 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
     // Save to local storage (for guests)
     setHistory(prev => {
       const filtered = prev.filter(h => h.content !== content);
+      const stored = content.length > 10_240 ? content.slice(0, 10_240) : content;
       const next = [{ content, timestamp: new Date().toISOString() }, ...filtered].slice(0, 5);
-      localStorage.setItem('typemorph_history', JSON.stringify(next));
+      try {
+        const storable = next.map((h, i) => i === 0 ? { ...h, content: stored } : h);
+        localStorage.setItem('typemorph_history', JSON.stringify(storable));
+      } catch {
+        // localStorage quota exceeded — keep in-memory history but skip persistence
+      }
       return next;
     });
 
@@ -1472,9 +1270,6 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
       setTimeout(() => {
         setInput(magicData);
         localStorage.removeItem('typemorph_magic_data');
-        if (geminiKey) {
-          setTimeout(() => handleAiSmartParse(), 500);
-        }
       }, 0);
     } else if (lastSlug.current !== slug && !input) {
       const samples: any = {
@@ -1506,7 +1301,7 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
       }, 0);
     }
     lastSlug.current = slug;
-  }, [slug, geminiKey]); // Removed handleAiSmartParse from dependency
+  }, [slug]);
 
   // このコンバータ slug が約束している出力形式（runEngine 対応のもの）
   const slugTarget = resolveSlugTarget(slug);
@@ -1568,25 +1363,10 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
             <span className="text-xs text-slate-400 flex items-center gap-1.5">
               Input
             </span>
-            {geminiKey ? (
-              <span className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 font-medium">
-                AI Mode
-              </span>
-            ) : (
-              <span className="text-xs text-slate-400">
-                Local Mode
-              </span>
-            )}
             {hasParseError && (
-              <button
-                onClick={handleAiSchemaHeal}
-                disabled={isAiLoading}
-                className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 px-2.5 py-1.5 rounded-lg border border-red-200 dark:border-red-900/50 hover:bg-red-600 hover:text-white transition-all"
-                title="AI detects a syntax error. Click to auto-heal!"
-              >
-                <Sparkles size={10} />
-                <span>Heal Schema</span>
-              </button>
+              <span className="text-[10px] font-mono uppercase text-red-500 dark:text-red-400">
+                Syntax Error
+              </span>
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -1604,21 +1384,11 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                 >
                   <FolderOpen size={12} /> <span>Folder Bulk</span>
                 </button>
-                <button 
-                  onClick={handleAiSmartParse}
+                <button
+                  onClick={() => { setShowUrlBar(v => !v); setUrlFetchError(''); }}
                   className="flex items-center gap-2 w-full text-left text-[10px] font-mono uppercase text-slate-600 dark:text-slate-300 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                 >
-                  {isAiLoading ? (
-                    <>
-                      <Loader2 size={12} className="animate-spin" />
-                      <span>{aiStatus}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles size={12} />
-                      <span>AI Smart Parse</span>
-                    </>
-                  )}
+                  <Link size={12} /> <span>Load from URL</span>
                 </button>
               </div>
             </div>
@@ -1679,7 +1449,58 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
           })()}
         </div>
 
-        <div 
+        {/* Inline URL bar — shown when user picks "Load from URL" from the ⋯ menu */}
+        {showUrlBar && (
+          <div className="mb-3 flex flex-col gap-1.5">
+            <div className="flex gap-2">
+              <input
+                autoFocus
+                type="url"
+                value={urlFetchInput}
+                onChange={e => { setUrlFetchInput(e.target.value); setUrlFetchError(''); setCorsBlockedUrl(''); }}
+                onKeyDown={e => { if (e.key === 'Enter') handleFetchFromURL(urlFetchInput); if (e.key === 'Escape') { setShowUrlBar(false); setUrlFetchError(''); setCorsBlockedUrl(''); } }}
+                placeholder="https://api.example.com/openapi.json"
+                className="flex-1 px-3 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
+              />
+              <button
+                onClick={() => handleFetchFromURL(urlFetchInput)}
+                disabled={isFetchingUrl || !urlFetchInput.trim()}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono uppercase font-bold rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-all"
+              >
+                {isFetchingUrl ? <Loader2 size={11} className="animate-spin" /> : <Link size={11} />}
+                {isFetchingUrl ? 'Fetching…' : 'Fetch'}
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 px-1">
+              Schema conversion runs entirely in your browser.
+            </p>
+            {urlFetchError && (
+              <p className="text-[10px] text-red-500 px-1">{urlFetchError}</p>
+            )}
+            {corsBlockedUrl && (
+              <div className="flex items-start gap-2 px-2 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-amber-700 dark:text-amber-400 font-medium mb-1">
+                    Direct fetch was blocked by CORS policy.
+                  </p>
+                  <p className="text-[10px] text-amber-600/80 dark:text-amber-500/80">
+                    You can try via proxy, but <span className="font-semibold">the URL will pass through our server</span>. Do not use this for internal or sensitive URLs.
+                  </p>
+                </div>
+                <button
+                  onClick={handleFetchViaProxy}
+                  disabled={isFetchingUrl}
+                  className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-mono uppercase font-bold rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white transition-all"
+                >
+                  {isFetchingUrl ? <Loader2 size={10} className="animate-spin" /> : null}
+                  Try via proxy
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div
           onDragOver={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -1790,8 +1611,61 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                 </div>
               </div>
 
+              {/* URL Import in empty state */}
+              <div className="mt-5 w-full max-w-lg">
+                <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-300 tracking-wider block mb-2 font-bold">
+                  Or Load from URL:
+                </span>
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={urlFetchInput}
+                      onChange={e => { setUrlFetchInput(e.target.value); setUrlFetchError(''); setCorsBlockedUrl(''); }}
+                      onKeyDown={e => e.key === 'Enter' && handleFetchFromURL(urlFetchInput)}
+                      placeholder="https://api.example.com/openapi.json"
+                      className="flex-1 px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
+                    />
+                    <button
+                      onClick={() => handleFetchFromURL(urlFetchInput)}
+                      disabled={isFetchingUrl || !urlFetchInput.trim()}
+                      className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-mono uppercase font-bold rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white transition-all"
+                    >
+                      {isFetchingUrl ? <Loader2 size={11} className="animate-spin" /> : <Link size={11} />}
+                      {isFetchingUrl ? 'Fetching…' : 'Fetch'}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 px-1">
+                    Schema conversion runs entirely in your browser.
+                  </p>
+                  {urlFetchError && (
+                    <p className="text-[10px] text-red-500 px-1">{urlFetchError}</p>
+                  )}
+                  {corsBlockedUrl && (
+                    <div className="flex items-start gap-2 px-2 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-amber-700 dark:text-amber-400 font-medium mb-1">
+                          Direct fetch was blocked by CORS policy.
+                        </p>
+                        <p className="text-[10px] text-amber-600/80 dark:text-amber-500/80">
+                          You can try via proxy, but <span className="font-semibold">the URL will pass through our server</span>. Do not use this for internal or sensitive URLs.
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleFetchViaProxy}
+                        disabled={isFetchingUrl}
+                        className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-mono uppercase font-bold rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white transition-all"
+                      >
+                        {isFetchingUrl ? <Loader2 size={10} className="animate-spin" /> : null}
+                        Try via proxy
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Preset Cards */}
-              <div className="mt-8 w-full max-w-xl">
+              <div className="mt-6 w-full max-w-xl">
                 <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-300 tracking-wider block mb-4 font-bold">
                   Or Quick Start with Architectural Samples:
                 </span>
@@ -1861,6 +1735,45 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
       </div>
 
       <div className={`flex flex-col min-w-0 h-full transition-all duration-300 ease-in-out ${isLeftCollapsed ? 'w-full md:flex-1' : 'w-full md:flex-none md:w-[calc(var(--right-width)-12px)]'}`}>
+        {/* ── Decisions Engine Banner ── */}
+        <AnimatePresence>
+          {showDecisionsBanner && decisions.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="mb-3 flex items-center gap-3 px-4 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 shadow-sm cursor-pointer group/banner"
+              onClick={() => {
+                setShowDecisions(true);
+                setShowDecisionsBanner(false);
+                if (decisionsBannerTimerRef.current) clearTimeout(decisionsBannerTimerRef.current);
+              }}
+            >
+              <div className="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center shrink-0">
+                <Zap size={12} className="text-indigo-600 dark:text-indigo-300" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-black text-indigo-700 dark:text-indigo-300 leading-none mb-0.5">
+                  ⚡ Engine made {decisions.length} structural decision{decisions.length > 1 ? 's' : ''}
+                </p>
+                <p className="text-[10px] text-indigo-500 dark:text-indigo-400 truncate">
+                  {decisions.slice(0, 2).map(d => d.meta.semanticName ?? d.title).join(' · ')}{decisions.length > 2 ? ` · +${decisions.length - 2} more` : ''}
+                </p>
+              </div>
+              <span className="text-[9px] font-mono uppercase tracking-wider text-indigo-400 dark:text-indigo-500 shrink-0 group-hover/banner:text-indigo-600 dark:group-hover/banner:text-indigo-300 transition-colors">
+                View →
+              </span>
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowDecisionsBanner(false); if (decisionsBannerTimerRef.current) clearTimeout(decisionsBannerTimerRef.current); }}
+                className="ml-1 text-indigo-300 dark:text-indigo-600 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors text-xs leading-none shrink-0 font-black"
+                aria-label="Dismiss"
+              >
+                ✕
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <div className="flex justify-between items-center mb-3">
           {/* Desktop tabs navigation */}
           <div className="hidden md:flex items-center gap-1 overflow-visible no-scrollbar pb-1 max-w-[calc(100%-100px)]">
@@ -1941,7 +1854,23 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
             >
               <Settings size={14} />
             </button>
-            <button 
+            <button
+              onClick={handleDownload}
+              disabled={!outputs[outputTab] || VISUAL_TABS.has(outputTab)}
+              className="flex items-center justify-center text-slate-500 dark:text-slate-300 w-9 h-9 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Download current tab as file"
+            >
+              <Download size={14} />
+            </button>
+            <button
+              onClick={handleDownloadZip}
+              disabled={isZipping || !Object.values(outputs).some(v => typeof v === 'string' && v.trim())}
+              className="flex items-center justify-center text-slate-500 dark:text-slate-300 w-9 h-9 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Download all formats as ZIP"
+            >
+              {isZipping ? <Loader2 size={14} className="animate-spin" /> : <Archive size={14} />}
+            </button>
+            <button
               onClick={() => {
                 navigator.clipboard.writeText(outputs[outputTab] || "");
                 setIsCopied(true);
@@ -2104,26 +2033,9 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
               {outputTab === 'mock' && (
                 <div className="flex items-center justify-between px-6 py-3 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-[#222222]/50 z-10 animate-fade-in">
                   <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-300 tracking-wider flex items-center gap-1.5 font-bold">
-                    <Zap size={12} className="text-slate-500 dark:text-slate-400" /> AI Data Synthesizer
+                    <Zap size={12} className="text-slate-500 dark:text-slate-400" /> Mock Data
                   </span>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleAiSynthesizeData}
-                      disabled={isSynthesizing}
-                      className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-slate-900 dark:text-white px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all disabled:opacity-50"
-                    >
-                      {isSynthesizing ? (
-                        <>
-                          <Loader2 size={10} className="animate-spin" />
-                          <span>Synthesizing...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles size={10} />
-                          <span>Synthesize 50 Rows</span>
-                        </>
-                      )}
-                    </button>
                     <button
                       onClick={downloadMockJson}
                       className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-white/20 transition-all"
@@ -2139,33 +2051,14 @@ export function Workbench({ slug, isDark, geminiKey, outputTab, setOutputTab, is
                   </div>
                 </div>
               )}
-              {outputTab === 'zod' && (
-                <div className="flex items-center justify-between px-6 py-3 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-[#222222]/50 z-10 animate-fade-in">
-                  <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-300 tracking-wider flex items-center gap-1.5 font-bold">
-                    <Sparkles size={12} className="text-emerald-500" /> Semantic Validator
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleAiSemanticZod}
-                      disabled={isZodGenerating}
-                      className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-900/50 hover:bg-emerald-700 dark:hover:bg-emerald-700 hover:text-white dark:hover:text-white transition-all disabled:opacity-50"
-                    >
-                      {isZodGenerating ? (
-                        <>
-                          <Loader2 size={10} className="animate-spin" />
-                          <span>Generating...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles size={10} className="text-emerald-600" />
-                          <span>AI Deep Validation</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
+              
+              {/* Schema Quality Score — only for typed-language outputs */}
+              {inferredSchema && ['typescript', 'zod', 'go', 'rust', 'python', 'java', 'kotlin', 'swift', 'csharp', 'dart', 'php'].includes(outputTab) && (
+                <div className="px-4 pt-3 pb-0">
+                  <QualityScorePanel schema={inferredSchema} />
                 </div>
               )}
-              
+
               {/* Schema Migration Impact Analyzer */}
               {!['json', 'ui', 'mock', 'doc', 'graph'].includes(outputTab) && schemaDiffs.length > 0 && (
                 <div className="bg-amber-50/40 dark:bg-amber-950/10 border-b border-amber-200 dark:border-amber-950/30 p-4 transition-all">

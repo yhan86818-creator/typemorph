@@ -19,6 +19,9 @@ import { Schema, SchemaType } from './types';
 import { createHash } from 'crypto';
 import { parseYAML, parseXML, parseCurl, parseSQLToZod, curlToTypeScript, parseOpenAPI, parseTypeScriptToSchema } from './parsers';
 import { trackInferenceError, trackInferenceFallback, trackUnsupportedOutputTarget } from './analytics';
+import { isOpenAPISpec, parseOpenAPIComponents } from './openapi-parser';
+import { isJSONSchema, parseJSONSchema } from './jsonschema-parser';
+import { detectRecursiveTypes } from './recursive';
 
 export { type Schema };
 export { parseYAML, parseXML, parseCurl, parseSQLToZod, curlToTypeScript, parseOpenAPI, parseTypeScriptToSchema };
@@ -53,6 +56,7 @@ export interface InferOptions {
   arraySampleCount?: number;    // total number of items to sample from large arrays
   arrayPrefixSample?: number;   // always include first N items in the sample
   includeMeta?: boolean;
+  detectDiscriminatedUnions?: boolean; // default true — detect discriminated union patterns in arrays
 }
 
 const mergeSchemas = (s1: Schema, s2: Schema, depth: number = 0): Schema => {
@@ -308,6 +312,16 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
     for (let si = 1; si < sampledItems.length; si++) {
       itemType = mergeSchemas(itemType, inferSchema(sampledItems[si], undefined, depth + 1, allowed, options), depth + 1);
     }
+
+    // Discriminated union detection: annotate itemType with per-variant schemas when a
+    // reliable type-discriminator field is found (e.g. { type: "circle"|"rect", ... }).
+    if (options?.detectDiscriminatedUnions !== false && sampledItems.length >= 2) {
+      const du = tryDetectDiscriminatedUnion(sampledItems, depth, options);
+      if (du) {
+        itemType = { ...itemType, discriminatorField: du.discriminatorField, discriminatedVariants: du.variants };
+      }
+    }
+
     return addMeta({ type: 'array', itemType }, 'array_inferred', { samples: len, sampled: sampledItems.length });
   }
 
@@ -386,6 +400,60 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
     return addMeta({ type: t as SchemaType }, 'primitive');
   }
   return addMeta({ type: 'any' }, 'primitive');
+};
+
+// ---------------------------------------------------------------------------
+// Discriminated Union Detection
+// ---------------------------------------------------------------------------
+// Scans a sampled array of objects to detect whether one string field reliably
+// partitions the array into structurally distinct groups (e.g. type:"circle"|"rect").
+// Returns the discriminator field name and per-variant merged schemas, or null.
+const tryDetectDiscriminatedUnion = (
+  items: any[],
+  depth: number,
+  options?: InferOptions
+): { discriminatorField: string; variants: Record<string, Schema> } | null => {
+  if (items.length < 2) return null;
+  // Only works on arrays of plain objects (not primitives or nested arrays)
+  if (!items.every(item => item !== null && typeof item === 'object' && !Array.isArray(item))) return null;
+
+  const firstKeys = Object.keys(items[0]);
+
+  for (const candidateField of firstKeys) {
+    // Must be a non-empty string in every item
+    if (!items.every(item => typeof item[candidateField] === 'string' && (item[candidateField] as string).length > 0)) continue;
+
+    const uniqueValues = Array.from(new Set(items.map(item => item[candidateField] as string)));
+    // Require 2–8 unique discriminator values
+    if (uniqueValues.length < 2 || uniqueValues.length > 8) continue;
+
+    // Build a merged Schema per variant value
+    const variantSchemas: Record<string, Schema> = {};
+    for (const val of uniqueValues) {
+      const variantItems = items.filter(item => item[candidateField] === val);
+      if (variantItems.length === 0) continue;
+      let vs = inferSchema(variantItems[0], undefined, depth + 1, undefined, options);
+      for (let vi = 1; vi < variantItems.length; vi++) {
+        vs = mergeSchemas(vs, inferSchema(variantItems[vi], undefined, depth + 1, undefined, options), depth + 1);
+      }
+      variantSchemas[val] = vs;
+    }
+    if (Object.keys(variantSchemas).length < 2) continue;
+
+    // Confirm variants have at least 2 required fields unique to some (not all) variants.
+    // Requiring ≥ 2 prevents false positives from sparse/inconsistent data where a single
+    // optional field happens to be absent in one sample (e.g. role:"user" missing permissions).
+    const requiredFieldSets = Object.values(variantSchemas).map(v =>
+      new Set(Object.entries(v.fields ?? {}).filter(([, fv]) => !fv.optional).map(([fk]) => fk))
+    );
+    const allRequired = Array.from(new Set(requiredFieldSets.flatMap(s => Array.from(s))));
+    const variantSpecificCount = allRequired.filter(f => !requiredFieldSets.every(set => set.has(f))).length;
+    if (variantSpecificCount >= 2) {
+      return { discriminatorField: candidateField, variants: variantSchemas };
+    }
+  }
+
+  return null;
 };
 
 const DEPENDENCY_COMMENTS: Record<string, string> = {
@@ -1047,23 +1115,54 @@ export const inferSchemaAsync = async (json: any, options: InferOptions = {}) =>
 
 export const runEngine = (json: any, lang: string, slug: string = "", options: any = {}): any => {
   try {
+    // OpenAPI / Swagger detection — parse component schemas and generate per-schema output
+    if (!options._openAPIComponent && isOpenAPISpec(json)) {
+      const components = parseOpenAPIComponents(json);
+      if (components.length > 0) {
+        const parts = components
+          .map(({ name, schema }, idx) =>
+            runEngine(schema, lang, slug, { ...options, rootName: name, _openAPIComponent: idx > 0 })
+          )
+          .filter((p: string) => typeof p === 'string' && p.trim());
+        return parts.join('\n\n');
+      }
+    }
+
+    // JSON Schema detection — parse $defs / definitions and root schema
+    if (!options._openAPIComponent && isJSONSchema(json)) {
+      const components = parseJSONSchema(json);
+      if (components.length > 0) {
+        const parts = components
+          .map(({ name, schema }, idx) =>
+            runEngine(schema, lang, slug, { ...options, rootName: name, _openAPIComponent: idx > 0 })
+          )
+          .filter((p: string) => typeof p === 'string' && p.trim());
+        return parts.join('\n\n');
+      }
+    }
+
+    const isOAComp: boolean = !!options._openAPIComponent;
     const schema = json && json._isTypeMorphSchema ? json : inferSchema(json);
-    extractSharedTypes(schema, options); // 共通型のハッシュ抽出＆マーク
+    const rootName: string = options.rootName ?? 'Root';
+    // Detect self-referential schemas (e.g. TreeNode.children: TreeNode[]) before
+    // extractSharedTypes so the named stubs don't get merged away.
+    if (!isOAComp && !json?._isTypeMorphSchema) detectRecursiveTypes(schema, rootName);
+    // Skip shared-type unification for OpenAPI/JSON Schema components — they already
+    // have stable names via _sharedTypeName; extractSharedTypes would corrupt them.
+    if (!isOAComp) extractSharedTypes(schema, options);
     let out = "";
     let matchedKey = "";
 
     // 1. Unified Router for Slug-based and Language-based requests
     const s = (lang || slug || "").toLowerCase();
     matchedKey = s;
-
-    const rootName: string = options.rootName ?? 'Root';
     const rootNameLower = rootName.charAt(0).toLowerCase() + rootName.slice(1);
-
-    // Explicit Language Mappings
     if (s === 'typescript' || s === 'ts') {
-      out = `/**\n * TypeMorph Generated TypeScript Interface\n */\n` + tsGen.generate(schema, rootName, options);
+      const pfx = isOAComp ? '' : `/**\n * TypeMorph Generated TypeScript Interface\n */\n`;
+      out = pfx + tsGen.generate(schema, rootName, options);
     } else if (s === 'zod') {
-      out = `import { z } from "zod";\n\n` + zodGen.generate(schema, rootNameLower, options);
+      const pfx = isOAComp ? '' : `import { z } from "zod";\n\n`;
+      out = pfx + zodGen.generate(schema, rootNameLower, options);
     } else if (s === 'go' || s === 'golang') {
       out = goGen.generate(schema, rootName, options);
     } else if (s === 'rust') {
@@ -1071,13 +1170,16 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     } else if (s === 'java') {
       out = javaGen.generate(schema, rootName, options);
     } else if (s === 'python') {
-      out = `from pydantic import BaseModel\n\n` + pythonGen.generate(schema, rootName, options);
+      const pfx = isOAComp ? '' : `from pydantic import BaseModel\n\n`;
+      out = pfx + pythonGen.generate(schema, rootName, options);
     } else if (s === 'php') {
-      out = `<?php\n\n` + phpGen.generate(schema, rootName, options);
+      const pfx = isOAComp ? '' : `<?php\n\n`;
+      out = pfx + phpGen.generate(schema, rootName, options);
     } else if (s === 'sql' || s === 'prisma') {
       out = prismaGen.generate(schema, rootName, options);
     } else if (s === 'proto' || s === 'protobuf') {
-      out = `// Protocol Buffers v3 specification\n\nsyntax = "proto3";\n\n` + protoGen.generate(schema, rootName, options);
+      const pfx = isOAComp ? '' : `// Protocol Buffers v3 specification\n\nsyntax = "proto3";\n\n`;
+      out = pfx + protoGen.generate(schema, rootName, options);
     } else if (s === 'graphql' || s === 'gql') {
       out = gqlGen.generate(schema, rootName, options);
     } 
@@ -1174,7 +1276,7 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
       }
     }
 
-    const finalCode = depHeader ? depHeader + out : out;
+    const finalCode = (depHeader && !isOAComp) ? depHeader + out : out;
     return cleanAndFormatCode(finalCode);
   } catch (e) { return "// Error: " + String(e); }
 };

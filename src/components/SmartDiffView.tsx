@@ -1,176 +1,412 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { ArrowLeftRight, Copy, CheckCircle2, AlertCircle, Info, TriangleAlert } from 'lucide-react';
+import { ArrowLeftRight, AlertCircle, Info, TriangleAlert, CheckCircle2, FileJson, FileCode2, Copy, Check } from 'lucide-react';
 import Editor from '@monaco-editor/react';
-import { compareSchemas, SchemaDiff } from '@/lib/diff';
+import { compareSchemaTypes, SchemaDiff } from '@/lib/diff';
+import { inferSchema } from '@/lib/engine';
+import { parseYAML } from '@/lib/engine';
+import { isOpenAPISpec, parseOpenAPIComponents } from '@/lib/openapi-parser';
+import { isJSONSchema, parseJSONSchema } from '@/lib/jsonschema-parser';
+import type { Schema } from '@/lib/types';
+
+type ParsedSchemas = { name: string; schema: Schema }[];
+
+type FormatLabel = 'JSON' | 'YAML' | 'OpenAPI 3.x' | 'Swagger 2.0' | 'JSON Schema';
+
+function detectAndParse(text: string): { schemas: ParsedSchemas; format: FormatLabel } {
+  const trimmed = text.trim();
+  if (!trimmed) throw new Error('Empty input');
+
+  let obj: any;
+  let format: FormatLabel = 'JSON';
+
+  try {
+    obj = JSON.parse(trimmed);
+  } catch {
+    try {
+      obj = parseYAML(trimmed);
+      format = 'YAML';
+    } catch {
+      throw new Error('Could not parse as JSON or YAML');
+    }
+  }
+
+  if (isOpenAPISpec(obj)) {
+    const o = obj as any;
+    format = typeof o.swagger === 'string' ? 'Swagger 2.0' : 'OpenAPI 3.x';
+    const schemas = parseOpenAPIComponents(obj);
+    if (schemas.length === 0) throw new Error('No component schemas found in spec');
+    return { schemas, format };
+  }
+
+  if (isJSONSchema(obj)) {
+    format = 'JSON Schema';
+    const schemas = parseJSONSchema(obj);
+    if (schemas.length === 0) throw new Error('No schemas found in JSON Schema document');
+    return { schemas, format };
+  }
+
+  const schema = inferSchema(obj);
+  return { schemas: [{ name: 'Root', schema }], format };
+}
+
+function compatibilityScore(diffs: SchemaDiff[]): number {
+  if (diffs.length === 0) return 100;
+  const breakingCount = diffs.filter(d => d.severity === 'error').length;
+  const warningCount = diffs.filter(d => d.severity === 'warning').length;
+  const penalty = breakingCount * 15 + warningCount * 5;
+  return Math.max(0, 100 - penalty);
+}
+
+function scoreColor(score: number) {
+  if (score >= 90) return 'text-green-600 dark:text-green-400';
+  if (score >= 60) return 'text-yellow-600 dark:text-yellow-400';
+  return 'text-red-600 dark:text-red-400';
+}
+
+const SAMPLE_A = `{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "User",
+  "type": "object",
+  "required": ["id", "email"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "email": { "type": "string", "format": "email" },
+    "role": { "type": "string", "enum": ["admin", "user"] },
+    "age": { "type": "integer" }
+  }
+}`;
+
+const SAMPLE_B = `{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "User",
+  "type": "object",
+  "required": ["id", "email", "role"],
+  "properties": {
+    "id": { "type": "integer" },
+    "email": { "type": "string", "format": "email" },
+    "role": { "type": "string", "enum": ["admin", "user", "moderator"] },
+    "displayName": { "type": "string" }
+  }
+}`;
 
 export function SmartDiffView({ isDark }: { isDark: boolean }) {
-  const [jsonA, setJsonA] = useState('{\n  "id": 101,\n  "user": "jdoe",\n  "status": "active"\n}');
-  const [jsonB, setJsonB] = useState('{\n  "id": 101,\n  "username": "jdoe",\n  "status": "pending",\n  "tags": ["beta"]\n}');
-  const [diffs, setDiffs] = useState<SchemaDiff[]>([]);
+  const [textA, setTextA] = useState(SAMPLE_A);
+  const [textB, setTextB] = useState(SAMPLE_B);
+  const [result, setResult] = useState<{
+    diffs: SchemaDiff[];
+    formatA: FormatLabel;
+    formatB: FormatLabel;
+    schemaCount: number;
+  } | null>(null);
   const [error, setError] = useState('');
-  const [hasRun, setHasRun] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleCompare = useCallback(() => {
     setError('');
     try {
-      const a = JSON.parse(jsonA);
-      const b = JSON.parse(jsonB);
-      const result = compareSchemas(a, b);
-      setDiffs(result);
-      setHasRun(true);
-    } catch (err: any) {
-      setError('Invalid JSON: ' + (err?.message ?? 'Parse error'));
-      setDiffs([]);
-    }
-  }, [jsonA, jsonB]);
+      const { schemas: schemasA, format: fmtA } = detectAndParse(textA);
+      const { schemas: schemasB, format: fmtB } = detectAndParse(textB);
 
-  // Cmd+Enter / Ctrl+Enter で比較
+      const allDiffs: SchemaDiff[] = [];
+
+      // Schemas removed entirely
+      for (const { name } of schemasA) {
+        if (!schemasB.find(s => s.name === name)) {
+          allDiffs.push({
+            path: name,
+            type: 'removed',
+            severity: 'error',
+            description: `Schema '${name}' was completely removed.`,
+          });
+        }
+      }
+
+      // Schemas added
+      for (const { name } of schemasB) {
+        if (!schemasA.find(s => s.name === name)) {
+          allDiffs.push({
+            path: name,
+            type: 'added',
+            severity: 'info',
+            description: `New schema '${name}' added.`,
+          });
+        }
+      }
+
+      // Compare matching schemas
+      for (const { name, schema: schemaA } of schemasA) {
+        const matchB = schemasB.find(s => s.name === name);
+        if (matchB) {
+          const prefix = schemasA.length > 1 ? name : 'root';
+          allDiffs.push(...compareSchemaTypes(schemaA, matchB.schema, prefix));
+        }
+      }
+
+      setResult({
+        diffs: allDiffs,
+        formatA: fmtA,
+        formatB: fmtB,
+        schemaCount: schemasA.length,
+      });
+    } catch (err: any) {
+      setError(err?.message ?? 'Parse error');
+      setResult(null);
+    }
+  }, [textA, textB]);
+
   React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
         handleCompare();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [handleCompare]);
 
-  const errors = diffs.filter(d => d.severity === 'error');
-  const warnings = diffs.filter(d => d.severity === 'warning');
-  const infos = diffs.filter(d => d.severity === 'info');
+  const breaking = result?.diffs.filter(d => d.severity === 'error') ?? [];
+  const warnings = result?.diffs.filter(d => d.severity === 'warning') ?? [];
+  const infos = result?.diffs.filter(d => d.severity === 'info') ?? [];
+  const score = result ? compatibilityScore(result.diffs) : null;
+
+  const handleCopyReport = useCallback(() => {
+    if (!result || score === null) return;
+    const lines: string[] = [
+      `# Breaking Change Report`,
+      `Compatibility: ${score}% (${breaking.length} breaking, ${warnings.length} warnings, ${infos.length} info)`,
+      `Score formula: 100 - (breaking × 15) - (warning × 5)`,
+      '',
+    ];
+    if (breaking.length > 0) {
+      lines.push('## Breaking Changes');
+      breaking.forEach(d => lines.push(`- [${d.type}] ${d.path}: ${d.description}`));
+      lines.push('');
+    }
+    if (warnings.length > 0) {
+      lines.push('## Warnings');
+      warnings.forEach(d => lines.push(`- [${d.type}] ${d.path}: ${d.description}`));
+      lines.push('');
+    }
+    if (infos.length > 0) {
+      lines.push('## Info');
+      infos.forEach(d => lines.push(`- [${d.type}] ${d.path}: ${d.description}`));
+    }
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [result, score, breaking, warnings, infos]);
 
   const severityIcon = (s: SchemaDiff['severity']) => {
-    if (s === 'error') return <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />;
-    if (s === 'warning') return <TriangleAlert size={14} className="text-yellow-500 shrink-0 mt-0.5" />;
-    return <Info size={14} className="text-slate-500 dark:text-slate-400 shrink-0 mt-0.5" />;
+    if (s === 'error') return <AlertCircle size={13} className="text-red-500 shrink-0 mt-0.5" />;
+    if (s === 'warning') return <TriangleAlert size={13} className="text-yellow-500 shrink-0 mt-0.5" />;
+    return <Info size={13} className="text-slate-400 dark:text-slate-500 shrink-0 mt-0.5" />;
   };
 
   const severityBg = (s: SchemaDiff['severity']) => {
-    if (s === 'error') return 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/50';
-    if (s === 'warning') return 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-900/50';
+    if (s === 'error') return 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/40';
+    if (s === 'warning') return 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-900/40';
     return 'bg-slate-50 dark:bg-white/[0.03] border-slate-200 dark:border-white/10';
   };
 
   const typeBadge = (t: SchemaDiff['type']) => {
-    if (t === 'removed') return <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">removed</span>;
-    if (t === 'added') return <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">added</span>;
-    return <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400">changed</span>;
+    const cls: Record<SchemaDiff['type'], string> = {
+      removed:          'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
+      added:            'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
+      type_changed:     'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400',
+      required_changed: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
+      enum_changed:     'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
+      format_changed:   'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300',
+      nullable_changed: 'bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400',
+    };
+    const label: Record<SchemaDiff['type'], string> = {
+      removed: 'removed', added: 'added', type_changed: 'type',
+      required_changed: 'required', enum_changed: 'enum',
+      format_changed: 'format', nullable_changed: 'nullable',
+    };
+    return (
+      <span className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded ${cls[t]}`}>
+        {label[t]}
+      </span>
+    );
   };
 
+  const formatBadge = (f: FormatLabel) => (
+    <span className="flex items-center gap-1 text-[9px] font-mono uppercase px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+      {f.includes('OpenAPI') || f.includes('Swagger') || f === 'JSON Schema'
+        ? <FileCode2 size={10} />
+        : <FileJson size={10} />}
+      {f}
+    </span>
+  );
+
   return (
-    <div className="flex flex-col h-full p-4 gap-4 bg-white dark:bg-[#0A0A0A]">
+    <div className="flex flex-col h-full bg-white dark:bg-[#0A0A0A] overflow-hidden">
 
       {/* ヘッダー */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-100 dark:border-[#1A1A1A] shrink-0">
         <div>
-          <h2 className="text-sm font-semibold text-slate-800 dark:text-[#E8E8E8]">Schema Diff</h2>
-          <p className="text-xs text-slate-400 dark:text-[#707070]">Detect breaking changes between two JSON payloads</p>
+          <h2 className="text-sm font-semibold text-slate-800 dark:text-[#E8E8E8]">Breaking Change Detector</h2>
+          <p className="text-[11px] text-slate-400 dark:text-[#606060] mt-0.5">
+            JSON · YAML · OpenAPI · JSON Schema — paste any two versions
+          </p>
         </div>
         <button
           onClick={handleCompare}
           className="flex items-center gap-2 px-4 py-2 text-slate-900 dark:text-white text-xs font-bold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
           title="Cmd+Enter or Ctrl+Enter"
         >
-          <ArrowLeftRight size={13} />
+          <ArrowLeftRight size={12} />
           Compare
-          <span className="text-[9px] opacity-50 border border-slate-300 dark:border-slate-600 px-1 py-0.5 rounded">⌘↵</span>
+          <span className="text-[9px] opacity-40 border border-current px-1 py-0.5 rounded">⌘↵</span>
         </button>
       </div>
 
-      {/* エラー表示 */}
+      {/* エラー */}
       {error && (
-        <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-lg text-xs text-red-600 dark:text-red-400">
+        <div className="mx-4 mt-3 flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-lg text-xs text-red-600 dark:text-red-400 shrink-0">
           <AlertCircle size={13} />
           {error}
         </div>
       )}
 
       {/* エディター2面 */}
-      <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
-        <div className="flex flex-col border border-slate-200 dark:border-[#1A1A1A] rounded-lg overflow-hidden">
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#0F0F0F]">
-            <div className="w-2 h-2 rounded-full bg-red-400" />
-            <span className="text-[10px] font-mono uppercase text-slate-400">JSON A (Original)</span>
+      <div className="grid grid-cols-2 gap-3 flex-1 min-h-0 px-4 pt-3">
+        {[
+          { label: 'Version A (Before)', value: textA, onChange: setTextA, dot: 'bg-red-400', fmt: result?.formatA },
+          { label: 'Version B (After)',  value: textB, onChange: setTextB, dot: 'bg-green-400', fmt: result?.formatB },
+        ].map(({ label, value, onChange, dot, fmt }) => (
+          <div key={label} className="flex flex-col border border-slate-200 dark:border-[#1A1A1A] rounded-xl overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#0F0F0F]">
+              <div className={`w-2 h-2 rounded-full ${dot}`} />
+              <span className="text-[10px] font-mono uppercase text-slate-400 flex-1">{label}</span>
+              {fmt && formatBadge(fmt)}
+            </div>
+            <Editor
+              height="100%"
+              defaultLanguage="json"
+              value={value}
+              onChange={v => onChange(v || '')}
+              theme={isDark ? 'vs-dark' : 'light'}
+              options={{
+                minimap: { enabled: false }, fontSize: 12,
+                scrollBeyondLastLine: false, padding: { top: 10, bottom: 10 },
+                automaticLayout: true, wordWrap: 'on',
+              }}
+            />
           </div>
-          <Editor
-            height="100%"
-            defaultLanguage="json"
-            value={jsonA}
-            onChange={(v) => setJsonA(v || '')}
-            theme={isDark ? 'vs-dark' : 'light'}
-            options={{ minimap: { enabled: false }, fontSize: 12, scrollBeyondLastLine: false, padding: { top: 12, bottom: 12 }, automaticLayout: true, wordWrap: 'on' }}
-          />
-        </div>
-        <div className="flex flex-col border border-slate-200 dark:border-[#1A1A1A] rounded-lg overflow-hidden">
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#0F0F0F]">
-            <div className="w-2 h-2 rounded-full bg-green-400" />
-            <span className="text-[10px] font-mono uppercase text-slate-400">JSON B (Modified)</span>
-          </div>
-          <Editor
-            height="100%"
-            defaultLanguage="json"
-            value={jsonB}
-            onChange={(v) => setJsonB(v || '')}
-            theme={isDark ? 'vs-dark' : 'light'}
-            options={{ minimap: { enabled: false }, fontSize: 12, scrollBeyondLastLine: false, padding: { top: 12, bottom: 12 }, automaticLayout: true, wordWrap: 'on' }}
-          />
-        </div>
+        ))}
       </div>
 
-      {/* 結果 */}
-      {hasRun && (
-        <div className="flex flex-col gap-3 max-h-[280px] overflow-y-auto">
-
-          {/* サマリー */}
-          <div className="flex items-center gap-3">
-            {diffs.length === 0 ? (
-              <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1.5">
-                <CheckCircle2 size={13} /> No differences detected
-              </span>
-            ) : (
-              <>
-                {errors.length > 0 && (
-                  <span className="text-[10px] font-mono px-2 py-1 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
-                    {errors.length} breaking
-                  </span>
-                )}
-                {warnings.length > 0 && (
-                  <span className="text-[10px] font-mono px-2 py-1 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400">
-                    {warnings.length} warning
-                  </span>
-                )}
-                {infos.length > 0 && (
-                  <span className="text-[10px] font-mono px-2 py-1 rounded bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white">
-                    {infos.length} added
-                  </span>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* 差分リスト */}
-          <div className="flex flex-col gap-2">
-            {diffs.map((d, i) => (
-              <div key={i} className={`flex items-start gap-2 p-3 rounded-lg border text-xs ${severityBg(d.severity)}`}>
-                {severityIcon(d.severity)}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <code className="font-mono text-slate-700 dark:text-[#E8E8E8] truncate">{d.path}</code>
-                    {typeBadge(d.type)}
-                    {d.oldType && d.newType && (
-                      <span className="text-slate-400 font-mono text-[10px]">{d.oldType} → {d.newType}</span>
-                    )}
+      {/* 結果パネル */}
+      <div className="px-4 py-3 shrink-0 max-h-[45%] overflow-y-auto">
+        {result && (
+          <>
+            {/* サマリーバー */}
+            <div className="flex items-start gap-3 mb-3 flex-wrap">
+              {result.diffs.length === 0 ? (
+                <span className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 font-semibold">
+                  <CheckCircle2 size={14} /> 100% Compatible — No changes detected
+                </span>
+              ) : (
+                <div className="flex-1 min-w-0 space-y-2">
+                  {/* Score row */}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span className={`text-sm font-bold tabular-nums ${scoreColor(score!)}`}>
+                      {score}% compatible
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {breaking.length > 0 && (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+                          {breaking.length} breaking
+                        </span>
+                      )}
+                      {warnings.length > 0 && (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400">
+                          {warnings.length} warning{warnings.length > 1 ? 's' : ''}
+                        </span>
+                      )}
+                      {infos.length > 0 && (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300">
+                          {infos.length} info
+                        </span>
+                      )}
+                    </div>
+                    <div className="ml-auto flex items-center gap-2">
+                      {result.schemaCount > 1 && (
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                          {result.schemaCount} schemas
+                        </span>
+                      )}
+                      {/* Copy Report button */}
+                      <button
+                        onClick={handleCopyReport}
+                        className="flex items-center gap-1 text-[10px] font-mono text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                        title="Copy as Markdown report"
+                      >
+                        {copied ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
+                        {copied ? 'Copied!' : 'Copy report'}
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-slate-500 dark:text-[#707070] leading-relaxed">{d.description}</p>
+                  {/* Score bar + formula hint */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${score! >= 90 ? 'bg-green-500' : score! >= 60 ? 'bg-yellow-400' : 'bg-red-500'}`}
+                        style={{ width: `${score}%` }}
+                      />
+                    </div>
+                    <span
+                      className="text-[9px] font-mono text-slate-400 dark:text-slate-500 whitespace-nowrap"
+                      title="Score = 100 - (breaking × 15) - (warning × 5)"
+                    >
+                      −15/breaking · −5/warning
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+              )}
+            </div>
+
+            {/* 差分リスト */}
+            <div className="flex flex-col gap-1.5">
+              {[...breaking, ...warnings, ...infos].map((d, i) => (
+                <div
+                  key={i}
+                  className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border text-xs ${severityBg(d.severity)}`}
+                >
+                  {severityIcon(d.severity)}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <code className="font-mono text-[11px] text-slate-700 dark:text-[#D8D8D8]">
+                        {d.path || 'root'}
+                      </code>
+                      {typeBadge(d.type)}
+                      {d.oldType && d.newType && (
+                        <span className="font-mono text-[10px] text-slate-400">
+                          {d.oldType} → {d.newType}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-slate-500 dark:text-[#686868] leading-relaxed">
+                      {d.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {!result && !error && (
+          <p className="text-[11px] text-slate-400 dark:text-[#505050] text-center py-4">
+            Paste two versions of a schema above and click Compare
+          </p>
+        )}
+      </div>
     </div>
   );
 }

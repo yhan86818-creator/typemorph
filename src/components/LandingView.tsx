@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, Sparkles, Zap, ShieldCheck, Layers, 
   ArrowRight, X, Command, Cpu, Terminal, ChevronRight,
-  Database, FileCode, CheckCircle2, FolderOpen, Key, Trash2, EyeOff
+  Database, FileCode, CheckCircle2, FolderOpen, Trash2, EyeOff
 } from 'lucide-react';
 import { converters } from '@/data/converters';
 import GlobalFooter from '@/components/GlobalFooter';
@@ -165,15 +165,101 @@ export function LandingView({ onSelect }: LandingViewProps) {
           {/* Quick Stats */}
           <div className="mt-6 flex justify-center gap-8">
             {[
-              { label: 'Total Utilities', value: '317' },
+              { label: 'Language Outputs', value: '18' },
               { label: 'Security Standard', value: 'Local-First' },
-              { label: 'AI Synthesis', value: 'Gemini 2.5' }
+              { label: 'Inference Engine', value: '100% Browser' }
             ].map((s, i) => (
               <div key={i} className="text-center">
                 <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-0.5">{s.label}</p>
                 <p className="text-xs font-black text-slate-600 dark:text-slate-300">{s.value}</p>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* B: AST Pipeline Visual */}
+        <div className="mb-40">
+          <div className="text-center mb-12">
+            <p className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-3">How it works</p>
+            <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
+              One inference. Every language.
+            </h2>
+            <p className="text-slate-500 dark:text-slate-400 font-medium mt-3 max-w-xl mx-auto">
+              TypeMorph runs a single AST pipeline in your browser — no backend, no round-trips. Your schema is inferred once and compiled to all 18 targets simultaneously.
+            </p>
+          </div>
+
+          <div className="relative flex flex-col md:flex-row items-center gap-4 md:gap-0 max-w-5xl mx-auto">
+            {/* Input */}
+            <div className="flex-shrink-0 w-full md:w-56 bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-slate-900 border-b border-slate-800">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400/60" />
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/60" />
+                <span className="ml-2 text-[9px] text-slate-500 font-mono uppercase tracking-widest">Input</span>
+              </div>
+              <pre className="p-4 text-[10px] font-mono leading-5 text-slate-300">
+<span className="text-slate-500">{'{'}</span>{'\n'}
+{'  '}<span className="text-blue-300">"id"</span><span className="text-slate-500">:</span> <span className="text-amber-300">"uuid-…"</span><span className="text-slate-500">,</span>{'\n'}
+{'  '}<span className="text-blue-300">"email"</span><span className="text-slate-500">:</span> <span className="text-amber-300">"a@b.com"</span><span className="text-slate-500">,</span>{'\n'}
+{'  '}<span className="text-blue-300">"age"</span><span className="text-slate-500">:</span> <span className="text-emerald-400">28</span><span className="text-slate-500">,</span>{'\n'}
+{'  '}<span className="text-blue-300">"role"</span><span className="text-slate-500">:</span> <span className="text-amber-300">"admin"</span>{'\n'}
+<span className="text-slate-500">{'}'}</span>
+              </pre>
+            </div>
+
+            {/* Arrow + AST engine */}
+            <div className="flex flex-col items-center md:flex-1 gap-2 px-4">
+              <div className="hidden md:flex items-center w-full gap-0">
+                <div className="flex-1 h-px bg-gradient-to-r from-slate-700 to-slate-500" />
+                <div className="flex flex-col items-center mx-3">
+                  <div className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[9px] font-mono uppercase tracking-widest text-slate-500 dark:text-slate-400 whitespace-nowrap">inferSchema( )</div>
+                  <div className="mt-1 text-[9px] font-mono text-slate-400">↓ Schema AST</div>
+                </div>
+                <div className="flex-1 h-px bg-gradient-to-r from-slate-500 to-blue-500" />
+              </div>
+              <div className="md:hidden text-slate-400">↓</div>
+              <p className="text-[9px] font-mono uppercase tracking-widest text-slate-400 text-center">single inference · runs in your browser</p>
+            </div>
+
+            {/* Outputs grid */}
+            <div className="flex-shrink-0 w-full md:w-auto">
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { lang: 'TypeScript', color: 'text-blue-400', dot: 'bg-blue-500' },
+                  { lang: 'Zod', color: 'text-emerald-400', dot: 'bg-emerald-500' },
+                  { lang: 'Go', color: 'text-cyan-400', dot: 'bg-cyan-500' },
+                  { lang: 'Rust', color: 'text-orange-400', dot: 'bg-orange-500' },
+                  { lang: 'Python', color: 'text-yellow-400', dot: 'bg-yellow-500' },
+                  { lang: 'Java', color: 'text-red-400', dot: 'bg-red-500' },
+                  { lang: 'Kotlin', color: 'text-purple-400', dot: 'bg-purple-500' },
+                  { lang: 'Swift', color: 'text-pink-400', dot: 'bg-pink-500' },
+                  { lang: 'C#', color: 'text-violet-400', dot: 'bg-violet-500' },
+                  { lang: 'Dart', color: 'text-sky-400', dot: 'bg-sky-500' },
+                  { lang: 'GraphQL', color: 'text-rose-400', dot: 'bg-rose-500' },
+                  { lang: 'Prisma', color: 'text-teal-400', dot: 'bg-teal-500' },
+                  { lang: 'Proto', color: 'text-indigo-400', dot: 'bg-indigo-500' },
+                  { lang: 'PHP', color: 'text-fuchsia-400', dot: 'bg-fuchsia-500' },
+                  { lang: 'JSON Schema', color: 'text-amber-400', dot: 'bg-amber-500' },
+                  { lang: 'Rust struct', color: 'text-orange-300', dot: 'bg-orange-400' },
+                  { lang: 'Mock JSON', color: 'text-slate-400', dot: 'bg-slate-500' },
+                  { lang: '+ Docs', color: 'text-slate-400', dot: 'bg-slate-600' },
+                ].map(({ lang, color, dot }) => (
+                  <div key={lang} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg">
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
+                    <span className={`text-[9px] font-mono font-bold ${color} whitespace-nowrap`}>{lang}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Privacy note under pipeline */}
+          <div className="mt-10 flex justify-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-mono text-slate-500 dark:text-slate-400">
+              <ShieldCheck size={12} className="text-emerald-500" />
+              Your schema never leaves your browser — not even the URL you import from (unless you opt in to the proxy)
+            </div>
           </div>
         </div>
 
@@ -189,69 +275,137 @@ export function LandingView({ onSelect }: LandingViewProps) {
             </p>
           </div>
 
-          {/* Pillar 1: Logic Lab (Left Text, Right Image) */}
+          {/* Pillar 1: Multi-Language Output */}
           <div className="grid md:grid-cols-12 gap-12 items-center">
             <div className="md:col-span-5 space-y-6">
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                Logic Lab: <br />
-                <span>Synthesize Complete Services</span>
+                Paste Once. <br />
+                <span>Compile Everywhere.</span>
               </h3>
               <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                Don&apos;t just convert raw JSON into static types. Logic Lab automatically generates full react-query hooks, typescript mock services, and API fetch functions mapped perfectly to your structures. Copy and drop straight into production.
+                Drop any JSON, YAML, or OpenAPI spec and TypeMorph emits typed code for every language your team uses — simultaneously, in the browser, with no server involved. The Zod output goes beyond types: field names are analysed semantically so <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">email</code> fields get <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">.email()</code>, <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">id</code> fields get <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">.uuid()</code>.
               </p>
               <ul className="space-y-3 font-semibold text-slate-600 dark:text-slate-300">
                 <li className="flex items-center gap-3 text-sm">
                   <CheckCircle2 size={16} className="text-slate-900 dark:text-white" />
-                  1-Click React Hook generation
+                  18 generators from one AST — TypeScript, Go, Rust, Java, Swift, Kotlin, C#…
                 </li>
                 <li className="flex items-center gap-3 text-sm">
                   <CheckCircle2 size={16} className="text-slate-900 dark:text-white" />
-                  TypeScript Mock Data & Service classes
+                  Semantic field inference: enums, formats, and constraints auto-detected
                 </li>
               </ul>
             </div>
             <div className="md:col-span-7 relative group">
               <div className="relative p-[1px] bg-gradient-to-br from-slate-300/60 via-slate-200/20 to-slate-300/10 dark:from-slate-600/40 dark:via-slate-700/20 dark:to-slate-800/10 rounded-2xl shadow-2xl shadow-black/10 dark:shadow-black/40 overflow-hidden">
-                <div className="rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
-                  <img
-                    src="/logic-preview.png"
-                    alt="Logic Lab Preview"
-                    className="w-full h-auto rounded-lg object-cover"
-                  />
+                <div className="rounded-2xl overflow-hidden bg-slate-950 font-mono text-xs leading-relaxed">
+                  {/* Tab bar */}
+                  <div className="flex items-center gap-0 px-4 py-0 bg-slate-900 border-b border-slate-800">
+                    <div className="flex items-center gap-1.5 px-3 py-2.5 border-b-2 border-emerald-500">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <span className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest">Zod</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 px-3 py-2.5 border-b-2 border-transparent">
+                      <span className="w-2 h-2 rounded-full bg-cyan-600" />
+                      <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Go</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 px-3 py-2.5 border-b-2 border-transparent">
+                      <span className="w-2 h-2 rounded-full bg-orange-600" />
+                      <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Rust</span>
+                    </div>
+                    <span className="ml-auto text-[9px] text-slate-600">+ 15 more</span>
+                  </div>
+                  {/* Split: Zod left, Go right */}
+                  <div className="grid grid-cols-2 divide-x divide-slate-800">
+                    <pre className="p-4 overflow-x-auto text-[10px] leading-5">
+<span className="text-slate-500">{'// Zod'}</span>{'\n'}
+<span className="text-blue-400">import</span> <span className="text-slate-300">{'{ z }'}</span> <span className="text-blue-400">from</span> <span className="text-emerald-300">'zod'</span>{'\n\n'}
+<span className="text-blue-400">export const</span> <span className="text-amber-300">userSchema</span>{'\n'}
+{'  '}<span className="text-slate-400">= z.object({'({'}</span>{'\n'}
+{'  '}<span className="text-slate-200">id</span><span className="text-slate-400">:</span> <span className="text-emerald-400">z.string().uuid()</span><span className="text-slate-500">,</span>{'\n'}
+{'  '}<span className="text-slate-200">email</span><span className="text-slate-400">:</span> <span className="text-emerald-400">z.string().email()</span><span className="text-slate-500">,</span>{'\n'}
+{'  '}<span className="text-slate-200">age</span><span className="text-slate-400">:</span> <span className="text-emerald-400">z.number().min(0)</span><span className="text-slate-500">,</span>{'\n'}
+{'  '}<span className="text-slate-200">role</span><span className="text-slate-400">:</span> <span className="text-emerald-400">z.enum([</span>{'\n'}
+{'    '}<span className="text-amber-300">'admin'</span><span className="text-slate-500">, </span><span className="text-amber-300">'user'</span><span className="text-slate-400">{'])'}</span><span className="text-slate-500">,</span>{'\n'}
+<span className="text-slate-400">{'});'}</span>
+                    </pre>
+                    <pre className="p-4 overflow-x-auto text-[10px] leading-5">
+<span className="text-slate-500">{'// Go'}</span>{'\n\n'}
+<span className="text-blue-400">type</span> <span className="text-amber-300">User</span> <span className="text-blue-400">struct</span> <span className="text-slate-400">{'{'}</span>{'\n'}
+{'  '}<span className="text-slate-200">ID</span>{'     '}<span className="text-cyan-400">string</span> <span className="text-emerald-600">{"`json:\"id\"`"}</span>{'\n'}
+{'  '}<span className="text-slate-200">Email</span>{'  '}<span className="text-cyan-400">string</span> <span className="text-emerald-600">{"`json:\"email\"`"}</span>{'\n'}
+{'  '}<span className="text-slate-200">Age</span>{'    '}<span className="text-cyan-400">int</span>{'    '}<span className="text-emerald-600">{"`json:\"age\"`"}</span>{'\n'}
+{'  '}<span className="text-slate-200">Role</span>{'   '}<span className="text-cyan-400">string</span> <span className="text-emerald-600">{"`json:\"role\"`"}</span>{'\n'}
+<span className="text-slate-400">{'}'}</span>{'\n\n'}
+<span className="text-slate-500">{'// same input →'}</span>{'\n'}
+<span className="text-slate-500">{'// Rust / Java / Kotlin'}</span>{'\n'}
+<span className="text-slate-500">{'// Swift / C# / Python…'}</span>
+                    </pre>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Pillar 2: Architecture (Right Text, Left Image) */}
+          {/* Pillar 2: Schema Intelligence (Right Text, Left Image) */}
           <div className="grid md:grid-cols-12 gap-12 items-center">
             <div className="md:col-span-7 md:order-1 relative group">
               <div className="relative p-[1px] bg-gradient-to-br from-slate-300/60 via-slate-200/20 to-slate-300/10 dark:from-slate-600/40 dark:via-slate-700/20 dark:to-slate-800/10 rounded-2xl shadow-2xl shadow-black/10 dark:shadow-black/40 overflow-hidden">
-                <div className="rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
-                  <img
-                    src="/hero-preview.png"
-                    alt="Architecture View Preview"
-                    className="w-full h-auto rounded-lg object-cover"
-                  />
+                <div className="rounded-2xl overflow-hidden bg-slate-950 font-mono text-xs leading-relaxed">
+                  <div className="flex items-center gap-1.5 px-4 py-3 bg-slate-900 border-b border-slate-800">
+                    <span className="w-3 h-3 rounded-full bg-red-500/70" />
+                    <span className="w-3 h-3 rounded-full bg-amber-400/70" />
+                    <span className="w-3 h-3 rounded-full bg-emerald-400/70" />
+                    <span className="ml-3 text-[10px] text-slate-500 uppercase tracking-widest">14 languages · 1 click</span>
+                  </div>
+                  <div className="p-5 space-y-3">
+                    {/* Quality score badge */}
+                    <div className="flex items-center gap-3 bg-emerald-950/40 border border-emerald-800/40 rounded-xl px-4 py-3">
+                      <div className="flex flex-col items-center">
+                        <span className="text-2xl font-black text-emerald-400">92</span>
+                        <span className="text-[9px] text-emerald-600 uppercase tracking-widest font-bold">Grade A</span>
+                      </div>
+                      <div className="flex-1 text-[10px] text-slate-400 space-y-0.5">
+                        <div className="flex gap-2"><span className="text-slate-300">12 fields</span><span>·</span><span>camelCase</span><span>·</span><span>depth 2</span></div>
+                        <div className="text-emerald-500">✓ No issues found — schema looks good.</div>
+                      </div>
+                    </div>
+                    {/* Recursive type detection */}
+                    <div className="bg-slate-900/80 border border-slate-700/50 rounded-xl px-4 py-3 text-[10px]">
+                      <div className="text-amber-400 font-bold mb-1.5">⟳ Recursive type detected</div>
+                      <pre className="text-slate-300 leading-5">
+<span className="text-blue-400">interface</span> <span className="text-amber-300">TreeNode</span> <span className="text-slate-400">{'{'}</span>{'\n'}
+{'  '}<span className="text-slate-200">id</span><span className="text-slate-400">: </span><span className="text-blue-300">number</span><span className="text-slate-500">;</span>{'\n'}
+{'  '}<span className="text-slate-200">children</span><span className="text-slate-400">: </span><span className="text-amber-300">TreeNode</span><span className="text-blue-300">[]</span><span className="text-slate-500">;</span>{'\n'}
+<span className="text-slate-400">{'}'}</span>
+                      </pre>
+                    </div>
+                    {/* Language badges */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {['TypeScript', 'Zod', 'Go', 'Rust', 'Python', 'Java', 'Swift', 'Kotlin', 'C#', 'Proto', 'GraphQL', 'Prisma', '+2'].map(l => (
+                        <span key={l} className="text-[9px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 border border-slate-700/50">{l}</span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
             <div className="md:col-span-5 md:order-2 space-y-6">
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                Architecture Visuals: <br />
-                <span>Visual Role-Based Diagramming</span>
+                Schema Intelligence: <br />
+                <span>Quality Score & Recursive Types</span>
               </h3>
               <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                Paste your SQL DDL or raw API structures, and watch a beautiful ER/System diagram render instantly. Our engine automatically scans the node roles (API, Database, Client) and dynamically injects vivid neon styling. Export as 3x high-resolution transparent PNGs for presentation slides.
+                Paste any JSON, OpenAPI, or JSON Schema and TypeMorph scores it instantly — any-type ratio, naming consistency, format hints, depth. Self-referential types like trees and linked lists are detected automatically and emitted as clean recursive interfaces.
               </p>
               <ul className="space-y-3 font-semibold text-slate-600 dark:text-slate-300">
                 <li className="flex items-center gap-3 text-sm">
                   <CheckCircle2 size={16} className="text-slate-900 dark:text-white" />
-                  Dynamic role-based auto-coloring node engine
+                  100% local rule-based quality scoring (0–100 / A–F)
                 </li>
                 <li className="flex items-center gap-3 text-sm">
                   <CheckCircle2 size={16} className="text-slate-900 dark:text-white" />
-                  3x resolution presentation-grade PNG/SVG export
+                  Auto-detects recursive types (tree, linked list, graph)
                 </li>
               </ul>
             </div>
@@ -261,31 +415,80 @@ export function LandingView({ onSelect }: LandingViewProps) {
           <div className="grid md:grid-cols-12 gap-12 items-center">
             <div className="md:col-span-5 space-y-6">
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                Smart Structural Diff: <br />
-                <span>Compare Keys, Ignore Chaos</span>
+                Breaking Change Detector: <br />
+                <span>Semantic Schema Diff</span>
               </h3>
               <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                Standard text-diffs break when keys are in a different order or when formatting changes. TypeMorph&apos;s Smart Diff parses data into an abstract AST, matching properties semantically. It highlights actual, structural delta while filtering out formatting noise, so you can debug API changes instantly.
+                Paste two versions of a schema side-by-side and get a compatibility score instantly. TypeMorph detects breaking changes (type changes, required-field additions), warnings (optional→required, format changes), and safe additions — across JSON, YAML, OpenAPI, and JSON Schema.
               </p>
               <ul className="space-y-3 font-semibold text-slate-600 dark:text-slate-300">
                 <li className="flex items-center gap-3 text-sm">
                   <CheckCircle2 size={16} className="text-slate-900 dark:text-white" />
-                  AST-level semantic structure matching
+                  Compatibility score 0–100 with severity breakdown
                 </li>
                 <li className="flex items-center gap-3 text-sm">
                   <CheckCircle2 size={16} className="text-slate-900 dark:text-white" />
-                  Clean side-by-side colorized node delta view
+                  Supports OpenAPI 3.x · Swagger 2.0 · JSON Schema · YAML
                 </li>
               </ul>
             </div>
             <div className="md:col-span-7 relative group">
               <div className="relative p-[1px] bg-gradient-to-br from-slate-300/60 via-slate-200/20 to-slate-300/10 dark:from-slate-600/40 dark:via-slate-700/20 dark:to-slate-800/10 rounded-2xl shadow-2xl shadow-black/10 dark:shadow-black/40 overflow-hidden">
-                <div className="rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
-                  <img
-                    src="/diff-preview.png"
-                    alt="Smart Diff Preview"
-                    className="w-full h-auto rounded-lg object-cover"
-                  />
+                <div className="rounded-2xl overflow-hidden bg-slate-950 font-mono text-xs">
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-900">
+                    <div>
+                      <div className="text-[11px] font-semibold text-slate-200">Breaking Change Detector</div>
+                      <div className="text-[9px] text-slate-500 mt-0.5">JSON · YAML · OpenAPI · JSON Schema</div>
+                    </div>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 text-slate-300 text-[9px] font-bold rounded-lg hover:bg-slate-800">
+                      ⇄ Compare <span className="text-[8px] opacity-40 border border-slate-600 px-1 py-0.5 rounded ml-1">⌘↵</span>
+                    </div>
+                  </div>
+                  {/* Two editor panels */}
+                  <div className="grid grid-cols-2 gap-2 px-3 pt-3 pb-2">
+                    <div className="border border-slate-800 rounded-xl overflow-hidden">
+                      <div className="flex items-center gap-1.5 px-2 py-1.5 bg-slate-900 border-b border-slate-800">
+                        <span className="w-2 h-2 rounded-full bg-red-400" />
+                        <span className="text-[8px] text-slate-500 uppercase tracking-wider">Version A</span>
+                        <span className="ml-auto text-[8px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-500">JSON</span>
+                      </div>
+                      <pre className="p-2.5 text-[9px] leading-4 text-slate-400 bg-slate-950">
+{`{ "id": number,\n  "role": "admin"? }`}
+                      </pre>
+                    </div>
+                    <div className="border border-slate-800 rounded-xl overflow-hidden">
+                      <div className="flex items-center gap-1.5 px-2 py-1.5 bg-slate-900 border-b border-slate-800">
+                        <span className="w-2 h-2 rounded-full bg-green-400" />
+                        <span className="text-[8px] text-slate-500 uppercase tracking-wider">Version B</span>
+                        <span className="ml-auto text-[8px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-500">JSON</span>
+                      </div>
+                      <pre className="p-2.5 text-[9px] leading-4 text-slate-400 bg-slate-950">
+{`{ "id": string,\n  "role": "admin" }`}
+                      </pre>
+                    </div>
+                  </div>
+                  {/* Results */}
+                  <div className="px-3 pb-3 space-y-1.5">
+                    <div className="flex items-center gap-2 py-1.5">
+                      <span className="text-sm font-bold text-amber-400">62% compatible</span>
+                      <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-red-900/40 text-red-400">2 breaking</span>
+                      <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-yellow-900/30 text-yellow-400">1 warning</span>
+                      <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-white/10 text-slate-400">1 info</span>
+                    </div>
+                    {[
+                      { icon: '⊗', color: 'text-red-400', bg: 'bg-red-950/30 border-red-900/40', badge: 'type', badgeColor: 'bg-orange-900/30 text-orange-400', msg: 'user.id  number → string' },
+                      { icon: '⊗', color: 'text-red-400', bg: 'bg-red-950/30 border-red-900/40', badge: 'required', badgeColor: 'bg-purple-900/30 text-purple-400', msg: 'user.role  optional → required' },
+                      { icon: '△', color: 'text-yellow-400', bg: 'bg-yellow-950/20 border-yellow-900/30', badge: 'enum', badgeColor: 'bg-blue-900/30 text-blue-400', msg: 'user.status  "active" removed' },
+                      { icon: '＋', color: 'text-slate-500', bg: 'bg-white/[0.03] border-white/10', badge: 'added', badgeColor: 'bg-green-900/30 text-green-400', msg: 'user.department  new field' },
+                    ].map((d, i) => (
+                      <div key={i} className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-[9px] ${d.bg}`}>
+                        <span className={`font-bold ${d.color}`}>{d.icon}</span>
+                        <span className={`font-mono uppercase px-1 py-0.5 rounded text-[8px] ${d.badgeColor}`}>{d.badge}</span>
+                        <span className="text-slate-400 font-mono">{d.msg}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -390,15 +593,15 @@ export function LandingView({ onSelect }: LandingViewProps) {
             {/* Card 2 */}
             <div className="p-6 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-200/50 dark:border-slate-800/80 shadow-sm flex gap-4">
               <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white flex items-center justify-center shrink-0 border border-slate-200 dark:border-white/10">
-                <Key size={20} />
+                <Layers size={20} />
               </div>
               <div>
                 <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider mb-2 flex items-center gap-2">
-                  2. BYOK AI Model
-                  <span className="px-2.5 py-0.5 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white rounded text-[10px] font-mono uppercase tracking-normal font-bold border border-slate-200 dark:border-white/10">Zero Proxy</span>
+                  2. Schema Intelligence
+                  <span className="px-2.5 py-0.5 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white rounded text-[10px] font-mono uppercase tracking-normal font-bold border border-slate-200 dark:border-white/10">Rule-Based</span>
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
-                  For advanced synthesis like AI Smart Parse and UI Generation, requests connect directly to Google&apos;s official Gemini API. TypeMorph never proxies, stores, or inspects your API keys or data payloads. You maintain absolute control over your key and logic.
+                  TypeMorph&apos;s inference engine runs entirely in-browser — no AI calls, no API keys. Field-name heuristics auto-detect emails, UUIDs, dates, and URLs to emit precise Zod validators. Schema Quality Score grades your design from A–F using local rule analysis.
                 </p>
               </div>
             </div>
@@ -452,10 +655,10 @@ export function LandingView({ onSelect }: LandingViewProps) {
               </p>
               <div className="space-y-4">
                 {[
-                  'Full-Stack AI Synthesis (Prisma ➡ Next.js API CRUD Auto-Gen)',
-                  'AI UI Premium Synthesizer (Instant dynamic React+Tailwind UI previews)',
+                  '18 Language Outputs (TypeScript, Go, Rust, Zod, Python, Swift and more)',
+                  'Schema Quality Score (Local rule-based grading, A–F)',
                   'Local Folder Bulk Mode (Transform entire folders instantly)',
-                  'Auto-Healing Parser (Synthesizes even broken & malformed payloads)',
+                  'Breaking Change Detector (Semantic schema diff with severity scoring)',
                   '100% Client-Side Sandbox (Zero server transmission, sub-millisecond compile)',
                   'Developer-Rule Configs (Infer UUIDs, optional fields, and default exports)'
                 ].map((f, i) => (

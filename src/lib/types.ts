@@ -24,6 +24,10 @@ export interface Schema {
   _sharedTypeName?: string;
   /** Optional runtime metadata produced by the inference engine (when enabled) */
   _meta?: Record<string, any>;
+  /** Field name used as discriminator when array items form a discriminated union */
+  discriminatorField?: string;
+  /** Per-discriminator-value schemas when a discriminated union was detected */
+  discriminatedVariants?: Record<string, Schema>;
 }
 
 export interface Converter {

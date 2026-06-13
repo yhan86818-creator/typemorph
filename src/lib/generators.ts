@@ -1,5 +1,5 @@
 import { Schema, ASTType, ASTClass } from './types';
-import { schemaToAST, rootArrayItemClassName } from './ast';
+import { schemaToAST, rootArrayItemClassName, convertToASTType } from './ast';
 
 const toPascalCase = (str: string) => str.replace(/(^\w|_\w)/g, m => m.replace(/_/, '').toUpperCase());
 
@@ -12,6 +12,55 @@ const getBaseClass = (cls: ASTClass): string | null => {
 const toCamelCase = (str: string) => {
   const pascal = toPascalCase(str);
   return pascal.charAt(0).toLowerCase() + pascal.slice(1);
+};
+
+// ---------------------------------------------------------------------------
+// Discriminated Union helpers
+// ---------------------------------------------------------------------------
+// Returns a map of { finalASTClassName → { discriminatorField, variants } }
+// for every array in the schema whose items form a detected discriminated union.
+const computeItemName = (arraySchema: Schema, parentName: string): string => {
+  const shared = arraySchema.itemType?._sharedTypeName;
+  if (shared) return toPascalCase(shared);
+  if (parentName.endsWith('ies')) return toPascalCase(parentName.slice(0, -3) + 'y');
+  if (parentName.endsWith('s'))   return toPascalCase(parentName.slice(0, -1));
+  if (parentName.endsWith('List')) return toPascalCase(parentName.slice(0, -4));
+  return toPascalCase(parentName + 'Item');
+};
+
+const findDiscriminatedSchemas = (
+  schema: Schema,
+  rootName: string
+): Map<string, { discriminatorField: string; variants: Record<string, Schema> }> => {
+  const result = new Map<string, { discriminatorField: string; variants: Record<string, Schema> }>();
+  const pascalRoot = toPascalCase(rootName);
+
+  const register = (arraySchema: Schema, parentName: string) => {
+    const it = arraySchema.itemType;
+    if (it?.discriminatorField && it?.discriminatedVariants) {
+      result.set(computeItemName(arraySchema, parentName), {
+        discriminatorField: it.discriminatorField,
+        variants: it.discriminatedVariants,
+      });
+    }
+  };
+
+  // Root-level array
+  if (schema.type === 'array') {
+    register(schema, pascalRoot);
+  }
+
+  // Direct object fields that are arrays
+  if (schema.type === 'object' && schema.fields) {
+    for (const [k, v] of Object.entries(schema.fields)) {
+      if (v.type === 'array') {
+        const parentCls = v._sharedTypeName ? toPascalCase(v._sharedTypeName) : toPascalCase(pascalRoot + '_' + k);
+        register(v, parentCls);
+      }
+    }
+  }
+
+  return result;
 };
 
 // ASTType を TypeScript の文法文字列にプリンタ出力するヘルパー
@@ -44,6 +93,9 @@ const printASTType = (type: ASTType): string => {
 // Existing Generators (Improved)
 export const tsGen = {
   generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
+    // Pre-compute discriminated union schemas to replace merged interfaces
+    const discriminatedMap = findDiscriminatedSchemas(schema, name);
+
     // 1. スキーマを AST へ一括コンパイル
     const astClasses = schemaToAST(schema, name, options);
     let res = "";
@@ -58,13 +110,39 @@ export const tsGen = {
 
     // 2. 平坦化されたクラスを順番に出力（再帰は不要！）
     for (const cls of astClasses) {
+      const du = discriminatedMap.get(cls.name);
+      if (du) {
+        // Discriminated union: emit one interface per variant + a union type alias
+        for (const [value, variantSchema] of Object.entries(du.variants)) {
+          const suffix = toPascalCase(value);
+          const variantInterfaceName = `${cls.name}${suffix}`;
+          res += `export interface ${variantInterfaceName} {\n`;
+          for (const [fk, fv] of Object.entries(variantSchema.fields ?? {})) {
+            if (fk === du.discriminatorField) {
+              res += `  ${fk}: "${value}";\n`;
+            } else {
+              const fvAst = convertToASTType(fv, variantInterfaceName, fk);
+              const tsType = printASTType(fvAst);
+              const optMark = fv.optional ? '?' : '';
+              const nullSuffix = fv.nullable ? ' | null' : '';
+              res += `  ${fk}${optMark}: ${tsType}${nullSuffix};\n`;
+            }
+          }
+          res += `}\n\n`;
+        }
+        const variantNames = Object.keys(du.variants).map(v => `${cls.name}${toPascalCase(v)}`);
+        res += `export type ${cls.name} = ${variantNames.join(' | ')};\n\n`;
+        continue;
+      }
+
+      // Normal interface output
       const baseClass = getBaseClass(cls);
       const extendsStr = baseClass ? ` extends ${baseClass}` : "";
 
-      const exportKeyword = (options.exportDefault && cls.name === 'Root') 
-        ? `export default interface ${cls.name}${extendsStr}` 
+      const exportKeyword = (options.exportDefault && cls.name === 'Root')
+        ? `export default interface ${cls.name}${extendsStr}`
         : `export interface ${cls.name}${extendsStr}`;
-      
+
       res += `${exportKeyword} {\n`;
       const forceOptional = options.optionalFields;
 
@@ -189,18 +267,56 @@ const printZodASTType = (type: ASTType, cyclicClassRefs: Set<string>, options: a
 
 export const zodGen = {
   generate: (schema: Schema, name: string = 'root', options: any = {}): string => {
+    // Pre-compute discriminated union schemas
+    const discriminatedMap = findDiscriminatedSchemas(schema, toPascalCase(name));
+
     // 1. スキーマを AST へ一括コンパイル
     const astClasses = schemaToAST(schema, toPascalCase(name), options);
     let res = "";
 
     // 2. 各クラス（構造体）に対応する Zod スキーマを平坦に出力
-    // トポロジカルソートで依存先を先に出力（前方参照エラーを防止し、循環時は z.lazy で対応）
     const { sorted: sortedClasses, cyclicClassRefs } = topoSortForZod(astClasses);
     for (const cls of sortedClasses) {
+      const du = discriminatedMap.get(cls.name);
+      if (du) {
+        // Discriminated union: emit z.literal() per variant + z.discriminatedUnion()
+        const variantSchemaVarNames: string[] = [];
+        for (const [value, variantSchema] of Object.entries(du.variants)) {
+          const suffix = toPascalCase(value);
+          const variantCamel = toCamelCase(cls.name) + suffix;
+          const variantPascal = cls.name + suffix;
+          variantSchemaVarNames.push(`${variantCamel}Schema`);
+
+          res += `export const ${variantCamel}Schema = z.object({\n`;
+          for (const [fk, fv] of Object.entries(variantSchema.fields ?? {})) {
+            if (fk === du.discriminatorField) {
+              res += `  ${fk}: z.literal("${value}"),\n`;
+            } else {
+              const fvAst = convertToASTType(fv, variantPascal, fk);
+              let zType = printZodASTType(fvAst, cyclicClassRefs, options);
+              if (fv.nullable) zType += '.nullable()';
+              if (fv.optional) zType += '.optional()';
+              res += `  ${fk}: ${zType},\n`;
+            }
+          }
+          res += `});\n`;
+          res += `export type ${variantPascal} = z.infer<typeof ${variantCamel}Schema>;\n\n`;
+        }
+        const clsCamel = toCamelCase(cls.name);
+        res += `export const ${clsCamel}Schema = z.discriminatedUnion("${du.discriminatorField}", [\n`;
+        for (const vn of variantSchemaVarNames) {
+          res += `  ${vn},\n`;
+        }
+        res += `]);\n`;
+        res += `export type ${cls.name} = z.infer<typeof ${clsCamel}Schema>;\n\n`;
+        continue;
+      }
+
+      // Normal Zod schema output
       const camelName = toCamelCase(cls.name);
       const baseClass = getBaseClass(cls);
       const baseCamel = baseClass ? toCamelCase(baseClass) : null;
-      
+
       if (baseCamel) {
         res += `export const ${camelName}Schema = ${baseCamel}Schema.extend({\n`;
       } else {
@@ -212,7 +328,7 @@ export const zodGen = {
         const isNull = field.isNullable ? '.nullable()' : '';
         let zType = printZodASTType(field.fieldType, cyclicClassRefs, options);
 
-        // Semantic Validator: フィールド名からバリデーションを自動付与
+        // Name-based validation: infer constraints from field names (email, url, uuid, age, price…)
         const customKey = `${cls.name}.${field.name}`;
         const displayName = (options.customFieldNames as Record<string, string>)?.[customKey] ?? field.name;
         const k = displayName.toLowerCase();
@@ -753,7 +869,7 @@ export const prismaGen = {
         if (field.fieldType.kind === 'classRef') {
           const targetName = field.fieldType.classRefName;
           const relationField = `${field.name}Id`;
-          
+
           // Try to find target ID type
           const targetCls = astClasses.find(c => c.name === targetName);
           const targetIdField = targetCls?.fields.find(f => f.name === 'id');
@@ -763,6 +879,24 @@ export const prismaGen = {
           res += `  ${displayName2}Id ${targetIdType}${opt}\n`;
         } else {
           res += `  ${displayName2} ${prismaType}${opt}${idTag}\n`;
+
+          // Cross-reference: only add @relation when the FK field has uuid format, which is
+          // a strong signal it is a real foreign key rather than an unrelated string label.
+          if (!isArray && displayName2.length > 2 && displayName2.endsWith('Id')
+            && field.fieldType.format === 'uuid') {
+            const relName = displayName2.slice(0, -2); // "userId" → "user"
+            const refClass = relName.charAt(0).toUpperCase() + relName.slice(1); // "User"
+            const relAlreadyDeclared = cls.fields.some(f => f.name === relName);
+            if (!relAlreadyDeclared) {
+              // Try exact match first, then single-suffix match (e.g. "RootUser" ends with "User")
+              const exactModel = astClasses.find(c => c.name === refClass);
+              const suffixMatches = astClasses.filter(c => c.name !== cls.name && c.name.endsWith(refClass));
+              const refModel = exactModel ?? (suffixMatches.length === 1 ? suffixMatches[0] : null);
+              if (refModel) {
+                res += `  ${relName} ${refModel.name}? @relation(fields: [${displayName2}], references: [id])\n`;
+              }
+            }
+          }
         }
       }
       res += `}\n\n`;
