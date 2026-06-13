@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseYAML, parseXML, parseSQLToZod, parseCurl, curlToTypeScript, parseOpenAPI, parseTypeScriptToSchema } from './parsers';
+import { parseYAML, parseXML, parseSQLToZod, parseCurl, curlToTypeScript, parseOpenAPI, parseTypeScriptToSchema, parseEnvFile } from './parsers';
 
 describe('parsers', () => {
   describe('parseYAML', () => {
@@ -310,6 +310,165 @@ components:
       expect(schema?.fields?.tags?.itemType?.type).toBe('string');
       expect(schema?.fields?.role?.type).toBe('string');
       expect(schema?.fields?.role?.enumValues).toEqual(['admin', 'user', 'guest']);
+    });
+
+    it('string | null → nullable string, not any', () => {
+      const ts = `interface T { name: string | null; }`;
+      const schema = parseTypeScriptToSchema(ts);
+      expect(schema?.fields?.name?.type).toBe('string');
+      expect(schema?.fields?.name?.nullable).toBe(true);
+      expect(schema?.fields?.name?.optional).toBeFalsy();
+    });
+
+    it('string | undefined → optional string', () => {
+      const ts = `interface T { name: string | undefined; }`;
+      const schema = parseTypeScriptToSchema(ts);
+      expect(schema?.fields?.name?.type).toBe('string');
+      expect(schema?.fields?.name?.optional).toBe(true);
+    });
+
+    it('number | null | undefined → nullable optional number', () => {
+      const ts = `interface T { count: number | null | undefined; }`;
+      const schema = parseTypeScriptToSchema(ts);
+      expect(schema?.fields?.count?.type).toBe('number');
+      expect(schema?.fields?.count?.nullable).toBe(true);
+      expect(schema?.fields?.count?.optional).toBe(true);
+    });
+
+    it('string | number → union with unionTypes', () => {
+      const ts = `interface T { id: string | number; }`;
+      const schema = parseTypeScriptToSchema(ts);
+      expect(schema?.fields?.id?.type).toBe('union');
+      expect(schema?.fields?.id?.unionTypes).toEqual(['string', 'number']);
+    });
+
+    it("'active' | 'inactive' | null → nullable enum", () => {
+      const ts = `interface T { status: 'active' | 'inactive' | null; }`;
+      const schema = parseTypeScriptToSchema(ts);
+      expect(schema?.fields?.status?.type).toBe('string');
+      expect(schema?.fields?.status?.enumValues).toEqual(['active', 'inactive']);
+      expect(schema?.fields?.status?.nullable).toBe(true);
+    });
+  });
+
+  describe('parseEnvFile', () => {
+    it('parses basic key=value pairs', () => {
+      const result = parseEnvFile('PORT=3000\nDEBUG=true\nNAME=myapp');
+      expect(result).not.toBeNull();
+      expect(result?.fields?.PORT?.type).toBe('number');
+      expect(result?.fields?.DEBUG?.type).toBe('boolean');
+      expect(result?.fields?.NAME?.type).toBe('string');
+    });
+
+    it('skips comment lines and blank lines', () => {
+      const result = parseEnvFile('# comment\n\nFOO=bar\n# another');
+      expect(Object.keys(result?.fields ?? {})).toEqual(['FOO']);
+    });
+
+    it('detects https:// URLs', () => {
+      const result = parseEnvFile('API_URL=https://api.example.com');
+      expect(result?.fields?.API_URL?.format).toBe('url');
+    });
+
+    it('detects database URLs like postgresql://', () => {
+      const result = parseEnvFile('DATABASE_URL=postgresql://user:pass@localhost/db');
+      expect(result?.fields?.DATABASE_URL?.format).toBe('url');
+    });
+
+    it('detects redis:// URLs', () => {
+      const result = parseEnvFile('REDIS_URL=redis://localhost:6379');
+      expect(result?.fields?.REDIS_URL?.format).toBe('url');
+    });
+
+    it('detects email format', () => {
+      const result = parseEnvFile('ADMIN_EMAIL=admin@example.com');
+      expect(result?.fields?.ADMIN_EMAIL?.format).toBe('email');
+    });
+
+    it('marks empty values as optional', () => {
+      const result = parseEnvFile('SECRET=');
+      expect(result?.fields?.SECRET?.optional).toBe(true);
+    });
+
+    it('strips surrounding quotes from values', () => {
+      const result = parseEnvFile('FOO="hello"\nBAR=\'world\'');
+      expect(result?.fields?.FOO?.type).toBe('string');
+      expect(result?.fields?.BAR?.type).toBe('string');
+    });
+
+    it('returns null for empty input', () => {
+      expect(parseEnvFile('')).toBeNull();
+      expect(parseEnvFile('# only comments\n\n')).toBeNull();
+    });
+
+    it('sets _isTypeMorphSchema flag', () => {
+      const result = parseEnvFile('KEY=value') as any;
+      expect(result?._isTypeMorphSchema).toBe(true);
+    });
+  });
+
+  describe('env diff logic (via parseEnvFile)', () => {
+    function diffEnv(a: string, b: string) {
+      const schemaA = parseEnvFile(a);
+      const schemaB = parseEnvFile(b);
+      if (!schemaA || !schemaB) return null;
+      const fa: Record<string, any> = schemaA.fields ?? {};
+      const fb: Record<string, any> = schemaB.fields ?? {};
+      const allKeys = Array.from(new Set([...Object.keys(fa), ...Object.keys(fb)]));
+      return allKeys.map(key => {
+        const a = fa[key] ?? null;
+        const b = fb[key] ?? null;
+        const ta = a ? `${a.type}:${a.format ?? ''}:${a.optional ?? false}` : '';
+        const tb = b ? `${b.type}:${b.format ?? ''}:${b.optional ?? false}` : '';
+        let status: string;
+        if (!a) status = 'added';
+        else if (!b) status = 'removed';
+        else if (ta !== tb) status = 'changed';
+        else status = 'same';
+        return { key, status };
+      });
+    }
+
+    it('identical env files produce all same', () => {
+      const env = 'PORT=3000\nDEBUG=true\nNAME=myapp';
+      const result = diffEnv(env, env)!;
+      expect(result.every(e => e.status === 'same')).toBe(true);
+    });
+
+    it('detects added key in second file', () => {
+      const a = 'PORT=3000';
+      const b = 'PORT=3000\nNEW_KEY=hello';
+      const result = diffEnv(a, b)!;
+      expect(result.find(e => e.key === 'NEW_KEY')?.status).toBe('added');
+      expect(result.find(e => e.key === 'PORT')?.status).toBe('same');
+    });
+
+    it('detects removed key in second file', () => {
+      const a = 'PORT=3000\nOLD_KEY=hello';
+      const b = 'PORT=3000';
+      const result = diffEnv(a, b)!;
+      expect(result.find(e => e.key === 'OLD_KEY')?.status).toBe('removed');
+    });
+
+    it('detects type change (string → number)', () => {
+      const a = 'PORT=development';
+      const b = 'PORT=3000';
+      const result = diffEnv(a, b)!;
+      expect(result.find(e => e.key === 'PORT')?.status).toBe('changed');
+    });
+
+    it('detects format change (url → plain string)', () => {
+      const a = 'API=https://api.example.com';
+      const b = 'API=my-api-key';
+      const result = diffEnv(a, b)!;
+      expect(result.find(e => e.key === 'API')?.status).toBe('changed');
+    });
+
+    it('detects optional change (empty → value)', () => {
+      const a = 'SECRET=';
+      const b = 'SECRET=abc123';
+      const result = diffEnv(a, b)!;
+      expect(result.find(e => e.key === 'SECRET')?.status).toBe('changed');
     });
   });
 });

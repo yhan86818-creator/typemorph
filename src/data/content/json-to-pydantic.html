@@ -1,77 +1,268 @@
-<h2>Converting JSON to Pydantic Models: Type-Safe Python Data</h2>
-<p>Pydantic has revolutionized data validation in Python by leveraging type hints. It is the core of modern frameworks like FastAPI. Converting JSON samples to Pydantic models allows developers to enforce data integrity, provide excellent IDE autocompletion, and automatically generate OpenAPI documentation. This transition from "dictionaries" to "objects" makes Python codebases more robust and maintainable.</p>
+<h2>JSON to Pydantic: Rust-Powered Validation, Computed Fields, and OpenAPI Schema Generation</h2>
+<p>Pydantic v2 is not just a validation library — it is the data layer of the Python web ecosystem. FastAPI generates its entire OpenAPI spec from Pydantic models. SQLAlchemy ORM objects can be validated directly into Pydantic via <code>from_attributes=True</code>. Pydantic's <code>TypeAdapter</code> validates top-level JSON arrays without wrapping them in an object. The validation engine was rewritten in Rust (pydantic-core) for v2, delivering 5-50× speedups over v1. Converting your JSON to a Pydantic model means defining a class that simultaneously serves as runtime validator, TypeScript-equivalent type, serializer, and documentation source.</p>
 
-<h3>Live Example</h3>
-<p>A JSON response from a weather API:</p>
-<pre><code>{
+<h3>Live Example: Weather API Response Model</h3>
+<pre><code># Input JSON from a weather API
+{
   "city": "Tokyo",
+  "country": "JP",
   "temperature": 22.5,
-  "forecast": ["sunny", "cloudy"],
-  "coords": {"lat": 35.6, "lon": 139.6}
-}</code></pre>
-<p>The generated Pydantic V2 models:</p>
-<pre><code>from pydantic import BaseModel, Field
-from typing import List
+  "feels_like": 21.0,
+  "humidity": 65,
+  "forecast": ["sunny", "partly_cloudy"],
+  "coords": { "lat": 35.6762, "lon": 139.6503 },
+  "recorded_at": "2024-01-15T08:30:00Z"
+}
+
+# Generated Pydantic v2 Models
+from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import ConfigDict, AliasPath
+from typing import Literal, Annotated
+from datetime import datetime
 
 class Coordinates(BaseModel):
-    lat: float
-    lon: float
+    lat: float = Field(ge=-90.0,  le=90.0)
+    lon: float = Field(ge=-180.0, le=180.0)
 
 class WeatherData(BaseModel):
-    city: str
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+        frozen=True,
+    )
+
+    city:        str
+    country:     str = Field(min_length=2, max_length=2, pattern=r'^[A-Z]{2}$')
     temperature: float
-    forecast: List[str]
-    coords: Coordinates = Field(..., description="GPS Coordinates")
+    feels_like:  float
+    humidity:    Annotated[int, Field(ge=0, le=100)]
+    forecast:    list[Literal["sunny", "cloudy", "partly_cloudy", "rainy", "snowy"]]
+    coords:      Coordinates
+    recorded_at: datetime
 
-# Usage
+    @field_validator('temperature', 'feels_like')
+    @classmethod
+    def validate_temperature(cls, v: float) -&gt; float:
+        if v &lt; -90 or v &gt; 60:
+            raise ValueError(f"Temperature {v}°C is outside realistic range [-90, 60]")
+        return round(v, 1)
+
+    @model_validator(mode='after')
+    def feels_like_near_temperature(self) -&gt; 'WeatherData':
+        diff = abs(self.temperature - self.feels_like)
+        if diff &gt; 20:
+            raise ValueError(f"feels_like ({self.feels_like}) deviates too far from temperature ({self.temperature})")
+        return self
+
+# Parse from JSON — uses Rust engine (pydantic-core)
 data = WeatherData.model_validate_json(json_string)
-print(data.city)  # Tokyo</code></pre>
 
-<h3>Implementation Guide</h3>
-<ol>
-  <li><strong>BaseModel Inheritance:</strong> All models must inherit from <code>pydantic.BaseModel</code>.</li>
-  <li><strong>Type Mapping:</strong> Map JSON types to Python primitives: <code>string</code> -> <code>str</code>, <code>number</code> -> <code>float</code> or <code>int</code>, <code>boolean</code> -> <code>bool</code>.</li>
-  <li><strong>Handle Nesting:</strong> Define separate classes for nested JSON objects and reference them in the parent model.</li>
-  <li><strong>Optional Fields:</strong> Use <code>Optional[T]</code> (or <code>T | None</code> in Python 3.10+) for fields that might be missing from the JSON.</li>
-  <li><strong>Field Aliases:</strong> Use <code>Field(alias="...")</code> if the JSON keys use reserved keywords or don't follow PEP8 naming conventions.</li>
-</ol>
+# Serialize back to JSON
+json_out = data.model_dump_json(indent=2)
 
-<h3>Technical Deep Dive</h3>
-<p>Pydantic does more than just type checking; it performs data coercion. If your JSON has a string <code>"123"</code> but your model specifies <code>int</code>, Pydantic will automatically convert it. This is particularly useful when dealing with messy API data. In Pydantic V2, the core validation logic is written in Rust, making it significantly faster than the previous version. Features like <code>model_validator</code> allow you to perform complex cross-field validation, ensuring that the JSON data is not just well-formatted, but logically sound before it reaches your business logic.</p>
+# Serialize to dict
+d = data.model_dump()
+# d['recorded_at'] is a datetime object
+</code></pre>
 
-<h3>Comparison</h3>
-<table border="1">
-  <tr>
-    <th>Feature</th>
-    <th>Standard Dict</th>
-    <th>Pydantic Model</th>
-  </tr>
-  <tr>
-    <td>Validation</td>
-    <td>Manual</td>
-    <td>Automatic</td>
-  </tr>
-  <tr>
-    <td>Editor Support</td>
-    <td>None (Key errors)</td>
-    <td>Full (Autocompletion)</td>
-  </tr>
-  <tr>
-    <td>Serialization</td>
-    <td>json.dumps()</td>
-    <td>model_dump_json()</td>
-  </tr>
-</table>
+<h3>Field Types and Annotated Constraints</h3>
+<pre><code>from pydantic import BaseModel, Field, EmailStr, AnyHttpUrl, SecretStr
+from pydantic.networks import IPvAnyAddress
+from typing import Annotated
+from decimal import Decimal
+from uuid import UUID
 
-<h3>Best Practices</h3>
+# Type aliases with constraints — reusable across models
+Username    = Annotated[str,   Field(min_length=3, max_length=50, pattern=r'^[a-z0-9_]+$')]
+PositiveInt = Annotated[int,   Field(gt=0)]
+Percentage  = Annotated[float, Field(ge=0.0, le=100.0)]
+Money       = Annotated[Decimal, Field(decimal_places=2, ge=0)]
+
+class User(BaseModel):
+    id:           UUID
+    username:     Username
+    email:        EmailStr                       # validates RFC 5322 format
+    website:      AnyHttpUrl | None = None       # validates URL format
+    ip_address:   IPvAnyAddress | None = None    # IPv4 or IPv6
+    password:     SecretStr                      # excluded from logs/repr
+    age:          PositiveInt
+    score:        Percentage = 0.0
+    account_balance: Money = Decimal('0.00')
+
+user = User(
+    id="123e4567-e89b-12d3-a456-426614174000",
+    username="py_dev",
+    email="dev@example.com",
+    password="secret123",
+    age=28,
+)
+print(user.password)              # **********  (SecretStr hides value)
+print(user.password.get_secret_value())  # secret123
+</code></pre>
+
+<h3>Field Aliases for JSON Key Name Mapping</h3>
+<pre><code>from pydantic import BaseModel, Field, AliasGenerator, ConfigDict
+from pydantic.alias_generators import to_camel, to_snake
+
+# Accept camelCase JSON, use snake_case Python
+class APIResponse(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel,   # snake_case → camelCase in JSON
+        populate_by_name=True,      # also accept snake_case in Python
+    )
+
+    user_id:    str
+    first_name: str
+    last_name:  str
+    created_at: str
+
+# Parse {"userId": "123", "firstName": "Alice", ...}
+r = APIResponse.model_validate({"userId": "123", "firstName": "Alice", "lastName": "Chen", "createdAt": "..."})
+print(r.user_id)  # "123"
+
+# Serialize: {"userId": "123", "firstName": "Alice", ...}
+print(r.model_dump(by_alias=True))
+
+# Per-field alias for one-off key name differences
+class StripeEvent(BaseModel):
+    event_id:    str = Field(alias="id")
+    event_type:  str = Field(alias="type")
+    api_version: str = Field(alias="api_version")
+    livemode:    bool
+</code></pre>
+
+<h3>Validators: field_validator and model_validator</h3>
+<pre><code>from pydantic import BaseModel, field_validator, model_validator
+from typing import Self
+
+class DateRange(BaseModel):
+    start_date: str
+    end_date:   str
+    max_days:   int = 90
+
+    @field_validator('start_date', 'end_date', mode='before')
+    @classmethod
+    def parse_date(cls, v: str) -&gt; str:
+        # Normalize format before Pydantic validates
+        from datetime import datetime
+        try:
+            return datetime.strptime(v, '%Y-%m-%d').strftime('%Y-%m-%d')
+        except ValueError:
+            raise ValueError(f"Date must be YYYY-MM-DD, got: {v}")
+
+    @model_validator(mode='after')
+    def validate_range(self) -&gt; Self:
+        from datetime import date
+        start = date.fromisoformat(self.start_date)
+        end   = date.fromisoformat(self.end_date)
+        if end &lt;= start:
+            raise ValueError("end_date must be after start_date")
+        if (end - start).days &gt; self.max_days:
+            raise ValueError(f"Range cannot exceed {self.max_days} days")
+        return self
+</code></pre>
+
+<h3>TypeAdapter: Validate Top-Level Arrays and Primitive Types</h3>
+<pre><code>from pydantic import TypeAdapter
+from typing import list
+
+class Product(BaseModel):
+    sku:   str
+    name:  str
+    price: float
+
+# Validate a JSON array of products without a wrapper object
+ta = TypeAdapter(list[Product])
+products = ta.validate_json('[{"sku":"WGT-001","name":"Widget","price":9.99}]')
+# products is list[Product] — fully validated
+
+# Validate a single primitive type
+IntTA = TypeAdapter(int)
+value = IntTA.validate_json("42")  # 42 (int)
+
+# Validate a union type
+from typing import Union
+MixedTA = TypeAdapter(list[Union[str, int, float]])
+values = MixedTA.validate_json('["hello", 42, 3.14]')
+</code></pre>
+
+<h3>OpenAPI Schema Generation and FastAPI Integration</h3>
+<pre><code>from fastapi import FastAPI, HTTPException, status
+from pydantic import BaseModel, Field, EmailStr
+from uuid import UUID, uuid4
+from datetime import datetime
+
+app = FastAPI(title="My API", version="1.0.0")
+
+class CreateProductRequest(BaseModel):
+    name:     str     = Field(min_length=1, max_length=200, examples=["Widget Pro"])
+    sku:      str     = Field(pattern=r'^[A-Z]{3}-\d{3}$', examples=["WGT-001"])
+    price:    float   = Field(gt=0, examples=[49.99])
+    category: str     = Field(examples=["electronics"])
+
+class ProductResponse(BaseModel):
+    id:         UUID
+    name:       str
+    sku:        str
+    price:      float
+    category:   str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)  # accept ORM objects
+
+@app.post(
+    "/products",
+    response_model=ProductResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a product",
+    responses={
+        400: {"description": "Validation error"},
+        409: {"description": "SKU already exists"},
+    }
+)
+async def create_product(request: CreateProductRequest):
+    # FastAPI: parses body as CreateProductRequest, returns 422 on validation failure
+    # GET /openapi.json includes full JSON Schema for both request and response
+    product = await db.products.create(data=request.model_dump())
+    return product
+
+# Access at /docs — Swagger UI with request/response schemas derived from Pydantic models
+</code></pre>
+
+<h3>Model Config: Controlling Behavior</h3>
+<pre><code>from pydantic import BaseModel, ConfigDict
+
+class StrictAPIModel(BaseModel):
+    model_config = ConfigDict(
+        strict=True,              # no coercion: "42" won't become int 42
+        frozen=True,              # immutable after creation
+        populate_by_name=True,    # accept field name OR alias for input
+        str_strip_whitespace=True, # auto-strip leading/trailing whitespace
+        str_min_length=1,         # all str fields min length 1 (unless overridden)
+        extra='forbid',           # reject unknown fields (422 on extra JSON keys)
+        revalidate_instances='always',  # re-run validators on model_copy()
+    )
+
+    name:  str
+    email: str
+</code></pre>
+
+<h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use Field for Metadata:</strong> Add <code>description</code>, <code>examples</code>, and constraints (like <code>gt=0</code>) to your <code>Field</code> definitions.</li>
-  <li><strong>Strict Mode:</strong> If you don't want Pydantic to coerce types (e.g., string to int), use <code>strict=True</code> in the model configuration.</li>
-  <li><strong>Immutability:</strong> Consider using <code>model_config = ConfigDict(frozen=True)</code> for models that shouldn't be modified after creation.</li>
+  <li><strong>Use <code>model_validate_json()</code> directly:</strong> Don't call <code>json.loads()</code> then <code>model_validate()</code>. The single-step <code>model_validate_json()</code> runs through Rust and is 4-10× faster than Python's JSON parser followed by Pydantic validation.</li>
+  <li><strong>Define type aliases with <code>Annotated</code>:</strong> <code>Username = Annotated[str, Field(min_length=3)]</code> at the module level lets you reuse the same validated type across models without repeating constraint definitions.</li>
+  <li><strong>Use <code>extra='forbid'</code> for API request models:</strong> Silently accepting unknown fields is a security risk — it hides client bugs and can mask injection attempts. Forbid extra fields on input models.</li>
+  <li><strong>Separate request and response models:</strong> Request models should use <code>extra='forbid'</code> and strict validation. Response models should use <code>from_attributes=True</code> and may be more permissive. Combining them into one class creates tension between inbound strictness and outbound flexibility.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: How do I handle extra fields in JSON?</strong><br>
-A: By default, Pydantic ignores extra fields. You can change this to <code>forbid</code> or <code>allow</code> (store them in <code>__dict__</code>) using the <code>extra</code> config option.</p>
-<p><strong>Q: Can I convert Pydantic models back to JSON?</strong><br>
-A: Yes, use <code>model.model_dump_json()</code> to get a JSON string or <code>model.model_dump()</code> for a dictionary.</p>
+<p><strong>Q: What is the difference between json-to-pydantic and json-to-python-dataclass?</strong><br>
+A: Python dataclasses are part of the standard library — no dependencies, no runtime validation, and type hints are checked only by static analysis (mypy/pyright). Pydantic models validate types at runtime, perform coercion, serialize to JSON with full control, and integrate with FastAPI for automatic OpenAPI generation. Use dataclasses for internal data structures; use Pydantic for anything that crosses a trust boundary.</p>
+
+<p><strong>Q: Does Pydantic v2 break v1 code?</strong><br>
+A: Yes — v2 has breaking changes. The main ones: <code>parse_obj()</code> → <code>model_validate()</code>, <code>.dict()</code> → <code>.model_dump()</code>, <code>__fields__</code> → <code>model_fields</code>, validator decorator changes. Pydantic provides a <code>pydantic.v1</code> compatibility module and a migration guide. Most v1 code migrates in a few hours for small projects.</p>
+
+<p><strong>Q: How do Pydantic models interact with SQLAlchemy?</strong><br>
+A: Set <code>model_config = ConfigDict(from_attributes=True)</code> on the Pydantic model. Then call <code>UserResponse.model_validate(orm_user)</code> to read attributes from an ORM object. The Pydantic model acts as a serialization layer — useful for excluding sensitive fields, renaming keys for the API response, and ensuring the response is typed.</p>
+
+<p><strong>Q: Can I generate JSON Schema from Pydantic models?</strong><br>
+A: <code>MyModel.model_json_schema()</code> returns a JSON Schema dict that can be used for frontend form validation, API documentation, or cross-language type sharing. FastAPI uses this automatically to build its OpenAPI spec at <code>/openapi.json</code>.</p>

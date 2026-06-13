@@ -1,52 +1,219 @@
-<h2>JSON to Playwright Test: Streamlining E2E Testing with Data-Driven Scripts</h2>
-<p>End-to-end (E2E) testing with Playwright is powerful, but manually scripting every user scenario can be time-consuming. Converting JSON samples—representing user profiles, product lists, or form data—directly into Playwright scripts enables "Data-Driven Testing." This approach allows you to run the same test logic against dozens of different data scenarios, ensuring that your application works correctly for all user types and data variations without writing repetitive test code.</p>
+<h2>JSON to Playwright Test: API Testing, HAR Replay, and Full-Platform E2E Automation</h2>
+<p>Playwright is not just a browser automation library — it is a full test platform. Beyond click-and-assert UI tests, Playwright can test your REST APIs directly without opening a browser, record all network traffic as a HAR file and replay it deterministically in CI, run tests in parallel across Chromium, Firefox, and WebKit from a single config, and generate full execution traces that let you debug production failures minutes after they happen. Converting your JSON data into Playwright tests unlocks all of these capabilities.</p>
 
-<h3>Live Example: Generating Data-Driven Playwright Tests from JSON</h3>
-<pre><code>// Input JSON Data (users.json)
+<h3>Live Example: Data-Driven Tests with Type-Safe JSON Fixtures</h3>
+<pre><code>// fixtures/users.json
 [
-  { "username": "admin", "role": "Administrator" },
-  { "username": "guest", "role": "Visitor" }
+  { "username": "admin",  "role": "administrator", "canDelete": true  },
+  { "username": "editor", "role": "editor",        "canDelete": false },
+  { "username": "viewer", "role": "viewer",        "canDelete": false }
 ]
 
-// Generated Playwright Test
+// tests/role-permissions.spec.ts
 import { test, expect } from '@playwright/test';
-import users from './users.json';
+import users from '../fixtures/users.json';
 
 for (const user of users) {
-  test(`should display correct role for ${user.username}`, async ({ page }) => {
+  test(`${user.role} sees correct permissions`, async ({ page }) => {
     await page.goto('/login');
-    await page.fill('#user', user.username);
-    await page.click('#submit');
-    
-    const roleLabel = await page.textContent('.role-badge');
-    expect(roleLabel).toBe(user.role);
+    await page.fill('[data-testid="username"]', user.username);
+    await page.fill('[data-testid="password"]', 'test-password');
+    await page.click('[data-testid="submit"]');
+
+    await expect(page).toHaveURL('/dashboard');
+
+    const deleteButton = page.locator('[data-testid="delete-btn"]');
+    if (user.canDelete) {
+      await expect(deleteButton).toBeVisible();
+    } else {
+      await expect(deleteButton).not.toBeVisible();
+    }
   });
 }
 </code></pre>
+<p>Playwright generates a named test for each JSON entry, so the test report shows <code>administrator sees correct permissions</code> rather than an anonymous parameterized index. When one scenario fails, the trace pinpoints exactly which user role broke.</p>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Structure Your Data:</strong> Create a JSON array where each object represents a unique test case (e.g., different user inputs or expected results).<br>
-2. <strong>Import the JSON:</strong> Use TypeScript/JavaScript's native <code>import</code> or <code>require</code> to load the data into your test file.<br>
-3. <strong>Loop Through Scenarios:</strong> Wrap your <code>test()</code> calls in a <code>for...of</code> loop to dynamically generate a test for each JSON entry.<br>
-4. <strong>Parametrize Your Tests:</strong> Inject the JSON values directly into Playwright's <code>page.fill()</code>, <code>page.click()</code>, and <code>expect()</code> calls.</p>
+<h3>API Testing with the request Fixture</h3>
+<p>Playwright's <code>request</code> fixture lets you test JSON API endpoints without a browser — full HTTP client, cookie handling, and response assertions, all in the same test runner:</p>
+<pre><code>import { test, expect } from '@playwright/test';
 
-<h3>Technical Deep Dive: API Mocking and Har-based Testing</h3>
-<p>Playwright offers advanced ways to use JSON beyond simple input data. One key feature is **API Mocking** via <code>route.fulfill()</code>. You can convert an actual API response into a JSON file and tell Playwright to return that JSON whenever the browser makes a specific network request. This allows you to test your UI in total isolation from the backend. Another advanced technique is **HAR (HTTP Archive) Recording**, where Playwright records all network traffic as JSON and replays it during tests, ensuring a perfectly consistent environment every time.</p>
+const newUser = {
+  name: "Alice Smith",
+  email: "alice@example.com",
+  role: "editor"
+};
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>Playwright vs. Cypress:</strong> Playwright is faster and has better support for multi-tab and mobile emulation, while Cypress has a more beginner-friendly UI. Both support data-driven testing via JSON. <strong>Puppeteer</strong> is a lower-level alternative that requires more manual setup but offers similar capabilities for JSON-driven automation.</p>
+test('POST /api/users creates a user', async ({ request }) => {
+  const response = await request.post('/api/users', {
+    data: newUser,
+    headers: { 'Content-Type': 'application/json' }
+  });
+
+  expect(response.status()).toBe(201);
+  const body = await response.json();
+  expect(body.id).toMatch(/^usr_/);
+  expect(body.email).toBe(newUser.email);
+  expect(body.role).toBe(newUser.role);
+});
+
+test('GET /api/users/:id returns the created user', async ({ request }) => {
+  const create = await request.post('/api/users', { data: newUser });
+  const { id } = await create.json();
+
+  const get = await request.get(`/api/users/${id}`);
+  expect(get.status()).toBe(200);
+  const user = await get.json();
+  expect(user.name).toBe(newUser.name);
+});
+</code></pre>
+<p>API tests run without a browser context — 10-20× faster than UI tests. Use them for your critical JSON API contracts; they catch breaking changes before the UI test suite even starts.</p>
+
+<h3>Network Mocking with page.route()</h3>
+<p>Mock any network request with a JSON response to isolate the UI from a flaky or unavailable backend:</p>
+<pre><code>// api-responses/products.json
+{
+  "items": [
+    { "id": "p1", "name": "Widget Pro",  "price": 49.99, "inStock": true  },
+    { "id": "p2", "name": "Widget Lite", "price": 19.99, "inStock": false }
+  ],
+  "total": 2
+}
+
+test('product list renders from mocked API', async ({ page }) => {
+  await page.route('**/api/products**', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      path: './api-responses/products.json',
+    })
+  );
+
+  await page.goto('/products');
+  await expect(page.locator('[data-testid="product-card"]')).toHaveCount(2);
+  await expect(page.locator('text=Widget Pro')).toBeVisible();
+  await expect(
+    page.locator('[data-testid="p2"] [data-testid="out-of-stock"]')
+  ).toBeVisible();
+});
+
+// Simulate API errors
+test('shows error state on 500', async ({ page }) => {
+  await page.route('**/api/products**', route =>
+    route.fulfill({ status: 500, body: '{"error":"Internal Server Error"}' })
+  );
+
+  await page.goto('/products');
+  await expect(page.locator('[data-testid="error-message"]')).toBeVisible();
+});
+</code></pre>
+
+<h3>HAR Recording and Replay for Network-Isolated CI</h3>
+<p>HAR (HTTP Archive) files are JSON — every request and response captured in a standard format. Playwright can record HAR once and replay it in CI with no external dependencies:</p>
+<pre><code>// Record HAR during development (run once)
+test('record product page traffic', async ({ page }) => {
+  await page.routeFromHAR('./hars/product-page.har', { update: true });
+  await page.goto('/products/p1');
+  // All network calls are captured to product-page.har
+});
+
+// Replay HAR in CI — completely network-isolated
+test('product page renders from HAR', async ({ page }) => {
+  await page.routeFromHAR('./hars/product-page.har', {
+    url: '**/api/**',
+    notFound: 'abort',   // fail if a request is not in the HAR
+  });
+
+  await page.goto('/products/p1');
+  await expect(page.locator('h1')).toContainText('Widget Pro');
+  await expect(page.locator('[data-testid="price"]')).toContainText('$49.99');
+});
+</code></pre>
+<p>HAR replay makes tests hermetic — identical JSON responses on every run, no flaky external API calls, no test data cleanup between runs. Teams check HAR files into the repo alongside their spec files and regenerate them when the API contract changes.</p>
+
+<h3>Fixture-Based Dependency Injection with test.extend()</h3>
+<p>Playwright fixtures let you inject authenticated state and shared test data using <code>test.extend()</code>:</p>
+<pre><code>// test-fixtures.ts
+import { test as base } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import adminCredentials from './data/admin.json';
+
+type TestFixtures = {
+  authenticatedPage: Page;
+  apiToken: string;
+};
+
+export const test = base.extend&lt;TestFixtures&gt;({
+  apiToken: async ({ request }, use) => {
+    const resp = await request.post('/api/auth/token', {
+      data: adminCredentials,
+    });
+    const { token } = await resp.json();
+    await use(token);
+    // teardown: nothing to do — token expires
+  },
+
+  authenticatedPage: async ({ page, apiToken }, use) => {
+    await page.addInitScript(token =&gt; {
+      window.localStorage.setItem('auth_token', token);
+    }, apiToken);
+    await use(page);
+  },
+});
+
+// tests/dashboard.spec.ts
+import { test } from '../test-fixtures';
+import { expect } from '@playwright/test';
+
+test('admin can access user management', async ({ authenticatedPage }) => {
+  await authenticatedPage.goto('/dashboard');
+  await expect(authenticatedPage.locator('[data-testid="user-table"]')).toBeVisible();
+});
+</code></pre>
+<p>Fixtures compose — <code>authenticatedPage</code> depends on <code>apiToken</code>, which depends on <code>request</code>. Playwright resolves the dependency graph automatically and tears down in reverse order after each test.</p>
+
+<h3>Trace Viewer for CI Debugging</h3>
+<p>Configure traces to capture on first retry, then open the interactive viewer to replay every action with full DOM snapshots and network details:</p>
+<pre><code>// playwright.config.ts
+export default defineConfig({
+  use: {
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+  },
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'firefox',  use: { ...devices['Desktop Firefox'] } },
+    { name: 'webkit',   use: { ...devices['Desktop Safari'] } },
+  ],
+  workers: process.env.CI ? 4 : undefined,
+});
+</code></pre>
+<pre><code># Download trace.zip from CI artifact and open locally
+npx playwright show-trace trace.zip
+</code></pre>
+<p>The trace viewer shows a step-by-step timeline with before/after DOM snapshots, all network requests with JSON bodies and response payloads, console logs, and screenshots. You can debug a CI failure that happened on WebKit without a Mac.</p>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Keep Data and Logic Separate:</strong> Store your test data in <code>.json</code> files and your test logic in <code>.spec.ts</code> files to make your test suite easier to maintain.</li>
-  <li><strong>Use Environment-Specific Data:</strong> Create separate JSON files for staging and production testing to handle different URLs, IDs, or account credentials.</li>
-  <li><strong>Clean Up After Tests:</strong> If your JSON-driven tests create data in your app (like new users), ensure you have a "teardown" step to delete that data after the test run.</li>
+  <li><strong>Use <code>data-testid</code> attributes:</strong> Don't select by CSS class or text content — both change with design updates. Treat <code>data-testid</code> as part of the public API contract between UI and tests.</li>
+  <li><strong>Keep JSON fixtures minimal:</strong> Include only the fields your test actually exercises. A fixture with all 40 user fields obscures which 3 actually matter for the scenario being tested.</li>
+  <li><strong>Separate API tests from UI tests:</strong> Fast API tests (no browser, ~50ms each) should run first and gate the UI test suite. If the API is broken, there is no value in loading a browser.</li>
+  <li><strong>Use <code>expect.soft()</code> for multi-field JSON assertions:</strong> <code>expect.soft()</code> records a failure but continues the test — useful for checking a dozen fields in a response body without stopping at the first mismatch.</li>
+  <li><strong>Use <code>storageState</code> for auth:</strong> Log in once in <code>globalSetup</code>, save browser storage state to <code>auth.json</code>, and load it in tests that need authentication. This eliminates redundant login sequences across your test suite.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Can I use this for cross-browser testing?</strong><br>
-A: Yes! Playwright will automatically run your JSON-driven tests across Chromium, Firefox, and WebKit according to your configuration.</p>
-<p><strong>Q: How do I handle large datasets?</strong><br>
-A: For very large datasets, use a subset of the data for regular CI runs and the full set for weekly "stress tests" to keep your pipeline fast.</p>
-<p><strong>Q: Can I use JSON for visual testing?</strong><br>
-A: Yes, you can use JSON to define coordinates or specific elements that should be checked for visual regressions using <code>expect(page).toHaveScreenshot()</code>.</p>
+<p><strong>Q: Playwright or Cypress — which should I choose?</strong><br>
+A: Playwright is better for multi-browser coverage (especially Safari/WebKit), API testing without a browser, parallel execution across machines, and teams running in CI-first workflows. Cypress is better for teams that value interactive debugging during development — its real-time test runner and time-travel snapshots reduce the feedback loop when writing new tests locally.</p>
+
+<p><strong>Q: Can Playwright test mobile apps?</strong><br>
+A: Playwright emulates mobile browsers via the <code>devices</code> dictionary (iPhone 15, Pixel 7, etc.), setting viewport, User-Agent, and touch events. It does not test native iOS/Android apps — use Appium or Detox for native mobile.</p>
+
+<p><strong>Q: How do I handle authentication in every test?</strong><br>
+A: Use <code>storageState</code> — log in once in <code>globalSetup</code>, save the browser's storage state to a JSON file (<code>auth.json</code>), and reference it in <code>playwright.config.ts</code>. All tests load that state and start already authenticated.</p>
+
+<p><strong>Q: How do I run Playwright in GitHub Actions?</strong><br>
+A: Use <code>npx playwright install --with-deps</code> in your workflow to install browsers. Set <code>workers: 4</code> in config to parallelize. Upload <code>playwright-report/</code> as an artifact to access HTML reports and trace files after a CI failure.</p>
+
+<p><strong>Q: What is the difference between page.route() and HAR replay?</strong><br>
+A: <code>page.route()</code> lets you intercept specific URLs and respond inline — flexible for mocking one or two endpoints in a test. HAR replay captures and replays all network traffic holistically — better for isolating a full page or flow from any external dependency. Use route() for targeted mocking, HAR for full network isolation.</p>

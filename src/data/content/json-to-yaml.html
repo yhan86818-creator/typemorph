@@ -1,54 +1,290 @@
-<h2>JSON to YAML: Streamlining Configuration and Readability</h2>
-<p>While JSON is the king of data exchange between machines, YAML (YAML Ain't Markup Language) is the preferred choice for human-readable configuration. Converting JSON to YAML transforms dense, bracket-heavy data into a clean, indentation-based format that is significantly easier to edit and review. This is essential for managing infrastructure-as-code (Kubernetes, Docker Compose), CI/CD pipelines (GitHub Actions), and complex application settings where clarity is paramount.</p>
+<h2>JSON to YAML: js-yaml Options, Anchors and Aliases, Kubernetes ConfigMaps, and GitHub Actions</h2>
+<p>YAML is a superset of JSON, but "idiomatic" YAML is more than JSON with brackets removed — it uses features JSON lacks: anchors and aliases (<code>&amp;</code> / <code>*</code>) to reuse blocks without duplication, block scalars (<code>|</code> and <code>&gt;</code>) for multi-line strings, and comments to document configuration intent. Real-world YAML targets — Kubernetes manifests, GitHub Actions workflows, Docker Compose, Helm values — each have style conventions worth following. This guide covers js-yaml's conversion options, the DRY anchor/alias pattern, multi-line scalar styles, and practical examples generating Kubernetes and CI/CD config from JSON data.</p>
 
-<h3>Live Example: Translating JSON to Human-Friendly YAML</h3>
-<pre><code>// Input JSON
-{
-  "name": "production-cluster",
-  "version": 1.2,
-  "nodes": [
-    { "id": "node-1", "role": "master" },
-    { "id": "node-2", "role": "worker" }
+<h3>Live Example: js-yaml dump() Configuration</h3>
+<pre><code">import yaml from 'js-yaml';
+
+const config = {
+  name: "production-cluster",
+  version: "1.2.0",
+  database: {
+    host:     "db.internal",
+    port:     5432,
+    name:     "appdb",
+    ssl:      true,
+    poolSize: 20,
+  },
+  servers: [
+    { id: "node-1", role: "primary",  region: "us-east-1" },
+    { id: "node-2", role: "replica",  region: "us-east-1" },
+    { id: "node-3", role: "replica",  region: "eu-west-1" },
   ],
-  "features": { "logging": true, "monitoring": false }
-}
+  features: {
+    logging:    true,
+    monitoring: true,
+    debug:      false,
+  },
+};
 
-// Generated YAML
-name: production-cluster
-version: 1.2
-nodes:
-  - id: node-1
-    role: master
-  - id: node-2
-    role: worker
-features:
-  logging: true
-  monitoring: false
+// Default dump — works fine for most uses
+console.log(yaml.dump(config));
+
+// Production options:
+console.log(yaml.dump(config, {
+  indent:    2,          // indentation spaces (default: 2)
+  lineWidth: 120,        // max line width before wrapping long strings (-1 = no limit)
+  noRefs:    true,       // don't use &amp; anchors for repeated objects (default: false)
+  sortKeys:  false,      // preserve insertion order (true for deterministic output)
+  forceQuotes: false,    // only quote strings when necessary
+  quotingType: "'",      // use single quotes when quoting is needed
+}));
+
+// Output:
+// name: production-cluster
+// version: 1.2.0
+// database:
+//   host: db.internal
+//   port: 5432
+//   name: appdb
+//   ssl: true
+//   poolSize: 20
+// servers:
+//   - id: node-1
+//     role: primary
+//     region: us-east-1
+//   - id: node-2
+//     role: replica
+//     region: us-east-1
+//   - id: node-3
+//     role: replica
+//     region: eu-west-1
+// features:
+//   logging: true
+//   monitoring: true
+//   debug: false
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Remove Syntax Noise:</strong> Strip away the curly braces <code>{}</code>, square brackets <code>[]</code>, and trailing commas.<br>
-2. <strong>Implement Indentation:</strong> Use consistent spacing (usually 2 spaces) to define the hierarchy of the data.<br>
-3. <strong>Convert Arrays:</strong> Map JSON arrays to YAML "bulleted" lists using the dash <code>-</code> prefix.<br>
-4. <strong>Handle Multi-line Strings:</strong> Use YAML's pipe <code>|</code> or greater-than <code>&gt;</code> operators to handle long strings more cleanly than escaped JSON strings.</p>
+<h3>Anchors and Aliases: DRY Configuration</h3>
+<pre><code">// YAML anchors (&amp;name) define a reusable block
+// YAML aliases (*name) reference the defined block
+// Great for shared environment config, common CI steps, default values
 
-<h3>Technical Deep Dive: Types, Comments, and Anchors</h3>
-<p>YAML is a **Superset of JSON**, meaning every valid JSON file is technically a valid YAML file. However, converting to "idiomatic" YAML unlocks features JSON lacks. One major advantage is **Comments** (using <code>#</code>), which are vital for documenting configuration. Another powerful feature is **Anchors and Aliases** (<code>&amp;</code> and <code>*</code>), which allow you to define a block of data once and reuse it elsewhere in the file, reducing duplication and errors. Furthermore, YAML has more sophisticated handling of data types, including binary data and timestamps, making it a more versatile format for complex system descriptions.</p>
+# Without anchors (repetitive)
+staging:
+  db_host: db-staging.internal
+  db_port: 5432
+  ssl: true
+  pool_size: 10
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>YAML vs. JSON vs. TOML:</strong> JSON is best for APIs; YAML is best for complex configuration; <strong>TOML</strong> is best for simple, flat configuration files. While YAML's indentation-based syntax is cleaner, it is also more sensitive to errors than JSON. For very large files, some developers prefer <strong>HCL (HashiCorp Configuration Language)</strong>, which combines the readability of YAML with the structure of JSON.</p>
+production:
+  db_host: db-prod.internal
+  db_port: 5432
+  ssl: true
+  pool_size: 50
+
+---
+
+# With anchors (DRY)
+.db_defaults: &amp;db_defaults
+  db_port: 5432
+  ssl: true
+
+staging:
+  &lt;&lt;: *db_defaults        # merge key — copies db_port and ssl
+  db_host: db-staging.internal
+  pool_size: 10
+
+production:
+  &lt;&lt;: *db_defaults
+  db_host: db-prod.internal
+  pool_size: 50
+
+// Generating YAML with anchors from JSON using js-yaml:
+// js-yaml automatically uses &amp; and * when the SAME object reference appears twice
+const dbDefaults = { port: 5432, ssl: true };
+
+const config = {
+  staging:    { ...dbDefaults, host: "db-staging.internal", poolSize: 10 },
+  production: { ...dbDefaults, host: "db-prod.internal",    poolSize: 50 },
+};
+
+// Spread creates NEW objects — no shared references → no anchors in output
+// To force anchors, use the SAME reference:
+const sharedPool = { port: 5432, ssl: true };
+const configWithRefs = {
+  staging:    { db: sharedPool, host: "db-staging.internal" },
+  production: { db: sharedPool, host: "db-prod.internal" },
+};
+console.log(yaml.dump(configWithRefs));
+// staging:
+//   db: &amp;ref_1
+//     port: 5432
+//     ssl: true
+//   host: db-staging.internal
+// production:
+//   db: *ref_1         &lt;-- alias references the shared object
+//   host: db-prod.internal
+</code></pre>
+
+<h3>Multi-line Scalar Styles</h3>
+<pre><code">// Block scalar styles for long strings — critical for scripts in CI/CD config
+// | (literal block) — preserves newlines exactly
+// &gt; (folded block) — folds newlines to spaces (single paragraph)
+
+# Kubernetes job with inline script using literal block scalar
+apiVersion: batch/v1
+kind: Job
+spec:
+  template:
+    spec:
+      containers:
+      - name: migrator
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            set -e
+            echo "Running database migration..."
+            psql $DATABASE_URL -f /migrations/001_add_users.sql
+            psql $DATABASE_URL -f /migrations/002_add_indexes.sql
+            echo "Migration complete"
+
+# Long description using folded block scalar (newlines become spaces)
+description: &gt;
+  This job runs database migrations on deployment.
+  It connects to the primary database and applies
+  all pending migration files in order.
+
+// Generating block scalars with js-yaml from multiline strings:
+const manifest = {
+  command: ["/bin/sh", "-c"],
+  script: "set -e\necho 'Starting...'\nnpm run migrate\necho 'Done'",
+  description: "Runs database migrations.\nConnects to primary DB.",
+};
+
+// js-yaml automatically uses block style for strings containing newlines
+console.log(yaml.dump(manifest, { lineWidth: -1 }));
+// command:
+//   - /bin/sh
+//   - -c
+// script: |             &lt;-- literal block, preserves \n
+//   set -e
+//   echo 'Starting...'
+//   npm run migrate
+//   echo 'Done'
+// description: |
+//   Runs database migrations.
+//   Connects to primary DB.
+</code></pre>
+
+<h3>Kubernetes ConfigMap from JSON</h3>
+<pre><code">// Generate a Kubernetes ConfigMap manifest from application config JSON
+import yaml from 'js-yaml';
+
+interface AppConfig {
+  [key: string]: string | number | boolean | object;
+}
+
+function toConfigMap(name: string, namespace: string, config: AppConfig): string {
+  const configData: Record&lt;string, string&gt; = {};
+
+  for (const [key, value] of Object.entries(config)) {
+    // Kubernetes ConfigMap values are always strings
+    configData[key] = typeof value === 'object'
+      ? JSON.stringify(value)
+      : String(value);
+  }
+
+  const manifest = {
+    apiVersion: 'v1',
+    kind:       'ConfigMap',
+    metadata: {
+      name,
+      namespace,
+      labels: { 'managed-by': 'typemorph' },
+    },
+    data: configData,
+  };
+
+  return yaml.dump(manifest, { lineWidth: 120, noRefs: true });
+}
+
+const appConfig = {
+  LOG_LEVEL:    'info',
+  MAX_RETRIES:  3,
+  FEATURE_FLAG: true,
+  DB_POOL_SIZE: 20,
+  CORS_ORIGINS: '["https://app.example.com", "https://api.example.com"]',
+};
+
+console.log(toConfigMap('app-config', 'production', appConfig));
+// apiVersion: v1
+// kind: ConfigMap
+// metadata:
+//   name: app-config
+//   namespace: production
+//   labels:
+//     managed-by: typemorph
+// data:
+//   LOG_LEVEL: info
+//   MAX_RETRIES: '3'
+//   FEATURE_FLAG: 'true'
+//   DB_POOL_SIZE: '20'
+//   CORS_ORIGINS: '["https://app.example.com", "https://api.example.com"]'
+</code></pre>
+
+<h3>GitHub Actions Workflow from JSON Config</h3>
+<pre><code">// Generate GitHub Actions workflow YAML from a JSON pipeline definition
+const pipeline = {
+  name: "CI",
+  on: { push: { branches: ["main", "develop"] }, pull_request: null },
+  jobs: {
+    test: {
+      "runs-on": "ubuntu-latest",
+      steps: [
+        { uses: "actions/checkout@v4" },
+        { uses: "actions/setup-node@v4", with: { "node-version": "20", cache: "npm" } },
+        { run: "npm ci" },
+        { run: "npm run lint" },
+        { run: "npm test", env: { CI: "true", DATABASE_URL: "${{ secrets.TEST_DB_URL }}" } },
+      ],
+    },
+    build: {
+      "runs-on": "ubuntu-latest",
+      needs: "test",
+      steps: [
+        { uses: "actions/checkout@v4" },
+        { uses: "actions/setup-node@v4", with: { "node-version": "20", cache: "npm" } },
+        { run: "npm ci" },
+        { run: "npm run build" },
+        { uses: "actions/upload-artifact@v4", with: { name: "build", path: "dist/" } },
+      ],
+    },
+  },
+};
+
+const workflow = yaml.dump(pipeline, {
+  lineWidth: -1,   // don't wrap — GitHub Actions is whitespace-sensitive
+  noRefs:    true,
+  sortKeys:  false,
+});
+console.log(workflow);
+// Write to .github/workflows/ci.yml
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use 2-Space Indentation:</strong> This is the industry standard for YAML and ensures maximum compatibility across editors and tools.</li>
-  <li><strong>Avoid Tabs:</strong> YAML explicitly forbids tabs for indentation; always use spaces to prevent "Invalid YAML" errors.</li>
-  <li><strong>Verify with a Linter:</strong> Because YAML is sensitive to invisible whitespace, always run your converted files through a linter (like <code>yamllint</code>) before deployment.</li>
+  <li><strong>Use <code>lineWidth: -1</code> for configuration files that will be parsed by other tools:</strong> Automatic line wrapping in long strings can break YAML tools that don't handle continuation correctly. GitHub Actions and Kubernetes are sensitive to this — a line-wrapped command string produces two separate arguments instead of one.</li>
+  <li><strong>Lint converted YAML before deploying:</strong> <code>yamllint</code> catches invisible whitespace errors, tab characters (forbidden in YAML), and anchor/alias cycles. Run it in CI on all generated YAML files: <code>yamllint .github/workflows/*.yml k8s/*.yaml</code>.</li>
+  <li><strong>Prefer <code>sortKeys: false</code> to preserve semantic ordering:</strong> Kubernetes manifests expect <code>apiVersion</code> before <code>kind</code> before <code>metadata</code> before <code>spec</code>. Alphabetic sorting breaks this convention and makes diffs harder to read. Only use <code>sortKeys: true</code> when generating config files where key order is truly irrelevant.</li>
+  <li><strong>Quote strings that look like other YAML types:</strong> YAML interprets <code>yes</code>, <code>no</code>, <code>on</code>, <code>off</code> as booleans in older spec versions (YAML 1.1). Docker Compose and some Kubernetes tools use YAML 1.1. Quote version strings like <code>"1.2"</code> to prevent them being parsed as floats, and quote anything that could be mistaken for a boolean.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Is YAML slower than JSON?</strong><br>
-A: Yes, YAML is more complex to parse and generally slower than JSON. It is intended for configuration, not for high-volume data exchange.</p>
-<p><strong>Q: Can I put JSON inside a YAML file?</strong><br>
-A: Yes! Since YAML is a superset, you can use JSON-style flow syntax <code>{key: value}</code> within a YAML file if you prefer.</p>
-<p><strong>Q: How do I handle boolean values?</strong><br>
-A: YAML supports many ways to say true (<code>true</code>, <code>yes</code>, <code>on</code>), but it's best to stick to <code>true/false</code> for maximum compatibility with JSON-based systems.</p>
+<p><strong>Q: What's the difference between YAML 1.1 and YAML 1.2, and which one should I use?</strong><br>
+A: YAML 1.1 (used by most legacy tools including older PyYAML and Ruby's Psych) treats <code>yes/no/on/off</code> as booleans and parses unquoted floats like <code>1_000</code> with underscores. YAML 1.2 (stricter, JSON-compatible) only recognizes <code>true/false</code> as booleans. js-yaml defaults to YAML 1.2 behavior for output, which is safer. Always quote values that could be misinterpreted by a YAML 1.1 parser.</p>
+
+<p><strong>Q: How do I add comments to YAML generated from JSON?</strong><br>
+A: JSON has no comment syntax, so comment information isn't in the source. Add comments by post-processing the YAML string or by using a template approach where you maintain a YAML template with comments and merge JSON values into it. The <code>yaml</code> package (not js-yaml) supports round-trip parsing that preserves comments if you start from a commented YAML file.</p>
+
+<p><strong>Q: Can YAML handle binary data like images?</strong><br>
+A: Yes, YAML supports binary data with the <code>!!binary</code> tag, encoded as Base64. This is rarely used in practice — for configuration files, reference binary assets by path or URL rather than embedding them inline. Kubernetes Secrets use Base64-encoded values in YAML, but those are just string values, not YAML <code>!!binary</code> nodes.</p>

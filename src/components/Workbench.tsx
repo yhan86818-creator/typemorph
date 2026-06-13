@@ -18,6 +18,7 @@ import {
   parseSQLToZod,
   parseOpenAPI,
   parseTypeScriptToSchema,
+  parseEnvFile,
   getDecisions,
   type Decision
 } from '@/lib/engine';
@@ -30,11 +31,11 @@ import {
   shouldReportConvert,
   trackInferenceError,
 } from '@/lib/analytics';
-import { JsonVisualizer, Toast } from './SharedUI';
+import { Toast } from './SharedUI';
 import { History as HistoryIcon, FolderOpen } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getWorkbenchEditorText, WorkbenchOutputStatus } from './workbench-utils';
-import { resolveSlugTarget, monacoLanguageForTarget } from '@/lib/targets';
+import { resolveSlugTarget, monacoLanguageForTarget, OUTPUT_TARGETS } from '@/lib/targets';
 import { User } from '@supabase/supabase-js';
 import SuperBatchModal from './SuperBatchModal';
 import { loadLibrary, saveToLibrary, deleteFromLibrary, renameInLibrary, autoName, type LibraryEntry } from '@/lib/schemaLibrary';
@@ -58,6 +59,19 @@ interface WorkbenchProps {
   onEmptyChange?: (isEmpty: boolean) => void;
   onEditorError?: (error: string | null) => void;
 }
+
+const ENV_PRESET = `# App config
+DATABASE_URL=postgresql://user:pass@localhost:5432/mydb
+REDIS_URL=redis://localhost:6379
+PORT=3000
+DEBUG=false
+NODE_ENV=production
+API_KEY=sk-abc123xyz
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+ADMIN_EMAIL=admin@example.com
+JWT_SECRET=supersecretkey
+`;
 
 const PRESETS = [
   {
@@ -208,6 +222,34 @@ const PRESETS = [
   }
 ];
 
+function isEnvFileInput(str: string): boolean {
+  if (str.startsWith('{') || str.startsWith('[') || str.startsWith('<')) return false;
+  if (str.toLowerCase().startsWith('curl')) return false;
+  if (/CREATE\s+TABLE/i.test(str)) return false;
+  if (/(?:interface|type)\s+\w+\s*\{/.test(str)) return false;
+  const lines = str.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length === 0) return false;
+  const envLines = lines.filter(l => l.startsWith('#') || /^[A-Za-z_][A-Za-z0-9_]*\s*=/.test(l));
+  return envLines.length >= 1 && envLines.length / lines.length >= 0.6;
+}
+
+type EnvDiffEntry = {
+  key: string;
+  status: 'added' | 'removed' | 'changed' | 'same';
+  typeA: string;
+  typeB: string;
+};
+
+function describeEnvType(s: any): string {
+  if (!s) return '—';
+  if (s.type === 'boolean') return 'boolean';
+  if (s.type === 'number') return s.format === 'int' ? 'number (int)' : 'number (float)';
+  if (s.format === 'url') return 'string (url)';
+  if (s.format === 'email') return 'string (email)';
+  if (s.optional) return 'string (optional)';
+  return 'string';
+}
+
 function safeStringify(obj: unknown, indent?: number): string {
   const seen = new WeakSet();
   return JSON.stringify(obj, (_, val) => {
@@ -314,6 +356,28 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
   }, [jsonData]);
   const [history, setHistory] = useState<any[]>([]);
   const [library, setLibrary] = useState<LibraryEntry[]>([]);
+  const [isEnvInput, setIsEnvInput] = useState(false);
+  const [envDiffInput, setEnvDiffInput] = useState('');
+  const envDiffEntries = useMemo((): EnvDiffEntry[] | null => {
+    if (!isEnvInput || !jsonData || !envDiffInput.trim()) return null;
+    const schemaB = parseEnvFile(envDiffInput);
+    if (!schemaB) return null;
+    const fieldsA: Record<string, any> = (jsonData as any).fields ?? {};
+    const fieldsB: Record<string, any> = (schemaB as any).fields ?? {};
+    const allKeys = Array.from(new Set([...Object.keys(fieldsA), ...Object.keys(fieldsB)]));
+    return allKeys.map(key => {
+      const a = fieldsA[key] ?? null;
+      const b = fieldsB[key] ?? null;
+      const typeA = describeEnvType(a);
+      const typeB = describeEnvType(b);
+      let status: EnvDiffEntry['status'];
+      if (!a) status = 'added';
+      else if (!b) status = 'removed';
+      else if (typeA !== typeB) status = 'changed';
+      else status = 'same';
+      return { key, status, typeA, typeB };
+    });
+  }, [isEnvInput, jsonData, envDiffInput]);
   const [savedJustNow, setSavedJustNow] = useState(false);
   const [libraryRenamingId, setLibraryRenamingId] = useState<string | null>(null);
   const [libraryRenameValue, setLibraryRenameValue] = useState('');
@@ -355,7 +419,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     csharp: 'cs', protobuf: 'proto', graphql: 'graphql', sql: 'sql',
     jsonschema: 'schema.json', mock: 'json', json: 'json', er: 'mmd', doc: 'md',
   };
-  const VISUAL_TABS = new Set(['graph', 'diff', 'architect', 'ui', 'saved']);
+  const VISUAL_TABS = new Set(['graph', 'diff', 'architect', 'ui', 'saved', 'env-diff']);
 
   const handleDownload = () => {
     const content = outputs[outputTab];
@@ -963,8 +1027,9 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     const res: any = {};
     let jsonObj: any = null;
     let success = false;
-    
+
     if (trimmed.toLowerCase().startsWith('curl')) {
+      setIsEnvInput(false);
       try {
         const parsed = parseCurl(trimmed);
         res.hook = curlToTypeScript(parsed);
@@ -981,6 +1046,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
              (trimmed.toUpperCase().includes('CREATE TABLE') && 
               !trimmed.trim().startsWith('{') && 
               !trimmed.trim().startsWith('['))) {
+      setIsEnvInput(false);
       try {
         res.zod = parseSQLToZod(trimmed);
         res.er = sqlToMermaidERGen.generate(trimmed);
@@ -994,11 +1060,21 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     }
     else {
       try {
-        const tsRes = (trimmed.includes('interface ') || trimmed.includes('type ')) ? parseTypeScriptToSchema(trimmed) : null;
+        if (isEnvFileInput(trimmed)) {
+          const envResult = parseEnvFile(trimmed);
+          if (envResult) {
+            jsonObj = envResult;
+            success = true;
+            setIsEnvInput(true);
+          }
+        } else {
+          setIsEnvInput(false);
+        }
+        const tsRes = (!jsonObj && (trimmed.includes('interface ') || trimmed.includes('type '))) ? parseTypeScriptToSchema(trimmed) : null;
         if (tsRes) {
           jsonObj = tsRes;
           success = true;
-        } else {
+        } else if (!jsonObj) {
           if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
           jsonObj = JSON.parse(trimmed);
           success = true;
@@ -1040,7 +1116,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
         const taskId = ++taskIdRef.current;
         // slug 専用ターゲット（mongoose/drizzle/csv 等）も先読み生成対象に含める
         const slugTargetKey = resolveSlugTarget(slug)?.key;
-        const baseLangs = ['typescript', 'zod', 'go', 'rust', 'java', 'python', 'dart', 'php', 'csharp', 'protobuf', 'graphql', 'swift', 'kotlin', 'sql', 'jsonschema', 'mock', 'ui', 'doc'];
+        const baseLangs = [...(isEnvInput ? ['env-validator'] : []), 'typescript', 'zod', 'go', 'rust', 'java', 'python', 'dart', 'php', 'csharp', 'protobuf', 'graphql', 'swift', 'kotlin', 'sql', 'jsonschema', 'mock', 'ui', 'doc'];
         if (slugTargetKey && !baseLangs.includes(slugTargetKey)) baseLangs.push(slugTargetKey);
         const langs = baseLangs.filter(l => l !== activeLang);
         const allTargets = [activeLang, ...langs];
@@ -1321,6 +1397,10 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
   const slugTarget = resolveSlugTarget(slug);
 
   const baseMainTabs = [
+    ...(isEnvInput ? [
+      { id: 'env-validator', label: 'Env Validator' },
+      { id: 'env-diff', label: 'Env Diff' },
+    ] : []),
     { id: 'typescript', label: 'TS' },
     { id: 'zod', label: 'Zod' },
     { id: 'go', label: 'Go' },
@@ -1433,8 +1513,14 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
             <span className="flex items-center gap-1 text-[10px] font-mono uppercase text-slate-500 dark:text-slate-350 tracking-wider shrink-0 font-bold">
               <Zap size={10} className="text-slate-400" /> Presets:
             </span>
+            <button
+              onClick={() => { setInput(ENV_PRESET); resetBaseline(ENV_PRESET); }}
+              className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 transition-all shrink-0"
+            >
+              .env
+            </button>
             {PRESETS.map((p, i) => (
-              <button 
+              <button
                 key={i}
                 onClick={() => { setInput(typeof p.data === 'string' ? p.data : JSON.stringify(p.data, null, 2)); resetBaseline(p.data); }}
                 className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white transition-all shrink-0"
@@ -1631,7 +1717,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                     Drag & Drop Schema File
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-300 max-w-xs mx-auto font-sans">
-                    Supports JSON, XML, YAML, SQL or cURL format. Click to browse local files.
+                    Supports JSON, XML, YAML, SQL, .env or cURL format. Click to browse local files.
                   </p>
                 </div>
               </div>
@@ -1695,6 +1781,21 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                   Or Quick Start with Architectural Samples:
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* .env preset card */}
+                  <button
+                    onClick={() => setInput(ENV_PRESET)}
+                    className="flex flex-col items-start p-4 rounded-xl bg-white dark:bg-slate-900/60 border border-emerald-200 dark:border-emerald-900/50 hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-lg hover:-translate-y-0.5 transition-all text-left group"
+                  >
+                    <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold mb-1 flex items-center gap-1">
+                      <Zap size={10} /> .env
+                    </span>
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors font-sans">
+                      Env Validator
+                    </span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block leading-tight font-sans">
+                      Generate Zod env schema for process.env validation.
+                    </span>
+                  </button>
                   {PRESETS.map((p, i) => (
                     <button
                       key={i}
@@ -1801,7 +1902,8 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
         </AnimatePresence>
         <div className="flex justify-between items-center mb-3">
           {/* Desktop tabs navigation */}
-          <div className="hidden md:flex items-center gap-1 overflow-visible no-scrollbar pb-1 max-w-[calc(100%-100px)]">
+          <div className="hidden md:flex flex-1 min-w-0 items-center gap-1">
+            <div className="flex items-center gap-1 overflow-hidden flex-1 min-w-0 pb-1">
             {mainTabs.map(tab => (
               <button
                 key={tab.id}
@@ -1811,8 +1913,9 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                 <span>{tab.label}</span>
               </button>
             ))}
+            </div>
             {/* + More ▼ dropdown */}
-            <div className="relative group/more-tabs">
+            <div className="relative group/more-tabs shrink-0">
               <button
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all shrink-0 ${moreTabs.some(t => t.id === outputTab) ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
               >
@@ -1850,7 +1953,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
             <span>{tabs.find(t => t.id === outputTab)?.label || outputTab.toUpperCase()}</span>
             <ChevronDown size={12} />
           </button>
-          <div className="flex items-center gap-2">
+          <div className="shrink-0 flex items-center gap-2">
             {/* 機能ボタン群 */}
             <div className="hidden md:flex items-center gap-1">
               <button
@@ -2091,13 +2194,13 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
 
               {/* Schema Migration Impact Analyzer */}
               {!['json', 'ui', 'mock', 'doc', 'graph'].includes(outputTab) && schemaDiffs.length > 0 && (
-                <div className="bg-amber-50/40 dark:bg-amber-950/10 border-b border-amber-200 dark:border-amber-950/30 p-4 transition-all">
+                <div className="bg-amber-50/60 dark:bg-amber-950/20 border-b border-amber-200 dark:border-amber-900/40 p-4 transition-all">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="flex items-center justify-center w-5 h-5 rounded-lg bg-amber-500/10 text-amber-500">
                         <Zap size={12} className="" />
                       </span>
-                      <span className="font-mono uppercase tracking-wider text-[10px] text-slate-700 dark:text-slate-350 font-bold">
+                      <span className="font-mono uppercase tracking-wider text-[10px] text-slate-700 dark:text-slate-300 font-bold">
                         Schema Migration Impact ({schemaDiffs.length} Change{schemaDiffs.length > 1 ? 's' : ''} Detected)
                       </span>
                     </div>
@@ -2113,14 +2216,14 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-3 max-h-36 overflow-y-auto no-scrollbar pb-1">
                     {schemaDiffs.map((diff, index) => {
                       const severityColors = {
-                        error: 'bg-red-50/50 dark:bg-red-950/20 border-red-200 dark:border-red-900/40 text-red-700 dark:text-red-400',
-                        warning: 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40 text-amber-750 dark:text-amber-400',
-                        info: 'bg-slate-50 dark:bg-white/[0.03] border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300'
+                        error: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-400',
+                        warning: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/50 text-amber-700 dark:text-amber-400',
+                        info: 'bg-slate-50 dark:bg-white/[0.04] border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300'
                       };
 
                       const severityBadges = {
                         error: 'Breaking',
-                        warning: '⚠�E�EWarning',
+                        warning: 'Warning',
                         info: 'Added'
                       };
 
@@ -2415,15 +2518,75 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                 <div className="flex-1 min-h-0 overflow-hidden">
                   <FullStackArchitectView isDark={isDark} />
                 </div>
+              ) : outputTab === 'env-diff' ? (
+                <div className="flex flex-col h-full bg-[#0A0A0A] overflow-hidden">
+                  <div className="shrink-0 px-4 py-3 border-b border-white/[0.06]">
+                    <p className="text-[11px] text-slate-400 mb-2">Paste your second <code className="text-emerald-400">.env</code> file (e.g. <code className="text-slate-300">.env.production</code>) to compare</p>
+                    <textarea
+                      value={envDiffInput}
+                      onChange={e => setEnvDiffInput(e.target.value)}
+                      placeholder={"DATABASE_URL=postgresql://...\nPORT=3000\nNEW_KEY=value"}
+                      className="w-full h-28 bg-[#111] border border-white/10 rounded-lg px-3 py-2 text-[12px] font-mono text-slate-200 placeholder-slate-600 resize-none focus:outline-none focus:border-emerald-500/50"
+                    />
+                  </div>
+                  <div className="flex-1 overflow-y-auto px-4 py-3">
+                    {!envDiffInput.trim() ? (
+                      <p className="text-[12px] text-slate-500 text-center mt-8">Paste a second .env file above to see the diff</p>
+                    ) : !envDiffEntries ? (
+                      <p className="text-[12px] text-red-400 text-center mt-8">Could not parse the second .env file</p>
+                    ) : (
+                      <table className="w-full text-[12px] font-mono border-collapse">
+                        <thead>
+                          <tr className="text-left text-[10px] uppercase tracking-widest text-slate-500 border-b border-white/[0.06]">
+                            <th className="pb-2 pr-4 font-medium">Key</th>
+                            <th className="pb-2 pr-4 font-medium">Status</th>
+                            <th className="pb-2 pr-4 font-medium">.env (base)</th>
+                            <th className="pb-2 font-medium">.env (compare)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {envDiffEntries.filter(e => e.status !== 'same').map(entry => (
+                            <tr key={entry.key} className="border-b border-white/[0.04]">
+                              <td className="py-2 pr-4 text-slate-200">{entry.key}</td>
+                              <td className="py-2 pr-4">
+                                {entry.status === 'added' && <span className="text-emerald-400">+ added</span>}
+                                {entry.status === 'removed' && <span className="text-red-400">− removed</span>}
+                                {entry.status === 'changed' && <span className="text-amber-400">△ changed</span>}
+                              </td>
+                              <td className="py-2 pr-4 text-slate-500">{entry.typeA}</td>
+                              <td className="py-2 text-slate-300">{entry.typeB}</td>
+                            </tr>
+                          ))}
+                          {envDiffEntries.filter(e => e.status === 'same').map(entry => (
+                            <tr key={entry.key} className="border-b border-white/[0.04] opacity-40">
+                              <td className="py-1.5 pr-4 text-slate-400">{entry.key}</td>
+                              <td className="py-1.5 pr-4 text-slate-600">= same</td>
+                              <td className="py-1.5 pr-4 text-slate-600">{entry.typeA}</td>
+                              <td className="py-1.5 text-slate-600">{entry.typeB}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                    {envDiffEntries && (
+                      <div className="mt-4 flex gap-3 text-[11px] text-slate-500">
+                        <span className="text-emerald-400">{envDiffEntries.filter(e => e.status === 'added').length} added</span>
+                        <span className="text-red-400">{envDiffEntries.filter(e => e.status === 'removed').length} removed</span>
+                        <span className="text-amber-400">{envDiffEntries.filter(e => e.status === 'changed').length} changed</span>
+                        <span className="text-slate-600">{envDiffEntries.filter(e => e.status === 'same').length} same</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               ) : outputTab === 'diff' ? (
                 <div className="flex-1 min-h-0 overflow-hidden">
                   <SmartDiffView key={diffSeedKey} isDark={isDark} initialContent={diffSeedContent || undefined} />
                 </div>
               ) : (
                 <div className="flex-1 min-h-0 flex flex-col">
-                  {slugTarget?.tier === 2 && slugTarget.key === outputTab && (
+                  {OUTPUT_TARGETS[outputTab]?.tier === 2 && (
                     <div className="flex-none px-4 py-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-b border-amber-200 dark:border-amber-500/20">
-                      {slugTarget.label} output is a scaffold — review and adjust types, constraints, and relations before production use.
+                      {OUTPUT_TARGETS[outputTab].label} output is a scaffold — review and adjust types, constraints, and relations before production use.
                     </div>
                   )}
                   <div className="flex-1 min-h-0">
@@ -2453,11 +2616,6 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
             </div>
           )}
 
-          {jsonData && (
-            <div className="absolute bottom-6 right-6 w-80 max-h-80 overflow-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl z-50 no-scrollbar">
-              <JsonVisualizer data={jsonData} />
-            </div>
-          )}
         </div>
       </div>
       <Toast isVisible={showToast} message={toastMsg} />

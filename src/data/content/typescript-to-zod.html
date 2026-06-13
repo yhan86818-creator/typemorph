@@ -1,55 +1,250 @@
-<h2>TypeScript to Zod: Automated Synchronization of Static and Runtime Types</h2>
-<p>In a perfect world, we define our types once and they work everywhere. In reality, TypeScript interfaces are lost at runtime. Converting existing TypeScript types to Zod schemas is the most efficient way to bring that static safety into the real world. Instead of manually maintaining two separate but identical structures, this conversion ensures that your validation logic is always perfectly in sync with your source code. This is a game-changer for large-scale projects where keeping types and schemas aligned is a major maintenance burden.</p>
+<h2>TypeScript to Zod: Schema-First vs Type-First, ts-to-zod, and Runtime Boundaries</h2>
+<p>TypeScript types exist only at compile time — they are completely erased in the compiled JavaScript. This means your <code>interface User { email: string }</code> does nothing at runtime when an API returns <code>{ email: null }</code> or omits the field entirely. Zod schemas are runtime objects that both validate data and export TypeScript types via <code>z.infer&lt;typeof schema&gt;</code>. There are two approaches: <em>schema-first</em> (define Zod, derive TypeScript — best for new code) and <em>type-first</em> (write TypeScript interfaces, convert to Zod — best for existing codebases). This page covers both patterns, the <code>ts-to-zod</code> tool for automated conversion, and the architectural question of where to place validation boundaries.</p>
 
-<h3>Live Example: Converting Interfaces to Executable Schemas</h3>
-<pre><code>// Input TypeScript Interface
-interface UserAccount {
-  id: string;
-  email: string;
-  preferences: {
-    theme: 'light' | 'dark';
-    fontSize: number;
-  };
-  createdAt: Date;
-}
+<h3>Live Example: The Two Patterns Side by Side</h3>
+<pre><code>// === PATTERN 1: Schema-First (recommended for new code) ===
+// Define once in Zod, derive TypeScript type automatically
 
-// Generated Zod Schema
 import { z } from 'zod';
 
-const UserAccountSchema = z.object({
-  id: z.string(),
-  email: z.string().email(),
-  preferences: z.object({
-    theme: z.enum(['light', 'dark']),
-    fontSize: z.number().min(8).max(72)
-  }),
-  createdAt: z.coerce.date()
+const UserSchema = z.object({
+  id:        z.string().uuid(),
+  username:  z.string().min(3).max(50),
+  email:     z.string().email(),
+  role:      z.enum(['admin', 'editor', 'viewer']),
+  age:       z.number().int().min(18).nullable(),
+  tags:      z.array(z.string()).default([]),
+  createdAt: z.coerce.date(),
+  settings:  z.object({
+    theme:    z.enum(['light', 'dark']).default('light'),
+    locale:   z.string().default('en'),
+  }).optional(),
+});
+
+// TypeScript type derived from the Zod schema — always in sync
+type User = z.infer&lt;typeof UserSchema&gt;;
+// → { id: string; username: string; email: string; role: 'admin'|'editor'|'viewer';
+//     age: number | null; tags: string[]; createdAt: Date; settings?: {...} }
+
+// === PATTERN 2: Type-First (for existing TypeScript codebases) ===
+// Existing TypeScript interface — convert to Zod manually or with ts-to-zod
+
+interface User {
+  id:       string;
+  username: string;
+  email:    string;
+  role:     'admin' | 'editor' | 'viewer';
+  age:      number | null;
+  tags:     string[];
+}
+
+// Manually derived Zod schema
+const UserSchema = z.object({
+  id:       z.string(),          // add .uuid() if you know the format
+  username: z.string(),          // add .min(3).max(50) based on business rules
+  email:    z.string().email(),  // EmailStr implies email format
+  role:     z.enum(['admin', 'editor', 'viewer']),
+  age:      z.number().nullable(),
+  tags:     z.array(z.string()),
 });
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Select Target Types:</strong> Identify the TypeScript interfaces or types that represent external data boundaries (APIs, WebWorkers, localStorage).<br>
-2. <strong>Run the Conversion Tool:</strong> Use a generator to parse the TypeScript AST (Abstract Syntax Tree) and output the equivalent Zod schema.<br>
-3. <strong>Enrich with Metadata:</strong> TypeScript interfaces don't contain runtime constraints (like <code>.min(0)</code>). Manually add these to your generated Zod schema where necessary.<br>
-4. <strong>Replace Insecure Logic:</strong> Use the new Zod schema to parse incoming data, and remove manual type assertions (<code>as MyType</code>) which are inherently unsafe.</p>
+<h3>Automated Conversion with ts-to-zod</h3>
+<pre><code">// Install
+npm install -D ts-to-zod
 
-<h3>Technical Deep Dive: AST Parsing and Type Mapping</h3>
-<p>The magic of TypeScript-to-Zod conversion lies in AST (Abstract Syntax Tree) manipulation. Tools like <code>ts-to-zod</code> use the TypeScript compiler API to read your source code, understand its structure, and "transpile" it into Zod function calls. A unique challenge is handling <strong>Recursive Types</strong> (e.g., a Comment that can have child Comments). While Zod supports recursion, it requires a specific syntax (<code>z.lazy()</code>) that must be carefully handled during the conversion process to avoid circular dependency errors at runtime.</p>
+// ts-to-zod.config.js
+module.exports = {
+  input:  'src/types/**/*.ts',
+  output: 'src/schemas',
+  // JsDoc comment tags can guide the generator
+  // /** @minimum 18 */  → .min(18) on numbers
+  // /** @format email */ → .email() on strings
+};
 
-<h3>Comparison & Alternatives</h3>
-<p>The alternative to this conversion is defining the Zod schema first and using <code>z.infer</code> to get the TypeScript type. This is generally preferred for *new* projects. However, for <strong>legacy projects</strong> or when you are consuming types from a shared library you don't control, converting TypeScript to Zod is the only way to achieve runtime safety without massive refactoring. Another alternative is using <strong>Typeia</strong>, which uses a compiler plugin to generate validation logic without needing a separate schema file at all.</p>
+// Input: src/types/user.ts
+export interface User {
+  /** @format uuid */
+  id: string;
+  /** @minLength 3 @maxLength 50 */
+  username: string;
+  /** @format email */
+  email: string;
+  role: 'admin' | 'editor' | 'viewer';
+  age: number | null;
+  tags: string[];
+  createdAt: Date;
+}
+
+// Generated: src/schemas/user.ts
+import { z } from 'zod';
+
+const userSchema = z.object({
+  id:        z.string().uuid(),
+  username:  z.string().min(3).max(50),
+  email:     z.string().email(),
+  role:      z.enum(['admin', 'editor', 'viewer']),
+  age:       z.number().nullable(),
+  tags:      z.array(z.string()),
+  createdAt: z.date(),
+});
+export type User = z.infer&lt;typeof userSchema&gt;;
+
+// Run:
+npx ts-to-zod src/types/user.ts src/schemas/user.ts
+// Watch mode:
+npx ts-to-zod --watch src/types/user.ts src/schemas/user.ts
+</code></pre>
+
+<h3>Recursive Types and z.lazy()</h3>
+<pre><code">// Recursive TypeScript type: a Category can have child categories
+interface Category {
+  id:       string;
+  name:     string;
+  children: Category[];
+}
+
+// ts-to-zod handles this, but you can write it manually with z.lazy():
+const CategorySchema: z.ZodType&lt;Category&gt; = z.object({
+  id:   z.string(),
+  name: z.string(),
+  // z.lazy() defers evaluation — needed because CategorySchema is used before it's complete
+  children: z.lazy(() => CategorySchema.array()),
+});
+
+// Mutual recursion:
+interface Post    { id: string; author: User;  comments: Comment[]; }
+interface Comment { id: string; author: User;  body: string; replies: Comment[]; }
+interface User    { id: string; posts:  Post[]; }
+
+// For mutual recursion, declare types explicitly
+const PostSchema:    z.ZodType&lt;Post&gt;    = z.object({ ... });
+const CommentSchema: z.ZodType&lt;Comment&gt; = z.object({ ... });
+const UserSchema:    z.ZodType&lt;User&gt;    = z.object({ ... });
+// Fill in the fields after declaration to avoid reference errors
+</code></pre>
+
+<h3>Discriminated Unions</h3>
+<pre><code">// TypeScript discriminated union
+type ApiResponse =
+  | { status: 'success'; data: User }
+  | { status: 'error';   error: string; code: number }
+  | { status: 'loading' };
+
+// Zod discriminated union — efficient (checks discriminator first)
+const ApiResponseSchema = z.discriminatedUnion('status', [
+  z.object({
+    status: z.literal('success'),
+    data:   UserSchema,
+  }),
+  z.object({
+    status: z.literal('error'),
+    error:  z.string(),
+    code:   z.number().int(),
+  }),
+  z.object({
+    status: z.literal('loading'),
+  }),
+]);
+
+// Correctly narrows type in TypeScript
+const result = ApiResponseSchema.parse(apiResponse);
+if (result.status === 'success') {
+  result.data.email;  // TypeScript knows this is User
+}
+if (result.status === 'error') {
+  result.code;  // TypeScript knows this is number
+}
+</code></pre>
+
+<h3>Transforming and Branding Types</h3>
+<pre><code">// Transform: parse + normalize in one step
+const UserInputSchema = z.object({
+  username: z.string().trim().toLowerCase(),   // normalize on parse
+  email:    z.string().email().toLowerCase(),
+  role:     z.string().transform(s => s.toUpperCase() as 'ADMIN' | 'EDITOR'),
+});
+
+// Brand: create opaque ID types
+const UserIdSchema = z.string().uuid().brand&lt;'UserId'&gt;();
+type UserId = z.infer&lt;typeof UserIdSchema&gt;;
+// → string & { readonly _brand: "UserId" }
+
+// Branded types prevent mixing IDs accidentally:
+function getUser(id: UserId) { ... }
+getUser("random-string");         // TypeScript error: not a UserId
+getUser(UserIdSchema.parse(str)); // correct: parse brands the value
+
+// Derived schemas for API layers
+const CreateUserInput = UserSchema
+  .pick({ username: true, email: true, role: true })
+  .extend({ password: z.string().min(8) });
+
+const UpdateUserInput = UserSchema
+  .pick({ username: true, email: true, settings: true })
+  .partial();   // all fields become optional
+
+type CreateUserInput = z.infer&lt;typeof CreateUserInput&gt;;
+type UpdateUserInput = z.infer&lt;typeof UpdateUserInput&gt;;
+</code></pre>
+
+<h3>Where to Place Validation Boundaries</h3>
+<pre><code">// Rule: validate at the boundary between your code and the outside world.
+// Never validate purely internal data that never crosses a boundary.
+
+// ✅ VALIDATE HERE:
+// - API route request bodies (Express, Fastify, Next.js API routes)
+// - Response data from external APIs (fetch, axios)
+// - localStorage / sessionStorage (may be tampered)
+// - Query parameters and URL params
+// - Form submission data
+// - WebSocket messages
+// - Messages from a message queue
+
+// ❌ DON'T VALIDATE HERE:
+// - Data that was already validated and typed (internal function calls)
+// - Data loaded from your own database through a typed ORM
+// - Data constructed by your own code
+
+// Example: Express request validation
+import { z } from 'zod';
+import type { Request, Response } from 'express';
+
+const CreateUserBody = z.object({
+  username: z.string().min(3).max(50),
+  email:    z.string().email(),
+  role:     z.enum(['admin', 'editor', 'viewer']).default('viewer'),
+});
+
+app.post('/users', async (req: Request, res: Response) => {
+  const result = CreateUserBody.safeParse(req.body);
+  if (!result.success) {
+    const errors = result.error.flatten().fieldErrors;
+    return res.status(400).json({ errors });
+  }
+  // result.data is fully typed as { username: string; email: string; role: 'admin'|... }
+  const user = await db.users.create(result.data);
+  res.status(201).json(user);
+});
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Automate the Sync:</strong> Add a script to your <code>package.json</code> that re-generates your Zod schemas whenever your TypeScript types change.</li>
-  <li><strong>Verify the Output:</strong> Always review the generated Zod code, especially for complex unions or intersections which can be tricky to map perfectly.</li>
-  <li><strong>Use Coercion for Dates:</strong> TypeScript <code>Date</code> types should usually be mapped to <code>z.coerce.date()</code> in Zod to handle incoming JSON string dates automatically.</li>
+  <li><strong>Prefer schema-first for all new code:</strong> Define the Zod schema and derive the TypeScript type with <code>z.infer</code>. This gives you a single source of truth — the schema IS the type. The type-first pattern (write interface, convert to Zod) is a migration path for existing code, not a permanent architecture choice.</li>
+  <li><strong>Add domain constraints, not just structural types:</strong> TypeScript's type system only expresses <em>shape</em> — <code>string</code>, <code>number</code>, <code>object</code>. Zod adds <em>constraints</em> — <code>z.string().email().min(1).max(255)</code>. A generated schema without constraints is incomplete. Always enrich generated schemas with the business rules the TypeScript type can't express.</li>
+  <li><strong>Use <code>safeParse</code> at boundaries, <code>parse</code> internally:</strong> <code>parse</code> throws on validation failure — appropriate for data that should always be valid (internal pipelines). <code>safeParse</code> returns a result object — appropriate at API boundaries where invalid input is expected and should produce a 400 response, not a 500 crash.</li>
+  <li><strong>Export both the schema and the inferred type:</strong> Export <code>export const UserSchema = z.object({...})</code> for validation and <code>export type User = z.infer&lt;typeof UserSchema&gt;</code> for type annotations. Other modules import the type for typing and the schema for parsing — one definition, two uses.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Does this handle Generics?</strong><br>
-A: Generics are difficult to convert because Zod schemas are runtime objects. Most tools will require you to provide concrete types for the conversion.</p>
-<p><strong>Q: What about Enums?</strong><br>
-A: TypeScript Enums can be converted to <code>z.nativeEnum()</code>, which is the safest way to maintain compatibility.</p>
-<p><strong>Q: Can I convert Type Aliases as well as Interfaces?</strong><br>
-A: Yes, most modern conversion tools handle both seamlessly, including complex intersection types.</p>
+<p><strong>Q: Is ts-to-zod the only tool for TypeScript-to-Zod conversion?</strong><br>
+A: No — alternatives include <code>zod-prisma-types</code> (from Prisma schema), <code>prisma-zod-generator</code>, and <code>zodgen</code>. For API response types specifically, <code>openapi-typescript-validator</code> generates Zod schemas from OpenAPI specs, which is often more practical than converting hand-written interfaces.</p>
+
+<p><strong>Q: Does ts-to-zod handle optional vs nullable correctly?</strong><br>
+A: It handles <code>T | undefined</code> as <code>.optional()</code> and <code>T | null</code> as <code>.nullable()</code>. The distinction matters: in TypeScript, an optional property (<code>key?: T</code>) is <code>T | undefined</code>, which is different from <code>T | null</code>. Zod's <code>.optional()</code> allows the key to be absent; <code>.nullable()</code> allows the value to be null. Review the generated schema to ensure this matches your intent.</p>
+
+<p><strong>Q: How do I handle API responses where I don't know the full schema?</strong><br>
+A: Use <code>z.unknown()</code> for fields you don't want to validate, <code>z.record(z.unknown())</code> for arbitrary objects, and <code>.passthrough()</code> on an object schema to allow extra keys. This is useful for partial validation — validate only the fields you care about and pass the rest through unchanged.</p>
+
+<p><strong>Q: Should I use Zod or Valibot for new projects?</strong><br>
+A: Valibot is significantly smaller (tree-shakeable, ~1KB vs ~60KB for Zod). If bundle size is critical (browser apps, edge functions), Valibot is the better choice. If you need ecosystem compatibility (many libraries export Zod schemas — tRPC, Next.js, React Hook Form adapters), Zod has broader support. Both are excellent; the choice is ecosystem vs bundle size.</p>

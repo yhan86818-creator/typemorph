@@ -1,57 +1,251 @@
-<h2>Protobuf to TypeScript: Type-Safe Communication for High-Performance Microservices</h2>
-<p>Protocol Buffers (Protobuf) is Google's language-neutral, platform-neutral, extensible mechanism for serializing structured data. Converting Protobuf definitions (<code>.proto</code> files) to TypeScript interfaces and classes allows you to build high-performance microservices with end-to-end type safety. This conversion is a cornerstone of gRPC-based architectures, enabling your web and Node.js clients to communicate with backend services using binary serialization that is significantly faster and smaller than traditional JSON over REST.</p>
+<h2>Protobuf to TypeScript: Buf CLI, Connect-ES, and Generated gRPC Clients</h2>
+<p>Protocol Buffers are the IDL (Interface Description Language) for gRPC — but generating TypeScript from <code>.proto</code> files is where most teams get stuck. There are two generations of tooling: the legacy <code>protoc</code> compiler with various plugins (<code>protoc-gen-ts</code>, <code>ts-protoc-gen</code>), and the modern Buf ecosystem (<code>buf generate</code> with <code>@bufbuild/protoc-gen-es</code>). The Buf approach is significantly simpler to configure, generates idiomatic TypeScript (ES2015+ classes instead of CommonJS), and integrates with Connect-ES for browser-compatible Protobuf over HTTP/1.1. This guide covers the Buf approach, the generated type structure, and how to use generated types to call gRPC services in both Node.js and the browser.</p>
 
-<h3>Live Example: Mapping Protobuf Definitions to TypeScript</h3>
-<pre><code>// Input Protobuf Definition (.proto)
+<h3>Live Example: .proto Definition and Generated TypeScript</h3>
+<pre><code>// user.proto (Protobuf v3)
 syntax = "proto3";
+package users.v1;
 
-message UserProfile {
-  string id = 1;
-  string username = 2;
-  bool is_active = 3;
-  repeated string roles = 4;
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+
+message User {
+  string  id         = 1;
+  string  username   = 2;
+  string  email      = 3;
+  Role    role       = 4;
+  bool    is_active  = 5;
+  repeated string tags = 6;
+  google.protobuf.Timestamp created_at = 7;
+  // optional: present = value is set, absent = not provided
+  optional string bio = 8;
 }
 
-// Generated TypeScript Code
-export interface UserProfile {
-  id: string;
-  username: string;
-  isActive: boolean;
-  roles: string[];
+enum Role {
+  ROLE_UNSPECIFIED = 0;   // proto3 enum must have a 0 value
+  ROLE_VIEWER      = 1;
+  ROLE_EDITOR      = 2;
+  ROLE_ADMIN       = 3;
 }
 
-// Usage with gRPC-web or connect-es
-const profile: UserProfile = {
-  id: "u123",
-  username: "proto_dev",
-  isActive: true,
-  roles: ["admin", "editor"]
-};
+service UserService {
+  rpc GetUser    (GetUserRequest)    returns (User);
+  rpc ListUsers  (ListUsersRequest)  returns (ListUsersResponse);
+  rpc CreateUser (CreateUserRequest) returns (User);
+  rpc WatchUsers (WatchUsersRequest) returns (stream User);  // server streaming
+}
+
+message GetUserRequest    { string id = 1; }
+message ListUsersRequest  { int32 page = 1; int32 limit = 2; Role role_filter = 3; }
+message ListUsersResponse { repeated User users = 1; int32 total = 2; }
+message CreateUserRequest { string username = 1; string email = 2; Role role = 3; }
+message WatchUsersRequest { bool active_only = 1; }
+
+// Generated TypeScript (by @bufbuild/protoc-gen-es)
+// user_pb.ts — generated, do not edit
+import { Message, proto3 } from "@bufbuild/protobuf";
+import { Timestamp } from "@bufbuild/protobuf/dist/cjs/google/protobuf/timestamp_pb";
+
+export enum Role {
+  UNSPECIFIED = 0,
+  VIEWER      = 1,
+  EDITOR      = 2,
+  ADMIN       = 3,
+}
+
+export class User extends Message&lt;User&gt; {
+  id:        string   = "";
+  username:  string   = "";
+  email:     string   = "";
+  role:      Role     = Role.UNSPECIFIED;
+  isActive:  boolean  = false;  // snake_case → camelCase
+  tags:      string[] = [];
+  createdAt?: Timestamp;        // google.protobuf.Timestamp
+  bio?:       string;           // optional field — may be undefined
+}
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Define Your Schema:</strong> Write your data structures in a <code>.proto</code> file, using numbered fields for backwards compatibility.<br>
-2. <strong>Install a Compiler Plugin:</strong> Use <code>protoc-gen-ts</code> or the modern <code>@bufbuild/protoplugin</code> to handle the conversion.<br>
-3. <strong>Generate Code:</strong> Run the Protobuf compiler (<code>protoc</code>) to generate TypeScript files from your <code>.proto</code> definitions.<br>
-4. <strong>Integrate with Client:</strong> Import the generated types and serialization logic into your application to handle gRPC or binary-encoded HTTP requests.</p>
+<h3>Setting Up Buf CLI</h3>
+<pre><code># Install Buf
+npm install -D @bufbuild/buf @bufbuild/protoc-gen-es @bufbuild/protobuf
 
-<h3>Technical Deep Dive: Binary Serialization and Field Numbers</h3>
-<p>Unlike JSON, Protobuf is a **Binary Format**. When you convert Protobuf to TypeScript, the generated code doesn't just include interfaces; it also includes the logic to encode and decode your objects into a compact binary stream. A unique aspect of Protobuf is the use of **Field Numbers** (e.g., <code>id = 1</code>). These numbers are what actually get sent over the wire, allowing you to rename fields in your TypeScript code without breaking compatibility with existing services. This makes Protobuf exceptionally robust for long-lived systems where schemas evolve over time.</p>
+# buf.gen.yaml — code generation config
+version: v1
+plugins:
+  - plugin: es                   # generates message types (TypeScript)
+    out: src/gen
+    opt: target=ts               # TypeScript output
+  - plugin: connect-es           # generates service clients
+    out: src/gen
+    opt: target=ts
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>Protobuf vs. JSON:</strong> Protobuf is 3-10x smaller and significantly faster to parse than JSON, but it is not human-readable without specialized tools. <strong>Apache Thrift</strong> is a similar alternative, while <strong>FlatBuffers</strong> is preferred for memory-constrained environments (like game development) as it allows accessing data without a separate parsing step.</p>
+# buf.yaml — lint and breaking change detection config
+version: v1
+lint:
+  use:
+    - DEFAULT
+breaking:
+  use:
+    - FILE   # check against latest on main branch
+
+# package.json scripts
+{
+  "scripts": {
+    "proto:generate": "buf generate",
+    "proto:lint":     "buf lint",
+    "proto:breaking": "buf breaking --against '.git#branch=main'"
+  }
+}
+
+# Generate TypeScript from .proto files
+npm run proto:generate
+# Outputs:
+# src/gen/users/v1/user_pb.ts          (message types)
+# src/gen/users/v1/user_connect.ts     (service client)
+</code></pre>
+
+<h3>Using Generated Clients: Connect-ES (Browser + Node.js)</h3>
+<pre><code">// Connect-ES works in both the browser (via fetch) and Node.js (via Node fetch)
+import { createPromiseClient } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { UserService } from "./gen/users/v1/user_connect";
+import { Role } from "./gen/users/v1/user_pb";
+
+// Create transport — uses standard fetch, works in browsers
+const transport = createConnectTransport({
+  baseUrl: "https://api.example.com",
+});
+
+const client = createPromiseClient(UserService, transport);
+
+// Get a user — request and response are fully typed
+async function getUser(id: string) {
+  const user = await client.getUser({ id });
+  // user.id:        string
+  // user.username:  string
+  // user.role:      Role (enum value)
+  // user.isActive:  boolean
+  // user.tags:      string[]
+  // user.createdAt: Timestamp | undefined
+  // user.bio:       string | undefined  (optional field)
+  return user;
+}
+
+// List users with filter
+async function listAdmins() {
+  const response = await client.listUsers({
+    page:       1,
+    limit:      20,
+    roleFilter: Role.ADMIN,
+  });
+  response.users.forEach(u => console.log(u.username));
+  return response;
+}
+
+// Server-side streaming (returns async iterable)
+async function watchUsers() {
+  const stream = client.watchUsers({ activeOnly: true });
+  for await (const user of stream) {
+    console.log(`User ${user.username} changed`);
+  }
+}
+</code></pre>
+
+<h3>Node.js gRPC with @grpc/grpc-js (Alternative)</h3>
+<pre><code">// For pure gRPC (non-Connect) in Node.js
+// buf.gen.yaml — add grpc-node plugin
+plugins:
+  - plugin: es
+    out: src/gen
+    opt: target=ts
+  - plugin: grpc/node
+    out: src/gen
+
+// Generated client usage
+import * as grpc from "@grpc/grpc-js";
+import { UserServiceClient } from "./gen/users/v1/user_grpc_pb";
+import { GetUserRequest } from "./gen/users/v1/user_pb";
+
+const client = new UserServiceClient(
+  "localhost:50051",
+  grpc.credentials.createInsecure()
+);
+
+async function getUser(id: string): Promise&lt;User&gt; {
+  return new Promise((resolve, reject) => {
+    const req = new GetUserRequest();
+    req.setId(id);
+
+    client.getUser(req, (err, response) => {
+      if (err) reject(err);
+      else resolve(response);
+    });
+  });
+}
+</code></pre>
+
+<h3>Handling Well-Known Types</h3>
+<pre><code">import { Timestamp } from "@bufbuild/protobuf";
+
+// google.protobuf.Timestamp ↔ JavaScript Date
+const tsProto = Timestamp.fromDate(new Date('2024-01-15T08:30:00Z'));
+const jsDate  = tsProto.toDate();
+
+// google.protobuf.Value — dynamic JSON value in Protobuf
+// Useful for metadata fields with unknown structure
+import { Value } from "@bufbuild/protobuf";
+const value = Value.fromJson({ name: "Alice", active: true });
+
+// google.protobuf.Struct — JSON object
+import { Struct } from "@bufbuild/protobuf";
+const struct = Struct.fromJson({ key: "value" });
+const json   = struct.toJson();
+
+// In .proto:
+// message Event {
+//   google.protobuf.Struct  metadata = 5;   // arbitrary JSON object
+//   google.protobuf.Value   payload  = 6;   // any JSON value
+// }
+</code></pre>
+
+<h3>Breaking Change Detection with Buf</h3>
+<pre><code"># buf breaking checks if your .proto changes break existing clients
+# Field number changes, field type changes, and service method removals are breaking
+
+# Check against the main branch
+buf breaking --against '.git#branch=main'
+
+# Breaking changes that Buf catches:
+# - Removing or renaming a field
+# - Changing a field number
+# - Changing field type (string → int)
+# - Removing an enum value used by existing clients
+# - Changing a service method signature
+
+# NOT breaking (backwards compatible):
+# - Adding a new field (existing clients ignore unknown fields)
+# - Adding a new enum value
+# - Adding a new RPC method
+# - Adding a new message type
+
+# CI/CD: fail the build if breaking changes are detected
+buf breaking --against "https://github.com/myorg/myproto.git#branch=main"
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Never Change Field Numbers:</strong> Once a field number is assigned, never change it, or you will break compatibility with all existing clients and servers.</li>
-  <li><strong>Use <code>optional</code> Carefully:</strong> In <code>proto3</code>, fields are "singular" by default. Use the <code>optional</code> keyword if you need to distinguish between a default value and a missing value.</li>
-  <li><strong>Automate with Buf:</strong> Use the **Buf CLI** to manage your Protobuf ecosystem, ensuring that your TypeScript generation is consistent and that your schemas never have breaking changes.</li>
+  <li><strong>Use the Buf CLI instead of raw protoc:</strong> Buf handles module dependencies, lint rules, and breaking change detection that would require separate tools with protoc. It also has a managed dependency registry (Buf Schema Registry) for sharing .proto files across teams.</li>
+  <li><strong>Never reuse or change field numbers:</strong> Field numbers are the wire format identifier. If you remove a field, mark it as <code>reserved 5;</code> in the message to prevent the number from being reused in the future — this prevents silent data corruption when old clients send data with that field number.</li>
+  <li><strong>Prefer Connect-ES over gRPC-web for browser clients:</strong> Connect-ES uses standard HTTP/1.1 or HTTP/2 with JSON or Protobuf — no Envoy proxy required. It supports the same streaming semantics as gRPC but works directly with any HTTP server. gRPC-web requires a proxy layer.</li>
+  <li><strong>Use <code>optional</code> for fields that need presence detection:</strong> In proto3, regular fields are always present with default values — you can't distinguish "0" from "not set". Use <code>optional string name = 1;</code> when absence is semantically different from an empty string.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Can I use Protobuf in the browser?</strong><br>
-A: Yes, via <code>gRPC-web</code> or the newer <code>Connect</code> protocol, which allows Protobuf over standard HTTP/1.1 and HTTP/2.</p>
-<p><strong>Q: How do I handle dates?</strong><br>
-A: Use the well-known type <code>google.protobuf.Timestamp</code>, which maps to a structured object or a <code>Date</code> in the generated TypeScript code.</p>
-<p><strong>Q: Is gRPC required for Protobuf?</strong><br>
-A: No, you can use Protobuf as a standalone serialization format for any communication or storage need.</p>
+<p><strong>Q: What's the difference between protoc-gen-ts and @bufbuild/protoc-gen-es?</strong><br>
+A: <code>@bufbuild/protoc-gen-es</code> is the official Buf generator — it produces modern ES module TypeScript with proper class inheritance from <code>Message&lt;T&gt;</code>, tree-shaking support, and browser compatibility. <code>protoc-gen-ts</code> is a community plugin with more varied TypeScript output. For new projects, use the Buf ecosystem.</p>
+
+<p><strong>Q: Can I use Protobuf without gRPC?</strong><br>
+A: Yes — Protobuf is just a serialization format. You can use it over REST HTTP/JSON-to-Protobuf gateways, WebSockets, or message queues (Kafka, Pub/Sub). The generated TypeScript classes have <code>toBinary()</code> / <code>fromBinary()</code> and <code>toJson()</code> / <code>fromJson()</code> methods for explicit encoding/decoding.</p>
+
+<p><strong>Q: How do I handle enum default values in proto3?</strong><br>
+A: Proto3 requires enums to have a zero value (e.g., <code>ROLE_UNSPECIFIED = 0</code>). When a field is not set, it defaults to 0. Design your enums with a meaningful <code>UNSPECIFIED</code> or <code>UNKNOWN</code> value at 0 so your application code can explicitly handle the "not set" case.</p>

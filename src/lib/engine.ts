@@ -5,7 +5,7 @@ import {
 } from './generators';
 import {
   csvGen, sqlInsertGen, mysqlGen, postgresGen, sqliteGen, snowflakeGen,
-  tomlGen, yamlOutputGen, envGen, propertiesGen, markdownTableGen,
+  tomlGen, yamlOutputGen, envGen, envValidatorGen, propertiesGen, markdownTableGen,
   asciidocTableGen, latexTableGen, mermaidERGen, avroGen, bigQueryGen,
   dynamoDBGen, openApiGen, postmanGen, httpFileGen, vscodeSnippetGen,
   curlOutputGen, mongooseGen, sequelizeGen, typeormGen, drizzleGen,
@@ -17,14 +17,14 @@ import {
 } from './generators-extended';
 import { Schema, SchemaType } from './types';
 import { createHash } from 'crypto';
-import { parseYAML, parseXML, parseCurl, parseSQLToZod, curlToTypeScript, parseOpenAPI, parseTypeScriptToSchema } from './parsers';
+import { parseYAML, parseXML, parseCurl, parseSQLToZod, curlToTypeScript, parseOpenAPI, parseTypeScriptToSchema, parseEnvFile } from './parsers';
 import { trackInferenceError, trackInferenceFallback, trackUnsupportedOutputTarget } from './analytics';
 import { isOpenAPISpec, parseOpenAPIComponents } from './openapi-parser';
 import { isJSONSchema, parseJSONSchema } from './jsonschema-parser';
 import { detectRecursiveTypes } from './recursive';
 
 export { type Schema };
-export { parseYAML, parseXML, parseCurl, parseSQLToZod, curlToTypeScript, parseOpenAPI, parseTypeScriptToSchema };
+export { parseYAML, parseXML, parseCurl, parseSQLToZod, curlToTypeScript, parseOpenAPI, parseTypeScriptToSchema, parseEnvFile };
 
 // ---------------------------------------------------------------------------
 // Primitive types that can participate in a union (non-object, non-array)
@@ -481,6 +481,7 @@ const DEPENDENCY_COMMENTS: Record<string, string> = {
   'toml': '# TOML configuration format\n\n',
   'yaml': '# YAML standard data format\n\n',
   'env': '# Environment variables (.env template)\n\n',
+  'env-validator': '// Required dependencies: npm install zod\n\n',
   'properties': '# Java .properties key-value configuration\n\n',
   'mongoose': '// Required dependencies: npm install mongoose\n\n',
   'sequelize': '// Required dependencies: npm install sequelize pg pg-hstore (or mysql2/sqlite3)\n\n',
@@ -1224,6 +1225,7 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     else if (s.includes('avro')) out = avroGen.generate(schema, 'Root');
     else if (s.includes('toml')) out = tomlGen.generate(schema, 'config');
     else if (s.includes('yaml')) out = yamlOutputGen.generate(schema);
+    else if (s.includes('env-validator')) out = envValidatorGen.generate(schema);
     else if (s.includes('env')) out = envGen.generate(schema);
     else if (s.includes('properties')) out = propertiesGen.generate(schema);
     else if (s.includes('markdown')) out = markdownTableGen.generate(schema);
@@ -1249,7 +1251,7 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     // (Used to avoid mislabelling a *recognised* target that legitimately produced
     //  an empty string — e.g. an empty input — as "unsupported".)
     const KNOWN_TARGETS_EXACT = new Set(['typescript', 'ts', 'zod', 'go', 'golang', 'rust', 'java', 'python', 'php', 'sql', 'prisma', 'proto', 'protobuf', 'graphql', 'gql', 'json', 'r']);
-    const KNOWN_TARGET_SUBSTR = ['csv', 'sql-insert', 'mysql', 'postgres', 'sqlite', 'snowflake', 'mongodb', 'mongoose', 'ruby', 'rails', 'django', 'dart', 'flutter', 'swift', 'kotlin', 'csharp', 'c-sharp', 'openapi', 'jsonschema', 'yup', 'joi', 'valibot', 'react-props', 'vue-props', 'svelte-props', 'solid-props', 'react-context', 'react-query', 'api-route', 'nextjs-api', 'redux-slice', 'pinia', 'sequelize', 'typeorm', 'drizzle', 'kysely', 'superstruct', 'arduino', 'mock', 'ui', 'doc', 'avro', 'toml', 'yaml', 'env', 'properties', 'markdown', 'asciidoc', 'latex', 'mermaid', 'bigquery', 'dynamodb', 'postman', 'http', 'vscode', 'curl', 'cobol', 'clojure', 'elixir', 'elm', 'godot', 'gdscript', 'haskell', 'r-lang', 'scala', 'solidity'];
+    const KNOWN_TARGET_SUBSTR = ['csv', 'sql-insert', 'mysql', 'postgres', 'sqlite', 'snowflake', 'mongodb', 'mongoose', 'ruby', 'rails', 'django', 'dart', 'flutter', 'swift', 'kotlin', 'csharp', 'c-sharp', 'openapi', 'jsonschema', 'yup', 'joi', 'valibot', 'react-props', 'vue-props', 'svelte-props', 'solid-props', 'react-context', 'react-query', 'api-route', 'nextjs-api', 'redux-slice', 'pinia', 'sequelize', 'typeorm', 'drizzle', 'kysely', 'superstruct', 'arduino', 'mock', 'ui', 'doc', 'avro', 'toml', 'yaml', 'env-validator', 'env', 'properties', 'markdown', 'asciidoc', 'latex', 'mermaid', 'bigquery', 'dynamodb', 'postman', 'http', 'vscode', 'curl', 'cobol', 'clojure', 'elixir', 'elm', 'godot', 'gdscript', 'haskell', 'r-lang', 'scala', 'solidity'];
     const targetMatched = KNOWN_TARGETS_EXACT.has(s) || KNOWN_TARGET_SUBSTR.some(k => s.includes(k));
 
     // Explicit JSON output when requested, otherwise surface unsupported targets.

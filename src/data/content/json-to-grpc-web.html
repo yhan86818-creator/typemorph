@@ -1,71 +1,219 @@
-<p>gRPC-Web is the browser-compatible implementation of Google's high-performance, open-source <strong>gRPC (Remote Procedure Call)</strong> framework. While gRPC itself relies on HTTP/2 features that are unavailable in browser JavaScript environments, gRPC-Web bridges this gap by adding a proxy layer that allows web clients to communicate directly with gRPC backend services. For frontend TypeScript developers working with microservices architectures, understanding how to generate type-safe client code from your JSON data is an essential workflow.</p>
+<h2>JSON to gRPC-Web: Connect-ES, Buf CLI, Browser Streaming, and TypeScript Client Generation</h2>
+<p>gRPC-Web brings gRPC's type-safe, binary-efficient communication to browsers — but the traditional setup (protoc + grpc-web plugin + Envoy proxy) has been replaced by a better stack: <strong>Buf CLI</strong> for schema management, <strong>@bufbuild/protoc-gen-es</strong> for type generation, and <strong>Connect-ES</strong> for a browser-native gRPC-Web client that works without an Envoy proxy. Connect uses standard HTTP/1.1 or HTTP/2, handles JSON and binary encoding, and produces TypeScript clients from <code>.proto</code> files that feel like calling regular async functions.</p>
 
-<h2>Why gRPC-Web for TypeScript Front-Ends?</h2>
-<p>Traditional REST APIs with JSON payloads have served the web well, but gRPC-Web offers significant advantages for complex, high-performance applications:</p>
-<ul>
-  <li><strong>Strongly Typed Contracts:</strong> gRPC services are defined in Protocol Buffers (.proto files), providing a strict, language-agnostic schema from which client and server code is generated simultaneously. This eliminates the common problem of API drift between frontend and backend.</li>
-  <li><strong>Efficient Binary Serialization:</strong> Protobuf encoding is significantly more compact than JSON, reducing payload sizes by 30-80% and improving parsing speed — critical for mobile clients and high-frequency data.</li>
-  <li><strong>Streaming Support:</strong> Unlike REST, gRPC natively supports server-side streaming, client-side streaming, and bidirectional streaming — enabling real-time dashboards, live market data feeds, and collaborative applications.</li>
-  <li><strong>Generated TypeScript Stubs:</strong> The gRPC-Web code generator produces fully typed TypeScript client stubs, giving you compile-time guarantees that your API calls match the server's contract.</li>
-</ul>
-
-<h2>The Workflow: From JSON Schema to gRPC-Web TypeScript Client</h2>
-<p>The typical development workflow for integrating a gRPC-Web service into a TypeScript front-end involves several steps that TypeMorph simplifies significantly:</p>
-
-<h3>Step 1: Define Your Data Structure</h3>
-<p>Start with your existing JSON data structure — perhaps from an existing REST API response or a database schema. For example, a financial transaction object:</p>
-<pre><code>{
-  "transactionId": "txn_abc123",
-  "amount": 2500.00,
+<h3>Complete Workflow: JSON to gRPC-Web TypeScript Client</h3>
+<pre><code">// Step 1: Start with JSON data (existing API response or data model)
+{
+  "transaction_id": "txn_abc123",
+  "amount": 2500,
   "currency": "USD",
-  "status": "completed",
-  "createdAt": "2026-06-01T10:00:00Z",
-  "parties": {
-    "sender": { "accountId": "acc_001", "name": "Acme Corp" },
-    "receiver": { "accountId": "acc_002", "name": "Beta Inc" }
+  "status": "COMPLETED",
+  "sender":   { "account_id": "acc_001", "name": "Acme Corp" },
+  "receiver": { "account_id": "acc_002", "name": "Beta Inc" },
+  "created_at": "2024-03-15T10:00:00Z"
+}
+
+// Step 2: Generate proto/v1/transactions.proto
+syntax = "proto3";
+package transactions.v1;
+
+import "google/protobuf/timestamp.proto";
+
+enum TransactionStatus {
+  TRANSACTION_STATUS_UNSPECIFIED = 0;
+  TRANSACTION_STATUS_PENDING     = 1;
+  TRANSACTION_STATUS_COMPLETED   = 2;
+  TRANSACTION_STATUS_FAILED      = 3;
+}
+
+message Party {
+  string account_id = 1;
+  string name       = 2;
+}
+
+message Transaction {
+  string            transaction_id = 1;
+  int64             amount         = 2;
+  string            currency       = 3;
+  TransactionStatus status         = 4;
+  Party             sender         = 5;
+  Party             receiver       = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+message GetTransactionRequest  { string transaction_id = 1; }
+message ListTransactionsRequest {
+  string account_id = 1;
+  int32  page_size  = 2;
+  string page_token = 3;
+}
+message ListTransactionsResponse {
+  repeated Transaction transactions = 1;
+  string next_page_token            = 2;
+}
+
+service TransactionService {
+  rpc GetTransaction(GetTransactionRequest)       returns (Transaction);
+  rpc ListTransactions(ListTransactionsRequest)   returns (ListTransactionsResponse);
+  rpc WatchTransactions(GetTransactionRequest)    returns (stream Transaction);
+}
+
+// Step 3: buf.gen.yaml
+version: v2
+plugins:
+  - remote: buf.build/bufbuild/es
+    out: src/generated
+    opt: [target=ts]
+  - remote: buf.build/connectrpc/es
+    out: src/generated
+    opt: [target=ts]
+
+// Run: buf generate
+</code></pre>
+
+<h3>Connect-ES Client: Browser Usage</h3>
+<pre><code">// Generated by buf generate:
+// src/generated/transactions/v1/transactions_pb.ts — message types
+// src/generated/transactions/v1/transactions_connect.ts — service definition
+
+import { createClient } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { TransactionService } from "./generated/transactions/v1/transactions_connect";
+import type { Transaction } from "./generated/transactions/v1/transactions_pb";
+
+// Create transport — no Envoy proxy needed for Connect protocol
+const transport = createConnectTransport({
+  baseUrl: "https://api.example.com",
+  // Optional: use JSON encoding instead of binary for debugging
+  // useBinaryFormat: false,
+});
+
+const client = createClient(TransactionService, transport);
+
+// Unary RPC — async/await
+const transaction = await client.getTransaction({ transactionId: "txn_abc123" });
+console.log(transaction.amount);      // 2500n (BigInt for int64)
+console.log(transaction.currency);    // "USD"
+console.log(transaction.sender.name); // "Acme Corp"
+
+// List with typed response
+const { transactions, nextPageToken } = await client.listTransactions({
+  accountId: "acc_001",
+  pageSize:  20,
+});
+console.log(transactions.length);     // typed: Transaction[]
+</code></pre>
+
+<h3>Server Streaming: Real-Time Data</h3>
+<pre><code">// Server streaming — ideal for real-time dashboards
+// The server sends multiple Transaction messages over a single connection
+
+async function watchTransactions(accountId: string, onUpdate: (t: Transaction) =&gt; void) {
+  const abortController = new AbortController();
+
+  try {
+    for await (const transaction of client.watchTransactions(
+      { transactionId: accountId },
+      { signal: abortController.signal }
+    )) {
+      // Each iteration receives one Transaction message from the server
+      onUpdate(transaction);
+    }
+  } catch (err) {
+    if (err instanceof ConnectError && err.code === Code.Canceled) {
+      return; // AbortController signal — normal cancellation
+    }
+    console.error('Stream error:', err);
   }
-}</code></pre>
 
-<h3>Step 2: Generate the Protobuf Schema</h3>
-<p>TypeMorph infers the appropriate Protobuf message types, mapping JSON primitives to their proto3 equivalents: <code>string</code>, <code>double</code>, <code>int64</code>, <code>bool</code>, and <code>google.protobuf.Timestamp</code> for datetime fields.</p>
+  return () =&gt; abortController.abort(); // cleanup function
+}
 
-<h3>Step 3: Generate TypeScript Client Code</h3>
-<p>From the Protobuf definition, TypeMorph generates the TypeScript interfaces and gRPC-Web service client stubs needed to call the service from a browser. This includes:</p>
+// React hook for real-time transaction updates
+import { useEffect, useState } from 'react';
+import { ConnectError, Code } from "@connectrpc/connect";
+
+function useTransactionStream(accountId: string) {
+  const [transactions, setTransactions] = useState&lt;Transaction[]&gt;([]);
+
+  useEffect(() =&gt; {
+    const abortController = new AbortController();
+
+    (async () =&gt; {
+      for await (const txn of client.watchTransactions(
+        { transactionId: accountId },
+        { signal: abortController.signal }
+      )) {
+        setTransactions(prev =&gt; [txn, ...prev.slice(0, 49)]); // keep last 50
+      }
+    })().catch(err =&gt; {
+      if (!(err instanceof ConnectError && err.code === Code.Canceled)) {
+        console.error('Stream error:', err);
+      }
+    });
+
+    return () =&gt; abortController.abort(); // cancel on unmount
+  }, [accountId]);
+
+  return transactions;
+}
+</code></pre>
+
+<h3>Node.js Server Implementation with Connect</h3>
+<pre><code">// Server using Connect for Node.js (no gRPC-Web proxy needed)
+// npm install @connectrpc/connect @connectrpc/connect-node @bufbuild/protobuf
+
+import { createServer } from "@connectrpc/connect-node";
+import { http2 } from "http2";
+import { TransactionService } from "./generated/transactions/v1/transactions_connect";
+import type { Transaction } from "./generated/transactions/v1/transactions_pb";
+
+const routes = (router: { service: Function }) =&gt; {
+  router.service(TransactionService, {
+    async getTransaction(req) {
+      const row = await db.transactions.findOne({ where: { id: req.transactionId } });
+      return {
+        transactionId: row.id,
+        amount:        BigInt(row.amount_cents),
+        currency:      row.currency,
+        status:        mapStatus(row.status),
+        sender:        { accountId: row.sender_id,   name: row.sender_name },
+        receiver:      { accountId: row.receiver_id, name: row.receiver_name },
+        createdAt:     { seconds: BigInt(Math.floor(row.created_at.getTime() / 1000)) },
+      };
+    },
+
+    async *watchTransactions(req) {
+      // Subscribe to change events and yield new transactions
+      const subscription = eventBus.subscribe(`transactions.${req.transactionId}`);
+      try {
+        for await (const event of subscription) {
+          yield event.transaction as Transaction;
+        }
+      } finally {
+        subscription.unsubscribe();
+      }
+    },
+  });
+};
+
+http2.createServer(createServer({ routes })).listen(8080);
+</code></pre>
+
+<h3>Best Practices for Production</h3>
 <ul>
-  <li>Message classes with <code>toObject()</code> and <code>serializeBinary()</code> methods</li>
-  <li>Service client class with fully typed method signatures</li>
-  <li>Request and response type definitions</li>
+  <li><strong>Use Connect-ES instead of the legacy grpc-web package:</strong> The <code>grpc-web</code> npm package requires an Envoy proxy between the browser and the gRPC server because it uses a custom protocol (not standard HTTP/2 gRPC). Connect-ES uses the HTTP Connect protocol which works over standard HTTP/1.1 and HTTP/2 directly — no proxy required, no extra infrastructure.</li>
+  <li><strong>Use <code>buf.build</code> remote plugins instead of local protoc:</strong> Installing and maintaining protoc + multiple plugins manually is fragile. Buf's remote plugins always run the correct version, don't require local installation, and produce consistent output across environments. <code>buf generate</code> handles everything.</li>
+  <li><strong>Cancel server streams with AbortController on component unmount:</strong> A streaming RPC keeps an HTTP connection open. In React, failing to abort it on unmount means the stream continues consuming network and server resources after navigation. Return <code>() =&gt; abortController.abort()</code> from <code>useEffect</code>.</li>
+  <li><strong>Use JSON encoding during development, binary in production:</strong> Connect-ES supports both <code>application/json</code> and <code>application/proto</code> encoding. Set <code>useBinaryFormat: false</code> in your dev transport to make requests/responses readable in browser DevTools. Switch to binary in production for ~30% smaller payloads.</li>
 </ul>
 
-<h2>gRPC-Web vs REST: When to Choose Each</h2>
-<p>Understanding when gRPC-Web provides a clear advantage helps you make the right architectural decision:</p>
-<ul>
-  <li><strong>Choose gRPC-Web when:</strong> You control both frontend and backend, need server-side streaming, want maximum type safety across service boundaries, or are building performance-critical applications.</li>
-  <li><strong>Choose REST/JSON when:</strong> You need broad compatibility, public APIs consumed by external parties, simple CRUD operations, or when team familiarity with REST is higher.</li>
-  <li><strong>Hybrid approach:</strong> Many modern architectures use REST for public-facing APIs and gRPC for internal microservice communication — with gRPC-Web enabling browsers to access internal services through an Envoy proxy.</li>
-</ul>
+<h3>FAQ</h3>
+<p><strong>Q: gRPC-Web vs REST+JSON — when is gRPC-Web worth the complexity?</strong><br>
+A: gRPC-Web pays off when: (1) you control both client and server, (2) you need server streaming or bidirectional streaming, (3) payload efficiency matters (mobile clients, high-frequency data), or (4) you want compile-time API contract enforcement across frontend/backend. For public APIs, simple CRUD, or when the backend is third-party, REST+JSON is simpler and more compatible.</p>
 
-<h2>Setting Up gRPC-Web in a TypeScript Project</h2>
-<p>A minimal gRPC-Web TypeScript setup requires the following dependencies:</p>
-<pre><code>npm install grpc-web google-protobuf
-npm install --save-dev protoc-gen-grpc-web @types/google-protobuf</code></pre>
+<p><strong>Q: Can I use Connect-ES with an existing gRPC server that doesn't support Connect?</strong><br>
+A: Yes — Connect-ES's <code>createGrpcWebTransport</code> and <code>createGrpcTransport</code> work with standard gRPC servers. Use <code>createConnectTransport</code> only when the server also uses Connect. If your server uses standard gRPC, use <code>createGrpcWebTransport</code> which requires a proxy like Envoy or grpc-web-proxy.</p>
 
-<p>The generated TypeScript client is then instantiated with the gRPC-Web proxy endpoint:</p>
-<pre><code>import { TransactionServiceClient } from './generated/TransactionServiceClientPb';
-import { GetTransactionRequest } from './generated/transaction_pb';
-
-const client = new TransactionServiceClient('https://api.example.com');
-
-const request = new GetTransactionRequest();
-request.setTransactionId('txn_abc123');
-
-client.getTransaction(request, {}, (err, response) => {
-  if (err) throw err;
-  const transaction = response.toObject();
-  console.log(transaction.amount, transaction.currency);
-});</code></pre>
-
-<h2>Privacy and Local Processing</h2>
-<p>When generating gRPC-Web TypeScript code from JSON schemas that contain sensitive business data, using a local-first tool is essential. TypeMorph processes all schema inference and code generation entirely within your browser — no schema structures, field names, or data values are transmitted to external servers. This makes it suitable for use within corporate networks and compliance-sensitive development environments.</p>
-
-<blockquote>"gRPC-Web represents the next generation of browser-to-service communication. TypeScript code generation from a trusted, local-first toolchain is the foundation of a reliable gRPC-Web integration strategy."</blockquote>
+<p><strong>Q: How do I handle authentication in gRPC-Web with Connect-ES?</strong><br>
+A: Use interceptors — a Connect-ES middleware layer that runs before/after each request. Create an auth interceptor that adds the <code>Authorization</code> header: <code>const authInterceptor = (next) =&gt; async (req) =&gt; { req.header.set('Authorization', 'Bearer ' + token); return next(req); }</code>. Pass it to the transport: <code>createConnectTransport({ baseUrl, interceptors: [authInterceptor] })</code>.</p>

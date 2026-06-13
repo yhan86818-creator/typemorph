@@ -1,75 +1,226 @@
-<h2>Dynamic SwiftUI Previews from JSON: Streamlining UI Development</h2>
-<p>SwiftUI's <code>PreviewProvider</code> is a revolutionary tool for iOS developers, but manually hardcoding mock data for every state (loading, error, empty, success) can quickly clutter your codebase. By converting JSON mock data into SwiftUI Preview inputs, you can create a data-driven UI development workflow that mirrors real-world API responses and ensures your layouts are resilient to varying content lengths.</p>
+<h2>JSON to SwiftUI Previews: #Preview Macro, Multi-State Fixtures, and Codable Loading</h2>
+<p>SwiftUI Previews let you see UI changes instantly in Xcode without running the simulator. But previews that use hardcoded strings like <code>User(name: "Test User", bio: "Lorem ipsum")</code> diverge from real API shapes within days. Loading JSON fixtures — actual or representative API responses — makes previews realistic: they catch layout issues from long strings, missing fields, and nested structures that minimal hardcoded mocks miss. Swift 5.9 (iOS 17+) replaced <code>PreviewProvider</code> with the <code>#Preview</code> macro, which is simpler and supports closures directly.</p>
 
-<h3>Live Example</h3>
-<p>A JSON file <code>UserProfile.json</code> representing a user profile:</p>
-<pre><code>{
-  "username": "SwiftCoder",
-  "bio": "Building the future of mobile with declarative UI.",
+<h3>Live Example: JSON Fixture Loading with #Preview</h3>
+<pre><code">// Models/User.swift — Codable struct matching your API
+struct User: Codable, Identifiable {
+    let id:            String
+    let username:      String
+    let bio:           String?
+    let followerCount: Int
+    let isVerified:    Bool
+    let joinedAt:      Date
+
+    enum CodingKeys: String, CodingKey {
+        case id, username, bio
+        case followerCount = "follower_count"
+        case isVerified    = "is_verified"
+        case joinedAt      = "joined_at"
+    }
+}
+
+// Preview/Fixtures/user-success.json
+{
+  "id": "usr_001",
+  "username": "alice_dev",
+  "bio": "iOS engineer. Building things with SwiftUI and Combine. Open source contributor.",
   "follower_count": 1250,
-  "is_verified": true
-}</code></pre>
-<p>SwiftUI implementation using the JSON data for previews:</p>
-<pre><code>struct UserProfileView_Previews: PreviewProvider {
+  "is_verified": true,
+  "joined_at": "2022-03-15T08:00:00Z"
+}
+
+// Preview/Fixtures/user-minimal.json
+{
+  "id": "usr_002",
+  "username": "bob",
+  "follower_count": 3,
+  "is_verified": false,
+  "joined_at": "2024-11-01T08:00:00Z"
+}
+
+// Utilities/JSONFixture.swift (DEBUG only)
+#if DEBUG
+struct JSONFixture {
+    static func load&lt;T: Decodable&gt;(_ filename: String, as type: T.Type = T.self) -> T {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy  = .convertFromSnakeCase
+        decoder.dateDecodingStrategy = .iso8601
+
+        guard let url  = Bundle.main.url(forResource: filename, withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let result = try? decoder.decode(T.self, from: data)
+        else {
+            fatalError("Failed to load fixture: \(filename).json")
+        }
+        return result
+    }
+}
+#endif
+
+// Views/UserProfileView.swift
+struct UserProfileView: View {
+    let user: User
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: user.isVerified ? "checkmark.seal.fill" : "person.circle")
+                    .foregroundStyle(user.isVerified ? .blue : .gray)
+                Text(user.username).font(.headline)
+            }
+            if let bio = user.bio {
+                Text(bio).font(.subheadline).foregroundStyle(.secondary)
+            }
+            Label("\(user.followerCount) followers", systemImage: "person.2")
+                .font(.caption)
+        }
+        .padding()
+    }
+}
+
+// Previews using the new #Preview macro (iOS 17 / Xcode 15+)
+#Preview("Success State") {
+    UserProfileView(user: JSONFixture.load("user-success"))
+}
+
+#Preview("Minimal (No Bio)") {
+    UserProfileView(user: JSONFixture.load("user-minimal"))
+}
+
+#Preview("Dark Mode") {
+    UserProfileView(user: JSONFixture.load("user-success"))
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Localization — German") {
+    UserProfileView(user: JSONFixture.load("user-success"))
+        .environment(\.locale, Locale(identifier: "de_DE"))
+}
+</code></pre>
+
+<h3>PreviewProvider Pattern (iOS 16 and Earlier)</h3>
+<pre><code">// For projects supporting iOS 16 or earlier, use PreviewProvider
+struct UserProfileView_Previews: PreviewProvider {
     static var previews: some View {
-        let jsonData = loadJSON("UserProfile.json")
-        let mockUser = try! JSONDecoder().decode(User.self, from: jsonData)
-        
         Group {
-            UserProfileView(user: mockUser)
-                .previewDisplayName("Success State")
-            
-            UserProfileView(user: User.emptyMock)
-                .previewDisplayName("Empty State")
+            UserProfileView(user: JSONFixture.load("user-success"))
+                .previewDisplayName("Success")
+
+            UserProfileView(user: JSONFixture.load("user-minimal"))
+                .previewDisplayName("Minimal")
+
+            UserProfileView(user: JSONFixture.load("user-success"))
+                .preferredColorScheme(.dark)
+                .previewDisplayName("Dark Mode")
+        }
+        .previewDevice(PreviewDevice(rawValue: "iPhone 15 Pro"))
+        .previewLayout(.sizeThatFits)    // size to content, not full screen
+    }
+}
+</code></pre>
+
+<h3>Multiple State Previews from JSON Array</h3>
+<pre><code">// Preview fixtures for all UI states
+// Fixtures/feed-states.json
+{
+  "states": [
+    {
+      "id": "loading",
+      "items": [],
+      "isLoading": true
+    },
+    {
+      "id": "empty",
+      "items": [],
+      "isLoading": false
+    },
+    {
+      "id": "success",
+      "items": [
+        { "id": "p1", "title": "Widget Pro", "price": 49.99 },
+        { "id": "p2", "title": "Cable USB-C", "price": 12.99 }
+      ],
+      "isLoading": false
+    }
+  ]
+}
+
+struct FeedState: Codable {
+    let id:        String
+    let items:     [Product]
+    let isLoading: Bool
+}
+
+// Preview each state from the JSON fixture
+#Preview("All Feed States") {
+    let fixture: [FeedState] = JSONFixture.load("feed-states", as: [String: [FeedState]].self)["states"] ?? []
+
+    TabView {
+        ForEach(fixture, id: \.id) { state in
+            FeedView(products: state.items, isLoading: state.isLoading)
+                .tabItem { Label(state.id, systemImage: "circle") }
         }
     }
-}</code></pre>
+}
+</code></pre>
 
-<h3>Implementation Guide</h3>
-<ol>
-  <li><strong>Model Creation:</strong> Define a <code>Codable</code> struct in Swift that matches your JSON structure.</li>
-  <li><strong>Mock Data Storage:</strong> Place your JSON files in the "Preview Assets" folder or a dedicated "Mocks" directory in your Xcode project.</li>
-  <li><strong>Loading Logic:</strong> Create a helper function to read the JSON file from the bundle and decode it into your Swift model.</li>
-  <li><strong>Inject into Preview:</strong> Instantiate your view within the <code>previews</code> static property, passing the decoded JSON object.</li>
-  <li><strong>Iterative Testing:</strong> Update the JSON file to test how the UI handles long strings, missing fields, or large numeric values.</li>
-</ol>
+<h3>Testing Codable Conformance in Previews</h3>
+<pre><code">// Previews that fail to decode expose Codable mismatches before production
+// Use fatalError in fixtures so mismatches show as Xcode preview errors
 
-<h3>Technical Deep Dive</h3>
-<p>The core of this conversion lies in Swift's <code>JSONDecoder</code>. When using JSON for previews, you can leverage <code>keyDecodingStrategy = .convertFromSnakeCase</code> if your backend uses snake_case but your SwiftUI models use camelCase. Additionally, you can use <code>JSONSerialization</code> for polymorphic JSON if your UI needs to react to different types of "blocks" or components returned in a single array. By decoupling the mock data from the Swift code, you can allow designers or product managers to modify the JSON content to test edge cases without touching the source code.</p>
+// BUG CATCH EXAMPLE:
+// Your API returns "follower_count": "1250" (string)
+// Your model has: let followerCount: Int
+// JSONFixture.load will fatalError in the preview → you catch it before shipping
 
-<h3>Comparison</h3>
-<table border="1">
-  <tr>
-    <th>Method</th>
-    <th>Hardcoded Mock</th>
-    <th>JSON-Driven Preview</th>
-  </tr>
-  <tr>
-    <td>Maintenance</td>
-    <td>High (Scattered in code)</td>
-    <td>Low (Centralized in files)</td>
-  </tr>
-  <tr>
-    <td>Realism</td>
-    <td>Synthetic</td>
-    <td>Mirror of API payloads</td>
-  </tr>
-  <tr>
-    <td>Collaboration</td>
-    <td>Developer only</td>
-    <td>Design-friendly JSON</td>
-  </tr>
-</table>
+// Safer: use try/catch in previews to show error state
+#if DEBUG
+extension JSONFixture {
+    static func safeLoad&lt;T: Decodable&gt;(_ filename: String, as type: T.Type = T.self) -> Result&lt;T, Error&gt; {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy  = .convertFromSnakeCase
+        decoder.dateDecodingStrategy = .iso8601
 
-<h3>Best Practices</h3>
+        guard let url  = Bundle.main.url(forResource: filename, withExtension: "json"),
+              let data = try? Data(contentsOf: url)
+        else {
+            return .failure(NSError(domain: "Fixture", code: -1, userInfo: [NSLocalizedDescriptionKey: "\(filename).json not found"]))
+        }
+        do {
+            let result = try decoder.decode(T.self, from: data)
+            return .success(result)
+        } catch {
+            return .failure(error)
+        }
+    }
+}
+#endif
+
+#Preview("With Error Handling") {
+    switch JSONFixture.safeLoad("user-success", as: User.self) {
+    case .success(let user):
+        UserProfileView(user: user)
+    case .failure(let error):
+        Text("Fixture error: \(error.localizedDescription)")
+            .foregroundStyle(.red)
+    }
+}
+</code></pre>
+
+<h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Keep it in Debug:</strong> Ensure your JSON loading logic is wrapped in <code>#if DEBUG</code> blocks to prevent mock data from being bundled into production builds.</li>
-  <li><strong>Error Handling:</strong> Use <code>fatalError</code> or <code>assertionFailure</code> in previews when JSON fails to decode, so you catch schema mismatches immediately.</li>
-  <li><strong>Schema Validation:</strong> Use a tool to validate your JSON mocks against your actual API schema to ensure your previews remain accurate.</li>
+  <li><strong>Put fixture files in a "Preview Content" group marked debug-only:</strong> In Xcode, Preview Assets groups are automatically excluded from production builds. Alternatively, put JSON fixtures in a <code>Debug</code> target membership so they don't increase production app bundle size.</li>
+  <li><strong>Use real truncated API responses as fixtures:</strong> Copy-paste actual API responses and trim to a reasonable size. This catches real-world issues like unexpectedly long strings, unusual characters, and nested structures that synthetic mocks miss.</li>
+  <li><strong>Name fixtures by scenario, not by number:</strong> <code>user-verified-no-bio.json</code> is self-documenting; <code>user2.json</code> requires reading the content to understand. Good names make it obvious which state a failing preview was testing.</li>
+  <li><strong>Test accessibility in previews:</strong> Add <code>.environment(\.sizeCategory, .accessibilityExtraExtraExtraLarge)</code> to preview dynamic type scaling. JSON-driven previews make this easy — the same fixture tests multiple accessibility sizes without extra mock data.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Can I preview multiple JSON files at once?</strong><br>
-A: Yes, use a <code>ForEach</code> loop inside the <code>previews</code> block to iterate over an array of JSON filenames and generate a preview for each.</p>
-<p><strong>Q: Does this slow down Xcode Previews?</strong><br>
-A: For small to medium JSON files, the impact is negligible. For massive payloads, consider trimming the JSON to only what's needed for the specific UI component.</p>
+<p><strong>Q: What's the difference between <code>#Preview</code> and <code>PreviewProvider</code>?</strong><br>
+A: <code>#Preview</code> (Swift 5.9, Xcode 15+) is a macro that generates less boilerplate — just a name string and a closure. <code>PreviewProvider</code> is a protocol requiring a static <code>previews</code> property. Both produce the same result; <code>#Preview</code> is cleaner for iOS 17+ projects. Use <code>PreviewProvider</code> when supporting iOS 16 or earlier.</p>
+
+<p><strong>Q: Can I load fixtures from a test bundle?</strong><br>
+A: Not directly in preview code — previews run in the main bundle context. Use <code>Bundle.main.url(forResource:)</code>. If you want the same fixtures in both unit tests and previews, put them in the main target and mark them as non-production in the build settings (<code>Exclude from Build: Release</code>).</p>
+
+<p><strong>Q: How do I preview a view that requires a ViewModel?</strong><br>
+A: Create a preview-specific ViewModel state: <code>#Preview { ContentView(viewModel: ContentViewModel.preview(json: JSONFixture.load("content-state"))) }</code>. Add a static <code>preview(json:)</code> factory on your ViewModel for debug builds that takes decoded JSON and bypasses network calls.</p>

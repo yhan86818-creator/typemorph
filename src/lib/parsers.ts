@@ -476,6 +476,57 @@ const mapSimpleTsTypeToSchema = (typeStr: string): Schema => {
   return { type: 'any' };
 };
 
+// ---------------------------------------------------------------------------
+// .env File Parser
+// ---------------------------------------------------------------------------
+
+export const parseEnvFile = (str: string): Schema | null => {
+  const fields: Record<string, Schema> = {};
+  let count = 0;
+
+  for (const line of str.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx < 1) continue;
+
+    const key = trimmed.slice(0, eqIdx).trim();
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue;
+
+    let rawValue = trimmed.slice(eqIdx + 1).trim();
+    // strip surrounding quotes
+    rawValue = rawValue.replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1');
+
+    let schema: Schema;
+    if (rawValue === 'true' || rawValue === 'false') {
+      schema = { type: 'boolean' };
+    } else if (/^\d+$/.test(rawValue) && rawValue.length > 0) {
+      schema = { type: 'number', format: 'int' };
+    } else if (/^\d+\.\d+$/.test(rawValue)) {
+      schema = { type: 'number', format: 'float' };
+    } else if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(rawValue)) {
+      // matches https://, postgresql://, redis://, mysql://, etc.
+      schema = { type: 'string', format: 'url' };
+    } else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawValue)) {
+      schema = { type: 'string', format: 'email' };
+    } else if (rawValue === '') {
+      schema = { type: 'string', optional: true };
+    } else {
+      schema = { type: 'string' };
+    }
+
+    fields[key] = schema;
+    count++;
+  }
+
+  if (count === 0) return null;
+
+  const result: Schema = { type: 'object', fields };
+  (result as any)._isTypeMorphSchema = true;
+  return result;
+};
+
 export const parseTypeScriptToSchema = (str: string): Schema | null => {
   try {
     const interfaceMatch = str.match(/(?:export\s+)?(?:interface|type)\s+(\w+)\s*(?:=\s*)?\{([\s\S]+?)\}/);
@@ -520,14 +571,29 @@ export const parseTypeScriptToSchema = (str: string): Schema | null => {
         const inner = typeStr.substring(6, typeStr.length - 1).trim();
         fieldSchema.itemType = mapSimpleTsTypeToSchema(inner);
       } else if (typeStr.includes('|')) {
-        const parts = typeStr.split('|').map(p => p.trim());
-        const isLiteralUnion = parts.every(p => /^['"].*['"]$/.test(p));
+        const parts = typeStr.split('|').map(p => p.trim()).filter(Boolean);
+        const hasNull = parts.includes('null');
+        const hasUndefined = parts.includes('undefined');
+        const realParts = parts.filter(p => p !== 'null' && p !== 'undefined');
+        const isLiteralUnion = realParts.length > 0 && realParts.every(p => /^['"].*['"]$/.test(p));
         if (isLiteralUnion) {
           fieldSchema.type = 'string';
-          fieldSchema.enumValues = parts.map(p => p.slice(1, -1));
+          fieldSchema.enumValues = realParts.map(p => p.slice(1, -1));
         } else {
-          fieldSchema.type = 'union';
+          const primitiveMap: Record<string, string> = {
+            string: 'string', number: 'number', boolean: 'boolean', Date: 'datetime',
+          };
+          if (realParts.length === 1) {
+            fieldSchema = { ...mapSimpleTsTypeToSchema(realParts[0]) };
+          } else if (realParts.length > 1 && realParts.every(p => primitiveMap[p])) {
+            fieldSchema.type = 'union';
+            fieldSchema.unionTypes = realParts.map(p => primitiveMap[p]);
+          } else {
+            fieldSchema.type = 'union';
+          }
         }
+        if (hasNull) fieldSchema.nullable = true;
+        if (hasUndefined) fieldSchema.optional = true;
       }
 
       if (isOptional) {

@@ -1,82 +1,268 @@
-<h2>Generating Styled Components from JSON: Theme-Driven Styling</h2>
-<p>Styled Components has become the de facto standard for CSS-in-JS in the React ecosystem. As design systems mature, the need to programmatically generate styles from JSON configuration files (often called "Design Tokens") grows. Converting JSON to Styled Components allows for dynamic themes, white-labeling, and a single source of truth for design decisions across different platforms.</p>
+<h2>JSON to Styled Components: ThemeProvider, TypeScript Theme Types, and Dark Mode</h2>
+<p>Styled Components' <code>ThemeProvider</code> injects a theme object into every styled component via React context, making JSON design tokens the single source of truth for colors, spacing, typography, and breakpoints. The professional setup requires three things that most examples skip: TypeScript's <code>DefaultTheme</code> augmentation for fully typed <code>props.theme</code> access, a well-structured JSON token file that aligns with Styled Components' theme object shape, and a dark mode strategy that switches the entire theme object (not just individual color variables) when toggled. This guide covers all three, plus <code>createGlobalStyle</code>, <code>css</code> helpers, and <code>keyframes</code>.</p>
 
-<h3>Live Example</h3>
-<p>A design token JSON file:</p>
-<pre><code>{
+<h3>Live Example: Typed ThemeProvider from JSON Tokens</h3>
+<pre><code">// design-tokens.json
+{
   "colors": {
-    "primary": "#007bff",
-    "secondary": "#6c757d"
+    "brand":   "#2563eb",
+    "text":    { "primary": "#111827", "secondary": "#6b7280", "inverse": "#ffffff" },
+    "bg":      { "default": "#ffffff", "surface": "#f9fafb", "overlay": "#f3f4f6" },
+    "border":  "#e5e7eb",
+    "error":   "#dc2626",
+    "success": "#16a34a"
   },
-  "spacing": {
-    "small": "8px",
-    "medium": "16px"
+  "spacing": { "1": "0.25rem", "2": "0.5rem", "3": "0.75rem", "4": "1rem", "6": "1.5rem", "8": "2rem" },
+  "radii":   { "sm": "0.25rem", "md": "0.375rem", "lg": "0.5rem", "xl": "1rem", "full": "9999px" },
+  "shadows": { "sm": "0 1px 2px rgba(0,0,0,0.05)", "md": "0 4px 6px rgba(0,0,0,0.1)" },
+  "fontFamily": { "sans": "'Inter', system-ui, sans-serif", "mono": "'JetBrains Mono', monospace" },
+  "fontSize": { "sm": "0.875rem", "base": "1rem", "lg": "1.125rem", "xl": "1.25rem", "2xl": "1.5rem" }
+}
+
+// tokens.ts — convert JSON to typed theme
+import tokens from './design-tokens.json';
+
+export const lightTheme = {
+  colors: {
+    brand:   tokens.colors.brand,
+    text:    tokens.colors.text,
+    bg:      tokens.colors.bg,
+    border:  tokens.colors.border,
+    error:   tokens.colors.error,
+    success: tokens.colors.success,
   },
-  "buttons": {
-    "borderRadius": "4px"
+  spacing:    tokens.spacing,
+  radii:      tokens.radii,
+  shadows:    tokens.shadows,
+  fontFamily: tokens.fontFamily,
+  fontSize:   tokens.fontSize,
+} as const;
+
+export const darkTheme = {
+  ...lightTheme,
+  colors: {
+    ...lightTheme.colors,
+    text:   { primary: '#f9fafb',   secondary: '#9ca3af', inverse: '#111827' },
+    bg:     { default: '#111827',   surface:   '#1f2937', overlay: '#374151' },
+    border: '#374151',
+  },
+} as const;
+
+export type AppTheme = typeof lightTheme;
+
+// types/styled.d.ts — augment DefaultTheme for full type safety
+import 'styled-components';
+import type { AppTheme } from '../tokens';
+
+declare module 'styled-components' {
+  export interface DefaultTheme extends AppTheme {}
+}
+
+// App.tsx — inject theme at root
+import { useState } from 'react';
+import { ThemeProvider, createGlobalStyle } from 'styled-components';
+import { lightTheme, darkTheme } from './tokens';
+
+const GlobalStyle = createGlobalStyle`
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: ${({ theme }) => theme.fontFamily.sans};
+    font-size:   ${({ theme }) => theme.fontSize.base};
+    color:       ${({ theme }) => theme.colors.text.primary};
+    background:  ${({ theme }) => theme.colors.bg.default};
+    transition:  background 0.2s ease, color 0.2s ease;
   }
-}</code></pre>
-<p>Generated Styled Component in React:</p>
-<pre><code>import styled from 'styled-components';
-import tokens from './tokens.json';
+`;
 
-export const ActionButton = styled.button`
-  background-color: ${tokens.colors.primary};
-  padding: ${tokens.spacing.medium};
-  border-radius: ${tokens.buttons.borderRadius};
-  color: white;
-  border: none;
+export function App() {
+  const [isDark, setIsDark] = useState(false);
+  const theme = isDark ? darkTheme : lightTheme;
 
-  &:hover {
-    background-color: ${tokens.colors.secondary};
+  return (
+    &lt;ThemeProvider theme={theme}&gt;
+      &lt;GlobalStyle /&gt;
+      &lt;button onClick={() => setIsDark(!isDark)}&gt;Toggle Theme&lt;/button&gt;
+      {/* All children have typed access to props.theme */}
+    &lt;/ThemeProvider&gt;
+  );
+}
+</code></pre>
+
+<h3>Fully Typed Styled Components</h3>
+<pre><code">import styled, { css } from 'styled-components';
+
+// Button with typed theme props — no 'any'
+type ButtonVariant = 'primary' | 'secondary' | 'ghost';
+
+interface ButtonProps {
+  variant?: ButtonVariant;
+  size?:    'sm' | 'md' | 'lg';
+  disabled?: boolean;
+}
+
+const sizeStyles = {
+  sm: css`padding: ${({ theme }) => theme.spacing['1']} ${({ theme }) => theme.spacing['3']};
+          font-size: ${({ theme }) => theme.fontSize.sm};`,
+  md: css`padding: ${({ theme }) => theme.spacing['2']} ${({ theme }) => theme.spacing['4']};
+          font-size: ${({ theme }) => theme.fontSize.base};`,
+  lg: css`padding: ${({ theme }) => theme.spacing['3']} ${({ theme }) => theme.spacing['6']};
+          font-size: ${({ theme }) => theme.fontSize.lg};`,
+};
+
+export const Button = styled.button&lt;ButtonProps&gt;`
+  display:         inline-flex;
+  align-items:     center;
+  justify-content: center;
+  border:          none;
+  border-radius:   ${({ theme }) => theme.radii.md};
+  font-family:     ${({ theme }) => theme.fontFamily.sans};
+  cursor:          ${({ disabled }) => disabled ? 'not-allowed' : 'pointer'};
+  transition:      background 0.15s, opacity 0.15s;
+  opacity:         ${({ disabled }) => disabled ? 0.5 : 1};
+
+  ${({ size = 'md' }) => sizeStyles[size]}
+
+  ${({ variant = 'primary', theme }) =>
+    variant === 'primary' ? css`
+      background: ${theme.colors.brand};
+      color:      ${theme.colors.text.inverse};
+      &:hover:not(:disabled) { filter: brightness(1.1); }
+    ` :
+    variant === 'secondary' ? css`
+      background: ${theme.colors.bg.surface};
+      color:      ${theme.colors.text.primary};
+      border:     1px solid ${theme.colors.border};
+      &:hover:not(:disabled) { background: ${theme.colors.bg.overlay}; }
+    ` : css`
+      background: transparent;
+      color:      ${theme.colors.brand};
+      &:hover:not(:disabled) { background: ${theme.colors.bg.surface}; }
+    `}
+`;
+
+// Card component
+export const Card = styled.div`
+  background:    ${({ theme }) => theme.colors.bg.surface};
+  border:        1px solid ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.radii.lg};
+  box-shadow:    ${({ theme }) => theme.shadows.sm};
+  padding:       ${({ theme }) => theme.spacing['4']};
+`;
+</code></pre>
+
+<h3>Dark Mode with System Preference</h3>
+<pre><code">// Detect system dark mode preference and sync with ThemeProvider
+import { useState, useEffect } from 'react';
+
+function useSystemTheme(): 'light' | 'dark' {
+  const [theme, setTheme] = useState&lt;'light' | 'dark'&gt;(
+    () => window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => setTheme(e.matches ? 'dark' : 'light');
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  return theme;
+}
+
+export function App() {
+  const systemTheme = useSystemTheme();
+  const [override, setOverride] = useState&lt;'light' | 'dark' | null&gt;(null);
+  const activeTheme = override ?? systemTheme;
+
+  return (
+    &lt;ThemeProvider theme={activeTheme === 'dark' ? darkTheme : lightTheme}&gt;
+      &lt;GlobalStyle /&gt;
+      &lt;ThemeToggle
+        current={activeTheme}
+        onToggle={() => setOverride(prev => !prev || prev === 'light' ? 'dark' : 'light')}
+      /&gt;
+    &lt;/ThemeProvider&gt;
+  );
+}
+</code></pre>
+
+<h3>Animations and Advanced Patterns</h3>
+<pre><code">import styled, { keyframes } from 'styled-components';
+
+const fadeIn = keyframes`
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+`;
+
+const spin = keyframes`
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+`;
+
+export const Modal = styled.div`
+  position:      fixed;
+  inset:         0;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  background:    rgba(0, 0, 0, 0.5);
+  z-index:       100;
+
+  & > div {
+    background:    ${({ theme }) => theme.colors.bg.default};
+    border-radius: ${({ theme }) => theme.radii.xl};
+    box-shadow:    ${({ theme }) => theme.shadows.md};
+    padding:       ${({ theme }) => theme.spacing['6']};
+    max-width:     480px;
+    width:         100%;
+    animation:     ${fadeIn} 0.2s ease;
   }
-`;</code></pre>
+`;
 
-<h3>Implementation Guide</h3>
-<ol>
-  <li><strong>Define Design Tokens:</strong> Create a structured JSON file that categorizes colors, typography, spacing, and component-specific variables.</li>
-  <li><strong>Theme Object:</strong> Pass the JSON object to Styled Components' <code>ThemeProvider</code> at the root of your application.</li>
-  <li><strong>Accessing Props:</strong> In your styled components, access the theme using <code>${props => props.theme.colors.primary}</code>.</li>
-  <li><strong>Dynamic Generation:</strong> For highly dynamic layouts, you can write a utility function that iterates over a JSON layout definition to generate multiple styled components on the fly.</li>
-  <li><strong>Type Safety:</strong> If using TypeScript, define an interface for your theme based on the JSON structure to get autocompletion.</li>
-</ol>
+export const Spinner = styled.div`
+  width:        24px;
+  height:       24px;
+  border:       3px solid ${({ theme }) => theme.colors.bg.overlay};
+  border-top:   3px solid ${({ theme }) => theme.colors.brand};
+  border-radius: 50%;
+  animation:    ${spin} 0.7s linear infinite;
+`;
 
-<h3>Technical Deep Dive</h3>
-<p>The synergy between JSON and Styled Components lies in the "Design Token" methodology. Tools like Style Dictionary are often used to transform a central JSON definition into various formats, including JavaScript objects for Styled Components. The technical challenge often involves handling "Calculated Values" (e.g., a color that is 10% darker than the primary color). In these cases, your JSON might only store the base values, and your Styled Components logic will use libraries like <code>polished</code> to perform the calculations at runtime.</p>
+// attrs() — set default attributes to avoid repetitive props
+export const Input = styled.input.attrs&lt;{ type?: string }&gt;(props => ({
+  type: props.type ?? 'text',
+}))`
+  width:         100%;
+  padding:       ${({ theme }) => theme.spacing['2']} ${({ theme }) => theme.spacing['3']};
+  border:        1px solid ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.radii.md};
+  font-size:     ${({ theme }) => theme.fontSize.base};
+  color:         ${({ theme }) => theme.colors.text.primary};
+  background:    ${({ theme }) => theme.colors.bg.default};
 
-<h3>Comparison</h3>
-<table border="1">
-  <tr>
-    <th>Feature</th>
-    <th>Hardcoded CSS</th>
-    <th>JSON-Driven Styled Components</th>
-  </tr>
-  <tr>
-    <td>Theming</td>
-    <td>Difficult (Requires overrides)</td>
-    <td>Native and Seamless</td>
-  </tr>
-  <tr>
-    <td>Scalability</td>
-    <td>Prone to inconsistency</td>
-    <td>Highly consistent</td>
-  </tr>
-  <tr>
-    <td>Build Time</td>
-    <td>Fast</td>
-    <td>Negligible runtime overhead</td>
-  </tr>
-</table>
+  &:focus {
+    outline:       none;
+    border-color:  ${({ theme }) => theme.colors.brand};
+    box-shadow:    0 0 0 3px ${({ theme }) => theme.colors.brand}33;
+  }
+`;
+</code></pre>
 
-<h3>Best Practices</h3>
+<h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Naming Conventions:</strong> Use a standard naming convention like T-shirt sizing (S, M, L) for spacing and typography in your JSON.</li>
-  <li><strong>Abstraction:</strong> Don't expose the entire JSON structure directly; create a <code>theme.js</code> file that exports a sanitized and typed version of the JSON tokens.</li>
-  <li><strong>Responsive Design:</strong> Include a <code>breakpoints</code> section in your JSON to keep media query values consistent across all styled components.</li>
+  <li><strong>Always augment <code>DefaultTheme</code> for TypeScript:</strong> Without the <code>styled.d.ts</code> declaration file, <code>props.theme</code> is typed as <code>DefaultTheme = {}</code> — accessing any property is a TypeScript error. After augmentation, every styled component has fully typed theme access with autocomplete and error checking.</li>
+  <li><strong>Switch the whole theme object for dark mode, not individual values:</strong> Define two complete theme objects (<code>lightTheme</code>, <code>darkTheme</code>) and swap them in <code>ThemeProvider</code>. This is cleaner than a single theme with conditional logic inside components, and it keeps the token file readable.</li>
+  <li><strong>Use the <code>css</code> helper for conditional styles:</strong> The <code>css</code> tagged template literal properly handles interpolations inside conditional expressions, ensuring correct TypeScript inference and preventing issues with Styled Components' tagged template parsing.</li>
+  <li><strong>Migrate to Styled Components v6 before 2026:</strong> Styled Components v6 drops support for IE11, enables Babel's new transform, and improves server-side rendering. If you're on v5, plan the migration — the API is mostly backward compatible but has breaking changes around <code>StyleSheetManager</code> and SSR setup.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Can I change the JSON at runtime?</strong><br>
-A: Yes, if the JSON is fetched from an API, updating the state passed to the <code>ThemeProvider</code> will automatically re-render all components with the new styles.</p>
-<p><strong>Q: How do I handle dark mode?</strong><br>
-A: Create two JSON files (<code>light.json</code>, <code>dark.json</code>) and switch between them based on the user's system preference or a toggle state.</p>
+<p><strong>Q: Styled Components vs CSS Modules vs Tailwind — when to choose each?</strong><br>
+A: Styled Components excels for component libraries where styles are co-located with components, dynamic styling based on props is frequent, and TypeScript integration matters. CSS Modules are better for performance-sensitive apps (zero runtime, static extraction). Tailwind is best when you want utility-first rapid prototyping without a styling abstraction layer. For a design-system-driven app with a JSON token pipeline, Styled Components is the most ergonomic choice.</p>
+
+<p><strong>Q: Does Styled Components support server-side rendering?</strong><br>
+A: Yes, via <code>ServerStyleSheet</code> and <code>StyleSheetManager</code>. Next.js requires additional configuration in <code>_document.tsx</code> (Pages Router) or a custom plugin (App Router). With React Server Components (RSC), Styled Components has runtime overhead — consider Linaria or vanilla-extract for RSC-compatible static extraction.</p>
+
+<p><strong>Q: How do I avoid re-renders caused by theme changes?</strong><br>
+A: ThemeProvider only triggers re-renders for components that actually read from <code>props.theme</code>. Memoize your theme object with <code>useMemo</code> so it doesn't create a new object reference on every render, which would cause all themed components to re-render unnecessarily.</p>

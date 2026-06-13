@@ -1,81 +1,267 @@
-<h2>Converting JSON to Tailwind CSS Config: Managing Design Tokens</h2>
-<p>Tailwind CSS is built on the philosophy of utility-first styling. Its power lies in the <code>tailwind.config.js</code> file, which defines the available utility classes. For teams using cross-platform design tokens, converting JSON definitions into a Tailwind configuration is essential for maintaining brand consistency across web, mobile, and print assets.</p>
+<h2>JSON to Tailwind Config: Design Tokens, TypeScript Config, and Figma Integration</h2>
+<p>Tailwind CSS is configured entirely in JavaScript (or TypeScript), which means JSON design tokens feed directly into the config without a build step. The pattern matters: importing raw token JSON and spreading it into <code>theme.extend</code> works for simple projects, but at scale you need a structured mapping — transforming W3C Design Token format, generating color shade scales from base colors, wiring up CSS custom properties for runtime theming, and keeping TypeScript strict enough that accessing a non-existent token is a compile error. This guide covers the complete pipeline from design tool JSON export to a production-ready Tailwind config.</p>
 
-<h3>Live Example</h3>
-<p>Input Design Tokens JSON:</p>
-<pre><code>{
-  "brand_colors": {
-    "midnight": "#121063",
-    "tahiti": "#3ab7bf"
+<h3>Live Example: Design Tokens → Tailwind Config</h3>
+<pre><code">// design-tokens.json (W3C Design Tokens format)
+{
+  "color": {
+    "brand": {
+      "primary":   { "$value": "#2563eb", "$type": "color" },
+      "secondary": { "$value": "#7c3aed", "$type": "color" },
+      "accent":    { "$value": "#db2777", "$type": "color" }
+    },
+    "neutral": {
+      "50":  { "$value": "#f9fafb", "$type": "color" },
+      "100": { "$value": "#f3f4f6", "$type": "color" },
+      "900": { "$value": "#111827", "$type": "color" }
+    },
+    "semantic": {
+      "success": { "$value": "#16a34a", "$type": "color" },
+      "error":   { "$value": "#dc2626", "$type": "color" },
+      "warning": { "$value": "#d97706", "$type": "color" }
+    }
   },
-  "font_sizes": {
-    "display": "2.25rem",
-    "body": "1rem"
+  "spacing": {
+    "xs":  { "$value": "0.25rem", "$type": "dimension" },
+    "sm":  { "$value": "0.5rem",  "$type": "dimension" },
+    "md":  { "$value": "1rem",    "$type": "dimension" },
+    "lg":  { "$value": "1.5rem",  "$type": "dimension" },
+    "xl":  { "$value": "2rem",    "$type": "dimension" },
+    "2xl": { "$value": "3rem",    "$type": "dimension" }
+  },
+  "typography": {
+    "fontFamily": {
+      "sans":  { "$value": "\"Inter\", system-ui, sans-serif",  "$type": "fontFamily" },
+      "mono":  { "$value": "\"JetBrains Mono\", monospace",     "$type": "fontFamily" }
+    },
+    "fontSize": {
+      "xs":   { "$value": "0.75rem",  "$type": "dimension" },
+      "sm":   { "$value": "0.875rem", "$type": "dimension" },
+      "base": { "$value": "1rem",     "$type": "dimension" },
+      "xl":   { "$value": "1.25rem",  "$type": "dimension" },
+      "2xl":  { "$value": "1.5rem",   "$type": "dimension" },
+      "4xl":  { "$value": "2.25rem",  "$type": "dimension" }
+    }
   }
-}</code></pre>
-<p>Generated <code>tailwind.config.js</code> excerpt:</p>
-<pre><code>const tokens = require('./tokens.json');
+}
 
-module.exports = {
+// tailwind.config.ts
+import type { Config } from 'tailwindcss';
+import tokens from './design-tokens.json';
+
+// Helper: extract $value from W3C Design Token format
+function extractValues(obj: Record&lt;string, any&gt;): Record&lt;string, string&gt; {
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, val]) => [
+      key,
+      typeof val === 'object' && '$value' in val ? val.$value : val
+    ])
+  );
+}
+
+const config: Config = {
+  content: ['./src/**/*.{ts,tsx,html}'],
   theme: {
     extend: {
       colors: {
-        'brand-midnight': tokens.brand_colors.midnight,
-        'brand-tahiti': tokens.brand_colors.tahiti,
+        brand:   extractValues(tokens.color.brand),
+        neutral: extractValues(tokens.color.neutral),
+        success: tokens.color.semantic.success.$value,
+        error:   tokens.color.semantic.error.$value,
+        warning: tokens.color.semantic.warning.$value,
       },
-      fontSize: {
-        'display': tokens.font_sizes.display,
-        'body': tokens.font_sizes.body,
-      }
+      spacing:    extractValues(tokens.spacing),
+      fontFamily: extractValues(tokens.typography.fontFamily),
+      fontSize:   extractValues(tokens.typography.fontSize),
     },
   },
-}</code></pre>
+};
 
-<h3>Implementation Guide</h3>
-<ol>
-  <li><strong>Structure JSON:</strong> Align your JSON keys with Tailwind's theme keys (colors, spacing, fontFamily, etc.).</li>
-  <li><strong>Import in Config:</strong> Use <code>require()</code> to load the JSON file directly into your <code>tailwind.config.js</code>.</li>
-  <li><strong>Map Values:</strong> Use JavaScript's <code>map()</code> or <code>reduce()</code> functions if you need to transform the JSON structure (e.g., converting snake_case keys to kebab-case).</li>
-  <li><strong>Extend vs. Override:</strong> Decide whether to <code>extend</code> the default Tailwind theme or completely <code>override</code> it with your JSON values.</li>
-  <li><strong>CI/CD Integration:</strong> If your design tokens are hosted externally (e.g., in Figma), add a step in your build pipeline to fetch the latest JSON before running Tailwind's compiler.</li>
-</ol>
+export default config;
+</code></pre>
 
-<h3>Technical Deep Dive</h3>
-<p>Tailwind configuration is just JavaScript, which makes it incredibly flexible. When converting from JSON, you must be aware of Tailwind's "Color Object" structure. Tailwind expects colors to be either a string or an object with shades (50, 100, 200...). If your JSON provides a single hex code, it will generate a single utility like <code>text-brand-midnight</code>. If you want the full spectrum of shades, you'll need a utility library in your config to generate those shades from the base JSON color programmatically.</p>
+<h3>Generating Color Shade Scales</h3>
+<pre><code">// Most design systems need 50–950 shade scales, not just one base color.
+// Use a library to generate shades from a base color.
 
-<h3>Comparison</h3>
-<table border="1">
-  <tr>
-    <th>Aspect</th>
-    <th>Static Config</th>
-    <th>JSON-Driven Config</th>
-  </tr>
-  <tr>
-    <td>Maintenance</td>
-    <td>Manual updates</td>
-    <td>Automated updates</td>
-  </tr>
-  <tr>
-    <td>Error Probability</td>
-    <td>High (Typos)</td>
-    <td>Low (Source of truth)</td>
-  </tr>
-  <tr>
-    <td>Developer Experience</td>
-    <td>Simple</td>
-    <td>Scalable for large teams</td>
-  </tr>
-</table>
+// Option 1: tailwindcss/colors as reference scale
+import colors from 'tailwindcss/colors';
 
-<h3>Best Practices</h3>
+// Option 2: generate shades with chroma-js
+import chroma from 'chroma-js';
+
+function generateShades(baseColor: string): Record&lt;string, string&gt; {
+  const scale = chroma.scale(['white', baseColor, 'black'])
+    .mode('lch')   // perceptually uniform color space
+    .colors(11);   // 11 steps
+
+  const stops = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+  return Object.fromEntries(stops.map((stop, i) => [stop, scale[i]]));
+}
+
+// tailwind.config.ts
+const config: Config = {
+  theme: {
+    extend: {
+      colors: {
+        brand: {
+          // Auto-generates: brand-50, brand-100 ... brand-950
+          ...generateShades(tokens.color.brand.primary.$value),
+        },
+        purple: generateShades(tokens.color.brand.secondary.$value),
+      }
+    }
+  }
+};
+
+// Usage in markup:
+// bg-brand-500 text-brand-50 border-brand-700
+// dark:bg-brand-900 dark:text-brand-100
+</code></pre>
+
+<h3>CSS Custom Properties for Runtime Theming</h3>
+<pre><code">// CSS variables enable runtime theme switching (dark mode, white-labeling)
+// without rebuilding CSS. Tailwind 3 supports this via arbitrary values
+// and v4 makes it the default approach.
+
+// globals.css
+:root {
+  --color-brand:     #2563eb;
+  --color-bg:        #ffffff;
+  --color-text:      #111827;
+  --color-surface:   #f3f4f6;
+}
+
+[data-theme="dark"] {
+  --color-brand:     #3b82f6;
+  --color-bg:        #111827;
+  --color-text:      #f9fafb;
+  --color-surface:   #1f2937;
+}
+
+// tailwind.config.ts — reference CSS variables
+const config: Config = {
+  theme: {
+    extend: {
+      colors: {
+        brand:   'rgb(var(--color-brand) / &lt;alpha-value&gt;)',  // opacity support
+        bg:      'var(--color-bg)',
+        text:    'var(--color-text)',
+        surface: 'var(--color-surface)',
+      }
+    }
+  }
+};
+
+// Usage: colors work with opacity modifiers
+// bg-brand/50 → background-color: rgb(var(--color-brand) / 0.5)
+// text-text → color: var(--color-text) (switches with theme)
+</code></pre>
+
+<h3>TypeScript Theme Typing with satisfies</h3>
+<pre><code">// Use TypeScript 4.9+ satisfies operator to type-check the config
+// while preserving the literal type (not widening to string)
+
+import type { ThemeConfig } from 'tailwindcss/types/config';
+
+const colors = {
+  brand:   '#2563eb',
+  accent:  '#7c3aed',
+  success: '#16a34a',
+  error:   '#dc2626',
+} satisfies ThemeConfig['colors'];
+
+const config: Config = {
+  theme: {
+    extend: {
+      colors,   // colors is typed — hover reveals exact values
+    }
+  }
+};
+
+// Custom plugin with typed tokens
+import plugin from 'tailwindcss/plugin';
+
+const tokenPlugin = plugin(({ addBase, addComponents, theme }) => {
+  addBase({
+    ':root': {
+      '--color-brand':   theme('colors.brand') as string,
+      '--color-accent':  theme('colors.accent') as string,
+      '--spacing-md':    theme('spacing.md') as string,
+    }
+  });
+
+  addComponents({
+    '.btn-primary': {
+      backgroundColor: theme('colors.brand'),
+      color:          '#ffffff',
+      padding:        `${theme('spacing.sm')} ${theme('spacing.md')}`,
+      borderRadius:   theme('borderRadius.md') as string,
+      fontFamily:     theme('fontFamily.sans') as string,
+      '&:hover': {
+        backgroundColor: theme('colors.brand-dark', '#1d4ed8'),
+      }
+    }
+  });
+});
+</code></pre>
+
+<h3>Figma Tokens → JSON → Tailwind Pipeline</h3>
+<pre><code">// 1. Export from Figma using Tokens Studio for Figma plugin
+//    → produces W3C Design Token format JSON
+
+// 2. Transform tokens with Style Dictionary
+//    npm install -D style-dictionary
+
+// config.sd.js
+const StyleDictionary = require('style-dictionary');
+
+StyleDictionary.buildAllPlatforms({
+  source: ['tokens/**/*.json'],
+  platforms: {
+    tailwind: {
+      buildPath: 'src/config/',
+      files: [{
+        destination: 'tokens.ts',
+        format: 'javascript/es6',
+        filter: { attributes: { category: 'color' } },
+      }]
+    },
+    css: {
+      buildPath: 'src/styles/',
+      files: [{ destination: 'variables.css', format: 'css/variables' }]
+    }
+  }
+});
+
+// 3. Import generated tokens into tailwind.config.ts
+import { colorTokens, spacingTokens } from './src/config/tokens';
+
+// 4. CI step to detect token drift
+// In package.json:
+{
+  "scripts": {
+    "tokens:export": "figma-export --token $FIGMA_TOKEN --file $FIGMA_FILE > tokens/figma.json",
+    "tokens:build":  "style-dictionary build --config config.sd.js",
+    "tokens:sync":   "npm run tokens:export && npm run tokens:build && git diff --exit-code"
+  }
+}
+</code></pre>
+
+<h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Don't Over-Extend:</strong> Only include the tokens you actually use to keep the generated CSS file size small (though PurgeCSS/JIT helps with this).</li>
-  <li><strong>Use ESM or CommonJS:</strong> Ensure your project's module system matches how you are importing the JSON in your Tailwind config.</li>
-  <li><strong>Unit Synchronization:</strong> Ensure the units (px, rem, em) in your JSON are appropriate for web usage to avoid unexpected layout shifts.</li>
+  <li><strong>Use <code>theme.extend</code> to add tokens, not <code>theme</code> to replace:</strong> Setting <code>theme.colors</code> directly removes all of Tailwind's built-in colors (<code>gray</code>, <code>red</code>, <code>blue</code>, etc.). Use <code>theme.extend.colors</code> to add your tokens alongside the defaults. Only use <code>theme.colors</code> if you deliberately want to eliminate all default utilities and ship only your brand tokens.</li>
+  <li><strong>Set <code>content</code> paths precisely:</strong> Tailwind's JIT engine scans your source files for class names. Over-broad patterns (<code>'**/*'</code>) slow down compilation; too narrow patterns miss dynamically constructed class names. Include every directory with template files and exclude <code>node_modules</code> and build output.</li>
+  <li><strong>Use CSS variables for dark mode tokens:</strong> The <code>class</code> dark mode strategy (<code>darkMode: 'class'</code>) combined with CSS custom properties gives you runtime theme switching without a new build. Set token values in <code>:root</code> and override in <code>.dark</code> — one set of Tailwind utilities serves both themes.</li>
+  <li><strong>Lint your design token keys:</strong> Inconsistent naming (<code>primary</code> vs <code>brand-primary</code> vs <code>brand.primary</code>) breaks autocomplete and causes confusion. Pick a convention (flat keys like <code>brand-500</code>, or nested like <code>{ brand: { 500: '#...' } }</code>) and enforce it in the token source with a JSON Schema or custom lint rule.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Can I use this with Tailwind's JIT mode?</strong><br>
-A: Yes. Tailwind's Just-In-Time compiler works perfectly with dynamic configurations as long as the JSON is available at build time.</p>
-<p><strong>Q: What if my JSON keys have special characters?</strong><br>
-A: Tailwind supports any string as a key, but you may need to use square bracket notation in your config (e.g., <code>theme['my-key']</code>) to map them correctly.</p>
+<p><strong>Q: What is the difference between Tailwind v3 and v4 config?</strong><br>
+A: Tailwind v4 moves to a CSS-first configuration (<code>@import "tailwindcss"; @theme { --color-brand: #2563eb; }</code> directly in CSS) instead of a JavaScript config file. Design tokens defined as CSS custom properties are automatically available as utility classes. The JavaScript config is still supported for complex transformations, but the primary config moves to CSS.</p>
+
+<p><strong>Q: How do I import JSON design tokens into a TypeScript Tailwind config?</strong><br>
+A: Add <code>"resolveJsonModule": true</code> to <code>tsconfig.json</code>, then <code>import tokens from './tokens.json'</code>. The JSON is type-checked at compile time. For the config file itself, name it <code>tailwind.config.ts</code> and run Tailwind via a TS loader or with <code>ts-node</code>.</p>
+
+<p><strong>Q: How do I handle opacity with CSS variable colors?</strong><br>
+A: Use the <code>rgb(var(--color-brand) / &lt;alpha-value&gt;)</code> pattern in the config. This tells Tailwind to generate <code>rgb()</code> syntax with the <code>&lt;alpha-value&gt;</code> placeholder, which Tailwind replaces with the opacity value. Without this, <code>bg-brand/50</code> won't work with CSS variable colors.</p>

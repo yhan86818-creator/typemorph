@@ -1,51 +1,216 @@
-<h2>JSON to SQLite Schema: Lightweight and Reliable Data Storage</h2>
-<p>SQLite is the most deployed database engine in the world, found in everything from mobile apps to airplane navigation systems. Converting JSON samples to SQLite schema definitions (DDL) provides a simple yet robust way to store data locally. SQLite's serverless architecture makes it the perfect choice for desktop applications, embedded systems, and development environments where you need the power of SQL without the complexity of a separate database server.</p>
+<h2>JSON to SQLite Schema: Type Affinity, JSON1 Functions, and Embedded Database Patterns</h2>
+<p>SQLite is the most widely deployed database engine in existence — every Android phone, iOS device, Mac, and most web browsers contain a copy. Its defining characteristic is serverless operation: the entire database lives in a single file that your application opens directly, with no network round-trips and no server process to manage. Converting your JSON to SQLite schema is about understanding what's different from server databases: five dynamic type affinities instead of strict types, the JSON1 extension for in-column JSON querying, WAL mode for concurrent reads, and the specific constraints (and freedoms) that come from a file-based embedded database.</p>
 
-<h3>Live Example: Converting JSON to SQLite DDL</h3>
+<h3>Live Example: Task Manager Schema</h3>
 <pre><code>-- Input JSON
 {
   "task_id": "T-500",
-  "description": "Implement JSON converter",
-  "priority": 1,
+  "title": "Implement JSON converter",
+  "priority": 2,
   "completed": false,
-  "tags": "dev,web,tooling"
+  "due_date": "2024-02-15",
+  "assignee": "alice",
+  "metadata": {
+    "estimated_hours": 4,
+    "tags": ["backend", "tooling"]
+  }
 }
 
 -- Generated SQLite Schema
 CREATE TABLE tasks (
-    task_id TEXT PRIMARY KEY,
-    description TEXT NOT NULL,
-    priority INTEGER DEFAULT 0,
-    completed INTEGER CHECK (completed IN (0, 1)),
-    tags TEXT
+    task_id   TEXT    NOT NULL PRIMARY KEY,
+    title     TEXT    NOT NULL,
+    priority  INTEGER NOT NULL DEFAULT 0,  -- 0=low, 1=medium, 2=high, 3=urgent
+    completed INTEGER NOT NULL DEFAULT 0
+                      CHECK (completed IN (0, 1)),   -- SQLite has no BOOLEAN
+    due_date  TEXT,                                   -- ISO 8601: "2024-02-15"
+    assignee  TEXT,
+    metadata  TEXT,   -- JSON stored as TEXT, queried via json_extract()
+    created_at TEXT   NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
-CREATE INDEX idx_tasks_priority ON tasks (priority);
+CREATE INDEX idx_tasks_priority    ON tasks (priority DESC) WHERE completed = 0;
+CREATE INDEX idx_tasks_assignee    ON tasks (assignee)      WHERE completed = 0;
+CREATE INDEX idx_tasks_due_date    ON tasks (due_date)      WHERE due_date IS NOT NULL;
+</code></pre>
+<p>Partial indexes (<code>WHERE completed = 0</code>) index only the rows that match the predicate — keeping index size small and lookups fast for the common case of querying active tasks. For a task manager, this matters: the <code>completed = 1</code> rows grow indefinitely, but partial indexes only track the working set.</p>
+
+<h3>SQLite's Type System: Five Affinities, Not Types</h3>
+<p>SQLite uses <em>type affinity</em> — a preference, not a constraint. Understanding this is critical for correct schema design:</p>
+<pre><code>-- SQLite's 5 type affinities:
+-- TEXT: 'hello', '123', 'true'
+-- INTEGER: 1, -42, 0 (also used for booleans: 0/1)
+-- REAL: 3.14, 1.0e10 (64-bit IEEE 754 float)
+-- BLOB: raw binary data
+-- NUMERIC: integer if possible, real otherwise
+
+-- SQLite is lenient — you CAN store any type in any column:
+CREATE TABLE demo (col INTEGER);
+INSERT INTO demo VALUES ('hello');  -- works, stores as TEXT
+INSERT INTO demo VALUES (3.14);     -- works, stores as REAL
+INSERT INTO demo VALUES (42);       -- stores as INTEGER (affinity match)
+
+-- This is why CHECK constraints matter:
+CREATE TABLE users (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    email       TEXT    NOT NULL UNIQUE,
+    age         INTEGER CHECK (age &gt;= 0 AND age &lt; 150),
+    score       REAL    DEFAULT 0.0,
+    is_active   INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+    created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Understand SQLite Types:</strong> SQLite uses dynamic typing with only five storage classes: <code>NULL</code>, <code>INTEGER</code>, <code>REAL</code>, <code>TEXT</code>, and <code>BLOB</code>.<br>
-2. <strong>Map JSON Primitives:</strong> Convert JSON strings to <code>TEXT</code>, numbers to <code>INTEGER</code> or <code>REAL</code>, and booleans to <code>INTEGER</code> (0 or 1).<br>
-3. <strong>Handle JSON Data:</strong> SQLite has excellent JSON support via functions. You can store JSON as <code>TEXT</code> and use <code>json_extract()</code> to query it.<br>
-4. <strong>Create the Database:</strong> Run the generated DDL using the <code>sqlite3</code> CLI or an application-level library like <code>better-sqlite3</code>.</p>
+<h3>JSON1 Extension: Query JSON Columns</h3>
+<pre><code>-- Store JSON as TEXT, query with json_extract()
+CREATE TABLE events (
+    id        INTEGER PRIMARY KEY,
+    type      TEXT    NOT NULL,
+    payload   TEXT    NOT NULL,  -- JSON
+    occurred_at TEXT  NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
 
-<h3>Technical Deep Dive: Type Affinity and JSON1 Extension</h3>
-<p>SQLite is unique due to its **Type Affinity** system. Unlike most SQL databases, you can technically store any type of data in any column. However, defining a schema provides "affinity," which helps the engine optimize storage and comparisons. Furthermore, the <strong>JSON1 extension</strong> (built-in for most modern versions) allows SQLite to treat text columns as JSON. This means you can store complex JSON objects from your application directly into a <code>TEXT</code> column and still perform efficient lookups, updates, and aggregations using native SQLite functions, giving you a "best of both worlds" experience.</p>
+INSERT INTO events (type, payload) VALUES
+  ('purchase', '{"user_id": "u1", "amount": 4999, "currency": "USD", "items": ["SKU-001"]}'),
+  ('view',     '{"user_id": "u2", "page": "/pricing", "duration_ms": 3400}');
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>SQLite vs. Client-Side Storage:</strong> SQLite is much more powerful than <code>localStorage</code> or <code>IndexedDB</code>, offering full SQL support and ACID transactions. <strong>LevelDB</strong> is a NoSQL alternative for local storage, but SQLite is generally preferred for its ease of use and standardized query language. For multi-user, high-concurrency environments, <strong>PostgreSQL</strong> or <strong>MySQL</strong> are better choices.</p>
+-- Extract a scalar value
+SELECT json_extract(payload, '$.amount') AS amount
+FROM events
+WHERE type = 'purchase';
+-- → 4999
+
+-- Filter on JSON content
+SELECT id, json_extract(payload, '$.user_id') AS user_id
+FROM events
+WHERE type = 'purchase'
+  AND CAST(json_extract(payload, '$.amount') AS INTEGER) &gt; 1000;
+
+-- Array access
+SELECT json_extract(payload, '$.items[0]') AS first_item
+FROM events WHERE type = 'purchase';
+-- → "SKU-001"
+
+-- json_each() — expand JSON array into rows
+SELECT e.id, item.value AS sku
+FROM events e,
+     json_each(json_extract(e.payload, '$.items')) AS item
+WHERE e.type = 'purchase';
+
+-- Generated column (SQLite 3.31+) — index a JSON path
+ALTER TABLE events ADD COLUMN user_id TEXT
+  GENERATED ALWAYS AS (json_extract(payload, '$.user_id')) VIRTUAL;
+
+CREATE INDEX idx_events_user ON events (user_id);
+
+-- Now this uses the index:
+SELECT * FROM events WHERE user_id = 'u1';
+</code></pre>
+
+<h3>WAL Mode and PRAGMA Configuration</h3>
+<p>The default journal mode (DELETE) locks the database during writes, blocking all readers. WAL mode allows concurrent reads while a write is in progress:</p>
+<pre><code>-- Execute once per connection, before any queries
+PRAGMA journal_mode = WAL;          -- enable WAL mode (persists)
+PRAGMA synchronous = NORMAL;        -- balance between safety and speed
+PRAGMA cache_size = -64000;         -- 64MB page cache (negative = KB)
+PRAGMA foreign_keys = ON;           -- NOT enabled by default!
+PRAGMA busy_timeout = 5000;         -- wait 5s before failing on lock
+
+-- Check current settings
+PRAGMA journal_mode;      -- → wal
+PRAGMA foreign_keys;      -- → 1 (if enabled)
+</code></pre>
+<p><code>PRAGMA foreign_keys = ON</code> is the most common SQLite gotcha — foreign key constraints are disabled by default. You must enable them for every connection. In most drivers, this is done via a connection hook or post-connect callback.</p>
+
+<h3>Full-Text Search with FTS5</h3>
+<pre><code>-- FTS5 virtual table for full-text search
+CREATE VIRTUAL TABLE articles_fts USING fts5(
+    title,
+    body,
+    content='articles',    -- keeps FTS in sync with the real table
+    content_rowid='id'
+);
+
+-- Populate FTS from existing data
+INSERT INTO articles_fts(articles_fts) VALUES('rebuild');
+
+-- Trigger to keep FTS in sync with inserts/updates/deletes
+CREATE TRIGGER articles_ai AFTER INSERT ON articles BEGIN
+  INSERT INTO articles_fts(rowid, title, body)
+  VALUES (new.id, new.title, new.body);
+END;
+
+-- Full-text search with relevance ranking
+SELECT a.id, a.title, rank
+FROM articles_fts
+JOIN articles a ON a.id = articles_fts.rowid
+WHERE articles_fts MATCH 'sqlite json'
+ORDER BY rank;
+
+-- Phrase search and prefix matching
+SELECT title FROM articles_fts WHERE articles_fts MATCH '"json schema" OR sqlite*';
+</code></pre>
+
+<h3>Integration: better-sqlite3 (Node.js) and Python sqlite3</h3>
+<pre><code>// Node.js with better-sqlite3 (synchronous API — ideal for SQLite)
+import Database from 'better-sqlite3';
+
+const db = new Database('app.db');
+
+// One-time setup
+db.pragma('journal_mode = WAL');
+db.pragma('foreign_keys = ON');
+
+// Prepared statements are cached and reused
+const insertTask = db.prepare(`
+  INSERT INTO tasks (task_id, title, priority, metadata)
+  VALUES (@taskId, @title, @priority, @metadata)
+`);
+
+const getActiveTasks = db.prepare(`
+  SELECT task_id, title, priority,
+         json_extract(metadata, '$.estimated_hours') AS estimated_hours
+  FROM tasks
+  WHERE completed = 0
+  ORDER BY priority DESC, due_date ASC
+  LIMIT ?
+`);
+
+// Transaction for bulk inserts
+const insertMany = db.transaction((tasks: Task[]) => {
+  for (const task of tasks) {
+    insertTask.run({
+      taskId:   task.id,
+      title:    task.title,
+      priority: task.priority,
+      metadata: JSON.stringify(task.metadata),
+    });
+  }
+});
+
+insertMany(taskArray);  // atomic — all or nothing
+
+// Read
+const tasks = getActiveTasks.all(20);
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use WAL Mode:</strong> Enable Write-Ahead Logging (WAL) for significantly better concurrency and performance in multi-threaded applications.</li>
-  <li><strong>Enforce Foreign Keys:</strong> SQLite requires <code>PRAGMA foreign_keys = ON;</code> to be executed for every connection to enforce relational integrity.</li>
-  <li><strong>Backup Simply:</strong> Since SQLite is just a file, you can "backup" your entire database by simply copying the <code>.sqlite</code> file.</li>
+  <li><strong>Enable WAL mode on every connection:</strong> <code>PRAGMA journal_mode = WAL</code> is the single most impactful performance improvement for SQLite apps with concurrent access. Without it, writes block all readers.</li>
+  <li><strong>Always enable foreign keys:</strong> <code>PRAGMA foreign_keys = ON</code> is off by default for backward compatibility. Enable it in your connection setup — a missing foreign key enforcement is a data integrity gap.</li>
+  <li><strong>Use ISO 8601 TEXT for dates:</strong> Store dates as <code>"2024-01-15T08:30:00Z"</code> strings. SQLite's date functions (<code>strftime</code>, <code>date</code>, <code>datetime</code>) work natively with this format, and ISO 8601 lexicographic order matches chronological order — indexes on TEXT dates work correctly.</li>
+  <li><strong>Prefer generated columns over computed queries for hot JSON paths:</strong> If you query <code>json_extract(payload, '$.user_id')</code> in every WHERE clause, add a generated column and index it. The generated column is free to query and the index makes it fast.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Does SQLite support booleans?</strong><br>
-A: No, SQLite uses <code>INTEGER</code> (0 for false, 1 for true). Use a <code>CHECK</code> constraint to ensure only these values are stored.</p>
-<p><strong>Q: How do I store dates in SQLite?</strong><br>
-A: Use <code>TEXT</code> (ISO 8601 strings) or <code>INTEGER</code> (Unix timestamps). SQLite has built-in functions to handle both formats.</p>
-<p><strong>Q: Can SQLite handle millions of rows?</strong><br>
-A: Yes! SQLite is incredibly efficient and can easily handle databases up to several terabytes in size with millions of rows.</p>
+<p><strong>Q: Can SQLite handle concurrent writes from multiple processes?</strong><br>
+A: Yes, with WAL mode and <code>PRAGMA busy_timeout</code>. WAL allows one writer and multiple readers simultaneously. True parallel writes are serialized — if you need multi-writer concurrency at scale, use PostgreSQL or MySQL instead.</p>
+
+<p><strong>Q: Is SQLite suitable for production web apps?</strong><br>
+A: For read-heavy single-server web apps, yes — SQLite with WAL mode performs excellently. Products like Litestream (continuous replication) and LiteFS (distributed SQLite) make it viable for serious production use. For high-write-concurrency or multi-server deployments, PostgreSQL is the better choice.</p>
+
+<p><strong>Q: How do I store booleans?</strong><br>
+A: Use <code>INTEGER NOT NULL CHECK (col IN (0, 1))</code>. SQLite has no native BOOLEAN type. The <code>CHECK</code> constraint enforces the 0/1 invariant; application code maps 0 → false and 1 → true.</p>
+
+<p><strong>Q: What is the maximum database size?</strong><br>
+A: 281 TB (2^48 bytes) with the default page size. In practice, SQLite is suitable for single-server databases up to hundreds of gigabytes — beyond that, the lack of multi-server distribution becomes a constraint.</p>

@@ -1,53 +1,222 @@
-<h2>JSON to Rust Struct: Type-Safe Serialization with Serde</h2>
-<p>Rust is renowned for its memory safety and performance, and its handling of JSON is no exception. Converting JSON samples to Rust structs, powered by the industry-standard <code>serde</code> (Serialization/Deserialization) framework, provides a level of safety that is unmatched. By generating structs with derive macros, you ensure that your data is not only valid but also memory-efficient. This approach is essential for building high-performance CLI tools, web servers (using Actix or Axum), and system-level applications that interact with JSON data.</p>
+<h2>JSON to Rust Struct: Serde Attributes, Enums, and Zero-Copy Deserialization</h2>
+<p>Rust's <code>serde</code> framework is the gold standard for serialization — not because of a runtime engine, but because it compiles your JSON mapping logic into specialized code at build time via derive macros. Every <code>#[derive(Deserialize)]</code> on your struct generates a custom deserializer that is as fast as hand-written code. Converting your JSON to Rust structs with the right serde attributes gives you correctness enforced by the borrow checker, performance with zero garbage collection pauses, and a rich attribute system that handles every JSON quirk without a single runtime reflection call.</p>
 
-<h3>Live Example: Mapping JSON to Serde-Annotated Rust Structs</h3>
+<h3>Live Example: Article Schema with Serde Attributes</h3>
 <pre><code>// Input JSON
 {
   "id": 42,
-  "title": "Rust Programming",
-  "tags": ["safe", "fast"],
-  "is_published": true
+  "title": "Rust in Production",
+  "author_name": "Ferris Dev",
+  "is_published": true,
+  "tags": ["systems", "performance"],
+  "view_count": 1500,
+  "published_at": "2024-01-15T08:30:00Z"
 }
 
 // Generated Rust Struct
 use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Utc};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub struct Article {
-    pub id: u32,
-    pub title: String,
-    pub tags: Vec&lt;String&gt;,
+    pub id:           u32,
+    pub title:        String,
+    pub author_name:  String,
     pub is_published: bool,
+    pub tags:         Vec&lt;String&gt;,
+    pub view_count:   u64,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
+    pub published_at: Option&lt;DateTime&lt;Utc&gt;&gt;,
 }
 
-// Usage
-let article: Article = serde_json::from_str(json_data)?;
+// Deserialize from JSON string
+let article: Article = serde_json::from_str(json_str)?;
+
+// Serialize to JSON
+let json = serde_json::to_string_pretty(&amp;article)?;
+</code></pre>
+<p><code>#[serde(rename_all = "snake_case")]</code> converts all field names to snake_case in the JSON representation — you write idiomatic Rust field names and serde handles the JSON naming convention automatically. For the reverse, <code>"camelCase"</code> converts to camelCase JSON keys.</p>
+
+<h3>Handling Optional and Nullable Fields</h3>
+<p>Rust's <code>Option&lt;T&gt;</code> is the correct type for both missing fields and null values, but serde's behavior can be configured precisely:</p>
+<pre><code>use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UserProfile {
+    pub id:    u64,
+    pub email: String,
+
+    // Field may be absent from JSON — defaults to None
+    #[serde(default)]
+    pub bio: Option&lt;String&gt;,
+
+    // Field present but null → None; absent → None
+    // Both cases handled identically by Option&lt;T&gt;
+    pub avatar_url: Option&lt;String&gt;,
+
+    // Omit from serialized JSON if None (don't write "avatar_url": null)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deleted_at: Option&lt;String&gt;,
+
+    // Provide a non-None default if field is absent
+    #[serde(default = "default_role")]
+    pub role: String,
+}
+
+fn default_role() -&gt; String { "viewer".to_string() }
+</code></pre>
+<p>Without <code>#[serde(default)]</code>, a missing JSON field for a non-<code>Option</code> type causes a deserialization error. With <code>#[serde(default)]</code>, it uses the <code>Default</code> trait — <code>Option&lt;T&gt;</code> defaults to <code>None</code>, integers to <code>0</code>, strings to <code>""</code>.</p>
+
+<h3>Enums for Tagged Union JSON</h3>
+<p>Serde's enum representation options map directly to common JSON polymorphism patterns:</p>
+<pre><code>use serde::{Deserialize, Serialize};
+
+// Externally tagged (serde default): {"Click": {"x": 100, "y": 200}}
+#[derive(Serialize, Deserialize)]
+enum Event {
+    Click { x: i32, y: i32 },
+    Keypress { key: String, ctrl: bool },
+    Submit { form_id: String },
+}
+
+// Internally tagged: {"type": "click", "x": 100, "y": 200}
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum InternalEvent {
+    Click { x: i32, y: i32 },
+    Keypress { key: String, ctrl: bool },
+    Submit { form_id: String },
+}
+
+// Adjacently tagged: {"t": "click", "c": {"x": 100, "y": 200}}
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "t", content = "c")]
+enum AdjacentEvent {
+    Click { x: i32, y: i32 },
+    Keypress { key: String },
+}
+
+// Untagged: serde tries each variant in order
+// Use when variants have clearly distinct shapes
+#[derive(Serialize, Deserialize)]
+#[serde(untagged)]
+enum UntaggedValue {
+    Integer(i64),
+    Float(f64),
+    Text(String),
+    Bool(bool),
+}
+</code></pre>
+<p>Internally tagged (<code>#[serde(tag = "type")]</code>) matches the most common API pattern where a <code>"type"</code> field discriminates the variant. Serde uses it as a fast discriminator without trying all variants in order.</p>
+
+<h3>Custom Deserialization with #[serde(deserialize_with)]</h3>
+<pre><code>use serde::{Deserialize, Deserializer};
+
+fn deserialize_comma_separated&lt;'de, D&gt;(deserializer: D) -&gt; Result&lt;Vec&lt;String&gt;, D::Error&gt;
+where D: Deserializer&lt;'de&gt; {
+    let s = String::deserialize(deserializer)?;
+    Ok(s.split(',').map(|t| t.trim().to_string()).collect())
+}
+
+fn deserialize_cents_to_dollars&lt;'de, D&gt;(deserializer: D) -&gt; Result&lt;f64, D::Error&gt;
+where D: Deserializer&lt;'de&gt; {
+    let cents = u64::deserialize(deserializer)?;
+    Ok(cents as f64 / 100.0)
+}
+
+#[derive(Deserialize)]
+pub struct Product {
+    pub sku:   String,
+    pub name:  String,
+
+    // JSON: "tags": "rust,systems,fast"
+    // Rust: Vec&lt;String&gt;
+    #[serde(deserialize_with = "deserialize_comma_separated")]
+    pub tags: Vec&lt;String&gt;,
+
+    // JSON: "price_cents": 4999
+    // Rust: 49.99 f64
+    #[serde(rename = "price_cents", deserialize_with = "deserialize_cents_to_dollars")]
+    pub price: f64,
+}
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Add Dependencies:</strong> Ensure <code>serde</code> and <code>serde_json</code> are in your <code>Cargo.toml</code> with the <code>derive</code> feature enabled.<br>
-2. <strong>Define the Struct:</strong> Use the converter to map JSON keys to Rust fields. Rust prefers <code>snake_case</code> for field names.<br>
-3. <strong>Apply Derive Macros:</strong> Add <code>#[derive(Serialize, Deserialize)]</code> to your struct to automatically generate the implementation logic.<br>
-4. <strong>Handle Renaming:</strong> Use <code>#[serde(rename = "camelCaseKey")]</code> if your JSON uses a different naming convention than your Rust code.</p>
+<h3>Zero-Copy Deserialization with Borrowed Strings</h3>
+<p>For high-throughput deserialization where allocating a new <code>String</code> for every field is too expensive, serde supports borrowing from the input buffer:</p>
+<pre><code>use serde::Deserialize;
 
-<h3>Technical Deep Dive: Zero-Cost Abstractions and Safety</h3>
-<p>Rust's JSON handling via <code>serde</code> is a prime example of a **Zero-Cost Abstraction**. The code generated by the derive macros is as fast as hand-written code. One unique feature of Rust is its strictness regarding **Nullability** and **Optionality**. A field that can be missing in JSON *must* be wrapped in an <code>Option&lt;T&gt;</code> in Rust. This forces the developer to handle the "none" case explicitly at compile-time, virtually eliminating null-pointer exceptions. Furthermore, Rust's ownership model ensures that strings and vectors in your structs are managed efficiently without a garbage collector.</p>
+// &amp;'de str borrows from the input JSON bytes — no allocation
+// Constraint: the input JSON must outlive the deserialized struct
+#[derive(Deserialize)]
+pub struct EventRef&lt;'de&gt; {
+    pub id:   u64,
+    pub name: &amp;'de str,  // zero-copy string reference into JSON input
+    pub tags: Vec&lt;&amp;'de str&gt;,
+}
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>Rust Structs vs. Untyped Value:</strong> <code>serde_json::Value</code> allows you to handle dynamic JSON, but it's slower and less safe. Structs are the gold standard for performance. <strong>Bincode</strong> or <strong>MessagePack</strong> are alternatives to JSON for binary serialization, often used in Rust-to-Rust communication for maximum speed and minimum size.</p>
+// Usage: input JSON must remain valid while EventRef is in scope
+let json = r#"{"id": 1, "name": "click", "tags": ["ui"]}"#;
+let event: EventRef = serde_json::from_str(json)?;
+println!("{}", event.name); // "click" — no String allocation
+</code></pre>
+<p>Zero-copy deserialization cuts allocation overhead by ~30-50% for read-heavy workloads. The trade-off is lifetime management — the struct borrows from the JSON input and cannot outlive it.</p>
+
+<h3>Integration with Axum HTTP Server</h3>
+<pre><code>use axum::{extract::Json, http::StatusCode, response::IntoResponse, routing::post, Router};
+use serde::{Deserialize, Serialize};
+use validator::Validate;
+
+#[derive(Debug, Deserialize, Validate)]
+struct CreateUser {
+    #[validate(length(min = 3, max = 50))]
+    username: String,
+    #[validate(email)]
+    email: String,
+    #[validate(length(min = 8))]
+    password: String,
+}
+
+#[derive(Serialize)]
+struct UserResponse {
+    id:       u64,
+    username: String,
+    email:    String,
+}
+
+async fn create_user(Json(payload): Json&lt;CreateUser&gt;) -&gt; impl IntoResponse {
+    if let Err(errors) = payload.validate() {
+        return (StatusCode::BAD_REQUEST, Json(errors)).into_response();
+    }
+    // payload.username, payload.email — validated at runtime by validator crate
+    let user = UserResponse { id: 1, username: payload.username, email: payload.email };
+    (StatusCode::CREATED, Json(user)).into_response()
+}
+
+#[tokio::main]
+async fn main() {
+    let app = Router::new().route("/users", post(create_user));
+    axum::serve(tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap(), app).await.unwrap();
+}
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use <code>Result</code> for Error Handling:</strong> <code>serde_json::from_str</code> returns a <code>Result</code>. Always use <code>?</code> or <code>match</code> to handle potential parsing errors gracefully.</li>
-  <li><strong>Leverage <code>serde</code> Attributes:</strong> Use <code>#[serde(default)]</code> to provide default values for missing fields, or <code>#[serde(skip_serializing_if = "Option::is_none")]</code> to keep your output JSON clean.</li>
-  <li><strong>Minimize Allocations:</strong> For extreme performance, consider using <code>&str</code> instead of <code>String</code> with <code>serde</code>'s lifetimes to deserialize data without copying it.</li>
+  <li><strong>Use <code>u32</code> / <code>u64</code> for IDs and counts, never <code>f64</code>:</strong> JSON numbers are IEEE 754 floats, but serde parses them into the Rust type you specify. An ID stored as <code>f64</code> silently loses precision for integers larger than 2^53.</li>
+  <li><strong>Add <code>#[serde(deny_unknown_fields)]</code> to strict input types:</strong> On public API request bodies, unknown fields indicate a client bug or version mismatch. Catching them early produces better error messages than silently ignoring them.</li>
+  <li><strong>Prefer <code>serde_json::Value</code> sparingly:</strong> <code>Value</code> allocates a tree for the entire JSON document. Use it for truly dynamic data; for semi-structured data, define structs with <code>serde_json::Value</code> only for the dynamic sub-fields.</li>
+  <li><strong>Feature-gate <code>chrono</code> in Cargo.toml:</strong> <code>chrono = { version = "0.4", features = ["serde"] }</code> — the serde feature enables <code>DateTime&lt;Utc&gt;</code> deserialization from ISO 8601 strings. Without it, you get a compile error at the derive macro expansion site.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: How do I handle mixed-type arrays?</strong><br>
-A: Use a Rust <code>enum</code> with <code>serde</code>'s untagged or adjacently tagged representation to map different JSON shapes to different enum variants.</p>
-<p><strong>Q: Can I use custom validation?</strong><br>
-A: Yes, you can implement a custom <code>Deserialize</code> trait or use the <code>validator</code> crate to add business logic checks to your structs.</p>
-<p><strong>Q: What if a JSON key is a Rust keyword (like 'type')?</strong><br>
-A: Use <code>#[serde(rename = "type")]</code> and name your Rust field <code>r#type</code> or something similar.</p>
+<p><strong>Q: How do I handle a JSON field named with a Rust keyword (e.g., "type")?</strong><br>
+A: Use <code>#[serde(rename = "type")]</code> on a field named something valid in Rust: <code>#[serde(rename = "type")] pub kind: EventKind</code>. Rust allows you to name the field anything; serde controls the JSON key name.</p>
+
+<p><strong>Q: How do I deserialize a JSON number that might be a string?</strong><br>
+A: Use <code>#[serde(deserialize_with)]</code> with a function that tries <code>u64::deserialize</code> first, then falls back to parsing a string. The <code>serde_with</code> crate has a <code>serde_with::DisplayFromStr</code> helper for exactly this case.</p>
+
+<p><strong>Q: What is the performance difference between serde_json and simd_json?</strong><br>
+A: <code>simd_json</code> uses SIMD CPU instructions to parse JSON 2-4× faster than <code>serde_json</code>. It's a drop-in replacement for most use cases: swap <code>serde_json::from_str</code> for <code>simd_json::serde::from_str</code>. Use it for hot paths parsing large JSON payloads on modern CPUs.</p>
+
+<p><strong>Q: How do I serialize an enum variant as just a string (not an object)?</strong><br>
+A: For unit variants (no fields), serde serializes them as their name string by default: <code>Status::Active</code> → <code>"Active"</code>. Add <code>#[serde(rename_all = "snake_case")]</code> to get <code>"active"</code>. For tuple variants you want as strings, use the <code>serde_with::SerializeDisplay</code> / <code>DeserializeFromStr</code> helpers.</p>

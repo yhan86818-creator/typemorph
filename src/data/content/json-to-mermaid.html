@@ -1,67 +1,276 @@
-<h2>Converting JSON to Mermaid Diagrams: Visualizing Data Structures</h2>
-<p>Mermaid is a JavaScript-based diagramming and charting tool that renders Markdown-inspired text definitions to create diagrams dynamically. Converting complex JSON structures into Mermaid syntax allows developers to visualize relationships, flowcharts, and class hierarchies. This is particularly useful for documenting APIs, state machines, and microservice dependencies directly in your GitHub README or documentation site.</p>
+<h2>JSON to Mermaid: ER Diagrams, Class Diagrams, and Sequence Diagrams from Data</h2>
+<p>Mermaid is a text-based diagramming tool that renders directly in GitHub Markdown, GitLab, Notion, Docusaurus, and VS Code. Converting JSON to Mermaid gives you diagrams that live in version control, update automatically when the schema changes, and require no design tool. The key insight is that different JSON shapes map to different Mermaid diagram types: a JSON schema with nested objects maps to a class diagram or ER diagram; an array of API interactions maps to a sequence diagram; a dependency graph maps to a flowchart. Choosing the right diagram type matters more than the syntax.</p>
 
-<h3>Live Example</h3>
-<p>A JSON object representing a system architecture:</p>
-<pre><code>{
+<h3>Live Example: JSON Schema → ER Diagram</h3>
+<pre><code>// Input JSON (API schema for an e-commerce system)
+{
+  "Order": {
+    "id": "uuid",
+    "customer_id": "uuid",
+    "status": "enum",
+    "total": "decimal",
+    "created_at": "datetime",
+    "items": [{ "product_id": "uuid", "quantity": "int", "unit_price": "decimal" }]
+  },
+  "Customer": {
+    "id": "uuid",
+    "email": "string",
+    "name": "string",
+    "tier": "enum"
+  },
+  "Product": {
+    "id": "uuid",
+    "sku": "string",
+    "name": "string",
+    "price": "decimal",
+    "stock": "int"
+  }
+}
+
+// Generated Mermaid ER Diagram
+erDiagram
+    Customer {
+        uuid id PK
+        string email UK
+        string name
+        string tier "starter|professional|enterprise"
+    }
+    Order {
+        uuid id PK
+        uuid customer_id FK
+        string status "pending|confirmed|shipped|delivered"
+        decimal total
+        datetime created_at
+    }
+    OrderItem {
+        uuid order_id FK
+        uuid product_id FK
+        int quantity
+        decimal unit_price
+    }
+    Product {
+        uuid id PK
+        string sku UK
+        string name
+        decimal price
+        int stock
+    }
+
+    Customer ||--o{ Order        : "places"
+    Order    ||--|{ OrderItem    : "contains"
+    Product  ||--o{ OrderItem   : "referenced by"
+</code></pre>
+<p>Render in a GitHub README using a fenced code block with the <code>mermaid</code> language tag. The ER diagram uses crow's foot notation: <code>||</code> = exactly one, <code>o{</code> = zero or many, <code>|{</code> = one or many.</p>
+
+<h3>JSON Object → Class Diagram</h3>
+<pre><code">// Input JSON (TypeScript-like type hierarchy)
+{
+  "BaseEntity": { "id": "string", "createdAt": "Date", "updatedAt": "Date" },
+  "User": { "extends": "BaseEntity", "email": "string", "role": "UserRole" },
+  "AdminUser": { "extends": "User", "permissions": "string[]", "canBan": "boolean" },
+  "UserRole": { "enum": ["VIEWER", "EDITOR", "ADMIN"] }
+}
+
+// Generated Mermaid Class Diagram
+classDiagram
+    class BaseEntity {
+        +String id
+        +Date createdAt
+        +Date updatedAt
+    }
+    class User {
+        +String email
+        +UserRole role
+        +validate() Boolean
+        +toJSON() Object
+    }
+    class AdminUser {
+        +String[] permissions
+        +Boolean canBan
+        +grantPermission(perm) void
+        +revokePermission(perm) void
+    }
+    class UserRole {
+        &lt;&lt;enumeration&gt;&gt;
+        VIEWER
+        EDITOR
+        ADMIN
+    }
+
+    BaseEntity &lt;|-- User       : extends
+    User       &lt;|-- AdminUser  : extends
+    User        --> UserRole    : uses
+</code></pre>
+
+<h3>API Interactions → Sequence Diagram</h3>
+<pre><code">// Input JSON (API interaction log)
+[
+  { "from": "Browser",  "to": "NextAPI",   "message": "POST /login",              "type": "request"  },
+  { "from": "NextAPI",  "to": "AuthSvc",   "message": "validateCredentials()",     "type": "call"     },
+  { "from": "AuthSvc",  "to": "Database",  "message": "SELECT * FROM users",       "type": "query"    },
+  { "from": "Database", "to": "AuthSvc",   "message": "user record",               "type": "response" },
+  { "from": "AuthSvc",  "to": "NextAPI",   "message": "JWT token",                 "type": "response" },
+  { "from": "NextAPI",  "to": "Browser",   "message": "200 OK {token}",            "type": "response" }
+]
+
+// Generated Mermaid Sequence Diagram
+sequenceDiagram
+    actor Browser
+    participant NextAPI as Next.js API
+    participant AuthSvc as Auth Service
+    participant Database
+
+    Browser   ->>  NextAPI:   POST /login
+    activate NextAPI
+
+    NextAPI   ->>  AuthSvc:   validateCredentials()
+    activate AuthSvc
+
+    AuthSvc   ->>  Database:  SELECT * FROM users WHERE email=?
+    activate Database
+    Database  -->> AuthSvc:   user record
+    deactivate Database
+
+    AuthSvc   -->> NextAPI:   JWT token
+    deactivate AuthSvc
+
+    NextAPI   -->> Browser:   200 OK { token }
+    deactivate NextAPI
+
+    Note over AuthSvc,Database: Password verified with bcrypt
+</code></pre>
+
+<h3>Dependency Graph → Flowchart</h3>
+<pre><code">// Input JSON (microservice dependencies)
+{
   "services": [
-    {"name": "Gateway", "depends_on": "AuthService"},
-    {"name": "AuthService", "depends_on": "Database"}
+    { "name": "WebApp",     "depends_on": ["ApiGateway"] },
+    { "name": "ApiGateway", "depends_on": ["UserSvc", "OrderSvc", "AuthSvc"] },
+    { "name": "UserSvc",    "depends_on": ["Postgres", "Redis"] },
+    { "name": "OrderSvc",   "depends_on": ["Postgres", "MessageQueue"] },
+    { "name": "AuthSvc",    "depends_on": ["Redis"] }
   ]
-}</code></pre>
-<p>The generated Mermaid Flowchart:</p>
-<pre><code>graph TD
-    Gateway --> AuthService
-    AuthService --> Database
-    
-    style Gateway fill:#f9f,stroke:#333,stroke-width:4px
-    style Database fill:#bbf,stroke:#333,stroke-width:2px</code></pre>
+}
 
-<h3>Implementation Guide</h3>
-<ol>
-  <li><strong>Select Diagram Type:</strong> Decide if your JSON represents a <code>graph</code> (flowchart), <code>sequenceDiagram</code>, or <code>classDiagram</code>.</li>
-  <li><strong>Node Generation:</strong> Iterate through your JSON keys/values to create Mermaid nodes (e.g., <code>A[Label]</code>).</li>
-  <li><strong>Relationship Mapping:</strong> Map JSON links or dependencies to Mermaid arrows (<code>--></code>, <code>-.-></code>, <code>==></code>).</li>
-  <li><strong>Styling:</strong> Use the <code>style</code> or <code>classDef</code> keywords in Mermaid to color-code nodes based on JSON properties (e.g., "status": "active").</li>
-  <li><strong>Rendering:</strong> Use the Mermaid CLI or a web-based renderer to turn the text into an SVG or PNG image.</li>
-</ol>
+// Generated Mermaid Flowchart
+flowchart TD
+    subgraph Frontend
+        WebApp
+    end
 
-<h3>Technical Deep Dive</h3>
-<p>The power of Mermaid lies in its simplicity. When converting from JSON, you are essentially writing a translator that maps a hierarchical or networked data structure to a declarative string. For large JSON files, "Pruning" is essential; a diagram with 1000 nodes is unreadable. Your conversion logic should allow for filtering nodes based on depth or importance. For sequence diagrams, your JSON should represent an array of "interactions" with <code>from</code>, <code>to</code>, and <code>message</code> fields, which map directly to Mermaid's <code>ActorA -> ActorB: Message</code> syntax.</p>
+    subgraph Gateway
+        ApiGateway
+    end
 
-<h3>Comparison</h3>
-<table border="1">
-  <tr>
-    <th>Feature</th>
-    <th>Mermaid Diagrams</th>
-    <th>Manual SVG/PNG</th>
-  </tr>
-  <tr>
-    <td>Version Control</td>
-    <td>Excellent (Text-based)</td>
-    <td>Poor (Binary)</td>
-  </tr>
-  <tr>
-    <td>Update Speed</td>
-    <td>Instant</td>
-    <td>Slow (Requires design tool)</td>
-  </tr>
-  <tr>
-    <td>Automation</td>
-    <td>Easy via scripts</td>
-    <td>Difficult</td>
-  </tr>
-</table>
+    subgraph Services
+        UserSvc
+        OrderSvc
+        AuthSvc
+    end
 
-<h3>Best Practices</h3>
+    subgraph Infrastructure
+        Postgres[(PostgreSQL)]
+        Redis[(Redis Cache)]
+        MessageQueue{{Message Queue}}
+    end
+
+    WebApp     --> ApiGateway
+    ApiGateway --> UserSvc
+    ApiGateway --> OrderSvc
+    ApiGateway --> AuthSvc
+    UserSvc    --> Postgres
+    UserSvc    --> Redis
+    OrderSvc   --> Postgres
+    OrderSvc   --> MessageQueue
+    AuthSvc    --> Redis
+
+    style WebApp     fill:#e1f5fe
+    style ApiGateway fill:#fff3e0
+    style Postgres   fill:#f3e5f5
+    style Redis      fill:#fce4ec
+</code></pre>
+
+<h3>State Machine from JSON Config</h3>
+<pre><code">// Input JSON (order status state machine)
+{
+  "states": ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"],
+  "transitions": [
+    { "from": "pending",    "to": "confirmed",  "on": "confirm_payment" },
+    { "from": "confirmed",  "to": "processing", "on": "start_processing" },
+    { "from": "confirmed",  "to": "cancelled",  "on": "cancel" },
+    { "from": "processing", "to": "shipped",    "on": "ship" },
+    { "from": "shipped",    "to": "delivered",  "on": "deliver" },
+    { "from": "shipped",    "to": "cancelled",  "on": "return_requested" }
+  ]
+}
+
+// Generated Mermaid State Diagram
+stateDiagram-v2
+    [*] --> pending : new order
+
+    pending    --> confirmed   : confirm_payment
+    confirmed  --> processing  : start_processing
+    confirmed  --> cancelled   : cancel
+    processing --> shipped     : ship
+    shipped    --> delivered   : deliver
+    shipped    --> cancelled   : return_requested
+
+    delivered --> [*]
+    cancelled --> [*]
+
+    note right of processing : triggers warehouse notification
+    note right of shipped    : sends tracking email
+</code></pre>
+
+<h3>Rendering Mermaid in Different Contexts</h3>
+<pre><code">// GitHub/GitLab Markdown — native rendering
+```mermaid
+erDiagram
+    User ||--o{ Order : "places"
+```
+
+// Docusaurus (MDX) — built-in support via @docusaurus/theme-mermaid
+// docusaurus.config.js
+module.exports = {
+  themes: ['@docusaurus/theme-mermaid'],
+  markdown: { mermaid: true },
+};
+
+// Programmatic rendering with @mermaid-js/mermaid-cli
+npx mmdc -i diagram.mmd -o diagram.svg -t dark
+npx mmdc -i diagram.mmd -o diagram.png --width 1200 --height 800
+
+// Node.js: generate Mermaid string from JSON
+function jsonToErDiagram(schema: Record<string, Record<string, string>>): string {
+  const lines = ['erDiagram'];
+  for (const [entity, fields] of Object.entries(schema)) {
+    lines.push(`    ${entity} {`);
+    for (const [field, type] of Object.entries(fields)) {
+      lines.push(`        ${type} ${field}`);
+    }
+    lines.push('    }');
+  }
+  return lines.join('\n');
+}
+</code></pre>
+
+<h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Keep it Simple:</strong> Aim for "Top-Down" (TD) or "Left-to-Right" (LR) layouts to keep the diagram readable.</li>
-  <li><strong>Use Subgraphs:</strong> Group related nodes in your JSON into Mermaid <code>subgraph</code> blocks to provide visual context.</li>
-  <li><strong>Escape Characters:</strong> Ensure that labels containing special characters (like <code>[</code> or <code>]</code>) are properly escaped or quoted in the Mermaid output.</li>
+  <li><strong>Choose diagram type based on JSON shape:</strong> Objects with relationships → ER diagram. Type hierarchy with methods → class diagram. API calls in order → sequence diagram. Service dependencies → flowchart. State transitions → state diagram. Don't force JSON into the wrong diagram type.</li>
+  <li><strong>Limit diagram scope:</strong> A Mermaid diagram with more than 15-20 nodes becomes hard to read. For large JSON schemas, generate separate diagrams per bounded context, or generate an overview diagram with only top-level entities and link to detailed diagrams.</li>
+  <li><strong>Use subgraphs in flowcharts:</strong> Group related nodes into <code>subgraph</code> blocks to add visual hierarchy. This is especially useful for microservice architectures where services cluster into frontend, backend, and infrastructure layers.</li>
+  <li><strong>Commit generated Mermaid alongside source JSON:</strong> Keep the <code>.mmd</code> files in the same directory as the JSON schema they were generated from. Add a script to regenerate diagrams when schemas change. Reviewers can diff the text diagram in PRs.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Can I create Entity Relationship (ER) diagrams?</strong><br>
-A: Yes, Mermaid supports <code>erDiagram</code>. You can map your JSON schema keys to entity attributes and relationships (e.g., <code>USER ||--o{ POST : writes</code>).</p>
-<p><strong>Q: Is there a limit to diagram size?</strong><br>
-A: While Mermaid can handle hundreds of nodes, browser rendering performance and readability suffer with extremely large diagrams. It's better to create several small, focused diagrams.</p>
+<p><strong>Q: What Mermaid diagram type best represents a JSON Schema?</strong><br>
+A: ER diagram (<code>erDiagram</code>) for data models with relationships and foreign keys. Class diagram (<code>classDiagram</code>) for object hierarchies with methods and inheritance. For a flat JSON object with no relationships, a simple flowchart showing key → value structure is often more readable than forcing it into an ER diagram.</p>
+
+<p><strong>Q: Can I use Mermaid for API documentation?</strong><br>
+A: Yes — sequence diagrams are excellent for documenting API call flows, authentication flows, and webhook interactions. Combine Mermaid diagrams with OpenAPI/Swagger spec for comprehensive documentation: OpenAPI for endpoints, Mermaid sequences for flows.</p>
+
+<p><strong>Q: How do I handle long labels in Mermaid?</strong><br>
+A: Use quoted strings for labels with spaces or special characters: <code>A["Long Label Text"]</code>. For very long labels, use <br/> inside quotes for line breaks. Alternatively, use short node IDs and a legend table in the surrounding Markdown.</p>
+
+<p><strong>Q: Does Mermaid support themes?</strong><br>
+A: Yes — built-in themes: <code>default</code>, <code>dark</code>, <code>forest</code>, <code>neutral</code>, <code>base</code> (customizable). Set via the <code>%%{init: {'theme': 'dark'}}%%</code> directive at the top of the diagram, or globally in the Mermaid <code>initialize()</code> call.</p>

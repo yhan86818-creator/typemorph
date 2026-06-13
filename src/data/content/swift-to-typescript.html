@@ -1,57 +1,251 @@
-<h2>Swift to TypeScript: Bridging Mobile and Web with Unified Types</h2>
-<p>In a world of cross-platform applications, maintaining separate type definitions for iOS (Swift) and Web (TypeScript) is a recipe for inconsistency and bugs. Converting Swift structs and enums to TypeScript interfaces bridges this gap. By sharing the same data contracts across your mobile and web teams, you ensure that your API responses are handled identically on all platforms, reducing development time and eliminating a whole class of "missing field" or "wrong type" errors.</p>
+<h2>SWIFT MT to TypeScript: Block Structure, Tagged Fields, pacs.008 Types, and Coexistence with ISO 20022</h2>
+<p>SWIFT MT (Message Type) is the financial industry's ISO 15022 tag-value format for cross-border payments, securities settlement, and correspondent banking. Converting SWIFT MT to TypeScript type definitions requires understanding the <strong>block envelope</strong> (blocks 1–5 wrap every message), <strong>tagged field format</strong> (<code>:32A:240315USD15000,00</code> = value date, currency, amount in a single field), and the <strong>coexistence period</strong> where MT and ISO 20022 MX messages run in parallel until the 2025 full cutover. This guide covers TypeScript interfaces for MT103/MT202/MT940, field format parsing, and how to migrate to MX types during the transition window.</p>
 
-<h3>Live Example: Mapping Swift Models to TypeScript Interfaces</h3>
-<pre><code>// Input Swift Code
-struct UserProfile: Codable {
-    let id: UUID
-    let username: String
-    let bio: String?
-    let role: UserRole
+<h3>SWIFT MT Block Envelope and TypeScript Interfaces</h3>
+<pre><code">// Every SWIFT MT message has this block structure:
+// {1:F01BARCGB22AXXX0000000000}     — Basic Header (sender BIC)
+// {2:O1031000240315BNPAFRPPAXXX...} — Application Header (message type, receiver BIC)
+// {3:{108:USER-REF-001}}            — User Header (optional)
+// {4:                               — Text Block (the actual payload)
+// :20:REF20240315001
+// :23B:CRED
+// :32A:240315USD15000,00
+// ...
+// -}
+// {5:{CHK:3B9E3FCBCFAC}}           — Trailer (checksum)
+
+// TypeScript interfaces for block parsing
+export interface SwiftMtMessage {
+  basicHeader:       BasicHeader;
+  applicationHeader: ApplicationHeader;
+  userHeader?:       UserHeader;
+  trailer:           MtTrailer;
 }
 
-enum UserRole: String, Codable {
-    case admin, member, guest
+export interface BasicHeader {
+  applicationId:      string;  // 'F' = FIN, 'A' = ACK
+  serviceId:          string;  // '01' = FIN/GPA, '21' = ack
+  logicalTerminalAddr: string; // 12-char BIC+branch: BARCGB22AXXX
+  sessionNumber:      string;  // 4 digits
+  sequenceNumber:     string;  // 6 digits
 }
 
-// Generated TypeScript Code
-export interface UserProfile {
-  id: string; // UUID maps to string
-  username: string;
-  bio: string | null; // Optional maps to nullable
-  role: UserRole;
+export interface ApplicationHeader {
+  ioIndicator:    'I' | 'O';  // Input (sent to SWIFT) or Output (received from SWIFT)
+  messageType:    string;     // '103', '202', '940', etc.
+  receiverBic?:   string;     // for Input messages: target BIC
+  senderBic?:     string;     // for Output messages: originator BIC
+  priority?:      'N' | 'U' | 'S';  // Normal, Urgent, System
 }
 
-export enum UserRole {
-  Admin = 'admin',
-  Member = 'member',
-  Guest = 'guest'
+export interface UserHeader {
+  serviceTypeId?:                    string;  // tag 103 — 'CAT' for SWIFTNet Cash Reporting
+  messageUserReference?:             string;  // tag 108 — user-assigned reference
+  uniqueEndToEndTransactionRef?:     string;  // tag 121 — UETR (UUID), required post-2020
+  sanctionsScreeningInfo?:           string;  // tag 165 — OFAC/SWIFT compliance
+}
+
+export interface MtTrailer {
+  checksum?:               string;  // CHK: 12-char hash
+  possibleDuplicate?:      string;  // PDE: timestamp — resent message flag
+  duplicateMessage?:       string;  // DLM: delayed message flag
+  trainingMode?:           string;  // TNG: test message (never process as live)
+  systemOriginatedMessage?: string; // SYS: SWIFT network-generated
 }
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Identify Core Models:</strong> Select the Swift structs that represent your shared data models or API responses.<br>
-2. <strong>Map Primitives:</strong> Convert Swift <code>String</code> to TS <code>string</code>, <code>Int/Double</code> to <code>number</code>, and <code>Bool</code> to <code>boolean</code>.<br>
-3. <strong>Handle Optionals:</strong> Swift <code>Type?</code> should be mapped to TypeScript <code>Type | null</code> or <code>Type | undefined</code> depending on your frontend convention.<br>
-4. <strong>Translate Enums:</strong> Map Swift's powerful enums (especially those with <code>RawValue</code>) to TypeScript string enums or union types.</p>
+<h3>MT103 Text Block: Field Format Specifications and TypeScript Types</h3>
+<pre><code">// MT103 text block field specifications (SWIFT notation → TypeScript)
+// SWIFT format: 6!n = exactly 6 digits, 3!a = exactly 3 letters, 15d = up to 15 digits
 
-<h3>Technical Deep Dive: UUIDs, Dates, and Collections</h3>
-<p>Converting Swift to TypeScript requires careful handling of platform-specific types. For instance, Swift's <code>UUID</code> type has no direct equivalent in JavaScript, so it must be mapped to a <code>string</code>. Similarly, Swift <code>Date</code> objects are usually serialized to ISO 8601 strings in JSON, which should be reflected in the TypeScript interface. Another key area is **Collections**. Swift's <code>Array&lt;T&gt;</code> and <code>Set&lt;T&gt;</code> both map cleanly to TypeScript <code>T[]</code>, but Swift's <code>Dictionary&lt;Key, Value&gt;</code> must be mapped to <code>Record&lt;string, Value&gt;</code>, as JavaScript object keys are always strings (or symbols).</p>
+export interface Mt103TextBlock {
+  // :20: 16x — 16-char alphanumeric, Transaction Reference Number
+  transactionReference:   string;
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>Swift-to-TypeScript vs. Manual Sync:</strong> Manual synchronization is error-prone and slow. Automated conversion is the professional choice for multi-platform teams. <strong>GraphQL</strong> is a powerful alternative that provides a unified schema for all platforms, while <strong>Swagger/OpenAPI</strong> can generate both Swift and TypeScript code from a single source of truth.</p>
+  // :23B: 4!a — Bank Operation Code: CRED, CRTS, SPAY, SSTD, SPRI
+  bankOperationCode:      BankOperationCode;
+
+  // :32A: 6!n3!a15d — Value Date (YYMMDD) + Currency (ISO 4217) + Amount (comma decimal)
+  valueDate:              Date;
+  currency:               string;   // ISO 4217: 'USD', 'EUR', 'GBP'
+  amount:                 string;   // stored as string: '15000,00' → '15000.00'
+
+  // :33B: 3!a15d — Currency/Instructed Amount (if different from settlement amount)
+  instructedAmount?:      { currency: string; amount: string };
+
+  // :50K/50A/50F: 34x / BIC / structured — Ordering Customer
+  orderingCustomer?:      SwiftParty;
+
+  // :52A/52D: BIC / 35x — Ordering Institution
+  orderingInstitution?:   SwiftParty;
+
+  // :53A/53B/53D: BIC / 35x / name — Sender's Correspondent
+  sendersCorrespondent?:  SwiftParty;
+
+  // :54A/54B/54D: — Receiver's Correspondent
+  receiversCorrespondent?: SwiftParty;
+
+  // :56A/56D: — Intermediary Institution
+  intermediaryInstitution?: SwiftParty;
+
+  // :57A/57B/57C/57D: — Account With Institution (beneficiary's bank)
+  accountWithInstitution?:  SwiftParty;
+
+  // :59/59A/59F: 34x / BIC / structured — Beneficiary Customer
+  beneficiaryCustomer:    SwiftParty;
+
+  // :70: 4*35x — Remittance Information (4 lines × 35 chars each)
+  remittanceInfo?:        string;
+
+  // :71A: 3!a — Details of Charges: SHA, OUR, BEN
+  detailsOfCharges:       ChargesCode;
+
+  // :71F: 3!a15d — Sender's Charges
+  sendersCharges?:        { currency: string; amount: string }[];
+
+  // :71G: 3!a15d — Receiver's Charges
+  receiversCharges?:      { currency: string; amount: string };
+
+  // :72: 6*35x — Sender to Receiver Information (/INS/, /INT/, /RETN/, etc.)
+  senderToReceiver?:      string;
+}
+
+export enum BankOperationCode { CRED = 'CRED', CRTS = 'CRTS', SPAY = 'SPAY', SSTD = 'SSTD', SPRI = 'SPRI' }
+export enum ChargesCode       { SHA = 'SHA', OUR = 'OUR', BEN = 'BEN' }
+
+export interface SwiftParty {
+  optionQualifier: 'A' | 'B' | 'C' | 'D' | 'F' | 'K' | '';
+  accountNumber?:  string;   // /IBAN or /AccountNumber prefix
+  bic?:            string;   // for option A
+  name?:           string;
+  address?:        string[];
+  countryCode?:    string;
+}
+</code></pre>
+
+<h3>MT202 and MT940 TypeScript Interfaces</h3>
+<pre><code">// MT202: General Financial Institution Transfer (interbank, no customer data)
+export interface Mt202TextBlock {
+  transactionReference:    string;   // :20:
+  relatedReference:        string;   // :21: — reference of the related MT103
+  valueDate:               Date;     // :32A:
+  currency:                string;
+  amount:                  string;
+  orderingInstitution?:    SwiftParty;  // :52A/:52D:
+  sendersCorrespondent?:   SwiftParty;  // :53A/:53B/:53D:
+  receiversCorrespondent?: SwiftParty;  // :54A/:54B/:54D:
+  beneficiaryInstitution:  SwiftParty;  // :58A/:58D: — required field
+  senderToReceiver?:       string;      // :72:
+}
+
+// MT940: Customer Statement Message (used for bank statement delivery)
+export interface Mt940TextBlock {
+  transactionReference:  string;    // :20:
+  relatedReference?:     string;    // :21:
+  accountId:             string;    // :25: — IBAN or account number
+  statementNumber:       string;    // :28C: statement number/sequence
+  openingBalance:        Mt940Balance;  // :60F:/:60M: first or subsequent
+  transactions:          Mt940Transaction[];  // :61: entries
+  closingBalance:        Mt940Balance;  // :62F:/:62M:
+  closingAvailableBalance?: Mt940Balance;  // :64:
+  forwardAvailableBalance?: Mt940Balance[]; // :65:
+  informationToAccountOwner?: string;  // :86: narrative
+}
+
+export interface Mt940Balance {
+  creditDebit: 'C' | 'D' | 'RC' | 'RD';  // Credit/Debit/Reversed Credit/Reversed Debit
+  date:        Date;
+  currency:    string;
+  amount:      string;
+}
+
+export interface Mt940Transaction {
+  valueDate:          Date;           // :61: first 6 chars YYMMDD
+  entryDate?:         string;         // :61: optional 4 chars MMDD
+  creditDebit:        'C' | 'D' | 'RC' | 'RD';
+  fundsCode?:         string;         // 3rd char (D=domestic, S=SWIFT, etc.)
+  amount:             string;
+  transactionType:    string;         // S= (SWIFT), N= (non-SWIFT), F= (first advice)
+  referenceForAccountOwner:  string;  // customer reference
+  referenceForBank?:  string;         // bank reference after //
+  supplementaryDetails?: string;      // :86: — free text narrative
+}
+</code></pre>
+
+<h3>SWIFT MT to ISO 20022 MX Coexistence Mapping</h3>
+<pre><code">// During the coexistence period (2023-2025), both MT and MX messages flow in parallel.
+// SWIFT Translator Service converts between them, but you must understand the mapping.
+
+// MT103 field → ISO 20022 pacs.008 element mapping:
+// :20: TransactionReference → GrpHdr/MsgId or CdtTrfTxInf/PmtId/InstrId
+// :32A: ValueDate/Currency/Amount → CdtTrfTxInf/IntrBkSttlmAmt + IntrBkSttlmDt
+// :50K: OrderingCustomer → CdtTrfTxInf/Dbtr (Debtor)
+// :59: BeneficiaryCustomer → CdtTrfTxInf/Cdtr (Creditor)
+// :70: RemittanceInfo → CdtTrfTxInf/RmtInf/Ustrd (unstructured)
+// :71A: DetailsOfCharges → CdtTrfTxInf/ChrgBr (SHA=SLEV, OUR=DEBT, BEN=CRED)
+
+// Truncation risk: ISO 20022 allows longer strings than MT.
+// MT :50K: name field = 4×35 chars max. MX Debtor/Nm = 140 chars.
+// When translating MX→MT, names over 35 chars are truncated — data loss!
+
+// TypeScript migration helper: generate both MT and MX representations
+import { Decimal } from 'decimal.js';
+
+interface Mt103Data {
+  transactionReference: string;
+  valueDate: Date;
+  currency: string;
+  amount: string;
+  orderingCustomer?: SwiftParty;
+  beneficiaryCustomer: SwiftParty;
+  remittanceInfo?: string;
+  detailsOfCharges: ChargesCode;
+}
+
+interface Pacs008Data {
+  msgId:          string;
+  creDtTm:        string;   // ISO 8601
+  nbOfTxs:        number;
+  intrBkSttlmAmt: { ccy: string; value: string };
+  intrBkSttlmDt:  string;   // YYYY-MM-DD
+  dbtr:           { nm?: string; id?: { iban: string } };
+  cdtr:           { nm?: string; id?: { iban: string } };
+  rmtInf?:        { ustrd?: string };
+  chrgBr:         'DEBT' | 'SLEV' | 'CRED';
+}
+
+function mt103ToPacs008(mt: Mt103Data): Pacs008Data {
+  const chargesMap: Record&lt;ChargesCode, 'DEBT' | 'SLEV' | 'CRED'&gt; = {
+    OUR: 'DEBT', SHA: 'SLEV', BEN: 'CRED',
+  };
+  return {
+    msgId:          mt.transactionReference,
+    creDtTm:        new Date().toISOString(),
+    nbOfTxs:        1,
+    intrBkSttlmAmt: { ccy: mt.currency, value: mt.amount.replace(',', '.') },
+    intrBkSttlmDt:  mt.valueDate.toISOString().slice(0, 10),
+    dbtr:           { nm: mt.orderingCustomer?.name },
+    cdtr:           { nm: mt.beneficiaryCustomer?.name },
+    rmtInf:         mt.remittanceInfo ? { ustrd: mt.remittanceInfo } : undefined,
+    chrgBr:         chargesMap[mt.detailsOfCharges],
+  };
+}
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Automate the Generation:</strong> Use a script to crawl your Swift models and update your TypeScript definitions as part of your build process.</li>
-  <li><strong>Use Nominal Typing:</strong> For critical IDs (like <code>UserId</code>), consider using "Branded Types" in TypeScript to prevent accidental mixing with other string types.</li>
-  <li><strong>Keep it Read-Only:</strong> If your TypeScript interfaces represent immutable API data, use the <code>readonly</code> modifier for all properties.</li>
+  <li><strong>Store SWIFT amounts as strings, convert with Decimal.js for arithmetic:</strong> SWIFT uses comma as the decimal separator (<code>15000,00</code> not <code>15000.00</code>). JavaScript's <code>parseFloat</code> converts this correctly but <code>number</code> types lose precision for financial arithmetic. Store as string, replace comma with period, and use <code>new Decimal(amountStr)</code> for calculations.</li>
+  <li><strong>Always check the UETR (tag 121 in block 3) for post-2020 messages:</strong> The Unique End-to-End Transaction Reference is a UUID added to the user header in 2020 to support ISO 20022 coexistence tracking. It must be preserved in all system hops and is required for MX translation. If absent, the message may be pre-2020 and require different processing.</li>
+  <li><strong>Handle all party field qualifiers (:50A:, :50F:, :50K:):</strong> The same "ordering customer" field appears as different qualifiers depending on the data available. <code>50A</code> carries only a BIC, <code>50F</code> is structured (name + structured address), <code>50K</code> is free-form (name + address lines). A production parser must handle all three variants for the same logical field.</li>
+  <li><strong>Validate CHK trailer before processing:</strong> Block 5 <code>{CHK:xxxxxxxx}</code> is a 12-character checksum over the text block. Reject messages with missing or mismatched checksums — they indicate corruption or truncation in transit. The SWIFT network should prevent this, but downstream retransmission systems sometimes drop the trailer.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Does this handle Swift's associated values in enums?</strong><br>
-A: TypeScript doesn't have a direct equivalent for Swift enums with associated values. These are usually mapped to Discriminated Unions in TypeScript.</p>
-<p><strong>Q: What about Swift Classes?</strong><br>
-A: While possible, it's best to convert only Structs and Enums (data models) rather than classes, which often contain platform-specific logic.</p>
-<p><strong>Q: Is there a tool for this?</strong><br>
-A: Yes, tools like <code>swift-to-typescript</code> or custom AST-based parsers can automate this process effectively.</p>
+<p><strong>Q: What is the difference between MT and MX (ISO 20022)?</strong><br>
+A: MT (ISO 15022) uses a compact tag-value format with single-character field codes — originated in the 1970s telex era. MX (ISO 20022) uses XML with human-readable element names and richer structured data (structured postal addresses, LEI identifiers, purpose codes). The SWIFT network is migrating from MT to MX, with a mandatory cutover date for cross-border payments. MT and MX carry equivalent information for core payment fields but MX supports much richer remittance data (structured invoice references, regulatory codes).</p>
+
+<p><strong>Q: How do I handle SWIFT MT character set restrictions in TypeScript strings?</strong><br>
+A: SWIFT's X character set (used in most name and address fields) allows only ASCII letters, digits, and the characters <code>/ - ? : ( ) . , ' + space CR LF</code>. When building TypeScript types from SWIFT MT data, validate name and address fields with <code>/^[A-Za-z0-9\/\-?:()\.,'+\n\r ]+$/</code>. Characters outside this set cause message rejection by correspondent banks — common in European names with umlauts or Asian institution names.</p>
+
+<p><strong>Q: What npm packages exist for SWIFT MT parsing?</strong><br>
+A: <code>swift-parser</code> and <code>mt-parser</code> on npm handle basic tag extraction. For full production use with field validation and multi-qualifier support, most banks implement custom parsers because the SWIFT MT specification has institution-specific extensions (tags above 99, custom subfield formats) that generic libraries don't cover. The official SWIFT Alliance toolkits are proprietary and require SWIFT membership.</p>

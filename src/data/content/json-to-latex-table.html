@@ -1,72 +1,184 @@
-<h2>Converting JSON to LaTeX Tables: Professional Academic Documenting</h2>
-<p>LaTeX is the gold standard for typesetting academic papers, technical reports, and books. One of the most tedious tasks in LaTeX is creating complex tables. Converting JSON data—often exported from experiments or APIs—into LaTeX <code>tabular</code> or <code>booktabs</code> environments automates the process, ensures data accuracy, and allows for beautiful, publication-quality presentation of results.</p>
+<h2>JSON to LaTeX Table: booktabs, siunitx, multicolumn, longtable, and Special Character Escaping</h2>
+<p>Publication-quality LaTeX tables require more than wrapping rows in <code>tabular</code> — they use <code>booktabs</code> for professional horizontal rules, <code>siunitx</code>'s <code>S</code> column type to align decimal points automatically, <code>\multirow</code> and <code>\multicolumn</code> for merged cells, <code>longtable</code> for data that spans multiple pages, and rigorous special-character escaping (underscores, ampersands, percent signs all have LaTeX meaning). This guide covers programmatic JSON-to-LaTeX generation that handles all of these correctly, plus a Node.js conversion pipeline for research workflows.</p>
 
-<h3>Live Example</h3>
-<p>A JSON file containing experimental results:</p>
-<pre><code>[
-  {"model": "GPT-4", "accuracy": 92.5, "latency": "1.2s"},
-  {"model": "Llama-2", "accuracy": 88.1, "latency": "0.8s"}
-]</code></pre>
-<p>The generated LaTeX code:</p>
-<pre><code>\begin{table}[h]
-\centering
-\begin{tabular}{lrr}
-\toprule
-\textbf{Model Name} & \textbf{Accuracy (\%)} & \textbf{Latency} \\
-\midrule
-GPT-4 & 92.5 & 1.2s \\
-Llama-2 & 88.1 & 0.8s \\
-\bottomrule
-\end{tabular}
-\caption{Comparison of Model Performance}
-\label{tab:model_results}
-\end{table}</code></pre>
+<h3>Live Example: Professional booktabs Table from JSON</h3>
+<pre><code">// Input JSON: ML model benchmark results
+const results = [
+  { model: "GPT-4o",      task: "MMLU",      accuracy: 88.7, params_b: 1800, latency_ms: 340,  open_source: false },
+  { model: "Llama 3 70B", task: "MMLU",      accuracy: 82.0, params_b: 70,   latency_ms: 95,   open_source: true  },
+  { model: "Mistral 8x7B",task: "MMLU",      accuracy: 79.1, params_b: 46.7, latency_ms: 62,   open_source: true  },
+  { model: "GPT-4o",      task: "HumanEval", accuracy: 90.2, params_b: 1800, latency_ms: 310,  open_source: false },
+  { model: "Llama 3 70B", task: "HumanEval", accuracy: 81.1, params_b: 70,   latency_ms: 88,   open_source: true  },
+];
 
-<h3>Implementation Guide</h3>
-<ol>
-  <li><strong>Choose a Package:</strong> Use <code>tabular</code> for basic tables or <code>booktabs</code> for professional-looking tables with better horizontal lines.</li>
-  <li><strong>Map Headers:</strong> Iterate through the JSON keys of the first object to generate the <code>\textbf{Header}</code> row.</li>
-  <li><strong>Handle Special Characters:</strong> LaTeX has many reserved characters (like <code>_</code>, <code>&</code>, <code>$</code>). Ensure your JSON strings are escaped (e.g., <code>_</code> becomes <code>\_</code>).</li>
-  <li><strong>Define Alignment:</strong> Use <code>l</code> (left), <code>c</code> (center), or <code>r</code> (right) in the column specification block. Use <code>r</code> for numeric data to align decimals.</li>
-  <li><strong>Automation:</strong> Use a script (Python or Node.js) to parse the JSON and write the <code>.tex</code> snippet, which can then be <code>\input{}</code> into your main document.</li>
-</ol>
+// Special characters that must be escaped in LaTeX text mode:
+const LATEX_ESCAPES: Record&lt;string, string&gt; = {
+  '&': '\\&',   '%': '\\%',   '$': '\\$',   '#': '\\#',
+  '_': '\\_',   '{': '\\{',   '}': '\\}',   '~': '\\textasciitilde{}',
+  '^': '\\textasciicircum{}', '\\': '\\textbackslash{}',
+};
 
-<h3>Technical Deep Dive</h3>
-<p>The complexity of JSON-to-LaTeX conversion increases with nested data. While simple arrays map easily to rows, nested JSON requires decisions on whether to use multi-row/multi-column headers (<code>\multirow</code> and <code>\multicolumn</code>). For extremely large JSON datasets, consider using the <code>longtable</code> package, which allows tables to break across multiple pages. Additionally, if you need to perform calculations (like bolding the highest value in a column), your conversion script should track these statistics while iterating through the JSON array.</p>
+function escapeLatex(str: string): string {
+  return str.replace(/[&%$#_{}~^\\]/g, ch => LATEX_ESCAPES[ch] ?? ch);
+}
 
-<h3>Comparison</h3>
-<table border="1">
-  <tr>
-    <th>Feature</th>
-    <th>HTML Tables</th>
-    <th>LaTeX Tables</th>
-  </tr>
-  <tr>
-    <td>Visual Quality</td>
-    <td>Medium</td>
-    <td>Very High (Professional)</td>
-  </tr>
-  <tr>
-    <td>Complexity</td>
-    <td>Low</td>
-    <td>High</td>
-  </tr>
-  <tr>
-    <td>Interactivity</td>
-    <td>Possible</td>
-    <td>None (Static PDF)</td>
-  </tr>
-</table>
+function formatNumber(n: number, decimals = 1): string {
+  return n.toFixed(decimals);
+}
 
-<h3>Best Practices</h3>
+function jsonToLatexTable(data: typeof results): string {
+  // Find max accuracy per task for bolding
+  const maxByTask: Record&lt;string, number&gt; = {};
+  data.forEach(r =&gt; {
+    maxByTask[r.task] = Math.max(maxByTask[r.task] ?? 0, r.accuracy);
+  });
+
+  const rows = data.map(r =&gt; {
+    const accStr = formatNumber(r.accuracy);
+    const bold   = r.accuracy === maxByTask[r.task];
+    const accCell = bold ? `\\textbf{${accStr}}` : accStr;
+
+    return [
+      escapeLatex(r.model),
+      escapeLatex(r.task),
+      accCell,
+      formatNumber(r.params_b, 0),
+      formatNumber(r.latency_ms, 0),
+      r.open_source ? '$\\checkmark$' : '---',
+    ].join(' & ') + ' \\\\';
+  });
+
+  return `\\begin{table}[htbp]
+\\centering
+\\caption{LLM Benchmark Comparison}
+\\label{tab:llm-benchmarks}
+\\begin{tabular}{llSSSc}
+\\toprule
+\\textbf{Model} & \\textbf{Task} & {\\textbf{Accuracy (\\%)}} & {\\textbf{Params (B)}} & {\\textbf{Latency (ms)}} & {\\textbf{Open Source}} \\\\
+\\midrule
+${rows.join('\n')}
+\\bottomrule
+\\end{tabular}
+\\end{table}`;
+}
+
+// Output:
+// \\begin{table}[htbp]
+// \\centering
+// \\caption{LLM Benchmark Comparison}
+// \\label{tab:llm-benchmarks}
+// \\begin{tabular}{llSSSc}
+// \\toprule
+// \\textbf{Model} & \\textbf{Task} & {\\textbf{Accuracy (\\%)}} ...
+// \\midrule
+// GPT-4o & MMLU & \\textbf{88.7} & 1800 & 340 & --- \\\\
+// ...
+</code></pre>
+
+<h3>siunitx S Column for Decimal Alignment</h3>
+<pre><code">% siunitx S column aligns numbers at the decimal point automatically
+% No manual padding needed — siunitx handles alignment mathematically
+
+% Preamble: \\usepackage{siunitx}
+
+\\begin{tabular}{l S[table-format=3.1] S[table-format=4.0] S[table-format=3.0]}
+\\toprule
+Model & {Accuracy (\\%)} & {Parameters (B)} & {Latency (ms)} \\\\
+\\midrule
+GPT-4o        & 88.7 & 1800 &  340 \\\\
+Llama 3 70B   & 82.0 &   70 &   95 \\\\
+Mistral 8x7B  & 79.1 &  46.7 &  62 \\\\
+\\bottomrule
+\\end{tabular}
+
+% S column options:
+% table-format=3.1   — up to 3 digits before, 1 after decimal point
+% table-format=4.0   — up to 4 digits, no decimal
+% round-mode=places, round-precision=2   — round to 2 decimal places
+% table-number-alignment=center  — center the column
+
+% In the Node.js generator, wrap numeric headers in {braces}:
+// S columns require header text in {braces} to suppress numeric treatment
+const numericCols = ['accuracy', 'params_b', 'latency_ms'];
+const header = cols.map(c =&gt;
+  numericCols.includes(c.key) ? `{${escapeLatex(c.label)}}` : `\\textbf{${escapeLatex(c.label)}}`
+).join(' & ');
+</code></pre>
+
+<h3>multicolumn and multirow for Group Headers</h3>
+<pre><code">% JSON with grouped columns:
+const experiments = [
+  { model: "GPT-4o",    train_acc: 92.1, train_loss: 0.21, test_acc: 88.7, test_loss: 0.31 },
+  { model: "Llama 3",   train_acc: 85.3, train_loss: 0.38, test_acc: 82.0, test_loss: 0.44 },
+];
+
+% Generated LaTeX with group headers:
+\\begin{tabular}{lSSss}
+\\toprule
+\\multirow{2}{*}{\\textbf{Model}} &
+  \\multicolumn{2}{c}{\\textbf{Training}} &
+  \\multicolumn{2}{c}{\\textbf{Test}} \\\\
+\\cmidrule(lr){2-3} \\cmidrule(lr){4-5}
+& {Acc (\\%)} & {Loss} & {Acc (\\%)} & {Loss} \\\\
+\\midrule
+GPT-4o  & 92.1 & 0.21 & 88.7 & 0.31 \\\\
+Llama 3 & 85.3 & 0.38 & 82.0 & 0.44 \\\\
+\\bottomrule
+\\end{tabular}
+
+% \\cmidrule(lr){2-3} — partial horizontal rule spanning columns 2–3
+% (lr) adds small gaps on left and right to visually separate groups
+% \\multirow{2}{*}{...} — span 2 rows, auto width
+</code></pre>
+
+<h3>longtable for Multi-Page Tables</h3>
+<pre><code">% For tables with 50+ rows that span multiple pages
+% \\usepackage{longtable}
+
+function jsonToLongtable(data: Record&lt;string, unknown&gt;[], cols: ColDef[]): string {
+  const colSpec   = cols.map(c =&gt; c.align === 'number' ? 'S' : 'l').join('');
+  const headerRow = cols.map(c =&gt; `{\\textbf{${escapeLatex(c.label)}}}`).join(' & ');
+  const sepRow    = `\\midrule\n\\endhead`;
+
+  const rows = data.map(r =&gt;
+    cols.map(c =&gt; {
+      const v = r[c.key];
+      if (typeof v === 'number') return formatNumber(v, c.decimals ?? 2);
+      return escapeLatex(String(v ?? ''));
+    }).join(' & ') + ' \\\\'
+  ).join('\n');
+
+  return `\\begin{longtable}{${colSpec}}
+\\caption{${escapeLatex(caption)}} \\label{tab:${label}} \\\\
+\\toprule
+${headerRow} \\\\
+\\midrule
+\\endfirsthead
+% Repeated header on subsequent pages
+\\multicolumn{${cols.length}}{c}{\\tablename\\ \\thetable{} (continued)} \\\\
+\\toprule
+${headerRow} \\\\
+${sepRow}
+${rows}
+\\bottomrule
+\\end{longtable}`;
+}
+</code></pre>
+
+<h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use booktabs:</strong> Avoid vertical lines in professional LaTeX tables; use <code>\toprule</code>, <code>\midrule</code>, and <code>\bottomrule</code> instead.</li>
-  <li><strong>Numeric Precision:</strong> Format floating-point numbers from your JSON to a consistent decimal place (e.g., <code>{:.2f}</code>) before generating the LaTeX.</li>
-  <li><strong>Labels and Captions:</strong> Always generate a unique <code>\label</code> and a descriptive <code>\caption</code> for every table to enable cross-referencing.</li>
+  <li><strong>Escape LaTeX special characters before any other processing:</strong> The characters <code>_ & % $ # { } ~ ^ \</code> all have meaning in LaTeX. Escape them first, before adding any LaTeX markup like <code>\textbf{}</code>. If you do it after, you'll double-escape the markup you just inserted.</li>
+  <li><strong>Use <code>booktabs</code> and never use vertical lines:</strong> The style guide for academic tables is unanimous: use <code>\toprule</code>, <code>\midrule</code>, <code>\bottomrule</code> from the <code>booktabs</code> package. Never use vertical lines or <code>\hline</code>. This is also the style required by most journal templates (IEEE, ACM, Springer).</li>
+  <li><strong>Use <code>siunitx</code> S columns for all numeric data:</strong> Manual alignment with spaces or <code>phantom{}</code> is fragile and doesn't handle varying decimal places. The <code>S</code> column type aligns at the decimal point automatically and allows <code>table-format</code> to specify width. Headers in S columns must be wrapped in <code>{braces}</code> to prevent siunitx from treating them as numbers.</li>
+  <li><strong>Generate <code>\label</code> and <code>\caption</code> from JSON metadata:</strong> Include a <code>caption</code> and <code>label</code> field in your JSON data definition. The <code>\label{tab:...}</code> enables <code>\ref{tab:...}</code> cross-references in the document. Consistent label naming (e.g., <code>tab:slug-name</code>) prevents duplicate labels when generating multiple tables.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: How do I handle very wide JSON tables?</strong><br>
-A: Use the <code>tabularx</code> package or wrap the table in a <code>\resizebox{\textwidth}{!}{...}</code> block to scale it to fit the page width.</p>
-<p><strong>Q: Can I include math symbols from JSON?</strong><br>
-A: Yes, if your JSON string contains LaTeX math (e.g., <code>"$\alpha$"</code>), ensure it is not double-escaped so it renders correctly.</p>
+<p><strong>Q: How do I bold the maximum value in each column?</strong><br>
+A: Two-pass approach: first scan all data to find the max per column, then generate LaTeX wrapping max values with <code>\textbf{}</code>. For numeric S columns, wrap the number: <code>\textbf{88.7}</code> still aligns correctly in siunitx.</p>
+
+<p><strong>Q: How do I include a table in a LaTeX document from a generated .tex file?</strong><br>
+A: Use <code>\input{tables/benchmarks.tex}</code> in your main document. The generator writes just the <code>table</code> environment (not a full document), which is included inline. Run the generator as a pre-build step: <code>node scripts/gen-tables.js && pdflatex main.tex</code>.</p>
+
+<p><strong>Q: How do I generate tables for IEEE or ACM conference templates?</strong><br>
+A: Both templates include <code>booktabs</code> and allow custom packages. Use <code>\usepackage{booktabs}</code> and <code>\usepackage{siunitx}</code> in the preamble. IEEE templates use <code>IEEEtable</code> for wide tables spanning both columns; replace <code>table</code> with <code>table*</code> in your generator for double-column float mode.</p>

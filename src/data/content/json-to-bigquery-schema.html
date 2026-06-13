@@ -1,89 +1,245 @@
-<h2>Converting JSON to Google BigQuery Schema: A Technical Guide</h2>
-<p>In modern data engineering, Google BigQuery stands as a premier serverless data warehouse. However, one of the most common friction points in data ingestion is the translation of semi-structured JSON data into BigQuery's strictly typed table schemas. This process requires more than just a simple mapping; it demands an understanding of nested structures, repeated fields (arrays), and BigQuery's specific data types like RECORD and GEOGRAPHY.</p>
+<h2>JSON to BigQuery Schema: RECORD Types, Partitioning, and Efficient UNNEST Queries</h2>
+<p>BigQuery stores data in a columnar format called Capacitor, which handles nested and repeated fields natively — there is no need to flatten your JSON into a relational normal form. A JSON object becomes a <code>RECORD</code> (STRUCT), a JSON array becomes <code>REPEATED</code>, and scalar values map to BigQuery's strictly typed primitives. The schema design decisions that matter most are choosing the right numeric type (<code>FLOAT64</code> vs <code>NUMERIC</code> vs <code>BIGNUMERIC</code>), setting <code>REQUIRED</code> vs <code>NULLABLE</code> mode correctly, configuring partition and cluster columns for query cost reduction, and understanding how <code>UNNEST()</code> flattens repeated records in SQL queries.</p>
 
-<h3>Live Example</h3>
-<p>Consider a typical e-commerce event JSON:</p>
-<pre><code>{
-  "event_id": "evt_12345",
-  "timestamp": "2023-10-27T10:00:00Z",
+<h3>Live Example: E-commerce Event Schema</h3>
+<pre><code>// Input JSON
+{
+  "event_id": "evt_9f2a1b",
+  "occurred_at": "2024-01-15T10:30:00Z",
   "user": {
-    "id": "user_99",
-    "email": "dev@example.com"
+    "id": "usr_001",
+    "email": "alice@example.com",
+    "country": "US"
   },
-  "items": [
-    {"sku": "ABC", "price": 29.99},
-    {"sku": "XYZ", "price": 45.00}
-  ]
-}</code></pre>
-<p>The resulting BigQuery schema (JSON format) would be:</p>
-<pre><code>[
-  {"name": "event_id", "type": "STRING", "mode": "REQUIRED"},
-  {"name": "timestamp", "type": "TIMESTAMP", "mode": "NULLABLE"},
+  "order": {
+    "id": "ord_55321",
+    "total": "149.99",
+    "currency": "USD",
+    "items": [
+      { "sku": "WIDGET-L", "quantity": 2, "unit_price": "59.99" },
+      { "sku": "CABLE-USB", "quantity": 1, "unit_price": "29.99" }
+    ]
+  },
+  "session_id": "sess_abc",
+  "platform": "web"
+}
+
+// Generated BigQuery Schema (JSON format for bq mk)
+[
+  { "name": "event_id",    "type": "STRING",    "mode": "REQUIRED", "description": "Unique event identifier" },
+  { "name": "occurred_at", "type": "TIMESTAMP", "mode": "REQUIRED" },
   {
-    "name": "user", 
-    "type": "RECORD", 
+    "name": "user",
+    "type": "RECORD",
     "mode": "NULLABLE",
     "fields": [
-      {"name": "id", "type": "STRING", "mode": "NULLABLE"},
-      {"name": "email", "type": "STRING", "mode": "NULLABLE"}
+      { "name": "id",      "type": "STRING", "mode": "REQUIRED" },
+      { "name": "email",   "type": "STRING", "mode": "NULLABLE" },
+      { "name": "country", "type": "STRING", "mode": "NULLABLE" }
     ]
   },
   {
-    "name": "items", 
-    "type": "RECORD", 
-    "mode": "REPEATED",
+    "name": "order",
+    "type": "RECORD",
+    "mode": "NULLABLE",
     "fields": [
-      {"name": "sku", "type": "STRING", "mode": "NULLABLE"},
-      {"name": "price", "type": "FLOAT", "mode": "NULLABLE"}
+      { "name": "id",       "type": "STRING",  "mode": "REQUIRED" },
+      { "name": "total",    "type": "NUMERIC", "mode": "REQUIRED" },
+      { "name": "currency", "type": "STRING",  "mode": "REQUIRED" },
+      {
+        "name": "items",
+        "type": "RECORD",
+        "mode": "REPEATED",
+        "fields": [
+          { "name": "sku",        "type": "STRING",  "mode": "REQUIRED" },
+          { "name": "quantity",   "type": "INTEGER", "mode": "REQUIRED" },
+          { "name": "unit_price", "type": "NUMERIC", "mode": "REQUIRED" }
+        ]
+      }
     ]
+  },
+  { "name": "session_id", "type": "STRING",  "mode": "NULLABLE" },
+  { "name": "platform",   "type": "STRING",  "mode": "NULLABLE" }
+]
+
+# Create the table
+bq mk \
+  --table \
+  --time_partitioning_field=occurred_at \
+  --time_partitioning_type=DAY \
+  --clustering_fields=platform,user.country \
+  myproject:events.ecommerce_events \
+  schema.json
+</code></pre>
+
+<h3>BigQuery Type Reference</h3>
+<pre><code>// Numeric types — choose carefully:
+// FLOAT64 (same as FLOAT):  64-bit IEEE 754 — imprecise for money
+// NUMERIC:                  exact decimal, 38 digits, 9 decimal places — use for money
+// BIGNUMERIC:               exact decimal, 76 digits, 38 decimal places — large financial
+// INTEGER (INT64):          64-bit signed integer
+// INT64, BIGINT:            aliases for INTEGER
+
+// String types:
+// STRING:           variable-length unicode
+// BYTES:            raw binary (use for hashed values, binary data)
+
+// Temporal types:
+// DATE:             "2024-01-15" (date only, no time)
+// TIME:             "10:30:00" (time only, no timezone)
+// DATETIME:         "2024-01-15T10:30:00" (local, no timezone)
+// TIMESTAMP:        "2024-01-15T10:30:00Z" (UTC-normalized, use this for events)
+
+// Other types:
+// BOOL:             true/false
+// RECORD/STRUCT:    nested object
+// ARRAY:            repeated values (same as mode: REPEATED in schema)
+// JSON:             untyped JSON blob (BigQuery 2022+ — queryable but no type inference)
+// GEOGRAPHY:        geospatial points, lines, polygons (WGS 84)
+
+// Mode values:
+// REQUIRED:    NOT NULL — ingestion fails if field is absent or null
+// NULLABLE:    may be absent or null (default)
+// REPEATED:    array of values — always NULLABLE at the element level
+</code></pre>
+
+<h3>Partitioning and Clustering for Cost Reduction</h3>
+<p>BigQuery charges by bytes scanned. Partitioning and clustering reduce the data scanned per query:</p>
+<pre><code">-- Partitioned table: queries that filter on occurred_at scan only relevant day(s)
+-- Without partition filter, BigQuery scans the ENTIRE table
+
+-- Query with partition pruning (scans only 2024-01-15 partition)
+SELECT event_id, user.country, order.total
+FROM `myproject.events.ecommerce_events`
+WHERE DATE(occurred_at) = '2024-01-15'
+  AND platform = 'web';
+
+-- Clustered columns further reduce scan within each partition
+-- Cluster order matters — first column has most impact
+-- Best for: high-cardinality columns used in WHERE/GROUP BY
+
+-- Check partition info
+SELECT table_name, partition_id, total_rows, total_logical_bytes
+FROM `myproject.events.INFORMATION_SCHEMA.PARTITIONS`
+WHERE table_name = 'ecommerce_events'
+ORDER BY partition_id DESC
+LIMIT 10;
+
+-- Expire old partitions automatically (after 90 days)
+ALTER TABLE `myproject.events.ecommerce_events`
+SET OPTIONS (partition_expiration_days = 90);
+</code></pre>
+
+<h3>Querying Nested and Repeated Fields with UNNEST</h3>
+<pre><code">-- Access nested RECORD fields with dot notation
+SELECT
+  event_id,
+  user.country,
+  order.total,
+  occurred_at
+FROM `myproject.events.ecommerce_events`
+WHERE user.country = 'US'
+  AND order.total > 100;
+
+-- UNNEST: flatten REPEATED items into rows for aggregation
+-- Each order item becomes its own row, joined to the parent event
+SELECT
+  e.event_id,
+  e.occurred_at,
+  item.sku,
+  item.quantity,
+  item.unit_price,
+  item.quantity * item.unit_price AS line_total
+FROM `myproject.events.ecommerce_events` AS e,
+UNNEST(e.order.items) AS item
+WHERE DATE(e.occurred_at) = '2024-01-15';
+
+-- Aggregate over REPEATED without UNNEST using built-in functions
+SELECT
+  event_id,
+  ARRAY_LENGTH(order.items)                                AS item_count,
+  (SELECT SUM(i.quantity) FROM UNNEST(order.items) AS i)  AS total_quantity,
+  (SELECT MAX(i.unit_price) FROM UNNEST(order.items) AS i) AS highest_unit_price
+FROM `myproject.events.ecommerce_events`
+WHERE order.id IS NOT NULL;
+
+-- GROUP BY nested field
+SELECT
+  user.country,
+  COUNT(*) AS event_count,
+  SUM(order.total) AS total_revenue
+FROM `myproject.events.ecommerce_events`
+WHERE DATE(occurred_at) BETWEEN '2024-01-01' AND '2024-01-31'
+GROUP BY user.country
+ORDER BY total_revenue DESC;
+</code></pre>
+
+<h3>Ingesting JSON Data</h3>
+<pre><code"># Load from Google Cloud Storage (newline-delimited JSON)
+bq load \
+  --source_format=NEWLINE_DELIMITED_JSON \
+  --schema=schema.json \
+  myproject:events.ecommerce_events \
+  gs://my-bucket/events/*.json
+
+# Auto-detect schema (good for exploration, not production)
+bq load \
+  --autodetect \
+  --source_format=NEWLINE_DELIMITED_JSON \
+  myproject:events.ecommerce_events \
+  gs://my-bucket/events/sample.json
+
+# Stream inserts via API (real-time)
+from google.cloud import bigquery
+
+client = bigquery.Client()
+table_id = "myproject.events.ecommerce_events"
+
+errors = client.insert_rows_json(table_id, [
+  {
+    "event_id":    "evt_12345",
+    "occurred_at": "2024-01-15 10:30:00 UTC",
+    "user":        { "id": "usr_001", "country": "US" },
+    "order":       { "id": "ord_001", "total": "149.99", "currency": "USD", "items": [] },
+    "platform":    "web"
   }
-]</code></pre>
+])
+if errors:
+    raise Exception(f"BigQuery insert errors: {errors}")
+</code></pre>
 
-<h3>Implementation Guide</h3>
-<ol>
-  <li><strong>Analyze Sample Data:</strong> Collect a representative sample of your JSON records to identify all possible fields and their data types.</li>
-  <li><strong>Map Primitive Types:</strong> Map JSON strings to BigQuery <code>STRING</code>, numbers to <code>INTEGER</code> or <code>FLOAT</code>, and booleans to <code>BOOL</code>.</li>
-  <li><strong>Handle Objects as RECORDs:</strong> Nested JSON objects should be mapped to the <code>RECORD</code> type (also known as <code>STRUCT</code> in Standard SQL).</li>
-  <li><strong>Handle Arrays as REPEATED:</strong> JSON arrays are mapped by setting the <code>mode</code> to <code>REPEATED</code>.</li>
-  <li><strong>Use the CLI or Console:</strong> You can provide the schema file during table creation using <code>bq mk --table project:dataset.table ./schema.json</code>.</li>
-</ol>
+<h3>Schema Evolution</h3>
+<pre><code">-- BigQuery supports relaxing REQUIRED to NULLABLE and adding new NULLABLE columns
+-- It does NOT support: changing types, removing columns, tightening NULLABLE to REQUIRED
 
-<h3>Technical Deep Dive</h3>
-<p>BigQuery's schema definition is sensitive to field naming and nesting depth. While BigQuery supports deeply nested structures, it is often best practice to limit nesting for query performance. The <code>REPEATED</code> mode is BigQuery's way of handling 1:N relationships within a single row, which is fundamentally different from traditional relational normalization. Under the hood, BigQuery uses Capacitor, a columnar storage format, which stores nested and repeated fields in a way that allows for efficient scanning without full row reconstruction.</p>
+-- Add a new nullable column (safe)
+ALTER TABLE `myproject.events.ecommerce_events`
+ADD COLUMN IF NOT EXISTS utm_source STRING;
 
-<h3>Comparison</h3>
-<table border="1">
-  <tr>
-    <th>Feature</th>
-    <th>JSON Mapping</th>
-    <th>Standard SQL Mapping</th>
-  </tr>
-  <tr>
-    <td>Nested Objects</td>
-    <td>RECORD / STRUCT</td>
-    <td>JSON Type (Blob)</td>
-  </tr>
-  <tr>
-    <td>Arrays</td>
-    <td>REPEATED Mode</td>
-    <td>ARRAY&lt;T&gt;</td>
-  </tr>
-  <tr>
-    <td>Strictness</td>
-    <td>Schema-on-Write</td>
-    <td>Flexible JSON column</td>
-  </tr>
-</table>
+-- Relax REQUIRED to NULLABLE for a field (requires full schema update via API)
+# bq update --schema updated_schema.json myproject:events.ecommerce_events
 
-<h3>Best Practices</h3>
+-- For type changes (e.g., STRING → NUMERIC), you must:
+-- 1. Add new column: order_total_numeric NUMERIC
+-- 2. Backfill: UPDATE table SET order_total_numeric = CAST(order_total AS NUMERIC)
+-- 3. Remove old column (can't drop, but can stop using it)
+-- BigQuery doesn't support DROP COLUMN on active tables (workaround: recreate from query)
+</code></pre>
+
+<h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Normalize Field Names:</strong> Ensure field names contain only letters, numbers, and underscores to avoid BigQuery naming conflicts.</li>
-  <li><strong>Precision for Financials:</strong> Use <code>NUMERIC</code> or <code>BIGNUMERIC</code> for currency instead of <code>FLOAT</code> to avoid floating-point errors.</li>
-  <li><strong>Document Everything:</strong> Use the <code>description</code> field in the BigQuery schema to provide metadata for data analysts.</li>
+  <li><strong>Use <code>NUMERIC</code> for all monetary values:</strong> <code>FLOAT64</code> cannot exactly represent values like <code>0.10</code> — small rounding errors accumulate in financial aggregations. <code>NUMERIC</code> (38 significant digits, 9 decimal places) handles all real-world currency amounts exactly.</li>
+  <li><strong>Use <code>TIMESTAMP</code> for event times, <code>DATE</code> for partition column:</strong> <code>TIMESTAMP</code> stores UTC — correct for analytics. Use <code>DATE(event_timestamp)</code> as the partition column or declare a DATE partition field separately. Avoid <code>DATETIME</code> — it stores local time with no timezone and creates ambiguity.</li>
+  <li><strong>Limit REPEATED nesting depth:</strong> BigQuery supports up to 15 levels of nesting. Deep nesting is valid but query complexity grows. Beyond 2-3 levels of RECORD nesting, consider flattening to separate tables and using <code>JOIN</code>.</li>
+  <li><strong>Always specify partition filter in production queries:</strong> A query without a partition filter on a partitioned table will scan all partitions. Use <code>require_partition_filter = true</code> table option to enforce this at the table level and prevent accidental full-table scans.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Can I auto-detect the schema?</strong><br>
-A: Yes, BigQuery's <code>bq load</code> command has an <code>--autodetect</code> flag, but manual schema definition is safer for production to prevent "schema drift."</p>
-<p><strong>Q: How do I handle varying JSON structures?</strong><br>
-A: If the JSON is highly polymorphic, consider using the <code>JSON</code> data type in BigQuery for specific columns while keeping core fields strictly typed.</p>
+<p><strong>Q: When should I use BigQuery's JSON type vs RECORD/REPEATED?</strong><br>
+A: Use <code>RECORD</code> for structured data with a known, stable schema — it's stored in columnar format and queries run faster. Use the <code>JSON</code> type for truly schema-less data (arbitrary event properties, webhook payloads with unknown keys) — it stores raw JSON as a string but supports <code>JSON_VALUE(col, '$.key')</code> extraction. RECORD is always faster and cheaper to query than JSON.</p>
+
+<p><strong>Q: How does BigQuery pricing work with nested data?</strong><br>
+A: BigQuery charges by bytes scanned per query. Selecting only top-level columns from a table with nested RECORD fields does NOT scan the nested field data — columnar storage means you only pay for the columns you reference in <code>SELECT</code>, <code>WHERE</code>, and <code>GROUP BY</code>.</p>
+
+<p><strong>Q: How do I handle schema mismatches during ingestion?</strong><br>
+A: Set <code>--max_bad_records=0</code> for strict ingestion (any mismatch fails the load). For exploratory ingestion, use <code>--max_bad_records=N</code> to allow N failures before aborting. For streaming inserts, errors are returned per row in the API response — handle them in your application.</p>

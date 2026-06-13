@@ -1,54 +1,213 @@
-<h2>JSON to Cypress Test: Enhancing E2E Automation with Dynamic Data</h2>
-<p>Cypress is a frontrunner in E2E testing for the modern web. Converting JSON samples into Cypress test cases allows for highly scalable and maintainable testing suites. By using JSON to drive your assertions and user interactions, you can ensure that your application handles a wide array of data states—from empty lists to complex, nested objects—without the need for repetitive coding. This data-driven approach is key to achieving high test coverage with a lean, efficient codebase.</p>
+<h2>JSON to Cypress Test: Component Testing, cy.intercept(), and the Interactive Development Workflow</h2>
+<p>Cypress's defining strength is the developer feedback loop. While you write a test, Cypress runs it live in a real browser with a visual test runner that time-travels through each command — you can click any step in the history and see exactly what the DOM looked like at that moment. This makes Cypress the fastest tool for writing and debugging tests interactively. Converting your JSON data into Cypress tests — as fixtures, as <code>cy.intercept()</code> stubs, or as component test props — integrates naturally into that workflow.</p>
 
-<h3>Live Example: Data-Driven Cypress Testing with JSON Fixtures</h3>
-<pre><code>// Input JSON Fixture (products.json)
+<h3>Live Example: JSON Fixtures with cy.fixture() and cy.intercept()</h3>
+<pre><code>// cypress/fixtures/products.json
 [
-  { "id": "p1", "name": "Standard Laptop", "price": "$1200" },
-  { "id": "p2", "name": "Ergonomic Mouse", "price": "$45" }
+  { "id": "p1", "name": "Standard Laptop", "price": "$1200", "inStock": true  },
+  { "id": "p2", "name": "Ergonomic Mouse",  "price": "$45",   "inStock": false }
 ]
 
-// Generated Cypress Test
-describe('Product List View', () => {
+// cypress/e2e/product-list.cy.ts
+describe('Product List', () => {
   beforeEach(() => {
-    cy.fixture('products.json').as('productData');
+    cy.fixture('products.json').as('products');
+    cy.intercept('GET', '/api/products', { fixture: 'products.json' }).as('getProducts');
     cy.visit('/products');
+    cy.wait('@getProducts');
   });
 
-  it('should display all products from the fixture', function() {
-    this.productData.forEach((product) => {
+  it('displays all products from the fixture', function() {
+    this.products.forEach((product: Product) => {
       cy.get(`[data-id="${product.id}"]`).within(() => {
         cy.contains(product.name);
         cy.contains(product.price);
       });
     });
   });
+
+  it('shows out-of-stock badge for unavailable items', function() {
+    const outOfStock = this.products.filter((p: Product) => !p.inStock);
+    outOfStock.forEach((product: Product) => {
+      cy.get(`[data-id="${product.id}"] [data-testid="out-of-stock"]`).should('exist');
+    });
+  });
+});
+</code></pre>
+<p>Using <code>cy.intercept()</code> with <code>{ fixture: 'products.json' }</code> serves the same JSON file for every test in the suite. The <code>.as('@getProducts')</code> alias and <code>cy.wait('@getProducts')</code> ensure the UI has finished loading before assertions run — no arbitrary <code>cy.wait(1000)</code> needed.</p>
+
+<h3>Component Testing with cy.mount()</h3>
+<p>Cypress Component Testing runs tests directly against a single React component without navigating to a route — faster, more isolated, and ideal for testing JSON-driven rendering logic:</p>
+<pre><code>// cypress/component/ProductCard.cy.tsx
+import { mount } from 'cypress/react18';
+import ProductCard from '../../src/components/ProductCard';
+
+const mockProduct = {
+  id: "p1",
+  name: "Widget Pro",
+  price: 49.99,
+  inStock: true,
+  tags: ["featured", "sale"]
+};
+
+describe('ProductCard', () => {
+  it('renders product details from JSON props', () => {
+    mount(&lt;ProductCard product={mockProduct} /&gt;);
+
+    cy.get('[data-testid="product-name"]').should('contain', 'Widget Pro');
+    cy.get('[data-testid="price"]').should('contain', '$49.99');
+    cy.get('[data-testid="tag"]').should('have.length', 2);
+  });
+
+  it('shows add-to-cart button when in stock', () => {
+    mount(&lt;ProductCard product={mockProduct} /&gt;);
+    cy.get('[data-testid="add-to-cart"]').should('be.visible').and('not.be.disabled');
+  });
+
+  it('disables add-to-cart when out of stock', () => {
+    mount(&lt;ProductCard product={{ ...mockProduct, inStock: false }} /&gt;);
+    cy.get('[data-testid="add-to-cart"]').should('be.disabled');
+    cy.get('[data-testid="out-of-stock"]').should('be.visible');
+  });
+});
+</code></pre>
+<p>Component tests run in milliseconds because they skip routing, auth middleware, and network calls. Use them for every component that transforms JSON into UI — they're the fastest way to catch rendering regressions during development.</p>
+
+<h3>Advanced cy.intercept() Patterns</h3>
+<p><code>cy.intercept()</code> goes far beyond simple response stubbing — use it to simulate failure modes and loading states:</p>
+<pre><code>// Simulate slow network — test loading spinner
+cy.intercept('GET', '/api/products', (req) => {
+  req.reply((res) => {
+    res.delay = 2000;
+    res.send({ fixture: 'products.json' });
+  });
+}).as('slowProducts');
+
+cy.visit('/products');
+cy.get('[data-testid="loading-spinner"]').should('be.visible');
+cy.wait('@slowProducts');
+cy.get('[data-testid="loading-spinner"]').should('not.exist');
+
+// Simulate server error — test error UI
+cy.intercept('POST', '/api/orders', {
+  statusCode: 500,
+  body: { error: 'Internal Server Error', code: 'DB_CONN_FAILED' }
+}).as('failedOrder');
+
+cy.get('[data-testid="checkout-btn"]').click();
+cy.wait('@failedOrder');
+cy.get('[data-testid="error-toast"]').should('contain', 'Something went wrong');
+
+// Spy and modify — keep real response, override one field
+cy.intercept('GET', '/api/user/profile', (req) => {
+  req.reply((res) => {
+    res.body.role = 'admin';
+    res.body.permissions = ['read', 'write', 'delete'];
+  });
 });
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Create Your JSON Fixtures:</strong> Save your test data in the <code>cypress/fixtures</code> directory as <code>.json</code> files.<br>
-2. <strong>Load Data with <code>cy.fixture()</code>:</strong> Use the <code>beforeEach</code> hook to load your JSON data before each test run.<br>
-3. <strong>Iterate and Assert:</strong> Loop through the JSON data and use Cypress commands like <code>cy.get()</code> and <code>cy.contains()</code> to perform actions and assertions based on the data.<br>
-4. <strong>Mock API Responses:</strong> Use <code>cy.intercept()</code> to tell Cypress to return your JSON fixture whenever a specific network request is made.</p>
+<h3>Custom Commands for Reusable JSON Assertions</h3>
+<pre><code>// cypress/support/commands.ts
+declare global {
+  namespace Cypress {
+    interface Chainable {
+      assertProductCard(product: { id: string; name: string; price: string }): Chainable;
+      seedDatabase(fixture: string): Chainable;
+    }
+  }
+}
 
-<h3>Technical Deep Dive: The Power of cy.intercept() and Network Stubbing</h3>
-<p>One of Cypress's strongest features is its ability to **Intercept and Stub Network Traffic**. When you convert a JSON sample to a Cypress stub, you are taking full control over the application's environment. You can simulate slow networks, server errors (like 500 Internal Server Error), or specific data scenarios that are difficult to reproduce with a live backend. This is achieved by the `cy.intercept()` command, which can map a JSON fixture to an XHR or Fetch request, allowing you to test how your UI handles varied data responses in total isolation from the server.</p>
+Cypress.Commands.add('assertProductCard', (product) => {
+  cy.get(`[data-id="${product.id}"]`).within(() => {
+    cy.get('[data-testid="name"]').should('contain', product.name);
+    cy.get('[data-testid="price"]').should('contain', product.price);
+  });
+});
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>Cypress vs. Selenium:</strong> Cypress is modern and runs directly in the browser, offering much faster feedback loops and better debugging tools than the legacy Selenium. <strong>Playwright</strong> is another strong competitor that offers better multi-browser support, but Cypress remains a favorite for its ease of use and powerful dashboard. Both benefit immensely from using JSON to separate test data from test logic.</p>
+Cypress.Commands.add('seedDatabase', (fixture) => {
+  cy.fixture(fixture).then((data) => {
+    cy.request('POST', '/api/test/seed', data);
+  });
+});
+
+// In tests
+it('all products display correctly', function() {
+  this.products.forEach((p: Product) => cy.assertProductCard(p));
+});
+</code></pre>
+
+<h3>cy.session() for Auth State Caching</h3>
+<p>Logging in via the UI before every test is slow and fragile. <code>cy.session()</code> caches the browser session — the login flow runs once and is reused across tests:</p>
+<pre><code>// cypress/support/commands.ts
+import adminUser from '../fixtures/admin-credentials.json';
+
+Cypress.Commands.add('loginAsAdmin', () => {
+  cy.session('admin-session', () => {
+    cy.visit('/login');
+    cy.get('[data-testid="email"]').type(adminUser.email);
+    cy.get('[data-testid="password"]').type(adminUser.password);
+    cy.get('[data-testid="submit"]').click();
+    cy.url().should('include', '/dashboard');
+  }, {
+    validate: () => {
+      cy.getCookie('auth-token').should('exist');
+    },
+    cacheAcrossSpecs: true,
+  });
+});
+
+// In any spec
+beforeEach(() => cy.loginAsAdmin());
+</code></pre>
+<p>With <code>cacheAcrossSpecs: true</code>, the session is shared across all spec files in the run — the login request fires once per Cypress run, not once per test file.</p>
+
+<h3>cy.request() for API Smoke Tests</h3>
+<pre><code>import newOrder from '../fixtures/new-order.json';
+
+it('places an order via API', () => {
+  cy.request({
+    method: 'POST',
+    url: '/api/orders',
+    body: newOrder,
+    headers: { 'Content-Type': 'application/json' }
+  }).then((response) => {
+    expect(response.status).to.eq(201);
+    expect(response.body.id).to.match(/^ord_/);
+    expect(response.body.total).to.eq(
+      newOrder.items.reduce(
+        (sum: number, item: { price: number; qty: number }) =>
+          sum + item.price * item.qty, 0
+      )
+    );
+  });
+});
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use Descriptive Fixture Names:</strong> Name your JSON files based on the scenario they represent (e.g., <code>user-with-no-orders.json</code> or <code>search-results-success.json</code>).</li>
-  <li><strong>Keep Fixtures Small:</strong> Only include the data necessary for the specific test to keep your test suite fast and easy to debug.</li>
-  <li><strong>Validate Data Integrity:</strong> Use TypeScript within your Cypress tests to ensure that your JSON fixtures match the expected interfaces of your application.</li>
+  <li><strong>Use scenario-named fixture files:</strong> <code>user-with-no-orders.json</code> is clearer than <code>user.json</code>. When a test breaks, the fixture name tells you exactly which scenario failed.</li>
+  <li><strong>Alias intercepts and wait on them:</strong> <code>cy.intercept(...).as('alias')</code> + <code>cy.wait('@alias')</code> is more reliable than DOM polling. It confirms the network call completed before assertions run.</li>
+  <li><strong>Prefer component tests for rendering logic:</strong> If a test only verifies that a JSON shape renders correctly, a component test is 10× faster than an E2E test that navigates to the full page.</li>
+  <li><strong>Keep fixtures small:</strong> Include only the fields the test exercises. A fixture with all 40 user fields obscures which 3 actually matter for the scenario being tested.</li>
+  <li><strong>TypeScript your fixtures:</strong> Define interfaces matching your fixture shapes and import them in spec files. TypeScript catches fixture/component mismatches at compile time.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Can I use Cypress to test APIs?</strong><br>
-A: Yes! While primarily a UI testing tool, Cypress has a <code>cy.request()</code> command that is excellent for testing JSON-based REST APIs.</p>
-<p><strong>Q: How do I handle dynamic IDs in JSON?</strong><br>
-A: Use regex-based assertions or focus on testing the *structure* of the response rather than specific values that change every time.</p>
-<p><strong>Q: Is Cypress faster than Playwright?</strong><br>
-A: Generally no, Playwright is often faster due to its architecture, but Cypress's developer experience and "time travel" debugging are often preferred for complex UI testing.</p>
+<p><strong>Q: Cypress or Playwright — which should I choose?</strong><br>
+A: Cypress is better for teams that write and debug tests interactively — its real-time runner and time-travel debugging reduce the feedback loop dramatically. Playwright is better for multi-browser coverage (especially Safari/WebKit), API testing without a browser, and CI-first workflows where you debug failures via trace files rather than interactively.</p>
+
+<p><strong>Q: Can Cypress test APIs directly?</strong><br>
+A: Yes. <code>cy.request()</code> sends HTTP requests and is primarily used for seeding test data, validating auth tokens, and API smoke tests. For API-first test suites, Playwright's <code>request</code> fixture or dedicated tools like Supertest are more ergonomic.</p>
+
+<p><strong>Q: How do I handle dynamic IDs in JSON fixtures?</strong><br>
+A: Use pattern matching: <code>expect(response.body.id).to.match(/^usr_/)</code>. For UI tests, use <code>cy.intercept()</code> to serve a fixture with predictable IDs rather than relying on what the real API returns.</p>
+
+<p><strong>Q: What is the difference between cy.intercept() and the deprecated cy.route()?</strong><br>
+A: <code>cy.route()</code> was removed in Cypress 6. <code>cy.intercept()</code> is its replacement — it intercepts Fetch requests (not just XHR), supports request modification before forwarding, works with static fixtures or dynamic response functions, and has proper TypeScript types.</p>
+
+<p><strong>Q: How do I debug a test that fails only in CI?</strong><br>
+A: Enable <code>screenshotOnRunFailure: true</code> and <code>video: true</code> in <code>cypress.config.ts</code>. Upload the <code>cypress/screenshots/</code> and <code>cypress/videos/</code> directories as CI artifacts. The video replays the exact test run including all network intercepts visible in the Cypress runner sidebar.</p>
+
+<p><strong>Q: Can I run Cypress tests in parallel without Cypress Cloud?</strong><br>
+A: Yes. The open-source <code>cypress-split</code> plugin distributes spec files evenly across CI runners without requiring a Cypress Cloud account. Set up a GitHub Actions matrix strategy to run N runners in parallel, each picking up a non-overlapping slice of your spec files.</p>

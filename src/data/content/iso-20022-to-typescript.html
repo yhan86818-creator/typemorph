@@ -1,60 +1,233 @@
-<h2>ISO 20022 to TypeScript: Implementing Modern Banking Standards</h2>
-<p>ISO 20022 is the modern, XML-based global standard for financial messaging, designed to replace legacy formats like SWIFT MT. Converting ISO 20022 XML messages to TypeScript interfaces is essential for building modern fintech applications that interact with the next generation of global payment networks (like SEPA, FedNow, or CHIPS). This conversion allows you to handle rich, complex payment data with full type safety, ensuring that your financial applications are ready for the future of global banking.</p>
+<h2>ISO 20022 to TypeScript: XSD Codegen, pacs.008 Parsing, Zod IBAN/BIC Validation, and MT Coexistence</h2>
+<p>ISO 20022 is the XML-based global standard replacing SWIFT MT for cross-border payments, securities settlement, and reporting. The standard defines hundreds of message types (pacs.008 for customer credit transfers, camt.053 for bank statements, pain.001 for customer credit transfer initiation) each backed by an official XSD. Converting ISO 20022 to TypeScript requires three things: <strong>XSD-to-TypeScript code generation</strong> (using xsd2ts or cxsd to produce interfaces from the 200+ page schema), <strong>fast-xml-parser configuration</strong> for the ISO 20022 namespace conventions, and <strong>Zod validation</strong> for cross-field business rules (IBAN check digit, BIC format, amount precision) that XSD alone cannot express.</p>
 
-<h3>Live Example: Mapping ISO 20022 XML (pacs.008) to TypeScript</h3>
-<pre><code>// Input ISO 20022 XML (Partial)
-&lt;CstmrCdtTrf&gt;
-  &lt;GrpHdr&gt;
-    &lt;MsgId&gt;ABC/123&lt;/MsgId&gt;
-    &lt;CreDtTm&gt;2023-10-27T10:00:00Z&lt;/CreDtTm&gt;
-  &lt;/GrpHdr&gt;
-  &lt;CdtTrfTxInf&gt;
-    &lt;PmtId&gt;&lt;InstrId&gt;PAY-001&lt;/InstrId&gt;&lt;/PmtId&gt;
-    &lt;IntrBkSttlmAmt Ccy="EUR"&gt;2500.00&lt;/IntrBkSttlmAmt&gt;
-  &lt;/CdtTrfTxInf&gt;
-&lt;/CstmrCdtTrf&gt;
+<h3>XSD Codegen: Generating TypeScript Types from ISO 20022 Schemas</h3>
+<pre><code">// The ISO 20022 XSD schemas are available at iso20022.org/catalogue-messages
+// For pacs.008.001.10 (Customer Credit Transfer):
+// Download: pacs.008.001.10.xsd (typically 2-5MB, 400+ type definitions)
 
-// Generated TypeScript Interface
-export interface CustomerCreditTransfer {
-  GroupHeader: {
-    MessageId: string;
-    CreationDateTime: Date | string;
-  };
-  CreditTransferTransactionInfo: {
-    PaymentId: {
-      InstructionId: string;
-    };
-    InterbankSettlementAmount: {
-      Amount: number;
-      Currency: string;
-    };
-  };
+// Option 1: xsd2ts CLI (npm install -g xsd2ts)
+// xsd2ts --input pacs.008.001.10.xsd --output src/types/pacs008.ts
+
+// Option 2: cxsd (more complete, handles circular references)
+// npm install -g cxsd
+// cxsd pacs.008.001.10.xsd --out-dir src/types/
+
+// Example of what gets generated for the core pacs.008 types:
+export interface FIToFICustomerCreditTransferV10 {
+  GrpHdr:  GroupHeader93;
+  CdtTrfTxInf: CreditTransferTransaction50[];  // 1..unbounded transactions
+  SplmtryData?: SupplementaryData1[];
+}
+
+export interface GroupHeader93 {
+  MsgId:      string;   // Max35Text — unique per message
+  CreDtTm:    string;   // ISODateTime — ISO 8601 format
+  BtchBookg?: boolean;  // BatchBookingIndicator
+  NbOfTxs:    string;   // Max15NumericText — numeric string (not number!)
+  TtlIntrBkSttlmAmt?: ActiveCurrencyAndAmount;
+  IntrBkSttlmDt?: string; // ISODate — YYYY-MM-DD
+  SttlmInf:   SettlementInstruction11;
+}
+
+export interface CreditTransferTransaction50 {
+  PmtId:          PaymentIdentification13;
+  PmtTpInf?:      PaymentTypeInformation28;
+  IntrBkSttlmAmt: ActiveCurrencyAndAmount;
+  IntrBkSttlmDt:  string;  // ISODate
+  SttlmPrty?:     Priority3Code;
+  Dbtr:           BranchAndFinancialInstitutionIdentification8;
+  DbtrAcct?:      CashAccount40;
+  DbtrAgt:        BranchAndFinancialInstitutionIdentification8;
+  CdtrAgt:        BranchAndFinancialInstitutionIdentification8;
+  Cdtr:           BranchAndFinancialInstitutionIdentification8;
+  CdtrAcct?:      CashAccount40;
+  Purp?:          Purpose2Choice;
+  RmtInf?:        RemittanceInformation21;
+  UndrlygCstmrCdtTrf?: UnderlyingCustomerCreditTransfer6;  // for MT202COV
+}
+
+export interface ActiveCurrencyAndAmount {
+  Ccy:    string;  // ActiveCurrencyCode — ISO 4217
+  value:  string;  // DecimalNumber as string (NOT number — precision loss)
+}
+
+export interface BranchAndFinancialInstitutionIdentification8 {
+  FinInstnId: FinancialInstitutionIdentification23;
+  BrnchId?:   BranchData5;
+}
+
+export interface FinancialInstitutionIdentification23 {
+  BICFI?:   string;   // BICFIDec2014Identifier — 8 or 11 char BIC
+  ClrSysMmbId?: ClearingSystemMemberIdentification2;
+  LEI?:     string;   // LEIIdentifier — Legal Entity Identifier (20 chars)
+  Nm?:      string;   // Max140Text
+  PstlAdr?: PostalAddress27;
+  Othr?:    GenericFinancialIdentification1;
+}
+
+export interface CashAccount40 {
+  Id:   AccountIdentification4Choice;  // IBAN or Other
+  Tp?:  CashAccountType2Choice;
+  Ccy?: string;
+  Nm?:  string;  // Max70Text
+}
+
+export interface AccountIdentification4Choice {
+  IBAN?: string;  // IBAN2007Identifier — validated format
+  Othr?: GenericAccountIdentification1;
 }
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Analyze the XSD Schema:</strong> ISO 20022 messages are defined by massive XSD (XML Schema Definition) files. Use these as the source of truth for your types.<br>
-2. <strong>Map XML Tags to TS Properties:</strong> Convert PascalCase XML tags into readable TypeScript properties. Maintain the hierarchical nesting of the ISO standard.<br>
-3. <strong>Handle Attributes:</strong> XML attributes (like <code>Ccy="EUR"</code>) should be mapped to nested properties or separate fields in your TypeScript interface.<br>
-4. <strong>Implement a Parser:</strong> Use an XML parser (like <code>fast-xml-parser</code>) in conjunction with your TypeScript interfaces to safely decode incoming financial messages.</p>
+<h3>Parsing pacs.008 XML with fast-xml-parser</h3>
+<pre><code">import { XMLParser } from 'fast-xml-parser';
 
-<h3>Technical Deep Dive: The Complexity of Rich Data</h3>
-<p>The primary challenge with ISO 20022 is its **Granularity**. Unlike legacy formats, ISO 20022 can carry huge amounts of structured data, including detailed remittance info and tax data. When converting to TypeScript, it's vital to use **Optional Fields** and **Deep Nesting** correctly. Another critical aspect is **Data Type Mapping**. ISO 20022 uses specific XML types (like <code>ISODateTime</code> or <code>ActiveOrHistoricCurrencyAndAmount</code>). Ensuring these are correctly mapped to TypeScript <code>Date</code> and <code>number</code> (or high-precision decimal strings) is essential for maintaining the financial integrity of the transaction.</p>
+// ISO 20022 XML uses namespaces like:
+// xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.10"
+// xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>ISO 20022 vs. SWIFT MT:</strong> ISO 20022 is XML-based and "rich," while MT is tag-value and "lean." The industry is moving to ISO 20022 because it supports more data and better automation. <strong>JSON-based ISO 20022</strong> is an emerging trend, but XML remains the official exchange format for most central bank systems.</p>
+const parser = new XMLParser({
+  ignoreAttributes:    false,
+  attributeNamePrefix: '@_',    // keep Ccy attribute as '@_Ccy'
+  removeNSPrefix:      true,    // strip 'urn:iso:...' namespace prefixes
+  isArray: (name) => [
+    'CdtTrfTxInf',   // always array (1..n transactions)
+    'SplmtryData',
+    'Ustrd',          // Unstructured remittance lines
+    'Strd',           // Structured remittance
+    'RfrdDocAmt',
+    'Cdtr',           // Can appear multiple times in some messages
+  ].includes(name),
+  tagValueProcessor: (tagName, tagValue) => tagValue.trim(),
+});
+
+function parsePacs008(xml: string): FIToFICustomerCreditTransferV10 {
+  const doc = parser.parse(xml);
+
+  // Navigate the ISO 20022 envelope:
+  // <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.10">
+  //   <FIToFICstmrCdtTrf>...
+  const envelope = doc?.Document?.FIToFICstmrCdtTrf;
+  if (!envelope) throw new Error('Not a valid pacs.008 document');
+
+  return envelope as FIToFICustomerCreditTransferV10;
+}
+
+// Handle the ActiveCurrencyAndAmount dual-representation:
+// XML: <IntrBkSttlmAmt Ccy="USD">15000.00</IntrBkSttlmAmt>
+// fast-xml-parser result: { '@_Ccy': 'USD', '#text': '15000.00' }
+
+function parseAmount(raw: unknown): ActiveCurrencyAndAmount {
+  if (typeof raw === 'object' && raw !== null) {
+    return { Ccy: (raw as any)['@_Ccy'], value: String((raw as any)['#text'] ?? '') };
+  }
+  throw new Error('Invalid amount element');
+}
+
+// Full usage:
+const xml = `&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.10"&gt;
+  &lt;FIToFICstmrCdtTrf&gt;
+    &lt;GrpHdr&gt;
+      &lt;MsgId&gt;MSGID-20240315-001&lt;/MsgId&gt;
+      &lt;CreDtTm&gt;2024-03-15T10:00:00Z&lt;/CreDtTm&gt;
+      &lt;NbOfTxs&gt;1&lt;/NbOfTxs&gt;
+      &lt;SttlmInf&gt;&lt;SttlmMtd&gt;CLRG&lt;/SttlmMtd&gt;&lt;/SttlmInf&gt;
+    &lt;/GrpHdr&gt;
+    &lt;CdtTrfTxInf&gt;
+      &lt;PmtId&gt;
+        &lt;InstrId&gt;PAY-2024-001&lt;/InstrId&gt;
+        &lt;EndToEndId&gt;E2E-REF-001&lt;/EndToEndId&gt;
+        &lt;UETR&gt;7f8ddb8e-0e3e-4e0a-9d09-93a27c0c6b5f&lt;/UETR&gt;
+      &lt;/PmtId&gt;
+      &lt;IntrBkSttlmAmt Ccy="USD"&gt;15000.00&lt;/IntrBkSttlmAmt&gt;
+      &lt;IntrBkSttlmDt&gt;2024-03-15&lt;/IntrBkSttlmDt&gt;
+      &lt;DbtrAgt&gt;&lt;FinInstnId&gt;&lt;BICFI&gt;BARCGB22XXX&lt;/BICFI&gt;&lt;/FinInstnId&gt;&lt;/DbtrAgt&gt;
+      &lt;Dbtr&gt;&lt;FinInstnId&gt;&lt;BICFI&gt;BARCGB22XXX&lt;/BICFI&gt;&lt;/FinInstnId&gt;&lt;/Dbtr&gt;
+      &lt;CdtrAgt&gt;&lt;FinInstnId&gt;&lt;BICFI&gt;BNPAFRPPXXX&lt;/BICFI&gt;&lt;/FinInstnId&gt;&lt;/CdtrAgt&gt;
+      &lt;Cdtr&gt;&lt;FinInstnId&gt;&lt;BICFI&gt;BNPAFRPPXXX&lt;/BICFI&gt;&lt;/FinInstnId&gt;&lt;/Cdtr&gt;
+    &lt;/CdtTrfTxInf&gt;
+  &lt;/FIToFICstmrCdtTrf&gt;
+&lt;/Document&gt;`;
+
+const msg = parsePacs008(xml);
+console.log(msg.GrpHdr.MsgId);       // 'MSGID-20240315-001'
+console.log(msg.CdtTrfTxInf.length); // 1
+</code></pre>
+
+<h3>Zod Validation: IBAN Check Digit, BIC Format, Amount Precision</h3>
+<pre><code">import { z } from 'zod';
+
+// IBAN validation: check digit via MOD-97 algorithm
+function validateIban(iban: string): boolean {
+  const normalized = iban.replace(/\s/g, '').toUpperCase();
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$/.test(normalized)) return false;
+
+  // Move first 4 chars to end, convert letters to digits (A=10, B=11, ...)
+  const rearranged = normalized.slice(4) + normalized.slice(0, 4);
+  const numeric    = rearranged.split('').map(c =>
+    /[A-Z]/.test(c) ? String(c.charCodeAt(0) - 55) : c
+  ).join('');
+
+  // MOD-97 on large number — process in chunks to avoid overflow
+  let remainder = '';
+  for (const chunk of numeric.match(/.{1,9}/g) ?? []) {
+    remainder = String((parseInt(remainder + chunk) % 97));
+  }
+  return remainder === '1';
+}
+
+// BIC validation: 8 or 11 chars, AAAABBCCDDD format
+const BIC_REGEX = /^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/;
+
+// Zod schemas for ISO 20022 boundary validation
+const IbanSchema = z.string()
+  .transform(s => s.replace(/\s/g, '').toUpperCase())
+  .refine(validateIban, { message: 'Invalid IBAN check digit' });
+
+const BicSchema = z.string()
+  .toUpperCase()
+  .refine(s => BIC_REGEX.test(s), { message: 'Invalid BIC/SWIFT code format' });
+
+const Iso20022AmountSchema = z.string()
+  .refine(s => /^\d+(\.\d{1,5})?$/.test(s), { message: 'Amount must be a decimal string' })
+  .refine(s => parseFloat(s) > 0, { message: 'Amount must be positive' });
+
+const Pacs008TransactionSchema = z.object({
+  IntrBkSttlmAmt: z.object({
+    Ccy:   z.string().length(3, 'Currency must be 3-character ISO 4217'),
+    value: Iso20022AmountSchema,
+  }),
+  IntrBkSttlmDt:  z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD'),
+  DbtrAcct: z.object({ Id: z.object({ IBAN: IbanSchema }) }).optional(),
+  CdtrAcct: z.object({ Id: z.object({ IBAN: IbanSchema }) }).optional(),
+  DbtrAgt:  z.object({ FinInstnId: z.object({ BICFI: BicSchema.optional() }) }),
+  CdtrAgt:  z.object({ FinInstnId: z.object({ BICFI: BicSchema.optional() }) }),
+});
+
+// Usage at API boundary:
+const result = Pacs008TransactionSchema.safeParse(msg.CdtTrfTxInf[0]);
+if (!result.success) {
+  console.error('ISO 20022 validation failed:', result.error.flatten());
+} else {
+  // result.data is typed and validated
+}
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use Automated Schema Tools:</strong> Don't write these interfaces by hand. Use tools that can convert XSD files directly to TypeScript to ensure 100% compliance with the standard.</li>
-  <li><strong>Validate Against XSD:</strong> Before processing the data in TypeScript, always validate the raw XML against the official ISO XSD schema.</li>
-  <li><strong>Handle Large Payloads:</strong> ISO 20022 messages can be very large. Use streaming XML parsers if you need to process high volumes of messages in Node.js.</li>
+  <li><strong>Never parse ISO 20022 amounts as JavaScript <code>number</code>:</strong> The ISO 20022 <code>DecimalNumber</code> type can have up to 18 decimal places. JavaScript's IEEE 754 double loses precision for amounts like <code>1234567890.123456789</code>. Always store as string and use Decimal.js or BigDecimal for arithmetic. The XSD-generated types in this guide use <code>string</code> for all amount fields for this reason.</li>
+  <li><strong>Use the <code>UETR</code> (Unique End-to-End Transaction Reference) as your idempotency key:</strong> The UETR (<code>PmtId/UETR</code> in pacs.008) is a UUID that uniquely identifies a payment across all banks in the processing chain. Store it as your primary deduplication key in the database. Unlike <code>MsgId</code> (unique per message, not per payment), the UETR follows the payment through MT202COV covers, returns, and investigations.</li>
+  <li><strong>Generate types from the official XSD rather than hand-writing them:</strong> ISO 20022 message schemas have hundreds of types, complex optional/mandatory rules per element, and version-specific changes (pacs.008.001.08 vs .10 differ in several fields). Running <code>xsd2ts</code> or <code>cxsd</code> against the official XSD guarantees completeness and lets you regenerate when the schema is updated.</li>
+  <li><strong>Handle both IBAN and <code>Othr</code> account identification:</strong> Not all accounts have IBANs — US ACH accounts use <code>CashAccount40/Id/Othr</code> with <code>SchmeNm/Cd=BBAN</code>. Your parser and Zod schemas must handle both <code>Id.IBAN</code> and <code>Id.Othr</code> branches of the <code>AccountIdentification4Choice</code> union, or you'll silently drop non-IBAN account references.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: What is pacs.008?</strong><br>
-A: It is the ISO 20022 message type for "Customer Credit Transfer," the equivalent of a SWIFT MT103.</p>
-<p><strong>Q: Is ISO 20022 only for XML?</strong><br>
-A: While the standard is defined in a way that is syntax-independent, the primary implementation globally is XML.</p>
-<p><strong>Q: Why is it better than MT103?</strong><br>
-A: It supports more data, better character sets (UTF-8), and has much more structured information, which reduces manual intervention in payments.</p>
+<p><strong>Q: What is the difference between pacs.008, pain.001, and camt.053?</strong><br>
+A: ISO 20022 organizes messages by business area: <strong>pain</strong> (Payment Initiation) — corporate-to-bank instructions like pain.001 Customer Credit Transfer Initiation; <strong>pacs</strong> (Payment Clearing and Settlement) — interbank settlement messages like pacs.008 FI-to-FI Customer Credit Transfer; <strong>camt</strong> (Cash Management) — bank statements and account reporting like camt.053 Bank-to-Customer Statement. A single customer payment flows through pain.001 → pacs.008 → camt.053 at different stages.</p>
+
+<p><strong>Q: How do I validate ISO 20022 XML against the official XSD?</strong><br>
+A: Use Node.js with <code>libxmljs2</code> or the Java-based Saxon processor for XSD 1.1 validation. The ISO 20022 XSDs use complex content models and identity constraints that basic XML validators may not support. For lightweight validation, use fast-xml-parser to parse and then apply Zod schemas for business rule validation — this handles 95% of practical errors without full XSD validation overhead.</p>
+
+<p><strong>Q: How do ISO 20022 messages relate to SWIFT MT during the migration?</strong><br>
+A: SWIFT's coexistence translation service automatically converts MT103 ↔ pacs.008 and MT202 ↔ pacs.009 during the migration period. The UETR (tag 121 in MT block 3) is the bridge — it flows through both formats and enables end-to-end tracking. After the mandatory cutover date, only MX (ISO 20022) messages will flow over the SWIFT network for cross-border payments, but many domestic and proprietary networks will continue using MT for years.</p>

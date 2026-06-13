@@ -1,61 +1,266 @@
-<h2>JSON to Jest Test: Automating Unit Tests from Real-World Data</h2>
-<p>Writing unit tests is often a repetitive task of manually creating "mock" data that mirrors your API responses. Converting JSON samples directly into Jest test cases automates this process, ensuring that your tests are always based on realistic data. By generating expectations and assertions from your JSON truth, you can quickly build a comprehensive test suite that catches regressions and ensures your application logic handles varied data scenarios with ease.</p>
+<h2>JSON to Jest Test: Mock Service Worker, Custom Matchers, and Data-Driven Test Suites</h2>
+<p>Jest is not just a test runner — it's a complete testing framework with built-in mocking, snapshot testing, and code coverage. Converting your JSON data into Jest tests goes beyond generating <code>expect(result).toBe(value)</code> calls. The real power is in <em>data-driven tests</em> that loop over JSON fixtures to cover many scenarios with one test function, in <code>jest.fn()</code> mocks that return JSON responses to isolate units from network calls, and in Mock Service Worker (MSW) integration that intercepts fetch calls at the network layer with JSON fixtures so your component and hook tests are realistic without being fragile.</p>
 
-<h3>Live Example: Generating Jest Assertions from JSON Data</h3>
-<pre><code>// Input JSON Sample
-{
-  "status": "success",
-  "data": {
-    "items": [
-      { "id": 1, "name": "Item A" }
-    ]
+<h3>Live Example: Data-Driven Unit Tests from JSON</h3>
+<pre><code>// __fixtures__/users.json
+[
+  { "id": "u1", "role": "admin",  "canDelete": true,  "maxItems": 100 },
+  { "id": "u2", "role": "editor", "canDelete": false, "maxItems": 50  },
+  { "id": "u3", "role": "viewer", "canDelete": false, "maxItems": 10  }
+]
+
+// __tests__/permissions.test.ts
+import { getPermissions } from '../lib/permissions';
+import users from '../__fixtures__/users.json';
+
+describe.each(users)(
+  'getPermissions for $role (id: $id)',
+  ({ id, role, canDelete, maxItems }) => {
+    it(`canDelete should be ${canDelete}`, () => {
+      const perms = getPermissions(role);
+      expect(perms.canDelete).toBe(canDelete);
+    });
+
+    it(`maxItems should be ${maxItems}`, () => {
+      const perms = getPermissions(role);
+      expect(perms.maxItems).toBe(maxItems);
+    });
   }
-}
+);
+</code></pre>
+<p><code>describe.each()</code> with an array of JSON objects generates named test groups for each entry — the test names include <code>$role</code> and <code>$id</code> interpolated from the JSON. This produces six tests (3 users × 2 assertions) from a single test definition, making it trivial to add coverage for new roles by adding one JSON object to the fixture.</p>
 
-// Generated Jest Test Case
-import { processData } from './dataProcessor';
+<h3>API Layer Testing: Mocking fetch with JSON Responses</h3>
+<pre><code>// __tests__/userService.test.ts
+import { fetchUser, createUser } from '../services/userService';
 
-describe('Data Processor', () => {
-  const sampleData = {
-    status: "success",
-    data: { items: [{ id: 1, name: "Item A" }] }
-  };
+const mockUser = {
+  id: 'usr_001',
+  name: 'Alice Chen',
+  email: 'alice@example.com',
+  role: 'editor',
+};
 
-  test('should correctly identify success status', () => {
-    const result = processData(sampleData);
-    expect(result.isSuccess).toBe(true);
-    expect(result.itemCount).toBe(1);
+beforeEach(() => {
+  global.fetch = jest.fn();
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+test('fetchUser returns typed user', async () => {
+  (fetch as jest.Mock).mockResolvedValueOnce({
+    ok: true,
+    status: 200,
+    json: async () => mockUser,
   });
 
-  test('should match the snapshot', () => {
-    expect(sampleData).toMatchSnapshot();
+  const user = await fetchUser('usr_001');
+  expect(user.id).toBe('usr_001');
+  expect(user.email).toBe(mockUser.email);
+  expect(fetch).toHaveBeenCalledWith(
+    expect.stringContaining('/users/usr_001'),
+    expect.any(Object),
+  );
+});
+
+test('fetchUser throws on 404', async () => {
+  (fetch as jest.Mock).mockResolvedValueOnce({
+    ok: false,
+    status: 404,
+    json: async () => ({ error: 'User not found' }),
+  });
+
+  await expect(fetchUser('unknown')).rejects.toThrow('User not found');
+});
+
+test('createUser sends correct JSON body', async () => {
+  const newUser = { name: 'Bob', email: 'bob@example.com', role: 'viewer' };
+
+  (fetch as jest.Mock).mockResolvedValueOnce({
+    ok: true,
+    status: 201,
+    json: async () => ({ id: 'usr_002', ...newUser }),
+  });
+
+  const result = await createUser(newUser);
+  expect(result.id).toMatch(/^usr_/);
+
+  const [, options] = (fetch as jest.Mock).mock.calls[0];
+  const body = JSON.parse(options.body);
+  expect(body).toEqual(newUser);
+});
+</code></pre>
+
+<h3>Mock Service Worker (MSW) for Realistic Network Interception</h3>
+<p>MSW intercepts fetch at the service worker level — your component sees a real fetch call, not a mock, making tests much more representative:</p>
+<pre><code>// __mocks__/handlers.ts
+import { http, HttpResponse } from 'msw';
+import userFixture from '../__fixtures__/user.json';
+import productListFixture from '../__fixtures__/products.json';
+
+export const handlers = [
+  http.get('/api/users/:id', ({ params }) => {
+    if (params.id === 'not-found') {
+      return HttpResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+    return HttpResponse.json({ ...userFixture, id: params.id });
+  }),
+
+  http.get('/api/products', ({ request }) => {
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') ?? '1');
+    const limit = parseInt(url.searchParams.get('limit') ?? '20');
+    const start = (page - 1) * limit;
+    return HttpResponse.json({
+      items: productListFixture.slice(start, start + limit),
+      total: productListFixture.length,
+      page, limit,
+    });
+  }),
+
+  http.post('/api/users', async ({ request }) => {
+    const body = await request.json() as Record&lt;string, unknown&gt;;
+    return HttpResponse.json({ id: 'usr_new', ...body }, { status: 201 });
+  }),
+];
+
+// jest.setup.ts
+import { setupServer } from 'msw/node';
+import { handlers } from './__mocks__/handlers';
+
+const server = setupServer(...handlers);
+
+beforeAll(() => server.listen());
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+
+// Override a handler for a specific test
+test('shows error when user not found', async () => {
+  server.use(
+    http.get('/api/users/:id', () =>
+      HttpResponse.json({ error: 'User not found' }, { status: 404 })
+    )
+  );
+  // ... render and assert error state
+});
+</code></pre>
+
+<h3>Snapshot Testing for Complex JSON Structures</h3>
+<pre><code">import { transformApiResponse } from '../lib/transformer';
+import rawApiResponse from '../__fixtures__/api-response.json';
+
+test('transformApiResponse matches snapshot', () => {
+  const result = transformApiResponse(rawApiResponse);
+  // First run: creates __snapshots__/transformer.test.ts.snap
+  // Subsequent runs: compares against saved snapshot
+  expect(result).toMatchInlineSnapshot(`
+    {
+      "items": [
+        {
+          "id": "p1",
+          "displayName": "Widget Pro",
+          "formattedPrice": "$49.99",
+        },
+      ],
+      "totalCount": 1,
+    }
+  `);
+});
+
+// For dynamic fields (IDs, timestamps), use asymmetric matchers
+test('API response has correct shape', () => {
+  const result = transformApiResponse(rawApiResponse);
+  expect(result).toMatchObject({
+    items: expect.arrayContaining([
+      expect.objectContaining({
+        id:           expect.any(String),
+        displayName:  expect.any(String),
+        formattedPrice: expect.stringMatching(/^\$\d+\.\d{2}$/),
+      })
+    ]),
+    totalCount: expect.any(Number),
   });
 });
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Capture Edge Cases:</strong> Use different JSON samples representing success, error, and empty states to create a diverse set of test cases.<br>
-2. <strong>Generate Mocks:</strong> Use the converter to turn your JSON into constant objects that can be used as inputs for your functions.<br>
-3. <strong>Define Assertions:</strong> Map specific JSON properties to Jest matchers like <code>toBe()</code>, <code>toEqual()</code>, or <code>toContain()</code>.<br>
-4. <strong>Leverage Snapshots:</strong> For large, complex JSON structures, use <code>toMatchSnapshot()</code> to easily track changes in the data over time.</p>
+<h3>Custom Matchers for Domain-Specific JSON Assertions</h3>
+<pre><code">// jest.setup.ts — extend Jest with custom matchers
+expect.extend({
+  toBeValidApiResponse(received) {
+    const hasStatus = 'status' in received;
+    const hasData   = 'data' in received || 'error' in received;
+    const validStatus = ['success', 'error', 'partial'].includes(received.status);
 
-<h3>Technical Deep Dive: Snapshot Testing and Data Integrity</h3>
-<p>The most powerful use of JSON in Jest is **Snapshot Testing**. When you convert a large JSON response to a snapshot, Jest saves the exact structure to a file. In future test runs, it compares the new output against this "golden" version. This is incredibly effective for catching unintended changes in complex API responses. However, a key technical insight is that snapshots should not replace logic-based assertions. Use JSON-to-Jest conversion to build the *scaffold* of your tests, then add specific business logic assertions to ensure the data is not just "the same," but also "correct."</p>
+    if (!hasStatus || !hasData || !validStatus) {
+      return {
+        pass: false,
+        message: () =>
+          `Expected ${JSON.stringify(received)} to be a valid API response ` +
+          `with {status: 'success'|'error'|'partial', data|error: ...}`,
+      };
+    }
+    return { pass: true, message: () => 'Valid API response' };
+  },
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>Jest vs. Mocha/Chai:</strong> Jest is the modern standard for JavaScript testing due to its built-in mocking, snapshot support, and zero-config setup. <strong>Vitest</strong> is a blazing-fast alternative for Vite-based projects that is highly compatible with the Jest API. Both benefit equally from JSON-to-test automation.</p>
+  toHaveJsonShape(received, expected) {
+    const receivedKeys = Object.keys(received).sort();
+    const expectedKeys = Object.keys(expected).sort();
+    const missing  = expectedKeys.filter(k => !receivedKeys.includes(k));
+    const extra    = receivedKeys.filter(k => !expectedKeys.includes(k));
+
+    if (missing.length) {
+      return { pass: false, message: () => `Missing keys: ${missing.join(', ')}` };
+    }
+    return { pass: true, message: () => 'Correct JSON shape' };
+  },
+});
+
+// Usage in tests
+test('API response is valid', async () => {
+  const result = await fetchData('/api/users');
+  expect(result).toBeValidApiResponse();
+  expect(result.data).toHaveJsonShape({ id: '', username: '', email: '' });
+});
+</code></pre>
+
+<h3>Test Organization: Fixtures Directory Convention</h3>
+<pre><code">project/
+├── __tests__/
+│   ├── userService.test.ts
+│   └── permissions.test.ts
+├── __fixtures__/
+│   ├── user.json               # single user (happy path)
+│   ├── user-no-profile.json    # user with missing optional fields
+│   ├── user-admin.json         # admin user (canDelete = true)
+│   ├── products.json           # product array for pagination tests
+│   └── api-error.json          # 400/500 error response shape
+└── __mocks__/
+    └── handlers.ts             # MSW handler definitions
+</code></pre>
+<p>Name fixture files by scenario, not by entity (<code>user-no-profile.json</code>, not <code>user2.json</code>). When a test fails, the fixture name tells you which case broke. Keep each fixture file small — only the fields relevant to the test scenario, not the full production API response.</p>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Keep Mocks Small:</strong> Don't use a 5,000-line JSON file for a simple unit test. Use a converter to extract only the relevant fields to keep your tests fast and readable.</li>
-  <li><strong>Automate Mock Generation:</strong> Integrate a tool that captures actual API responses during development and automatically updates your Jest mocks.</li>
-  <li><strong>Test for Invariants:</strong> Don't just test that the data is the same; test for invariants like "array length should always be greater than zero" or "ID should always be a string."</li>
+  <li><strong>Prefer <code>describe.each()</code> over copy-pasted tests:</strong> If you're writing the same test 3 times with different data, extract the data to a JSON fixture and use <code>describe.each()</code> or <code>test.each()</code>. Coverage expands automatically when you add items to the fixture.</li>
+  <li><strong>Use <code>toMatchInlineSnapshot()</code> for small outputs:</strong> Inline snapshots live in the test file and are reviewed in PRs. External <code>.snap</code> files are easier to dismiss without reading. Use inline for critical contracts you want reviewers to see explicitly.</li>
+  <li><strong>Don't mock what you control:</strong> Mock external APIs and third-party services. Don't mock your own functions unless you're isolating a specific unit. Mocking your own code tests the mock, not the code.</li>
+  <li><strong>Reset mocks in <code>afterEach</code>, not <code>beforeEach</code>:</strong> Resetting after each test ensures failed test teardown still clears state, preventing mock pollution across tests even when a test throws.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: How do I handle random data (like IDs) in snapshots?</strong><br>
-A: Use Jest's **Asymmetric Matchers** (e.g., <code>expect.any(String)</code>) to allow certain fields to change while still validating the rest of the structure.</p>
-<p><strong>Q: Can I use this for integration tests?</strong><br>
-A: Absolutely. JSON-to-Jest conversion is great for mocking network responses using libraries like <code>msw</code> (Mock Service Worker).</p>
-<p><strong>Q: Should I commit the JSON mock files?</strong><br>
-A: Yes, these are part of your test suite and ensure that anyone running the tests has the same data environment.</p>
+<p><strong>Q: Jest or Vitest — which should I use for new projects?</strong><br>
+A: Vitest for projects using Vite (SvelteKit, Vue, modern React). It is API-compatible with Jest (same expect API, same mocking patterns) but runs in the same Vite pipeline — no separate Babel/TS transform config needed. Jest for non-Vite projects (Next.js app router is still commonly tested with Jest).</p>
+
+<p><strong>Q: When should I use snapshots vs. explicit assertions?</strong><br>
+A: Snapshots for complex transformations where the full output matters (a transform function, a serializer). Explicit assertions for behavior you care about specifically. Avoid snapshots on components that change frequently — constant snapshot updates train your team to <code>-u</code> update without reading the diff.</p>
+
+<p><strong>Q: How do I test a function that calls fetch?</strong><br>
+A: Either use <code>jest.spyOn(global, 'fetch')</code> for simple cases, or set up MSW for integration-level tests. MSW is the better long-term investment — it works for both unit tests and component tests (React Testing Library), and the same handler definitions can run in the browser during development.</p>
+
+<p><strong>Q: How do I handle flaky async tests?</strong><br>
+A: Use <code>await waitFor(() => expect(element).toBeInTheDocument())</code> (React Testing Library) instead of <code>await sleep(100)</code>. Always await async assertions. Set a reasonable timeout in <code>jest.config.ts</code> and investigate tests that consistently need high timeouts — they usually have a real timing issue.</p>

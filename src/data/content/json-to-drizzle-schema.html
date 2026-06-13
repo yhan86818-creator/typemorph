@@ -1,55 +1,177 @@
-<h2>JSON to Drizzle Schema: The TypeScript-First Path to Relational Safety</h2>
-<p>Drizzle ORM has rapidly become the favorite for developers who want the performance of raw SQL with the type safety of TypeScript. Converting JSON samples to Drizzle schema definitions allows you to model your database in pure TypeScript, avoiding the need for a separate schema language. This conversion is ideal for "Edge-ready" applications where small bundle sizes and low latency are paramount, as Drizzle provides a thin layer over your database driver while maintaining strict structural integrity.</p>
+<h2>JSON to Drizzle ORM Schema: TypeScript-First Database Modeling for Edge Runtimes</h2>
+<p>Drizzle ORM solves a specific problem: you want the full type safety of a TypeScript schema definition but you don't want a runtime that adds megabytes of overhead and makes Cloudflare Workers or Vercel Edge Functions impractical. Drizzle's schema layer is pure TypeScript objects — no code generation step, no separate <code>.prisma</code> file, no CLI daemon required at runtime. The schema you write IS the migration source, the TypeScript type source, and the query builder's type information — all in one file.</p>
 
-<h3>Live Example: Inferring Drizzle Tables from JSON</h3>
+<h3>Live Example: Multi-Dialect Schema from JSON</h3>
 <pre><code>// Input JSON
 {
   "id": 1,
   "name": "Project Alpha",
+  "ownerId": "usr_9921",
   "metadata": {
     "priority": "high",
-    "deadline": "2024-12-31"
+    "deadline": "2024-12-31",
+    "labels": ["web", "internal"]
   },
-  "tags": ["web", "internal"]
+  "isPublic": false,
+  "createdAt": "2024-01-15T08:30:00Z"
 }
 
-// Generated Drizzle Schema (TypeScript)
-import { pgTable, serial, text, jsonb } from 'drizzle-orm/pg-core';
+// Generated Drizzle Schema (PostgreSQL)
+import {
+  pgTable, serial, text, boolean, jsonb,
+  timestamp, index, uniqueIndex,
+} from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+
+type ProjectMetadata = {
+  priority: 'low' | 'medium' | 'high';
+  deadline: string;
+  labels:   string[];
+};
 
 export const projects = pgTable('projects', {
-  id: serial('id').primaryKey(),
-  name: text('name').notNull(),
-  metadata: jsonb('metadata').$type&lt;{
-    priority: 'low' | 'high';
-    deadline: string;
-  }&gt;(),
-  tags: text('tags').array()
+  id:        serial('id').primaryKey(),
+  name:      text('name').notNull(),
+  ownerId:   text('owner_id').notNull(),
+  metadata:  jsonb('metadata').$type&lt;ProjectMetadata&gt;(),
+  isPublic:  boolean('is_public').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true })
+               .notNull()
+               .default(sql`now()`),
+}, (table) => ({
+  ownerIdx:     index('projects_owner_idx').on(table.ownerId),
+  nameOwnerIdx: uniqueIndex('projects_name_owner_uidx').on(table.name, table.ownerId),
+}));
+
+// Inferred TypeScript types — no separate interface needed
+export type Project       = typeof projects.$inferSelect;
+export type NewProject    = typeof projects.$inferInsert;
+export type ProjectUpdate = Partial&lt;typeof projects.$inferInsert&gt;;
+</code></pre>
+<p>The <code>.$type&lt;ProjectMetadata&gt;()</code> call annotates the <code>JSONB</code> column with a TypeScript type — queries that return <code>metadata</code> will be typed, and inserts that include <code>metadata</code> will be type-checked against <code>ProjectMetadata</code>. No runtime overhead — this is purely a TypeScript-level annotation.</p>
+
+<h3>Schema-Driven Type Inference</h3>
+<p>Drizzle's <code>$inferSelect</code> and <code>$inferInsert</code> extract TypeScript types from the schema definition automatically:</p>
+<pre><code>export const users = pgTable('users', {
+  id:        text('id').primaryKey(),
+  email:     text('email').notNull().unique(),
+  name:      text('name').notNull(),
+  role:      text('role', { enum: ['admin', 'user', 'guest'] }).notNull().default('user'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at'),
 });
+
+type User    = typeof users.$inferSelect;
+// { id: string; email: string; name: string; role: 'admin'|'user'|'guest'; createdAt: Date; deletedAt: Date | null }
+
+type NewUser = typeof users.$inferInsert;
+// { id?: string; email: string; name: string; role?: 'admin'|'user'|'guest'; createdAt?: Date; deletedAt?: Date | null }
+// Note: fields with defaults are optional in NewUser, required in User
+</code></pre>
+<p>This means your TypeScript types are always in sync with your schema. There's no <code>prisma generate</code> to run, no generated client to check in — the type is derived at compile time from the schema file you already have.</p>
+
+<h3>Relations: Type-Safe JOINs</h3>
+<pre><code>import { relations } from 'drizzle-orm';
+import { pgTable, text, serial, integer } from 'drizzle-orm/pg-core';
+
+export const users = pgTable('users', {
+  id:    text('id').primaryKey(),
+  email: text('email').notNull(),
+});
+
+export const posts = pgTable('posts', {
+  id:       serial('id').primaryKey(),
+  authorId: text('author_id').notNull().references(() => users.id),
+  title:    text('title').notNull(),
+  body:     text('body').notNull(),
+});
+
+// Define relation metadata for Drizzle's query API
+export const usersRelations = relations(users, ({ many }) => ({
+  posts: many(posts),
+}));
+
+export const postsRelations = relations(posts, ({ one }) => ({
+  author: one(users, {
+    fields: [posts.authorId],
+    references: [users.id],
+  }),
+}));
+
+// Type-safe relational query
+const usersWithPosts = await db.query.users.findMany({
+  with: {
+    posts: {
+      columns: { title: true, id: true },
+      where: (posts, { eq }) => eq(posts.status, 'published'),
+    }
+  }
+});
+// usersWithPosts[0].posts — typed Post[] with only { title, id }
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Identify Your Dialect:</strong> Drizzle supports PostgreSQL, MySQL, and SQLite. Ensure the converter is set to your specific database engine.<br>
-2. <strong>Map Primitive Types:</strong> Convert JSON strings to <code>text</code>, numbers to <code>integer</code> or <code>doublePrecision</code>, and booleans to <code>boolean</code>.<br>
-3. <strong>Handle Complex Objects:</strong> For nested JSON that shouldn't be a separate table, use Drizzle's <code>json</code> or <code>jsonb</code> column types with the <code>.$type&lt;T&gt;()</code> helper for deep type safety.<br>
-4. <strong>Export Table Definitions:</strong> Place your generated code in a <code>schema.ts</code> file and use <code>drizzle-kit</code> to generate migrations and push changes to your database.</p>
+<h3>Drizzle vs. Prisma: When to Choose Each</h3>
+<p>Both are TypeScript-first ORMs with similar safety goals. The differences matter depending on your deployment target:</p>
+<ul>
+  <li><strong>Runtime size</strong>: Drizzle's runtime is ~33kb; Prisma's query engine is a native binary (~7MB on Linux). This makes Drizzle the only practical choice for Cloudflare Workers, Vercel Edge Functions, or any environment with a size budget.</li>
+  <li><strong>Schema language</strong>: Prisma uses a separate <code>.prisma</code> file with its own syntax. Drizzle uses TypeScript — your schema is just TypeScript objects, no separate language to learn.</li>
+  <li><strong>Migrations</strong>: Prisma's migration tooling is more mature with a richer diff/deploy workflow. Drizzle Kit generates SQL migrations from schema diffs but requires more manual management of migration history.</li>
+  <li><strong>Query API</strong>: Drizzle's SQL-like chainable API stays close to the underlying SQL. Prisma's API is higher-level, which is more ergonomic for simple CRUD but less flexible for complex queries (window functions, lateral joins, CTEs).</li>
+</ul>
 
-<h3>Technical Deep Dive: The Power of $type and Runtime Composition</h3>
-<p>One of Drizzle's unique features is its ability to "cast" JSON columns into specific TypeScript types without sacrificing SQL performance. When you convert JSON to Drizzle, the converter doesn't just create the column; it also generates the TypeScript interface for the JSON content. This ensures that even when storing unstructured data in a relational database, your application remains fully aware of the data's internal shape. Furthermore, Drizzle's schemas are just JavaScript objects, making them highly composable and easy to unit test compared to string-based schema languages.</p>
+<h3>drizzle-kit Migrations</h3>
+<pre><code>// drizzle.config.ts
+import { defineConfig } from 'drizzle-kit';
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>Drizzle vs. Prisma:</strong> Prisma uses a custom <code>.prisma</code> file and a separate generator, while Drizzle is "just TypeScript." Drizzle is often preferred for serverless environments (like Cloudflare Workers) due to its zero-dependency runtime. <strong>TypeORM</strong> is another alternative, but it relies heavily on decorators and classes, which can be more verbose and less "TypeScript-idiomatic" than Drizzle's functional approach.</p>
+export default defineConfig({
+  schema: './src/db/schema.ts',
+  out: './drizzle/migrations',
+  dialect: 'postgresql',
+  dbCredentials: { url: process.env.DATABASE_URL! },
+});
+</code></pre>
+<pre><code># Generate migration from schema changes
+npx drizzle-kit generate
+
+# Push changes directly to database (dev only)
+npx drizzle-kit push
+
+# Review pending migrations
+npx drizzle-kit migrate
+</code></pre>
+<p><code>drizzle-kit push</code> is for development only — it applies schema changes directly without a migration file. In production, always generate a migration file, review it, and apply it with <code>drizzle-kit migrate</code> or your deployment pipeline.</p>
+
+<h3>SQLite Dialect for Local and Edge-Embedded Databases</h3>
+<pre><code>// Same schema, different import — works for local dev, Bun/SQLite, Turso
+import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+
+export const products = sqliteTable('products', {
+  id:       integer('id').primaryKey({ autoIncrement: true }),
+  sku:      text('sku').notNull().unique(),
+  name:     text('name').notNull(),
+  price:    real('price').notNull(),
+  metadata: text('metadata', { mode: 'json' }).$type&lt;Record&lt;string, unknown&gt;&gt;(),
+});
+// SQLite has no native JSON type; Drizzle serializes to TEXT automatically
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use <code>notNull()</code>:</strong> Be explicit about nullability. If a JSON field is always present, mark it as <code>notNull()</code> in Drizzle to avoid unnecessary null checks in your application logic.</li>
-  <li><strong>Index Strategically:</strong> If you find yourself querying nested JSON properties frequently, consider promoting those fields to their own columns and adding indexes.</li>
-  <li><strong>Leverage Drizzle Kit:</strong> Always use <code>drizzle-kit generate</code> to create SQL migrations from your TypeScript schema, ensuring your database and code stay in perfect sync.</li>
+  <li><strong>Export inferred types alongside your schema:</strong> Add <code>export type X = typeof table.$inferSelect</code> and <code>export type NewX = typeof table.$inferInsert</code> for every table. Import these types across your app instead of repeating the inference expression.</li>
+  <li><strong>Use <code>withTimezone: true</code> for all timestamps in PostgreSQL:</strong> <code>timestamp('col', { withTimezone: true })</code> maps to <code>TIMESTAMPTZ</code>, which stores UTC and converts on read. Without it, you get <code>TIMESTAMP</code> which has no timezone information.</li>
+  <li><strong>Separate schema from database connection:</strong> Keep schema definitions in <code>schema.ts</code> and the Drizzle <code>db</code> instance in <code>db.ts</code>. Schema files should have no I/O; they're pure type definitions.</li>
+  <li><strong>Review generated migrations before running them:</strong> <code>drizzle-kit generate</code> produces SQL files — read them. Column renames are sometimes interpreted as DROP + ADD (data loss) rather than RENAME. Add a <code>--custom</code> migration to fix this before running.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Does Drizzle support foreign keys?</strong><br>
-A: Yes, you can define relationships using the <code>references()</code> method on your column definitions.</p>
-<p><strong>Q: Can I use Drizzle with a NoSQL database?</strong><br>
-A: No, Drizzle is strictly for relational databases (SQL). For NoSQL, consider Mongoose (for MongoDB).</p>
-<p><strong>Q: How do I handle default values?</strong><br>
-A: Use the <code>.default()</code> method in your Drizzle schema to set database-level defaults for any column.</p>
+<p><strong>Q: Does Drizzle work with Cloudflare D1 (SQLite at the edge)?</strong><br>
+A: Yes. Drizzle has a dedicated <code>drizzle-orm/d1</code> dialect that wraps Cloudflare's D1 database binding. The schema syntax is identical to SQLite — swap the driver and the dialect import.</p>
+
+<p><strong>Q: Can Drizzle handle complex queries like CTEs or window functions?</strong><br>
+A: Yes. Use the <code>sql</code> tagged template literal for any SQL Drizzle doesn't expose directly: <code>sql&lt;number&gt;`ROW_NUMBER() OVER (PARTITION BY ${table.userId} ORDER BY ${table.createdAt})`</code>. This embeds raw SQL fragments inside otherwise type-safe queries.</p>
+
+<p><strong>Q: How do I do transactions in Drizzle?</strong><br>
+A: <code>await db.transaction(async (tx) => { await tx.insert(users).values(...); await tx.insert(posts).values(...); })</code>. The <code>tx</code> object is a scoped database instance — all operations within the callback run in the same transaction and roll back together on error.</p>
+
+<p><strong>Q: Does Drizzle support seeding and test database utilities?</strong><br>
+A: Drizzle doesn't have a built-in seeding system. Use a <code>seed.ts</code> script that imports your schema and uses the normal Drizzle insert API. For test isolation, wrap each test in a transaction and roll it back: a common pattern with <code>beforeEach</code> / <code>afterEach</code>.</p>

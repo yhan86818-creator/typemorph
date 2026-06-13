@@ -1,60 +1,270 @@
-<h2>JSON to Postman Collection: Automating API Testing and Documentation</h2>
-<p>Postman is the go-to tool for API development and testing, and its "Collections" are the industry standard for organizing requests. Converting your JSON samples—whether they are from API logs, OpenAPI specs, or manual notes—directly into a Postman Collection automates the setup of your testing environment. This allows your entire team to share a unified set of requests, complete with pre-configured headers, authentication, and test scripts, ensuring that everyone is testing against the same "source of truth."</p>
+<h2>JSON to Postman Collection: Collection v2.1 Format, Pre-request Scripts, Test Assertions, and Newman CI</h2>
+<p>A Postman Collection file is itself JSON in the Collection v2.1 format — a structured document describing folders, requests, pre-request scripts, and test scripts. Understanding the format lets you generate collections programmatically from OpenAPI specs, API documentation, or request logs rather than building them manually in the UI. The real power comes from pre-request scripts (JavaScript that runs before each request to set up auth tokens, timestamps, or signatures) and test scripts (JavaScript that validates response shape, status codes, and values). This guide covers the Collection v2.1 structure, auth token extraction scripts, Zod-style response validation in Postman's sandbox, and Newman for CI/CD.</p>
 
-<h3>Live Example: Converting JSON API Definitions to Postman Collections</h3>
-<pre><code>// Input JSON Definition
-{
-  "name": "Auth API",
-  "requests": [
-    { "method": "POST", "url": "/login", "body": { "user": "admin" } }
+<h3>Collection v2.1 Format: Complete Structure</h3>
+<pre><code">{
+  "info": {
+    "name":    "Product API",
+    "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    { "key": "baseUrl",  "value": "https://api.example.com/v2" },
+    { "key": "apiKey",   "value": "{{$env.API_KEY}}" }
+  ],
+  "auth": {
+    "type":   "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name":    "POST Login",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw":      "{{baseUrl}}/auth/login",
+              "host":     ["{{baseUrl}}"],
+              "path":     ["auth", "login"]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw":  "{\"email\": \"{{userEmail}}\", \"password\": \"{{userPassword}}\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has access token', () => pm.expect(body.access_token).to.be.a('string'));",
+                  "pm.collectionVariables.set('accessToken', body.access_token);",
+                  "pm.collectionVariables.set('refreshToken', body.refresh_token);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
   ]
-}
-
-// Generated Postman Collection (Partial JSON)
-{
-	"info": {
-		"name": "Auth API",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-	},
-	"item": [
-		{
-			"name": "Login",
-			"request": {
-				"method": "POST",
-				"url": "{{baseUrl}}/login",
-				"body": {
-					"mode": "raw",
-					"raw": "{\"user\": \"admin\"}"
-				}
-			}
-		}
-	]
 }
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Define the Collection Structure:</strong> Organize your JSON requests into logical groups (folders) within the collection.<br>
-2. <strong>Map HTTP Methods and URLs:</strong> Use the converter to translate your JSON keys into Postman's specific <code>method</code> and <code>url</code> objects.<br>
-3. <strong>Inject Variables:</strong> Replace hardcoded URLs and tokens with Postman variables like <code>{{baseUrl}}</code> or <code>{{token}}</code> for flexibility across environments.<br>
-4. <strong>Import and Run:</strong> Use the Postman app to import the generated JSON file and use the "Collection Runner" to execute all tests in sequence.</p>
+<h3>Pre-request Scripts: Auth Token Management</h3>
+<pre><code">// Pre-request script: refresh expired access token automatically
+// Set this on the collection-level to run before every request
 
-<h3>Technical Deep Dive: Pre-request Scripts and Tests</h3>
-<p>The real power of a Postman Collection lies in its **Scripting Engine**. When you convert JSON to Postman, you can also generate **Pre-request Scripts** (for setting dynamic headers) and **Tests** (for validating the response). For example, you can add a script that checks if the response is 200 OK and if the JSON body contains a specific ID. This turns a simple list of requests into a fully automated test suite. Furthermore, Postman uses a specific **JSON Schema** for its collections, meaning your generated files are fully compatible with other tools like Newman (the CLI runner for Postman).</p>
+const tokenExpiry = pm.collectionVariables.get('tokenExpiry');
+const now         = Date.now();
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>Postman vs. Insomnia:</strong> Postman is more feature-rich for large teams and automated testing, while Insomnia is often preferred for its cleaner interface and simplicity. <strong>Thunder Client</strong> is a popular VS Code extension alternative. All of these tools use variations of the same JSON-based collection format, making conversion between them possible.</p>
+// Token already valid — skip refresh
+if (tokenExpiry && parseInt(tokenExpiry) > now + 60_000) {
+  return;  // 60s buffer before expiry
+}
+
+// Token expired or missing — fetch a new one
+const refreshToken = pm.collectionVariables.get('refreshToken');
+if (!refreshToken) return;  // no refresh token — user must login manually
+
+const request = {
+  url:    pm.collectionVariables.get('baseUrl') + '/auth/refresh',
+  method: 'POST',
+  header: [{ key: 'Content-Type', value: 'application/json' }],
+  body: {
+    mode: 'raw',
+    raw:  JSON.stringify({ refresh_token: refreshToken }),
+  },
+};
+
+pm.sendRequest(request, (err, response) => {
+  if (err) { console.error('Token refresh failed:', err); return; }
+  if (response.code !== 200) { console.error('Refresh error:', response.text()); return; }
+
+  const body = response.json();
+  pm.collectionVariables.set('accessToken',  body.access_token);
+  pm.collectionVariables.set('refreshToken', body.refresh_token);
+  pm.collectionVariables.set('tokenExpiry',  String(now + body.expires_in * 1000));
+});
+
+// Pre-request for HMAC-signed APIs (like Stripe/Shopify webhook verification)
+const crypto   = require('crypto-js');
+const apiKey   = pm.environment.get('apiKey');
+const apiSecret = pm.environment.get('apiSecret');
+const timestamp = Math.floor(Date.now() / 1000).toString();
+
+const signature = crypto.HmacSHA256(timestamp + '.' + pm.request.body, apiSecret).toString();
+pm.request.headers.add({ key: 'X-Timestamp',  value: timestamp });
+pm.request.headers.add({ key: 'X-Signature',  value: 'sha256=' + signature });
+</code></pre>
+
+<h3>Test Scripts: Comprehensive Response Validation</h3>
+<pre><code">// Test scripts run after the response is received
+// pm.test() groups assertions; failing tests don't stop execution
+
+// ── Status and headers ───────────────────────────────────────
+pm.test('Status 201 Created', () =>
+  pm.response.to.have.status(201)
+);
+
+pm.test('Content-Type is JSON', () =>
+  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json')
+);
+
+pm.test('Has Location header', () =>
+  pm.expect(pm.response.headers.get('Location')).to.match(/\/products\/[a-z0-9-]+$/)
+);
+
+pm.test('Response under 500ms', () =>
+  pm.expect(pm.response.responseTime).to.be.below(500)
+);
+
+// ── Body shape validation ─────────────────────────────────────
+const body = pm.response.json();
+
+pm.test('Response has required fields', () => {
+  pm.expect(body).to.have.property('id').that.is.a('string');
+  pm.expect(body).to.have.property('name').that.is.a('string').and.not.empty;
+  pm.expect(body).to.have.property('price_cents').that.is.a('number').and.above(0);
+  pm.expect(body).to.have.property('created_at').that.matches(/^\d{4}-\d{2}-\d{2}T/);
+});
+
+pm.test('ID format is UUID', () =>
+  pm.expect(body.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
+);
+
+// ── Chaining requests: save IDs for use in subsequent requests ─
+pm.collectionVariables.set('createdProductId', body.id);
+
+// ── TV4 JSON Schema validation (built into Postman sandbox) ────
+const productSchema = {
+  type: 'object',
+  required: ['id', 'name', 'price_cents', 'in_stock'],
+  properties: {
+    id:          { type: 'string' },
+    name:        { type: 'string' },
+    price_cents: { type: 'integer', minimum: 0 },
+    in_stock:    { type: 'boolean' },
+    created_at:  { type: 'string' },
+  },
+  additionalProperties: true,
+};
+
+pm.test('Response matches schema', () =>
+  pm.expect(tv4.validate(body, productSchema)).to.be.true
+);
+</code></pre>
+
+<h3>Programmatic Collection Generation from OpenAPI</h3>
+<pre><code">// Generate a Postman collection from an OpenAPI spec
+// npm install openapi-to-postmanv2
+
+import { convert } from 'openapi-to-postmanv2';
+import { readFileSync, writeFileSync } from 'fs';
+import yaml from 'js-yaml';
+
+const spec = yaml.load(readFileSync('./openapi.yaml', 'utf-8'));
+
+convert({ type: 'json', data: spec }, {
+  requestParametersResolution: 'Example',
+  folderStrategy:    'Tags',          // group requests by OpenAPI tags
+  includeAuthInfoInExample: false,    // don't embed credentials in examples
+  optimizeConversion: false,
+  enableOptionalParameters: true,
+  keepImplicitHeaders: false,
+}, (err, conversionResult) => {
+  if (!conversionResult.result) {
+    throw new Error('Conversion failed: ' + conversionResult.reason);
+  }
+
+  const collection = conversionResult.output[0].data;
+
+  // Post-process: add pre-request scripts and test scripts
+  collection.event = [
+    {
+      listen: 'prerequest',
+      script: { type: 'text/javascript', exec: [TOKEN_REFRESH_SCRIPT] },
+    },
+  ];
+
+  writeFileSync('./postman/collection.json', JSON.stringify(collection, null, 2));
+  console.log(`Generated ${collection.item.length} folders`);
+});
+</code></pre>
+
+<h3>Newman: Running Collections in CI/CD</h3>
+<pre><code">// Newman runs Postman collections from the command line
+// npm install -g newman newman-reporter-htmlextra
+
+// Basic run against staging environment
+// newman run collection.json \
+//   --environment staging.json \
+//   --reporters cli,json \
+//   --reporter-json-export results/newman-report.json
+
+// With HTML report
+// newman run collection.json \
+//   --environment staging.json \
+//   --reporters htmlextra \
+//   --reporter-htmlextra-export results/index.html
+
+// GitHub Actions workflow
+name: API Integration Tests
+on: [push, pull_request]
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm install -g newman newman-reporter-htmlextra
+      - run: |
+          newman run postman/collection.json \
+            --environment postman/staging.json \
+            --env-var "API_KEY=${{ secrets.STAGING_API_KEY }}" \
+            --reporters cli,htmlextra \
+            --reporter-htmlextra-export results/index.html \
+            --bail                    # stop on first failure
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: newman-results
+          path: results/
+
+// Environment file (postman/staging.json)
+{
+  "name": "Staging",
+  "values": [
+    { "key": "baseUrl",       "value": "https://staging.api.example.com/v2", "enabled": true },
+    { "key": "userEmail",     "value": "test@example.com",                   "enabled": true },
+    { "key": "userPassword",  "value": "{{$env.TEST_PASSWORD}}",             "enabled": true }
+  ]
+}
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use Environment Variables:</strong> Never hardcode API keys or URLs. Always use Postman variables and share a separate environment file with your team.</li>
-  <li><strong>Document Every Request:</strong> Use the <code>description</code> field in your JSON to add documentation for each endpoint, which will be visible in the Postman UI.</li>
-  <li><strong>Integrate with CI/CD:</strong> Use **Newman** to run your Postman Collections as part of your automated build process to catch API regressions early.</li>
+  <li><strong>Store access tokens in collection variables, not environment variables:</strong> Collection variables persist only for the duration of a collection run, which is the right scope for auth tokens. Environment variables persist across runs and can leak tokens between test sessions. Set <code>accessToken</code> as a collection variable in the login test script and read it in the auth bearer token config.</li>
+  <li><strong>Add response time assertions to every request:</strong> <code>pm.expect(pm.response.responseTime).to.be.below(500)</code> turns performance regressions into test failures. Without explicit timing tests, slow endpoints go unnoticed until users complain. Adjust the threshold per endpoint type: 200ms for simple reads, 1000ms for writes, 5000ms for batch operations.</li>
+  <li><strong>Chain requests using collection variables:</strong> Set <code>pm.collectionVariables.set('productId', body.id)</code> in a POST test script, then use <code>{{productId}}</code> in subsequent GET/PUT/DELETE requests. This makes your collection self-contained — no manual ID substitution between test runs.</li>
+  <li><strong>Generate collections from OpenAPI specs, don't maintain both by hand:</strong> Manually keeping an OpenAPI spec and a Postman collection in sync is a maintenance burden. Generate the collection from the spec using openapi-to-postmanv2 and add custom test scripts on top. The OpenAPI spec is the source of truth; the collection is derived.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Can I import OpenAPI into Postman?</strong><br>
-A: Yes! Postman has excellent built-in support for importing OpenAPI 3.0 specs and converting them into collections.</p>
-<p><strong>Q: How do I handle authentication in a collection?</strong><br>
-A: You can define authentication at the collection or folder level, and all requests inside will inherit those settings automatically.</p>
-<p><strong>Q: Is there a limit to the collection size?</strong><br>
-A: Postman handles large collections well, but for very large APIs, it's best to split them into multiple collections based on functional areas.</p>
+<p><strong>Q: What's the difference between Postman collection variables, environment variables, and global variables?</strong><br>
+A: Collection variables are scoped to one collection run — reset each time. Environment variables persist across runs and are shared between collections in the same environment. Global variables are visible to all collections in all environments. Use collection variables for session state (tokens, created IDs), environment variables for configuration (base URLs, credentials), and avoid global variables unless absolutely necessary.</p>
+
+<p><strong>Q: Can I run Postman collections in parallel?</strong><br>
+A: Newman runs requests sequentially within a collection by default. For parallel execution across multiple collections, run multiple Newman processes simultaneously. Postman's cloud runner supports parallelism, but Newman CLI does not natively. If you need parallel API testing with more sophisticated orchestration, consider k6 or Artillery instead.</p>
+
+<p><strong>Q: How do I test OAuth2 PKCE flows in Postman?</strong><br>
+A: Postman supports OAuth2 PKCE natively in the auth configuration — use the "OAuth 2.0" auth type with "PKCE" selected. For scripted flows, use a pre-request script with <code>pm.sendRequest()</code> to get the code verifier/challenge, redirect to the auth URL, and exchange the code for a token. Complex OAuth flows are easier to test with dedicated OAuth test tools alongside Postman for API endpoint testing.</p>

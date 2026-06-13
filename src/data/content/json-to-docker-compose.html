@@ -1,90 +1,261 @@
-<h2>Converting JSON Service Definitions to Docker Compose</h2>
-<p>Docker Compose is the standard tool for defining and running multi-container Docker applications. When building developer platforms or internal tools, you often need to transform high-level JSON service descriptions into valid <code>docker-compose.yml</code> files. This conversion automates environment setup, ensures consistency across development and production, and enables "Infrastructure as Code" workflows for application logic.</p>
+<h2>JSON to Docker Compose: Healthchecks, Networks, and Multi-Service Orchestration</h2>
+<p>Docker Compose defines multi-container applications as a single YAML document — but the YAML is just a serialization of a well-defined schema that maps directly from JSON. Understanding the full Compose spec lets you generate correct, production-grade configurations: healthchecks that gate <code>depends_on</code> conditions, named volumes with explicit drivers, custom networks for service isolation, resource limits for production deployments, and profiles to optionally include monitoring tools. The difference between a generated Compose file that works and one that causes subtle issues in CI is usually in these details.</p>
 
-<h3>Live Example</h3>
-<p>A JSON description of a microservice stack:</p>
-<pre><code>{
-  "project_name": "inventory-system",
+<h3>Live Example: Full Stack Application</h3>
+<pre><code">// Input JSON (application service spec)
+{
+  "project": "myapp",
   "services": [
-    {
-      "name": "web-api",
-      "image": "my-registry/api:latest",
-      "port": 8080,
-      "env": {"DB_HOST": "db"}
-    },
-    {
-      "name": "db",
-      "image": "postgres:15-alpine",
-      "port": 5432
-    }
+    { "name": "web",    "image": "myapp/web:latest",    "port": 3000, "depends_on": ["api"] },
+    { "name": "api",    "image": "myapp/api:latest",    "port": 8080, "depends_on": ["db", "redis"] },
+    { "name": "worker", "image": "myapp/worker:latest",              "depends_on": ["db", "redis"] },
+    { "name": "db",     "image": "postgres:16-alpine",   "port": 5432 },
+    { "name": "redis",  "image": "redis:7-alpine",       "port": 6379 }
   ]
-}</code></pre>
-<p>The generated <code>docker-compose.yml</code>:</p>
-<pre><code>version: '3.8'
+}
+
+# Generated docker-compose.yml
+name: myapp
+
 services:
-  web-api:
-    image: my-registry/api:latest
+  web:
+    image: myapp/web:latest
+    ports:
+      - "3000:3000"
+    environment:
+      API_URL: http://api:8080
+    depends_on:
+      api:
+        condition: service_healthy   # wait until API passes healthcheck
+    restart: unless-stopped
+    networks:
+      - frontend
+
+  api:
+    image: myapp/api:latest
     ports:
       - "8080:8080"
     environment:
-      DB_HOST: db
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@db:5432/myapp
+      REDIS_URL: redis://redis:6379
+    env_file:
+      - .env                         # load secrets from file, not inline
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s              # grace period before health checks begin
+    restart: unless-stopped
+    networks:
+      - frontend
+      - backend
+
+  worker:
+    image: myapp/worker:latest
+    environment:
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@db:5432/myapp
+      REDIS_URL: redis://redis:6379
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - backend
+    deploy:
+      replicas: 2                    # run 2 worker instances
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
   db:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     ports:
-      - "5432:5432"
+      - "5432:5432"                  # expose for local dev tools only
+    environment:
+      POSTGRES_DB:       myapp
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - db_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro  # init script
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d myapp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - backend
 
 volumes:
-  db_data:</code></pre>
+  db_data:     { driver: local }
+  redis_data:  { driver: local }
 
-<h3>Implementation Guide</h3>
-<ol>
-  <li><strong>Define the YAML Structure:</strong> Docker Compose requires a specific root-level structure (<code>version</code>, <code>services</code>, <code>networks</code>, <code>volumes</code>).</li>
-  <li><strong>Map Service Attributes:</strong> Convert JSON keys to Compose keywords. For example, <code>port</code> usually maps to the <code>ports</code> list, and <code>env</code> to the <code>environment</code> object or list.</li>
-  <li><strong>Handle Dependencies:</strong> Automatically inject <code>depends_on</code> or <code>links</code> based on the service relationships defined in your JSON.</li>
-  <li><strong>Sanitize Inputs:</strong> Ensure that service names are valid Docker identifiers (no spaces or special characters).</li>
-  <li><strong>Serialization:</strong> Use a robust YAML library (like <code>js-yaml</code> for JS or <code>PyYAML</code> for Python) to output the final file to ensure correct indentation and escaping.</li>
-</ol>
+networks:
+  frontend:    { driver: bridge }    # web ↔ api
+  backend:     { driver: bridge }    # api, worker ↔ db, redis
+</code></pre>
 
-<h3>Technical Deep Dive</h3>
-<p>Docker Compose files are sensitive to indentation and versioning. While version 3.x is standard, different sub-versions (e.g., 3.8 vs 3.3) support different features like secrets or resource limits. When converting from JSON, it is critical to handle "Lists vs Objects." For example, <code>environment</code> can be represented as an object or a list of <code>KEY=VALUE</code> strings in Compose. Choosing the object format is generally safer when generating from JSON to avoid manual string concatenation issues.</p>
+<h3>Healthchecks and depends_on Conditions</h3>
+<pre><code"># Without conditions, depends_on only waits for the container to START — not be READY
+# This causes race conditions where the app starts before the DB accepts connections
 
-<h3>Comparison</h3>
-<table border="1">
-  <tr>
-    <th>Feature</th>
-    <th>JSON Representation</th>
-    <th>Docker Compose YAML</th>
-  </tr>
-  <tr>
-    <td>Syntax</td>
-    <td>Strict (Braces/Quotes)</td>
-    <td>White-space sensitive</td>
-  </tr>
-  <tr>
-    <td>Comments</td>
-    <td>Not officially supported</td>
-    <td>Supported (Native)</td>
-  </tr>
-  <tr>
-    <td>Readability</td>
-    <td>Compact</td>
-    <td>Highly human-readable</td>
-  </tr>
-</table>
+# WRONG: no condition (starts after container starts, not after DB is ready)
+depends_on:
+  - db
 
-<h3>Best Practices</h3>
+# CORRECT: waits until healthcheck passes
+depends_on:
+  db:
+    condition: service_healthy
+
+# Three available conditions:
+# service_started  — default: container has started (not useful for wait logic)
+# service_healthy  — healthcheck reports healthy (requires healthcheck in the target)
+# service_completed_successfully — the service exited with code 0 (for init containers)
+
+# Database healthcheck patterns:
+# PostgreSQL:
+healthcheck:
+  test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+  interval: 10s
+  timeout: 5s
+  retries: 5
+
+# MySQL:
+healthcheck:
+  test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "--silent"]
+
+# MongoDB:
+healthcheck:
+  test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+</code></pre>
+
+<h3>Build Context vs Image</h3>
+<pre><code"># For local development: build from Dockerfile
+services:
+  api:
+    build:
+      context: ./api              # path to Dockerfile
+      dockerfile: Dockerfile.dev  # optional override
+      args:
+        NODE_VERSION: "20"
+        BUILD_ENV: development
+    image: myapp/api:dev          # tag the built image (optional)
+
+  # Multi-stage build — only build the stage you need
+  api-prod:
+    build:
+      context: ./api
+      target: production          # stops at the 'production' stage in Dockerfile
+
+# Override for CI: build from CI-built image, not local source
+# docker compose -f docker-compose.yml -f docker-compose.ci.yml up
+# docker-compose.ci.yml:
+services:
+  api:
+    image: myapp/api:${GIT_SHA}  # from CI registry
+    build: !reset {}              # remove build config
+</code></pre>
+
+<h3>Profiles: Optional Services</h3>
+<pre><code"># Profiles let you conditionally include services
+# Not included by default — only start when explicitly requested
+
+services:
+  # Core services (no profile — always active)
+  api: { image: myapp/api:latest }
+  db:  { image: postgres:16-alpine }
+
+  # Monitoring (only when --profile monitoring)
+  prometheus:
+    image: prom/prometheus:latest
+    profiles: [monitoring]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:latest
+    profiles: [monitoring]
+    ports: ["3001:3000"]
+
+  # Debug tools (only when --profile debug)
+  pgadmin:
+    image: dpage/pgadmin4
+    profiles: [debug]
+    ports: ["5050:80"]
+
+# Usage:
+docker compose up                          # core only
+docker compose --profile monitoring up     # core + monitoring
+docker compose --profile monitoring --profile debug up  # everything
+</code></pre>
+
+<h3>Secrets Management</h3>
+<pre><code"># Method 1: .env file (local dev only — NEVER commit with real values)
+# .env
+DB_PASSWORD=dev_password_change_me
+REDIS_PASSWORD=dev_redis_pw
+
+# Method 2: Docker Secrets (Swarm/production)
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt   # or: external: true (from Swarm secret)
+
+# Method 3: Read from environment (CI/CD injects into shell)
+services:
+  api:
+    environment:
+      DATABASE_URL: ${DATABASE_URL}   # CI sets DATABASE_URL in env before running compose
+</code></pre>
+
+<h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use Environment Variables:</strong> Don't bake secrets into the JSON; instead, use <code>${VAR_NAME}</code> syntax in the generated YAML to pull from a <code>.env</code> file.</li>
-  <li><strong>Healthchecks:</strong> Always include healthchecks in your generated services to ensure dependent services only start when the primary service is ready.</li>
-  <li><strong>Resource Limits:</strong> When generating for production, include <code>deploy.resources.limits</code> to prevent a single container from exhausting host memory.</li>
+  <li><strong>Always add healthchecks to stateful services:</strong> PostgreSQL, MySQL, Redis, and MongoDB all need healthchecks so that <code>depends_on: condition: service_healthy</code> works correctly. Without healthchecks, services that depend on the database start before it's ready and crash with connection errors.</li>
+  <li><strong>Use named volumes, not bind mounts, for persistent data:</strong> Bind mounts (<code>./data:/var/lib/postgresql/data</code>) depend on the host directory existing and have permission issues across environments. Named volumes (<code>db_data:/var/lib/postgresql/data</code>) are managed by Docker, portable across machines, and can be backed up with <code>docker volume ls</code>.</li>
+  <li><strong>Use separate networks for service isolation:</strong> Putting all services on a single default network means every service can reach every other service by name. Create separate <code>frontend</code> and <code>backend</code> networks so that, e.g., the database is only reachable from the API and worker, not from the web frontend container.</li>
+  <li><strong>Use <code>restart: unless-stopped</code> not <code>always</code>:</strong> <code>always</code> restarts even if you explicitly stop the container with <code>docker stop</code>. <code>unless-stopped</code> respects explicit stops and only auto-restarts on failure or system reboot.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Can I use JSON directly as a Docker Compose file?</strong><br>
-A: Yes, Docker Compose can read <code>docker-compose.json</code>, though it is rarely used because YAML is the industry preference.</p>
-<p><strong>Q: How do I handle multiple networks?</strong><br>
-A: Your JSON should define a <code>networks</code> array for each service, which you then map to the top-level <code>networks</code> definition in the YAML output.</p>
+<p><strong>Q: What is the difference between <code>docker-compose</code> (v1) and <code>docker compose</code> (v2)?</strong><br>
+A: Docker Compose v2 (<code>docker compose</code>) is a Go rewrite built into the Docker CLI as a plugin — it's faster, uses the same config format, and is the current standard. Docker Compose v1 (<code>docker-compose</code>, Python) is deprecated. If you see <code>version: '3.8'</code> at the top of a Compose file, that's valid but the <code>version</code> key itself is deprecated in v2 spec — you can omit it.</p>
+
+<p><strong>Q: Can I use Docker Compose in production?</strong><br>
+A: Yes, for single-host deployments (one server, multiple containers). For multi-host orchestration, use Docker Swarm (<code>docker stack deploy</code>) or Kubernetes. Docker Compose with Docker Swarm mode accepts the same <code>docker-compose.yml</code> syntax with the <code>deploy</code> key for replicas, resource limits, and update policies.</p>
+
+<p><strong>Q: How do I run one-time database migrations?</strong><br>
+A: Use a service with <code>command</code> override and <code>restart: "no"</code>, or <code>profiles: [migrate]</code>. Run it with <code>docker compose run --rm api npm run migrate</code> before starting the main services. The <code>--rm</code> flag removes the container after it exits.</p>

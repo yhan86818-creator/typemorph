@@ -1,57 +1,210 @@
-<h2>JSON to Java Class: Robust Data Modeling for Enterprise Applications</h2>
-<p>Java remains the backbone of enterprise software, and its ability to handle complex data structures is a key reason why. Converting JSON samples to Java classes, primarily for use with libraries like Jackson or Gson, allows you to create a strongly-typed data layer for your Spring Boot or Jakarta EE applications. This conversion transforms raw JSON strings into rich Java objects, enabling you to use powerful IDE features, compile-time checking, and advanced object-oriented patterns to manage your application's data.</p>
+<h2>JSON to Java Class: Jackson Annotations, Java Records, and Spring Boot Integration</h2>
+<p>Java's JSON story is dominated by Jackson, and for good reason — it covers every mapping scenario from simple field renaming to polymorphic type hierarchies to streaming parsers for multi-gigabyte files. Converting JSON to Java classes is not just about generating getters and setters; it's about choosing the right Jackson annotations for your API contract, deciding between mutable POJOs and immutable Records, and wiring validation into the Spring Boot request lifecycle so that malformed JSON is rejected before it reaches your business logic.</p>
 
-<h3>Live Example: Mapping JSON to Jackson-Annotated Java Classes</h3>
+<h3>Live Example: Employee Schema with Jackson and Lombok</h3>
 <pre><code>// Input JSON
 {
   "employeeId": "EMP_001",
-  "name": "Robert Martin",
+  "fullName": "Robert Martin",
   "department": "Engineering",
-  "skills": ["Java", "Spring", "AWS"]
+  "email": "robert@company.com",
+  "skills": ["Java", "Spring", "AWS"],
+  "startDate": "2020-03-15"
 }
 
-// Generated Java Class (using Jackson)
+// Generated Java Class (Lombok + Jackson)
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import lombok.Data;
+import lombok.Builder;
+import java.time.LocalDate;
 import java.util.List;
 
+@Data
+@Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Employee {
+
     @JsonProperty("employeeId")
-    private String employeeId;
+    private String id;
 
+    @JsonProperty("fullName")
     private String name;
-    private String department;
-    private List&lt;String&gt; skills;
 
-    // Getters and Setters
-    public String getEmployeeId() { return employeeId; }
-    public void setEmployeeId(String employeeId) { this.employeeId = employeeId; }
-    // ... other getters and setters
+    private String department;
+    private String email;
+    private List&lt;String&gt; skills;
+    private LocalDate startDate;
+}
+</code></pre>
+<p><code>@JsonIgnoreProperties(ignoreUnknown = true)</code> makes the class tolerant of additional JSON fields — useful when consuming external APIs that add new fields. Lombok's <code>@Data</code> generates all getters, setters, <code>equals()</code>, <code>hashCode()</code>, and <code>toString()</code>; <code>@Builder</code> adds a builder pattern for construction.</p>
+
+<h3>Immutable Records (Java 14+)</h3>
+<p>Java Records are the modern alternative to Lombok for immutable data classes — less boilerplate, built into the language:</p>
+<pre><code>import com.fasterxml.jackson.annotation.JsonProperty;
+import java.time.Instant;
+import java.util.List;
+
+// Java Record — immutable, all-args constructor, equals, hashCode, toString built in
+public record Employee(
+    @JsonProperty("employeeId") String id,
+    @JsonProperty("fullName")   String name,
+    String department,
+    String email,
+    List&lt;String&gt; skills,
+    Instant createdAt
+) {}
+
+// Jackson deserializes JSON into Records the same way as POJOs
+ObjectMapper mapper = new ObjectMapper()
+    .registerModule(new JavaTimeModule())
+    .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+Employee emp = mapper.readValue(jsonString, Employee.class);
+</code></pre>
+<p>Records are the preferred choice for DTOs, API request/response bodies, and value objects that shouldn't change after creation. Use Lombok POJOs when you need mutability, JPA entity annotations, or framework compatibility that requires no-arg constructors.</p>
+
+<h3>Jackson Annotation Reference</h3>
+<p>The most important annotations for controlling JSON mapping behavior:</p>
+<pre><code>import com.fasterxml.jackson.annotation.*;
+
+@JsonRootName("employee")
+public class Employee {
+
+    // Rename JSON key
+    @JsonProperty("employee_id")
+    private String id;
+
+    // Accept multiple JSON key names for this field
+    @JsonAlias({"fullName", "full_name", "name"})
+    private String displayName;
+
+    // Exclude from serialization AND deserialization
+    @JsonIgnore
+    private String passwordHash;
+
+    // Include only in serialization (not deserialization)
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    private Instant createdAt;
+
+    // Include only in deserialization (not serialization)
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String password;
+
+    // Use custom serializer/deserializer for this field
+    @JsonSerialize(using = CustomDateSerializer.class)
+    @JsonDeserialize(using = CustomDateDeserializer.class)
+    private LocalDate hireDate;
+}
+
+// Polymorphic types — discriminate by "type" field
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = ClickEvent.class, name = "click"),
+    @JsonSubTypes.Type(value = KeypressEvent.class, name = "keypress"),
+})
+abstract class DomEvent { String sessionId; }
+class ClickEvent extends DomEvent { int x; int y; }
+class KeypressEvent extends DomEvent { String key; boolean ctrl; }
+</code></pre>
+
+<h3>Spring Boot Request Validation</h3>
+<p>Combine Jackson deserialization with Bean Validation to reject malformed requests at the controller layer:</p>
+<pre><code>import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.validation.annotation.Validated;
+
+// Request DTO with validation constraints
+public record CreateUserRequest(
+    @NotBlank @Size(min = 3, max = 50)
+    String username,
+
+    @NotBlank @Email
+    String email,
+
+    @NotBlank @Size(min = 8, message = "Password must be at least 8 characters")
+    String password,
+
+    @Pattern(regexp = "^(admin|user|guest)$", message = "Invalid role")
+    String role
+) {}
+
+@RestController
+@RequestMapping("/api/users")
+@Validated
+public class UserController {
+
+    @PostMapping
+    public ResponseEntity&lt;UserResponse&gt; createUser(
+        @Valid @RequestBody CreateUserRequest request
+    ) {
+        // request.username(), request.email() — already validated
+        // Invalid requests are rejected before reaching this method
+        User user = userService.create(request);
+        return ResponseEntity.status(201).body(UserResponse.from(user));
+    }
+}
+
+// Global validation error handler
+@RestControllerAdvice
+public class ValidationExceptionHandler {
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity&lt;Map&lt;String, List&lt;String&gt;&gt;&gt; handleValidation(
+        MethodArgumentNotValidException ex
+    ) {
+        Map&lt;String, List&lt;String&gt;&gt; errors = ex.getBindingResult()
+            .getFieldErrors()
+            .stream()
+            .collect(Collectors.groupingBy(
+                FieldError::getField,
+                Collectors.mapping(FieldError::getDefaultMessage, Collectors.toList())
+            ));
+        return ResponseEntity.badRequest().body(errors);
+    }
 }
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Define Fields:</strong> Map JSON keys to private class fields. Java conventionally uses <code>camelCase</code>.<br>
-2. <strong>Add Annotations:</strong> Use <code>@JsonProperty("key")</code> if the JSON key name differs from your Java field name.<br>
-3. <strong>Generate Boilerplate:</strong> Use your IDE or a tool like <strong>Lombok</strong> (<code>@Data</code>) to generate getters, setters, <code>toString</code>, and <code>equals/hashCode</code> methods.<br>
-4. <strong>Configure the Mapper:</strong> Use <code>ObjectMapper</code> (Jackson) or <code>Gson</code> (Google) to convert JSON strings into instances of your class.</p>
+<h3>Handling Dates and Times</h3>
+<pre><code>// Required: JavaTimeModule for java.time.* support
+ObjectMapper mapper = new ObjectMapper()
+    .registerModule(new JavaTimeModule())
+    .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+    .setDateFormat(new ISO8601DateFormat());
 
-<h3>Technical Deep Dive: POJOs, Records, and Reflection</h3>
-<p>The traditional way to handle JSON in Java is through **POJOs (Plain Old Java Objects)**. However, modern Java (14+) introduced <strong>Records</strong>, which are perfect for JSON mapping as they are immutable and concise by design. When you convert JSON to a Java class, you are preparing data for a reflection-based mapping engine. Jackson, for example, uses reflection to inspect your class and map JSON data to it. This process can be tuned for performance using features like <strong>Afterburner</strong> or <strong>Blackbird</strong>, which generate specialized bytecode to bypass reflection overhead in high-throughput environments.</p>
+// In Spring Boot, configure globally via application.properties:
+// spring.jackson.serialization.write-dates-as-timestamps=false
+// spring.jackson.time-zone=UTC
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>Java Classes vs. Map&lt;String, Object&gt;:</strong> Maps are flexible for dynamic JSON but lack the type safety and documentation value of explicit classes. <strong>Protocol Buffers</strong> or <strong>Apache Avro</strong> are common alternatives in high-performance microservices, offering binary serialization and better schema evolution than standard JSON over REST.</p>
+public record Order(
+    String id,
+    LocalDate orderDate,        // "2024-01-15" — date only
+    LocalDateTime processedAt,  // "2024-01-15T08:30:00" — no timezone
+    ZonedDateTime shippedAt,    // "2024-01-15T08:30:00Z" — with timezone
+    Instant createdAt           // "2024-01-15T08:30:00.000Z" — epoch-based
+) {}
+</code></pre>
+<p>Prefer <code>ZonedDateTime</code> or <code>Instant</code> for timestamps that cross timezones (API timestamps, event times). Use <code>LocalDate</code> for calendar dates without time components (birthdays, deadlines) and <code>LocalDateTime</code> for local times only (scheduled tasks within a single timezone).</p>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use Lombok:</strong> Reduce boilerplate code significantly by using Lombok annotations like <code>@Getter</code>, <code>@Setter</code>, and <code>@NoArgsConstructor</code>.</li>
-  <li><strong>Immutable Objects:</strong> Prefer final fields and no-setter designs (or Java Records) to ensure your data remains unchanged once it enters your system.</li>
-  <li><strong>Validate with Bean Validation:</strong> Use <code>@NotNull</code>, <code>@Size</code>, and <code>@Email</code> annotations from the <code>jakarta.validation</code> package to enforce data integrity during the mapping process.</li>
+  <li><strong>Use Java Records for API DTOs:</strong> Records are immutable, concise, and work perfectly with Jackson. Reserve mutable POJOs for JPA entities and domain objects that need state changes.</li>
+  <li><strong>Configure ObjectMapper as a singleton:</strong> ObjectMapper construction is expensive (it scans the classpath for modules). Create one instance and share it — in Spring Boot, the auto-configured <code>ObjectMapper</code> bean does this for you.</li>
+  <li><strong>Add <code>@JsonIgnoreProperties(ignoreUnknown = true)</code> to inbound DTOs:</strong> External API responses evolve — a new field breaks deserialization without this annotation. Add it to all classes that receive external JSON.</li>
+  <li><strong>Use <code>@JsonNaming</code> for global naming conventions:</strong> Instead of annotating every field, apply <code>@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)</code> at the class level to map all fields automatically.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: How do I handle dates in Java?</strong><br>
-A: Use the <code>java.time.LocalDateTime</code> or <code>ZonedDateTime</code> classes and annotate them with <code>@JsonFormat</code> to specify the date pattern.</p>
-<p><strong>Q: Can I map JSON to a Java Interface?</strong><br>
-A: No, JSON must be mapped to a concrete class or a record so the mapping library can instantiate the object.</p>
-<p><strong>Q: What is the difference between Jackson and Gson?</strong><br>
-A: Jackson is generally faster and more feature-rich (standard in Spring), while Gson is simpler and often preferred for smaller projects or Android development.</p>
+<p><strong>Q: Jackson vs. Gson — which should I use?</strong><br>
+A: Jackson for Spring Boot projects — it's the default, deeply integrated, and more feature-rich. Gson for Android development or projects where Jackson's size or complexity is prohibitive. Both handle JSON correctly; the difference is in the ecosystem and advanced feature set.</p>
+
+<p><strong>Q: How do I map JSON arrays to Java?</strong><br>
+A: Use <code>List&lt;T&gt;</code> or <code>T[]</code> as the field type. For top-level arrays: <code>List&lt;Employee&gt; employees = mapper.readValue(json, new TypeReference&lt;List&lt;Employee&gt;&gt;(){});</code> — the <code>TypeReference</code> preserves generic type information that would otherwise be erased.</p>
+
+<p><strong>Q: How do I handle <code>null</code> vs. missing fields?</strong><br>
+A: Jackson treats both identically by default — missing fields get <code>null</code> (for objects) or zero values (for primitives). To distinguish: use <code>@JsonSetter(nulls = Nulls.FAIL)</code> to fail on explicit null, or <code>@JsonInclude(JsonInclude.Include.NON_NULL)</code> to skip null fields in serialization.</p>
+
+<p><strong>Q: How do I parse a large JSON file without loading it all into memory?</strong><br>
+A: Use Jackson's streaming API or <code>ObjectMapper.readValues()</code> with a <code>JsonParser</code>: <code>MappingIterator&lt;Employee&gt; iter = mapper.readerFor(Employee.class).readValues(file)</code>. This processes one object at a time, keeping memory usage constant regardless of file size.</p>

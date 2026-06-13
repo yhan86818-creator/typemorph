@@ -207,20 +207,21 @@ export function SmartDiffView({ isDark, initialContent }: { isDark: boolean; ini
   };
 
   const severityBg = (s: SchemaDiff['severity']) => {
-    if (s === 'error') return 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/40';
-    if (s === 'warning') return 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-900/40';
-    return 'bg-slate-50 dark:bg-white/[0.03] border-slate-200 dark:border-white/10';
+    if (s === 'error') return 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800/50';
+    if (s === 'warning') return 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/50';
+    return 'bg-slate-50 dark:bg-white/[0.04] border-slate-200 dark:border-white/[0.08]';
   };
 
   const typeBadge = (t: SchemaDiff['type']) => {
+    // 3 tiers by impact: breaking=red, caution=amber, neutral=slate
     const cls: Record<SchemaDiff['type'], string> = {
-      removed:          'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
-      added:            'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
-      type_changed:     'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400',
-      required_changed: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
-      enum_changed:     'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-      format_changed:   'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300',
-      nullable_changed: 'bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400',
+      removed:          'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400',
+      type_changed:     'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400',
+      required_changed: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400',
+      enum_changed:     'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400',
+      nullable_changed: 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300',
+      format_changed:   'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300',
+      added:            'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300',
     };
     const label: Record<SchemaDiff['type'], string> = {
       removed: 'removed', added: 'added', type_changed: 'type',

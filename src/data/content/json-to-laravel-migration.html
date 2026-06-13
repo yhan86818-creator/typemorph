@@ -1,83 +1,240 @@
-<h2>Converting JSON to Laravel Migrations: Streamlining Schema Design</h2>
-<p>Laravel's Migration system provides a fluent interface for defining your database schema. When prototyping applications or integrating with third-party APIs, you often start with a JSON response and need to create a corresponding database table. Converting JSON to a Laravel Migration allows you to quickly scaffold your database, maintain version control over your schema, and leverage Laravel's powerful Eloquent ORM.</p>
+<h2>JSON to Laravel Migration: Eloquent Casting, Indexes, and Zero-Downtime Deployment</h2>
+<p>Laravel's Schema Builder is a fluent PHP DSL that generates portable SQL across MySQL, PostgreSQL, and SQLite. But migration files are only the starting point — the decisions that matter most are how to cast JSON fields in the Eloquent model (so PHP works with typed values, not raw strings), which columns need composite indexes for your query patterns, how to safely modify a production table without downtime using <code>->after()</code> and deferred constraint creation, and when to use <code>foreignId()->constrained()</code> vs a manual <code>foreign()</code> declaration.</p>
 
-<h3>Live Example</h3>
-<p>A JSON object representing a blog post:</p>
-<pre><code>{
-  "title": "Laravel Tips",
-  "content": "Full content here...",
-  "is_published": true,
-  "author_id": 5,
-  "published_at": "2023-10-27 10:00:00"
-}</code></pre>
-<p>The generated Laravel Migration file:</p>
-<pre><code>use Illuminate\Database\Migrations\Migration;
+<h3>Live Example: E-commerce Product Migration</h3>
+<pre><code>// Input JSON
+{
+  "sku": "WIDGET-PRO-L",
+  "name": "Widget Pro (Large)",
+  "price": "149.99",
+  "stock": 250,
+  "category": "hardware",
+  "is_available": true,
+  "attributes": { "color": "black", "weight_kg": 1.2 },
+  "published_at": "2024-01-15T08:30:00Z"
+}
+
+// Generated Migration — database/migrations/2024_01_01_create_products_table.php
+use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        Schema::create('posts', function (Blueprint $table) {
-            $table->id();
-            $table->string('title');
-            $table->text('content');
-            $table->boolean('is_published')->default(false);
-            $table->foreignId('author_id')->constrained();
+        Schema::create('products', function (Blueprint $table) {
+            $table->id();                                     // bigint unsigned auto-increment
+            $table->string('sku', 64)->unique();
+            $table->string('name', 200);
+            $table->decimal('price', 10, 2);                  // precise money: 10 digits, 2 decimal
+            $table->unsignedInteger('stock')->default(0);
+            $table->string('category', 30);
+            $table->boolean('is_available')->default(true);
+            $table->json('attributes')->nullable();           // structured sub-object
             $table->timestamp('published_at')->nullable();
-            $table->timestamps();
+            $table->foreignId('brand_id')                     // FK to brands.id
+                  ->nullable()
+                  ->constrained()                             // adds FK constraint
+                  ->nullOnDelete();                           // SET NULL on parent delete
+            $table->timestamps();                             // created_at, updated_at
+            $table->softDeletes();                            // deleted_at for soft delete
+
+            // Composite indexes for common query patterns
+            $table->index(['category', 'is_available'], 'idx_products_category_available');
+            $table->index('published_at');
         });
     }
 
     public function down(): void {
-        Schema::dropIfExists('posts');
+        Schema::dropIfExists('products');
     }
-};</code></pre>
+};
+</code></pre>
 
-<h3>Implementation Guide</h3>
-<ol>
-  <li><strong>Field Type Mapping:</strong> Map JSON strings to <code>$table->string()</code> or <code>$table->text()</code>, integers to <code>$table->integer()</code>, and booleans to <code>$table->boolean()</code>.</li>
-  <li><strong>Naming Conventions:</strong> Convert JSON camelCase keys to Laravel's preferred snake_case for database columns.</li>
-  <li><strong>Handle Foreign Keys:</strong> If a JSON field ends in <code>_id</code>, consider using <code>$table->foreignId()</code> to enable relational integrity.</li>
-  <li><strong>Timestamps:</strong> Always include <code>$table->timestamps()</code> to allow Laravel to manage <code>created_at</code> and <code>updated_at</code> automatically.</li>
-  <li><strong>Running the Migration:</strong> Use <code>php artisan migrate</code> to apply the generated schema to your database.</li>
-</ol>
+<h3>Eloquent Model: Casting JSON and Types</h3>
+<pre><code>// app/Models/Product.php
+namespace App\Models;
 
-<h3>Technical Deep Dive</h3>
-<p>Laravel Migrations are essentially PHP classes that use the <code>Schema</code> builder. When converting from JSON, one of the most important considerations is "Length and Precision." For example, a JSON string might be short in your sample, but could exceed the default 255 characters of a MySQL <code>VARCHAR</code>. In these cases, mapping to <code>text()</code> or <code>longText()</code> is safer. Additionally, Laravel's <code>foreignId</code> method is a shortcut for creating an unsigned big integer column, which is the default for Laravel primary keys since version 7.x. This ensures compatibility across different database engines like MySQL, PostgreSQL, and SQLite.</p>
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Casts\AsCollection;
 
-<h3>Comparison</h3>
-<table border="1">
-  <tr>
-    <th>Feature</th>
-    <th>Raw SQL Schema</th>
-    <th>Laravel Migrations</th>
-  </tr>
-  <tr>
-    <td>Readability</td>
-    <td>Low (Engine specific)</td>
-    <td>High (Fluent PHP)</td>
-  </tr>
-  <tr>
-    <td>Portability</td>
-    <td>Low</td>
-    <td>High (Database Agnostic)</td>
-  </tr>
-  <tr>
-    <td>Rollbacks</td>
-    <td>Manual</td>
-    <td>Automatic (via down() method)</td>
-  </tr>
-</table>
+class Product extends Model {
+    use SoftDeletes;
 
-<h3>Best Practices</h3>
+    protected $fillable = [
+        'sku', 'name', 'price', 'stock', 'category',
+        'is_available', 'attributes', 'published_at', 'brand_id',
+    ];
+
+    // Casting: tells Eloquent how to deserialize DB values into PHP types
+    protected $casts = [
+        'price'        => 'decimal:2',          // returns string with 2 decimal places
+        'stock'        => 'integer',
+        'is_available' => 'boolean',
+        'attributes'   => AsCollection::class,  // JSON → Laravel Collection
+        'published_at' => 'datetime',           // JSON string → Carbon instance
+        'deleted_at'   => 'datetime',
+    ];
+
+    // Accessor for formatted price (read-only computed)
+    public function getPriceFormattedAttribute(): string {
+        return '$' . number_format($this->price, 2);
+    }
+
+    // Scope for common query filter
+    public function scopeAvailable($query) {
+        return $query->where('is_available', true)->whereNull('deleted_at');
+    }
+
+    public function scopeInCategory($query, string $category) {
+        return $query->where('category', $category);
+    }
+
+    // Relationship
+    public function brand() {
+        return $this->belongsTo(Brand::class);
+    }
+
+    public function orderLines() {
+        return $this->hasMany(OrderLine::class);
+    }
+}
+
+// Usage — casting makes JSON work like a Collection
+$product = Product::find(1);
+$color   = $product->attributes->get('color');        // "black"
+$product->attributes->put('color', 'white');           // modify in memory
+$product->save();                                      // re-serializes to JSON
+</code></pre>
+
+<h3>Adding Columns to an Existing Table</h3>
+<pre><code">// New migration to add columns — never modify existing migration files
+// database/migrations/2024_03_01_add_tags_to_products.php
+
+return new class extends Migration {
+    public function up(): void {
+        Schema::table('products', function (Blueprint $table) {
+            // ->after() controls column position (MySQL only — ignored by Postgres/SQLite)
+            $table->json('tags')->nullable()->default(null)->after('attributes');
+            $table->string('meta_title', 100)->nullable()->after('name');
+            $table->text('description')->nullable()->after('meta_title');
+
+            // Add index to existing column
+            $table->index('category');
+        });
+    }
+
+    public function down(): void {
+        Schema::table('products', function (Blueprint $table) {
+            $table->dropColumn(['tags', 'meta_title', 'description']);
+            $table->dropIndex('products_category_index');
+        });
+    }
+};
+
+// Changing column type or size — requires doctrine/dbal:
+// composer require doctrine/dbal
+Schema::table('products', function (Blueprint $table) {
+    $table->string('sku', 128)->change();   // resize VARCHAR
+    $table->decimal('price', 12, 2)->change();  // increase precision
+});
+</code></pre>
+
+<h3>Zero-Downtime Deployment: Deferred Constraints</h3>
+<pre><code">// Problem: adding NOT NULL column to a 10M-row table locks it for minutes
+// Solution: add nullable → backfill → add NOT NULL constraint → drop nullable
+
+// Step 1: add nullable (fast, no lock)
+Schema::table('products', function (Blueprint $table) {
+    $table->string('slug')->nullable()->after('name');
+});
+
+// Step 2: backfill in a separate release/job
+Product::whereNull('slug')->chunkById(1000, function ($products) {
+    foreach ($products as $product) {
+        $product->update(['slug' => Str::slug($product->name . '-' . $product->sku)]);
+    }
+});
+
+// Step 3: add unique constraint (separate deployment)
+Schema::table('products', function (Blueprint $table) {
+    $table->string('slug', 255)->nullable(false)->change();
+    $table->unique('slug');
+});
+
+// Preview what SQL will run before touching production
+php artisan migrate --pretend
+// → alter table `products` add `slug` varchar(255) null after `name`
+</code></pre>
+
+<h3>Polymorphic Relationships</h3>
+<pre><code">// A Comment can belong to either a Post or a Product
+Schema::create('comments', function (Blueprint $table) {
+    $table->id();
+    $table->morphs('commentable');   // adds commentable_id (bigint) + commentable_type (string)
+    $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+    $table->text('body');
+    $table->timestamps();
+});
+
+// Equivalent to:
+// $table->unsignedBigInteger('commentable_id');
+// $table->string('commentable_type');
+// $table->index(['commentable_type', 'commentable_id']);
+
+// Model relationship
+class Comment extends Model {
+    public function commentable() {
+        return $this->morphTo();
+    }
+}
+
+class Post extends Model {
+    public function comments() {
+        return $this->morphMany(Comment::class, 'commentable');
+    }
+}
+
+// Query
+$post->comments()->where('created_at', '>=', now()->subDays(7))->get();
+</code></pre>
+
+<h3>JSON Column Querying</h3>
+<pre><code">// Query into JSON fields using -> operator (MySQL/Postgres)
+// attributes = {"color": "black", "weight_kg": 1.2}
+
+// Filter by JSON key
+Product::where('attributes->color', 'black')->get();
+
+// JSON contains (Laravel 9+, Postgres JSONB)
+Product::whereJsonContains('attributes->tags', 'featured')->get();
+
+// JSON length
+Product::whereJsonLength('attributes->tags', '>', 2)->get();
+
+// Update a single JSON key (MySQL json_set)
+Product::where('id', 1)->update([
+    'attributes->color' => 'white',
+]);
+</code></pre>
+
+<h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Default Values:</strong> Explicitly define <code>->default()</code> values in your migration to handle missing JSON fields during ingestion.</li>
-  <li><strong>Index Frequently:</strong> Add <code>->index()</code> to columns that will be frequently used in <code>WHERE</code> clauses in your application.</li>
-  <li><strong>Use Soft Deletes:</strong> If your JSON data represents records that should be "archived" rather than deleted, add <code>$table->softDeletes()</code>.</li>
+  <li><strong>Use <code>decimal</code> for all monetary amounts:</strong> <code>$table->decimal('price', 10, 2)</code> maps to NUMERIC in Postgres and DECIMAL in MySQL — exact decimal arithmetic. Never use <code>$table->float()</code> for money; floating-point imprecision will cause rounding errors in financial calculations.</li>
+  <li><strong>Always write <code>down()</code> methods:</strong> Even if you think you'll never roll back, <code>down()</code> is required for <code>php artisan migrate:rollback</code> in development and staging. A migration without <code>down()</code> becomes untestable.</li>
+  <li><strong>Never modify existing migration files after deployment:</strong> Once a migration has run on any environment (staging, production), its file must never change. Create a new migration to make further changes. Laravel tracks executed migrations by filename in the <code>migrations</code> table.</li>
+  <li><strong>Use <code>$casts</code> for all non-string fields:</strong> Without casts, <code>$product->is_available</code> may return <code>"1"</code> (string) instead of <code>true</code> (bool) depending on the DB driver. Always declare casts so your model behaves correctly regardless of database.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: How do I handle JSON arrays in Laravel?</strong><br>
-A: You can use <code>$table->json('column_name')</code> to store the entire array as a JSON blob in databases that support it (like MySQL 5.7+ or PostgreSQL).</p>
-<p><strong>Q: Can I update an existing table from JSON?</strong><br>
-A: Yes, create a new migration using <code>Schema::table</code> instead of <code>Schema::create</code> to add or modify columns based on your new JSON schema.</p>
+<p><strong>Q: What is the difference between <code>json</code> and <code>jsonb</code> column types?</strong><br>
+A: <code>$table->json()</code> maps to JSON in MySQL and TEXT in SQLite — stored as text, no indexing. <code>$table->jsonb()</code> is PostgreSQL-specific: stores in binary format, supports GIN indexes for <code>@></code> containment queries, and is faster for reads. Use <code>jsonb</code> when you need to query or index JSON keys; use <code>json</code> for portability.</p>
+
+<p><strong>Q: How do I add a full-text search index?</strong><br>
+A: Use <code>$table->fullText(['title', 'body'])</code> (Laravel 8.x+). MySQL and Postgres support full-text; the generated SQL differs per driver. For MySQL: <code>FULLTEXT INDEX</code>. For Postgres: uses <code>tsvector</code>. Query with <code>Model::whereFullText(['title', 'body'], 'search term')</code>.</p>
+
+<p><strong>Q: How do I handle enum columns?</strong><br>
+A: Use <code>$table->enum('status', ['draft', 'published', 'archived'])</code>. Note: adding a new enum value in MySQL requires a full table rebuild. For frequently-changing enums, use a <code>string</code> column with application-layer validation instead, or a <code>check</code> constraint on Postgres.</p>
+
+<p><strong>Q: How do I check which migrations have run?</strong><br>
+A: Run <code>php artisan migrate:status</code> to see which migrations have run and which are pending. The <code>migrations</code> table in your database records the filename and batch number of every executed migration.</p>

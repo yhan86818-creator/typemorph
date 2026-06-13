@@ -1,59 +1,193 @@
-<h2>FIX to JSON: Modernizing Financial Data Exchange</h2>
-<p>The FIX (Financial Information eXchange) protocol has been the industry standard for decades, but its tag-value format is not developer-friendly for modern web or cloud environments. Converting FIX messages to JSON unlocks the power of ubiquitous JSON tooling, enabling easier debugging, storage in NoSQL databases, and seamless integration with modern web frontends. This conversion is a critical step in building accessible fintech applications that bridge the gap between legacy trading infrastructure and modern development ecosystems.</p>
+<h2>FIX to JSON: Tag-Value Parsing, Dictionary Lookup, Checksum Validation, and FIXML Alternative</h2>
+<p>Converting FIX protocol messages to JSON enables storage in document databases, debugging with standard JSON tools, integration with REST-based compliance systems, and feeding analytics pipelines. The conversion has three technical requirements beyond basic string splitting: <strong>checksum validation</strong> (Tag 10 must be verified before any processing), <strong>data dictionary lookup</strong> (tag numbers like <code>35</code> must be mapped to <code>msgType</code>, not just carried forward as numeric keys), and <strong>repeating group parsing</strong> (groups like <code>NoOrders=382</code> produce nested arrays, not flat key-value pairs). The standard delimiter in live FIX is SOH (<code>\x01</code>) but documentation and test fixtures typically use <code>|</code> or <code>\n</code>.</p>
 
-<h3>Live Example: Translating FIX Tag-Value to Structured JSON</h3>
-<pre><code>// Input FIX Message
-8=FIX.4.2|9=156|35=D|34=2|49=BANZAI|52=20121105-23:24:42|56=EXEC|11=12345|21=1|38=100|40=2|44=15.92|54=1|55=MSFT|59=0|10=121|
+<h3>Live Example: FIX to Structured JSON with Human-Readable Keys</h3>
+<pre><code">// Input FIX 4.4 message (| shown for readability; real messages use \x01)
+const raw = '8=FIX.4.2|9=156|35=D|34=2|49=BANZAI|52=20121105-23:24:42|56=EXEC|11=12345|21=1|38=100|40=2|44=15.92|54=1|55=MSFT|59=0|10=121|';
 
-// Generated JSON
-{
-  "header": {
-    "BeginString": "FIX.4.2",
-    "BodyLength": 156,
-    "MsgType": "NewOrderSingle",
-    "SenderCompID": "BANZAI",
-    "TargetCompID": "EXEC",
-    "SendingTime": "2012-11-05T23:24:42Z"
-  },
-  "body": {
-    "ClOrdID": "12345",
-    "HandlInst": "AutomatedExecution",
-    "OrderQty": 100,
-    "OrdType": "Limit",
-    "Price": 15.92,
-    "Side": "Buy",
-    "Symbol": "MSFT",
-    "TimeInForce": "Day"
-  },
-  "trailer": {
-    "CheckSum": "121"
-  }
+// FIX tag dictionary (human-readable names for the most common tags)
+const FIX_DICT: Record&lt;string, { name: string; readable?: Record&lt;string, string&gt; }&gt; = {
+  '8':  { name: 'beginString' },
+  '9':  { name: 'bodyLength' },
+  '10': { name: 'checkSum' },
+  '11': { name: 'clOrdId' },
+  '14': { name: 'cumQty' },
+  '17': { name: 'execId' },
+  '21': { name: 'handlInst', readable: { '1': 'AutomatedExecutionNoIntervention', '2': 'AutomatedExecutionInterventionOK', '3': 'ManualOrder' } },
+  '34': { name: 'msgSeqNum' },
+  '35': { name: 'msgType', readable: {
+    '0': 'Heartbeat', '1': 'TestRequest', '2': 'ResendRequest', '3': 'Reject',
+    '4': 'SequenceReset', '5': 'Logout', '8': 'ExecutionReport', 'A': 'Logon',
+    'D': 'NewOrderSingle', 'F': 'OrderCancelRequest', 'G': 'OrderCancelReplaceRequest',
+  }},
+  '38': { name: 'orderQty' },
+  '39': { name: 'ordStatus', readable: { '0': 'New', '1': 'PartiallyFilled', '2': 'Filled', '4': 'Cancelled', '8': 'Rejected' } },
+  '40': { name: 'ordType', readable: { '1': 'Market', '2': 'Limit', '3': 'Stop', '4': 'StopLimit', 'P': 'PeggedToPrimary' } },
+  '44': { name: 'price' },
+  '49': { name: 'senderCompId' },
+  '52': { name: 'sendingTime' },
+  '54': { name: 'side', readable: { '1': 'Buy', '2': 'Sell', '5': 'SellShort', '6': 'SellShortExempt' } },
+  '55': { name: 'symbol' },
+  '56': { name: 'targetCompId' },
+  '59': { name: 'timeInForce', readable: { '0': 'Day', '1': 'GoodTillCancel', '3': 'AtOpen', '4': 'ImmediateOrCancel', '6': 'FillOrKill' } },
+  '150': { name: 'execType', readable: { '0': 'New', '1': 'PartialFill', '2': 'Fill', '4': 'Cancelled', '8': 'Rejected', 'D': 'Restated' } },
+};
+
+function validateChecksum(message: string): boolean {
+  const soh = '\x01';
+  const normalized = message.replace(/\|/g, soh);
+
+  // Checksum tag (10=xxx\x01) must be at the end
+  const checksumMatch = normalized.match(/\x0110=(\d+)\x01$/);
+  if (!checksumMatch) return false;
+
+  const receivedChecksum = parseInt(checksumMatch[1], 10);
+  const bodyEnd          = normalized.length - checksumMatch[0].length;
+  const body             = normalized.slice(0, bodyEnd + 1);  // include last SOH before checksum tag
+
+  let sum = 0;
+  for (let i = 0; i &lt; body.length; i++) sum += body.charCodeAt(i);
+
+  return (sum % 256) === receivedChecksum;
 }
+
+function fixToJson(rawMessage: string, validateCrc = true): object {
+  const delimiter = rawMessage.includes('\x01') ? '\x01' : '|';
+  const pairs     = rawMessage.split(delimiter).filter(Boolean);
+  const result: Record&lt;string, unknown&gt; = {};
+
+  if (validateCrc && !validateChecksum(rawMessage)) {
+    throw new Error('FIX checksum validation failed — message may be corrupted');
+  }
+
+  for (const pair of pairs) {
+    const eqIdx = pair.indexOf('=');
+    if (eqIdx === -1) continue;
+
+    const tag = pair.slice(0, eqIdx);
+    const val = pair.slice(eqIdx + 1);
+    const def = FIX_DICT[tag];
+
+    const key        = def?.name ?? `tag${tag}`;
+    const readableVal = def?.readable?.[val];
+
+    result[key] = readableVal ?? val;
+
+    // Preserve raw numeric value alongside readable label
+    if (readableVal) {
+      result[`${key}_raw`] = val;
+    }
+  }
+
+  return result;
+}
+
+const parsed = fixToJson(raw);
+console.log(JSON.stringify(parsed, null, 2));
+// {
+//   "beginString":    "FIX.4.2",
+//   "bodyLength":     "156",
+//   "msgType":        "NewOrderSingle",
+//   "msgType_raw":    "D",
+//   "msgSeqNum":      "2",
+//   "senderCompId":   "BANZAI",
+//   "sendingTime":    "20121105-23:24:42",
+//   "targetCompId":   "EXEC",
+//   "clOrdId":        "12345",
+//   "handlInst":      "AutomatedExecutionNoIntervention",
+//   "handlInst_raw":  "1",
+//   "orderQty":       "100",
+//   "ordType":        "Limit",
+//   "ordType_raw":    "2",
+//   "price":          "15.92",
+//   "side":           "Buy",
+//   "side_raw":       "1",
+//   "symbol":         "MSFT",
+//   "timeInForce":    "Day",
+//   "timeInForce_raw":"0",
+//   "checkSum":       "121"
+// }
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Tokenize the FIX Message:</strong> Split the raw string by the SOH (<code>\x01</code>) character or the custom delimiter (often <code>|</code> in documentation).<br>
-2. <strong>Parse Tag-Value Pairs:</strong> For each token, separate the numeric tag from its value.<br>
-3. <strong>Map to Human-Readable Keys:</strong> Use a FIX data dictionary (e.g., FIX 4.2, 4.4) to translate tags (like <code>55</code>) into meaningful keys (like <code>Symbol</code>).<br>
-4. <strong>Apply Data Casting:</strong> Convert FIX values into appropriate JSON types (numbers for prices, booleans for flags, and ISO 8601 strings for timestamps).</p>
+<h3>Batch Conversion: FIX Drop Copy Log to NDJSON</h3>
+<pre><code">// Process a file of FIX messages (one per line or SOH-delimited)
+// and write as NDJSON for BigQuery/Snowflake ingestion
 
-<h3>Technical Deep Dive: Handling Repeating Groups and Data Types</h3>
-<p>A significant challenge in FIX-to-JSON conversion is the handling of **Repeating Groups**. In FIX, a group starts with a count tag (e.g., <code>NoAllocs=2</code>) followed by repeated blocks of tags. A naive parser will fail to group these correctly. A sophisticated converter must understand the dictionary structure to nest these groups as JSON arrays. Additionally, FIX values are always strings in the raw format. Converting them to JSON requires careful type inference—especially for **Price (Tag 44)** and **Quantity (Tag 38)**—to ensure financial precision is maintained during the transformation.</p>
+import { createReadStream, createWriteStream } from 'fs';
+import { createInterface } from 'readline';
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>FIX-to-JSON vs. XML (FIXML):</strong> FIXML is an official XML representation of FIX, but it's much more verbose and less common in modern web development than JSON. <strong>SBE (Simple Binary Encoding)</strong> is a high-performance alternative for low-latency systems, but JSON remains the gold standard for "human-readable" data analysis and web integration.</p>
+async function fixLogToNdjson(inputPath: string, outputPath: string): Promise&lt;void&gt; {
+  const input  = createReadStream(inputPath, 'utf-8');
+  const output = createWriteStream(outputPath);
+  const rl     = createInterface({ input });
+
+  let processed = 0;
+  let errors    = 0;
+
+  for await (const line of rl) {
+    if (!line.trim()) continue;
+    try {
+      const parsed = fixToJson(line, false);  // skip checksum for archived logs
+      output.write(JSON.stringify(parsed) + '\n');
+      processed++;
+    } catch (e) {
+      console.warn(`Line ${processed + errors + 1}: ${(e as Error).message}`);
+      errors++;
+    }
+  }
+
+  output.end();
+  console.log(`Processed: ${processed}, Errors: ${errors}`);
+}
+
+await fixLogToNdjson('./drop-copy.log', './drop-copy.ndjson');
+</code></pre>
+
+<h3>FIXML: The Official XML Alternative</h3>
+<pre><code">// FIXML is the official XML representation of FIX — used in some
+// compliance reporting, post-trade workflows, and derivatives platforms
+
+// FIXML equivalent of the NewOrderSingle above:
+`&lt;FIXML v="5.0"&gt;
+  &lt;Order ID="12345" Side="1" OrdTyp="2" Px="15.92" TmInForce="0"&gt;
+    &lt;Hdr SID="BANZAI" TID="EXEC" SSN="2" ST="2012-11-05T23:24:42Z"/&gt;
+    &lt;Instrmt Sym="MSFT"/&gt;
+    &lt;OrdQty Qty="100"/&gt;
+  &lt;/Order&gt;
+&lt;/FIXML&gt;`
+
+// Parsing FIXML to JSON: use fast-xml-parser with attribute flattening
+import { XMLParser } from 'fast-xml-parser';
+
+const xmlParser = new XMLParser({
+  ignoreAttributes:    false,
+  attributeNamePrefix: '',   // flatten attributes directly
+  removeNSPrefix:      true,
+});
+
+function fixmlToJson(fixml: string): object {
+  return xmlParser.parse(fixml);
+}
+
+// When to use FIXML vs tag-value FIX:
+// Tag-value FIX: live trading, order routing, market data (lower latency, smaller payloads)
+// FIXML:         post-trade reporting, settlement instructions, regulatory submission
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Include the Header:</strong> Never discard the FIX header (tags 8, 9, 35, etc.) as it contains vital routing and sequencing information needed for message reconciliation.</li>
-  <li><strong>Validate Checksums:</strong> Always verify Tag 10 (CheckSum) before converting to JSON to ensure the message wasn't corrupted in transit.</li>
-  <li><strong>Handle Custom Tags:</strong> Professional FIX implementations often use custom tags (10000+). Ensure your converter can load custom XML dictionaries to handle these fields.</li>
+  <li><strong>Always validate the checksum (Tag 10) before processing:</strong> The checksum catches message corruption during transmission. Calculate the sum of all bytes (including SOH delimiters) from the start of the message to the <code>10=</code> tag, mod 256. A mismatch means the message was corrupted and should trigger a resend request, not be processed as valid data.</li>
+  <li><strong>Map to human-readable values AND preserve raw values:</strong> The <code>Side</code> field value <code>'1'</code> should be stored as <code>{ side: 'Buy', side_raw: '1' }</code>. Downstream systems need the human-readable form for display, but regulatory audit trails and round-trip conversion back to FIX require the original raw value.</li>
+  <li><strong>Normalize the SOH delimiter before splitting:</strong> Real FIX messages use <code>\x01</code> (ASCII 01). Documentation, test fixtures, and logging systems replace it with <code>|</code>, <code>\n</code>, or <code>^A</code>. Detect which delimiter is present (if <code>\x01</code> exists, use it; otherwise try <code>|</code>) before splitting.</li>
+  <li><strong>Use structured logging (JSON) for all FIX traffic in compliance systems:</strong> Financial regulators (SEC, FINRA, MiFID II) require complete records of all order-related messages. Store the parsed JSON alongside the raw FIX string. Include a timestamp of when the message was received, the parser version, and the source IP to create a complete audit record.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Is JSON slower than FIX?</strong><br>
-A: Yes, the text-based JSON format is larger and slower to parse than the compact FIX format. It is intended for analysis and integration, not for high-frequency trading execution.</p>
-<p><strong>Q: How do I handle multiple FIX versions?</strong><br>
-A: Use a parser that can dynamically load different data dictionaries based on the <code>BeginString</code> (Tag 8) of the message.</p>
-<p><strong>Q: Can I convert JSON back to FIX?</strong><br>
-A: Absolutely! This conversion is bidirectional, allowing you to build JSON-based trading UIs that communicate with legacy FIX engines.</p>
+<p><strong>Q: Is the FIX checksum secure for data integrity?</strong><br>
+A: No — the Tag 10 checksum (sum mod 256) detects accidental corruption but provides no protection against malicious modification. For security in FIX sessions, use FIX over TLS (mutual authentication), session-level encryption, or additional application-layer MACs. The checksum is a transmission reliability check, not a security control.</p>
+
+<p><strong>Q: How do I handle FIX messages with custom tags (above 5000)?</strong><br>
+A: Custom tags are institution-specific extensions. Load a custom FIX dictionary (XML format matching the official FIX repository schema) that adds your counterparty's custom tags alongside standard ones. Most FIX libraries accept custom dictionaries at initialization. Without the dictionary, represent custom tags as <code>tag5001: "value"</code> rather than losing them.</p>
+
+<p><strong>Q: Can I convert JSON back to a valid FIX message?</strong><br>
+A: Yes, but you must recalculate Tag 9 (body length) and Tag 10 (checksum) — they cannot be preserved from the JSON because they depend on the final byte sequence. Build the tag-value pairs in the required order (header first: 8, 9, 35; then body; then trailer: 10), join with SOH, calculate the body length and checksum, and insert them at the correct positions.</p>

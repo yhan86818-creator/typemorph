@@ -1,60 +1,256 @@
-<h2>JSON to Swift Struct: Type-Safe Data Modeling with Codable</h2>
-<p>In the Apple ecosystem, Swift's <code>Codable</code> protocol has revolutionized how developers handle JSON. Converting JSON samples to Swift structs allows you to leverage the full power of Swift's type system, including optionals, enums, and generics. This approach provides a seamless way to move data between web APIs and your iOS, macOS, watchOS, or tvOS applications, ensuring that your data layer is both high-performance and extremely safe.</p>
+<h2>JSON to Swift Struct: Codable, Custom Decoders, and Async/Await Network Calls</h2>
+<p>Swift's <code>Codable</code> protocol handles JSON mapping at compile time — <code>#[derive(Deserialize)]</code> in Rust, <code>@JsonSerializable</code> in Dart, but built directly into the Swift standard library with no dependencies. Converting your JSON to Swift structs with <code>Codable</code> gives you automatic JSON ↔ Swift conversion, type-safe enums for discriminated values, custom decoding strategies for dates and keys, and full integration with Swift's async/await networking. For SwiftUI apps, these structs drive the entire view state from decoded API responses.</p>
 
-<h3>Live Example: Mapping JSON to Swift Structs with Codable</h3>
+<h3>Live Example: Order Model with Codable and CodingKeys</h3>
 <pre><code>// Input JSON
 {
   "order_id": "ORD-772",
   "status": "shipped",
   "customer_name": "Sarah Jenkins",
-  "is_gift": false
+  "is_gift": false,
+  "items": [
+    { "sku": "WGT-001", "quantity": 2, "unit_price": 49.99 }
+  ],
+  "created_at": "2024-01-15T08:30:00Z"
 }
 
-// Generated Swift Code
+// Generated Swift Structs
 import Foundation
 
-struct Order: Codable {
-    let id: String
-    let status: OrderStatus
-    let customerName: String
-    let isGift: Bool
+struct OrderItem: Codable {
+    let sku:       String
+    let quantity:  Int
+    let unitPrice: Double
 
     enum CodingKeys: String, CodingKey {
-        case id = "order_id"
-        case status
-        case customerName = "customer_name"
-        case isGift = "is_gift"
+        case sku
+        case quantity
+        case unitPrice = "unit_price"
     }
 }
 
 enum OrderStatus: String, Codable {
-    case pending, shipped, delivered, cancelled
+    case pending   = "pending"
+    case shipped   = "shipped"
+    case delivered = "delivered"
+    case cancelled = "cancelled"
+}
+
+struct Order: Codable {
+    let orderId:      String
+    let status:       OrderStatus
+    let customerName: String
+    let isGift:       Bool
+    let items:        [OrderItem]
+    let createdAt:    Date
+
+    enum CodingKeys: String, CodingKey {
+        case orderId      = "order_id"
+        case status
+        case customerName = "customer_name"
+        case isGift       = "is_gift"
+        case items
+        case createdAt    = "created_at"
+    }
+}
+
+// Decoder with ISO 8601 date strategy
+let decoder = JSONDecoder()
+decoder.dateDecodingStrategy = .iso8601
+
+let order = try decoder.decode(Order.self, from: jsonData)
+</code></pre>
+<p>The <code>CodingKeys</code> enum maps snake_case JSON keys to camelCase Swift properties. For models where all keys follow snake_case → camelCase conversion, use <code>decoder.keyDecodingStrategy = .convertFromSnakeCase</code> instead — this applies the transformation globally without a per-property enum.</p>
+
+<h3>Automatic Key Conversion</h3>
+<pre><code>struct UserProfile: Codable {
+    let userId:      String
+    let displayName: String
+    let avatarUrl:   String?
+    let createdAt:   Date
+    let isVerified:  Bool
+}
+
+// With keyDecodingStrategy, no CodingKeys needed for snake_case JSON
+let decoder = JSONDecoder()
+decoder.keyDecodingStrategy    = .convertFromSnakeCase
+decoder.dateDecodingStrategy   = .iso8601
+
+// JSON: {"user_id": "...", "display_name": "...", "avatar_url": null, ...}
+let profile = try decoder.decode(UserProfile.self, from: jsonData)
+</code></pre>
+<p><code>convertFromSnakeCase</code> handles consecutive uppercase letters correctly: <code>user_url</code> → <code>userUrl</code>, <code>html_content</code> → <code>htmlContent</code>. Use it when consuming REST APIs that consistently use snake_case keys.</p>
+
+<h3>Custom Decoding for Complex Transformations</h3>
+<pre><code>struct Product: Decodable {
+    let id:        String
+    let name:      String
+    let priceCents: Int      // JSON: "price_cents": 4999
+    let price:     Double    // computed: 49.99
+
+    enum CodingKeys: String, CodingKey {
+        case id, name
+        case priceCents = "price_cents"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id        = try container.decode(String.self, forKey: .id)
+        name      = try container.decode(String.self, forKey: .name)
+        priceCents = try container.decode(Int.self, forKey: .priceCents)
+        price     = Double(priceCents) / 100.0  // derive from stored value
+    }
+}
+
+// Flexible date decoding: try multiple formats
+struct FlexibleEvent: Decodable {
+    let id:        String
+    let timestamp: Date
+
+    enum CodingKeys: String, CodingKey { case id, timestamp }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+
+        // Try ISO 8601 first, fall back to Unix timestamp
+        if let isoString = try? container.decode(String.self, forKey: .timestamp) {
+            guard let date = ISO8601DateFormatter().date(from: isoString) else {
+                throw DecodingError.dataCorruptedError(forKey: .timestamp, in: container, debugDescription: "Invalid ISO8601 date")
+            }
+            timestamp = date
+        } else {
+            let epochSeconds = try container.decode(Double.self, forKey: .timestamp)
+            timestamp = Date(timeIntervalSince1970: epochSeconds)
+        }
+    }
 }
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Define the Struct:</strong> Map JSON keys to Swift properties. Swift prefers <code>camelCase</code> for property names.<br>
-2. <strong>Conform to Codable:</strong> Add <code>Codable</code> (or <code>Decodable</code>) to your struct definition to enable automatic JSON mapping.<br>
-3. <strong>Use CodingKeys:</strong> Define an internal <code>CodingKeys</code> enum to map JSON keys (often snake_case) to your Swift property names.<br>
-4. <strong>Decode:</strong> Use <code>JSONDecoder().decode(Order.self, from: data)</code> to convert raw JSON data into your Swift object.</p>
+<h3>Async/Await Networking with URLSession</h3>
+<pre><code>import Foundation
 
-<h3>Technical Deep Dive: Type-Safe Enums and Property Wrappers</h3>
-<p>Swift's <code>Codable</code> protocol is built directly into the language, making it incredibly efficient. A unique feature is the ability to use **Type-Safe Enums** for JSON fields with a limited set of values (like <code>status</code> in the example). If the JSON contains an unknown value, the decoder will throw an error, preventing your app from entering an invalid state. Furthermore, modern Swift allows for the use of <strong>Property Wrappers</strong> (like <code>@Default</code> or <code>@DateHandler</code>) to add custom logic to the decoding process without cluttering your data models, maintaining a clean and expressive architecture.</p>
+struct APIClient {
+    private let decoder: JSONDecoder = {
+        let d = JSONDecoder()
+        d.keyDecodingStrategy  = .convertFromSnakeCase
+        d.dateDecodingStrategy = .iso8601
+        return d
+    }()
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>Swift Structs vs. Dictionary:</strong> Dictionaries (<code>[String: Any]</code>) were the old way in Objective-C but are now considered "anti-patterns" in Swift due to their lack of safety. <strong>SwiftyJSON</strong> was once popular for easier dictionary access, but native <code>Codable</code> is now the undisputed standard. <strong>Protocol Buffers</strong> is an alternative for high-performance networking, but <code>Codable</code> remains the best choice for standard REST/JSON APIs.</p>
+    func fetch&lt;T: Decodable&gt;(_ type: T.Type, from url: URL) async throws -&gt; T {
+        let (data, response) = try await URLSession.shared.data(from: url)
+
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+
+        return try decoder.decode(T.self, from: data)
+    }
+}
+
+// Usage in a SwiftUI ViewModel
+@MainActor
+class UserViewModel: ObservableObject {
+    @Published var user: UserProfile?
+    @Published var error: String?
+
+    private let client = APIClient()
+
+    func loadUser(id: String) async {
+        do {
+            let url = URL(string: "https://api.example.com/users/\(id)")!
+            user = try await client.fetch(UserProfile.self, from: url)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+}
+
+// SwiftUI View
+struct UserView: View {
+    @StateObject private var viewModel = UserViewModel()
+    let userId: String
+
+    var body: some View {
+        Group {
+            if let user = viewModel.user {
+                Text(user.displayName)
+            } else if let error = viewModel.error {
+                Text("Error: \(error)").foregroundColor(.red)
+            } else {
+                ProgressView()
+            }
+        }
+        .task { await viewModel.loadUser(id: userId) }
+    }
+}
+</code></pre>
+
+<h3>Discriminated Unions with Associated Values</h3>
+<pre><code>// JSON polymorphism: {"type": "click", "x": 100, "y": 200}
+enum DomEvent: Decodable {
+    case click(x: Int, y: Int)
+    case keypress(key: String, ctrl: Bool)
+    case submit(formId: String)
+
+    enum CodingKeys: String, CodingKey {
+        case type, x, y, key, ctrl
+        case formId = "form_id"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try container.decode(String.self, forKey: .type)
+        switch type {
+        case "click":
+            let x = try container.decode(Int.self, forKey: .x)
+            let y = try container.decode(Int.self, forKey: .y)
+            self = .click(x: x, y: y)
+        case "keypress":
+            let key  = try container.decode(String.self, forKey: .key)
+            let ctrl = try container.decode(Bool.self, forKey: .ctrl)
+            self = .keypress(key: key, ctrl: ctrl)
+        case "submit":
+            let formId = try container.decode(String.self, forKey: .formId)
+            self = .submit(formId: formId)
+        default:
+            throw DecodingError.dataCorruptedError(
+                forKey: .type, in: container,
+                debugDescription: "Unknown event type: \(type)"
+            )
+        }
+    }
+}
+
+// Exhaustive handling in Swift
+func handleEvent(_ event: DomEvent) {
+    switch event {
+    case .click(let x, let y):   print("Click at \(x), \(y)")
+    case .keypress(let key, _):  print("Key: \(key)")
+    case .submit(let formId):    print("Form: \(formId)")
+    }
+}
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use <code>let</code> for Immutability:</strong> Define your struct properties with <code>let</code> to ensure your data objects cannot be modified after they are created from JSON.</li>
-  <li><strong>Handle Dates with <code>dateDecodingStrategy</code>:</strong> Don't manually parse date strings; use <code>decoder.dateDecodingStrategy = .iso8601</code> to handle them automatically.</li>
-  <li><strong>Use <code>keyDecodingStrategy</code>:</strong> If your JSON is consistently snake_case, use <code>decoder.keyDecodingStrategy = .convertFromSnakeCase</code> to avoid writing manual <code>CodingKeys</code>.</li>
+  <li><strong>Use structs, not classes, for JSON models:</strong> Swift structs are value types — they're copied, not referenced. This eliminates a whole class of bugs around shared mutable state in async code. Use classes only when you need reference semantics (shared mutable state, identity comparison).</li>
+  <li><strong>Make all stored properties <code>let</code>:</strong> Immutable struct instances are thread-safe by default. When you need to update a value, create a new instance: <code>var updated = original; updated = updated with the change</code> isn't idiomatic — use a new initializer or <code>var</code> struct at the call site.</li>
+  <li><strong>Handle unknown enum cases gracefully:</strong> <code>enum Status: String, Codable</code> throws on unknown values. For APIs that may add new statuses, add an <code>unknown(String)</code> case with custom decoding that captures the raw value instead of failing.</li>
+  <li><strong>Reuse a single <code>JSONDecoder</code> instance:</strong> Creating a <code>JSONDecoder</code> on every request allocates a new instance. Create one statically or inject it as a dependency — the decoder is stateless and thread-safe after configuration.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: What is Codable?</strong><br>
-A: It is a type alias for <code>Encodable &amp; Decodable</code>, providing a unified way to handle both directions of JSON transformation.</p>
-<p><strong>Q: How do I handle missing fields?</strong><br>
-A: Mark the corresponding Swift property as an optional (e.g., <code>let email: String?</code>). If the key is missing or the value is null, Swift will set it to <code>nil</code>.</p>
-<p><strong>Q: Can I use this with SwiftUI?</strong><br>
-A: Absolutely! Swift structs are the primary way to define the data state that drives your SwiftUI views.</p>
+<p><strong>Q: What is Codable and why not just use [String: Any]?</strong><br>
+A: <code>Codable</code> is a type alias for <code>Encodable &amp; Decodable</code>. Unlike <code>[String: Any]</code> dictionaries, Codable structs give you compile-time field access, Swift's type system enforcing optionality, and IDE autocompletion. Dictionary access requires <code>as?</code> casts everywhere and silently passes <code>nil</code> when a key is mistyped.</p>
+
+<p><strong>Q: How do I handle arrays at the top level?</strong><br>
+A: Decode directly to an array type: <code>try decoder.decode([Order].self, from: jsonData)</code>. The decoder handles top-level arrays identically to arrays inside an object.</p>
+
+<p><strong>Q: Should I use Codable or a third-party library like Alamofire?</strong><br>
+A: Use built-in <code>Codable</code> with <code>URLSession</code> async/await for new projects. Alamofire adds convenience but is a dependency; Swift's native async networking has largely eliminated the need for it in modern codebases. If you're already using Alamofire, its <code>responseDecodable</code> method integrates directly with any <code>Codable</code> type.</p>
+
+<p><strong>Q: How do I test JSON decoding?</strong><br>
+A: Load test JSON from a file in your test bundle: <code>Bundle(for: type(of: self)).url(forResource: "test-order", withExtension: "json")</code>. Decode it with the same decoder configuration as production and assert on the decoded properties. This tests the actual mapping without network calls.</p>

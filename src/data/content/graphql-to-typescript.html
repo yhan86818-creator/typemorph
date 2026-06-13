@@ -1,58 +1,262 @@
-<h2>GraphQL to TypeScript: Achieving End-to-End Type Safety for Modern APIs</h2>
-<p>GraphQL's power lies in its schema-first approach, where the client defines exactly what data it needs. Converting your GraphQL schema and queries into TypeScript interfaces takes this to the next level. By generating types directly from your API's truth, you eliminate the "manual mapping" phase and ensure that your frontend code is always in perfect sync with your backend. This integration provides a developer experience that is unparalleled, with full autocompletion and compile-time validation for every field in your GraphQL operations.</p>
+<h2>GraphQL to TypeScript: Operation-Specific Types with GraphQL Code Generator</h2>
+<p>GraphQL's type system guarantees what the server can return. But that guarantee is meaningless unless your TypeScript client enforces it — and TypeScript interfaces written by hand drift from the actual schema within weeks. GraphQL Code Generator solves this by analyzing your schema and each individual operation (query, mutation, subscription) and generating TypeScript types that reflect exactly what you asked for, not the entire type. If your query selects <code>username</code> but not <code>email</code>, the generated type doesn't have <code>email</code> — accessing it is a compile error.</p>
 
-<h3>Live Example: Generating TypeScript from GraphQL Schema and Queries</h3>
-<pre><code>// Input GraphQL Schema
+<h3>Live Example: Schema, Query, and Generated Types</h3>
+<pre><code>// GraphQL Schema (server-side, schema.graphql)
 type User {
-  id: ID!
-  username: String!
-  email: String
+  id:        ID!
+  username:  String!
+  email:     String
+  role:      Role!
+  posts:     [Post!]!
+  createdAt: String!
 }
 
-// Input GraphQL Query
+type Post {
+  id:        ID!
+  title:     String!
+  status:    PostStatus!
+  author:    User!
+}
+
+enum Role        { ADMIN EDITOR VIEWER }
+enum PostStatus  { DRAFT PUBLISHED ARCHIVED }
+
+type Query {
+  user(id: ID!): User
+  posts(authorId: ID, status: PostStatus): [Post!]!
+}
+
+// Client query (queries/getUser.graphql)
 query GetUser($id: ID!) {
   user(id: $id) {
+    id
     username
-    email
+    role
+    posts {
+      id
+      title
+      status
+    }
   }
 }
 
-// Generated TypeScript Code
-export type GetUserQuery = {
-  user?: {
-    username: string;
-    email?: string | null;
-  } | null;
-};
+// Generated TypeScript (auto-generated, do not edit)
+export type Role       = 'ADMIN' | 'EDITOR' | 'VIEWER';
+export type PostStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 
 export type GetUserQueryVariables = {
   id: string;
 };
+
+export type GetUserQuery = {
+  user?: {
+    id:       string;
+    username: string;
+    role:     Role;
+    posts:    Array&lt;{
+      id:     string;
+      title:  string;
+      status: PostStatus;
+    }&gt;;
+  } | null;
+};
+</code></pre>
+<p>Note that <code>email</code> is absent from <code>GetUserQuery</code> — the generator only includes fields the query actually selects. This is operation-specific typing: each query gets its own type, not a shared <code>User</code> interface that may have fields you didn't fetch.</p>
+
+<h3>Setting Up GraphQL Code Generator</h3>
+<pre><code>// Install
+npm install -D @graphql-codegen/cli @graphql-codegen/typescript @graphql-codegen/typescript-operations
+
+// codegen.ts
+import type { CodegenConfig } from '@graphql-codegen/cli';
+
+const config: CodegenConfig = {
+  schema:    'http://localhost:4000/graphql',  // or './schema.graphql'
+  documents: ['src/**/*.graphql', 'src/**/*.tsx', 'src/**/*.ts'],
+  generates: {
+    'src/gql/types.ts': {
+      plugins: [
+        'typescript',              // schema types
+        'typescript-operations',   // query/mutation/subscription types
+      ],
+      config: {
+        strictScalars:    true,
+        scalars: {
+          ID:       'string',
+          Date:     'string',
+          DateTime: 'string',
+          JSON:     'unknown',
+        },
+        enumsAsTypes:     true,   // 'ADMIN' | 'EDITOR' instead of enum
+        avoidOptionals:   { field: true },  // non-nullable fields are not optional
+      }
+    }
+  }
+};
+
+export default config;
+</code></pre>
+<pre><code># Run once
+npx graphql-codegen
+
+# Watch mode during development
+npx graphql-codegen --watch
+
+# Validate queries against schema (CI check)
+npx graphql-codegen --require dotenv/config --config codegen.ts
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Define Your Schema and Queries:</strong> Write your GraphQL schema on the server and your <code>.graphql</code> queries on the client.<br>
-2. <strong>Setup GraphQL Code Generator:</strong> Use <code>@graphql-codegen/cli</code> to manage the conversion process.<br>
-3. <strong>Configure Plugins:</strong> Use the <code>typescript</code> and <code>typescript-operations</code> plugins to generate interfaces for your schema and specific query results.<br>
-4. <strong>Integrate with Client:</strong> Use the generated types with your favorite GraphQL client (like Apollo, Urql, or React Query) to get full type safety in your components.</p>
+<h3>Using Generated Types with Apollo Client</h3>
+<pre><code>import { useQuery, useMutation } from '@apollo/client';
+import { gql } from '@apollo/client';
+import type { GetUserQuery, GetUserQueryVariables } from '../gql/types';
 
-<h3>Technical Deep Dive: AST Parsing and Partial Type Generation</h3>
-<p>The magic of GraphQL-to-TypeScript conversion is that it is **Operation-Specific**. Unlike a REST API where you might have a single <code>User</code> interface, GraphQL Code Generator creates a specific type for *each* query. If your query only asks for the <code>username</code>, the generated type will *only* contain the <code>username</code>. This is achieved by parsing the GraphQL AST (Abstract Syntax Tree) and the schema simultaneously. This "surgical" type safety prevents you from accidentally accessing fields that weren't actually fetched, a common source of bugs in traditional API integrations.</p>
+const GET_USER = gql`
+  query GetUser($id: ID!) {
+    user(id: $id) {
+      id
+      username
+      role
+      posts { id title status }
+    }
+  }
+`;
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>GraphQL-to-TypeScript vs. Manual Interfaces:</strong> Manual interfaces are impossible to maintain as your GraphQL queries evolve. Automated generation is mandatory for professional GraphQL projects. <strong>tRPC</strong> is an alternative for full-stack TypeScript projects that offers similar type safety without the need for a separate schema or code generation step.</p>
+// data is typed as GetUserQuery
+function UserProfile({ userId }: { userId: string }) {
+  const { data, loading, error } = useQuery&lt;GetUserQuery, GetUserQueryVariables&gt;(
+    GET_USER,
+    { variables: { id: userId } }
+  );
+
+  if (!data?.user) return null;
+
+  // data.user.email — TypeScript error: property 'email' does not exist
+  // data.user.username — string ✓
+  // data.user.role — 'ADMIN' | 'EDITOR' | 'VIEWER' ✓
+  // data.user.posts[0].status — 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' ✓
+
+  return &lt;h1&gt;{data.user.username}&lt;/h1&gt;;
+}
+</code></pre>
+
+<h3>Fragment-Based Type Reuse</h3>
+<pre><code">// Define reusable fragments
+fragment UserPreview on User {
+  id
+  username
+  role
+}
+
+fragment PostCard on Post {
+  id
+  title
+  status
+  author { ...UserPreview }
+}
+
+// Use in multiple queries
+query GetPosts($authorId: ID) {
+  posts(authorId: $authorId) {
+    ...PostCard
+  }
+}
+
+// Code generator creates fragment types:
+// type UserPreviewFragment = { id: string; username: string; role: Role }
+// type PostCardFragment = { id: string; title: string; status: PostStatus; author: UserPreviewFragment }
+
+// Import fragment types for component props
+import type { PostCardFragment } from '../gql/types';
+
+function PostCard({ post }: { post: PostCardFragment }) {
+  return &lt;div&gt;{post.title} — {post.author.username}&lt;/div&gt;;
+}
+</code></pre>
+
+<h3>Server-Side: Generating Resolver Types</h3>
+<pre><code>// codegen.ts — add typescript-resolvers plugin for backend
+generates: {
+  'src/gql/resolvers.ts': {
+    plugins: ['typescript', 'typescript-resolvers'],
+    config: {
+      contextType: '../context#AppContext',  // your resolver context type
+      mappers: {
+        User: '../models/user#UserModel',   // map schema User to your ORM type
+        Post: '../models/post#PostModel',
+      },
+    }
+  }
+}
+
+// Generated resolver types ensure implementation matches schema
+import type { Resolvers } from '../gql/resolvers';
+import type { AppContext } from '../context';
+
+export const resolvers: Resolvers = {
+  Query: {
+    user: async (_, { id }, ctx: AppContext) =&gt; {
+      return ctx.db.users.findById(id);
+      // return type: UserModel | null (matches schema User | null)
+    },
+    posts: async (_, { authorId, status }, ctx) =&gt; {
+      return ctx.db.posts.findMany({ authorId, status });
+    }
+  },
+  User: {
+    posts: async (parent, _, ctx) =&gt; {
+      // parent is UserModel — typed, not any
+      return ctx.db.posts.findByAuthor(parent.id);
+    }
+  }
+};
+</code></pre>
+
+<h3>Custom Scalar Types</h3>
+<pre><code>// schema.graphql
+scalar Date
+scalar JSON
+scalar PositiveInt
+
+// codegen.ts — map scalars to TypeScript types
+config: {
+  scalars: {
+    Date:        'string',        // ISO 8601 date string
+    JSON:        'unknown',       // untyped JSON
+    PositiveInt: 'number',        // validated at runtime
+    Upload:      'File',          // file upload scalar
+  }
+}
+
+// Custom scalar resolvers (server-side)
+import { GraphQLScalarType } from 'graphql';
+
+const DateScalar = new GraphQLScalarType({
+  name: 'Date',
+  serialize:   (value: Date) =&gt; value.toISOString().split('T')[0],
+  parseValue:  (value: string) =&gt; new Date(value),
+  parseLiteral: (ast) =&gt; new Date((ast as any).value),
+});
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Generate on every change:</strong> Use the <code>--watch</code> mode of the code generator during development to keep your types updated in real-time.</li>
-  <li><strong>Use <code>Pick</code> and <code>Omit</code> cautiously:</strong> Prefer using the generated types directly rather than trying to manually manipulate them with TypeScript helpers.</li>
-  <li><strong>Enable <code>strict</code> mode:</strong> Ensure your code generator is configured with <code>immutableTypes: true</code> and <code>strict: true</code> to get the highest level of safety.</li>
+  <li><strong>Commit generated files to the repository:</strong> Generated types should be checked in, not gitignored. CI should regenerate and check for diffs — a diff means a query or schema changed without the types being regenerated.</li>
+  <li><strong>Use <code>strictScalars: true</code>:</strong> Without this, unknown scalars default to <code>any</code>. With it, unregistered scalars cause a codegen error, forcing you to explicitly map every scalar to a TypeScript type.</li>
+  <li><strong>Co-locate queries with components:</strong> Keep <code>.graphql</code> files next to the components that use them. Code Generator picks up queries from <code>documents: 'src/**/*.graphql'</code>. Co-location makes it obvious what data each component needs.</li>
+  <li><strong>Use <code>enumsAsTypes</code>:</strong> TypeScript string unions (<code>'ADMIN' | 'EDITOR'</code>) are more ergonomic than TypeScript enums — they don't require imports and interoperate naturally with string comparisons.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Does this work with any GraphQL client?</strong><br>
-A: Yes, GraphQL Code Generator is client-agnostic and can produce types for Apollo, Urql, Relay, and even plain fetch.</p>
-<p><strong>Q: How do I handle custom Scalars (like Date)?</strong><br>
-A: You can map custom GraphQL scalars to TypeScript types (like <code>Date</code> or <code>string</code>) in the <code>codegen.yml</code> configuration file.</p>
-<p><strong>Q: Can I generate types for my resolvers too?</strong><br>
-A: Yes! The <code>typescript-resolvers</code> plugin generates types for your server-side logic, ensuring your backend is as safe as your frontend.</p>
+<p><strong>Q: Does GraphQL Code Generator work with any GraphQL server?</strong><br>
+A: Yes — it works with any server exposing a standard GraphQL endpoint or schema file. Supports introspection from a URL, local SDL files, and JSON introspection results. Works with Apollo Server, Yoga, Hasura, AWS AppSync, and any SDL-compliant server.</p>
+
+<p><strong>Q: tRPC vs. GraphQL — when to choose each?</strong><br>
+A: tRPC is ideal for full-stack TypeScript projects where you control both client and server — zero schema definition, types are inferred from your router functions. GraphQL is better for public APIs, mobile clients, multi-language backends, or cases where introspection and tooling (GraphiQL, Postman) matter.</p>
+
+<p><strong>Q: How do I handle authentication in GraphQL types?</strong><br>
+A: Authentication is a runtime concern — your resolver context carries the auth token or user session. The GraphQL schema defines what fields exist; authorization is enforced in resolvers. Tools like <code>graphql-shield</code> let you define a permission schema that wraps your resolvers.</p>
+
+<p><strong>Q: Why are my nullable fields typed as <code>T | null</code> but I expected <code>T | undefined</code>?</strong><br>
+A: GraphQL nullable fields are <code>T | null</code> — GraphQL has no concept of <code>undefined</code>. The schema's <code>String</code> (without <code>!</code>) means "may return null", which maps to <code>string | null</code>. Use <code>maybeValue: T | null | undefined</code> in your config if your client may receive undefined for missing fields.</p>

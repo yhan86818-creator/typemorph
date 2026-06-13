@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { swiftGen, kotlinGen, zodGen, protoGen, gqlGen, tsGen, goGen, rustGen, jsonSchemaGen, mockGen, prismaGen, javaGen } from './generators';
 import { inferSchema } from './engine';
+import { parseTypeScriptToSchema } from './parsers';
 
 describe('generators', () => {
   describe('swiftGen', () => {
@@ -387,6 +388,44 @@ describe('generators', () => {
       const schema = inferSchema(samples);
       const result = javaGen.generate(schema, 'User');
       expect(result).toContain('@Nullable');
+    });
+  });
+
+  describe('zodGen — TS union precision', () => {
+    it('string | null → nullable (not z.any())', () => {
+      const schema = parseTypeScriptToSchema(`interface T { value: string | null; }`)!;
+      const result = zodGen.generate(schema, 'T');
+      expect(result).toContain('.nullable()');
+      expect(result).not.toContain('z.any()');
+    });
+
+    it('string | undefined → optional (not z.any())', () => {
+      const schema = parseTypeScriptToSchema(`interface T { value: string | undefined; }`)!;
+      const result = zodGen.generate(schema, 'T');
+      expect(result).toContain('.optional()');
+      expect(result).not.toContain('z.any()');
+    });
+
+    it('string | number → z.union([z.string(), z.number()])', () => {
+      const schema = parseTypeScriptToSchema(`interface T { id: string | number; }`)!;
+      const result = zodGen.generate(schema, 'T');
+      expect(result).toContain('z.union([z.string(), z.number()])');
+    });
+
+    it('number | null | undefined → nullable + optional (not z.any())', () => {
+      const schema = parseTypeScriptToSchema(`interface T { count: number | null | undefined; }`)!;
+      const result = zodGen.generate(schema, 'T');
+      expect(result).toContain('z.number()');
+      expect(result).toContain('.nullable()');
+      expect(result).toContain('.optional()');
+      expect(result).not.toContain('z.any()');
+    });
+
+    it("'active' | 'inactive' | null → z.enum().nullable()", () => {
+      const schema = parseTypeScriptToSchema(`interface T { status: 'active' | 'inactive' | null; }`)!;
+      const result = zodGen.generate(schema, 'T');
+      expect(result).toContain('z.enum(["active", "inactive"])');
+      expect(result).toContain('.nullable()');
     });
   });
 });

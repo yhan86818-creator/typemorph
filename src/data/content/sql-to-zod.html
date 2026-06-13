@@ -1,51 +1,241 @@
-<h2>SQL to Zod: From Database Schema to End-to-End Type Safety</h2>
-<p>The biggest disconnect in web development often happens between the database and the application layer. While your SQL tables are strictly defined, that safety is often lost when data enters your Node.js application. Converting SQL DDL (Data Definition Language) to Zod schemas eliminates this "blind spot." By generating Zod validation directly from your database truth, you ensure that every row fetched or inserted is validated against the actual table structure, preventing runtime crashes and silent data corruption.</p>
+<h2>SQL to Zod: Type-Safe Database Access Without an ORM</h2>
+<p>Modern ORMs like Prisma and Drizzle generate TypeScript types automatically — but millions of Node.js applications still use raw <code>pg</code>, <code>mysql2</code>, or <code>postgres</code> clients where query results are typed as <code>any[]</code>. SQL-to-Zod bridges this gap: you convert your DDL to Zod schemas, then use those schemas to validate and type every query result at the repository layer. The database enforces constraints at write time; Zod enforces and types them at read time, catching schema drift before it reaches business logic.</p>
 
-<h3>Live Example: SQL DDL to Runtime Validation</h3>
+<h3>Live Example: PostgreSQL DDL to Zod Repository</h3>
 <pre><code>-- Input SQL DDL
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email TEXT UNIQUE NOT NULL,
-    age INTEGER CHECK (age >= 18),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    id         UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    email      TEXT         NOT NULL UNIQUE,
+    name       TEXT         NOT NULL,
+    role       TEXT         NOT NULL DEFAULT 'user'
+               CHECK (role IN ('admin', 'editor', 'user', 'guest')),
+    age        INTEGER      CHECK (age >= 18),
+    score      NUMERIC(5,2) DEFAULT 0,
+    is_active  BOOLEAN      NOT NULL DEFAULT TRUE,
+    metadata   JSONB,
+    created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
 );
 
 // Generated Zod Schema
 import { z } from 'zod';
 
-const UserSchema = z.object({
-  id: z.string().uuid(),
-  email: z.string().email(),
-  age: z.number().int().min(18),
-  created_at: z.coerce.date()
+export const UserSchema = z.object({
+  id:         z.string().uuid(),
+  email:      z.string().email(),
+  name:       z.string().min(1),
+  role:       z.enum(['admin', 'editor', 'user', 'guest']),
+  age:        z.number().int().min(18).nullable(),
+  score:      z.number().multipleOf(0.01),    // NUMERIC(5,2) precision
+  is_active:  z.boolean(),
+  metadata:   z.record(z.unknown()).nullable(),  // JSONB
+  created_at: z.coerce.date(),               // TIMESTAMPTZ → Date
+  deleted_at: z.coerce.date().nullable(),
 });
 
-type User = z.infer&lt;typeof UserSchema&gt;;
+export type User = z.infer&lt;typeof UserSchema&gt;;
+
+// Insert/Update schemas derived from the base schema
+export const CreateUserSchema = UserSchema.pick({
+  email: true, name: true, role: true,
+}).extend({
+  age: z.number().int().min(18).optional(),
+});
+
+export type CreateUserInput = z.infer&lt;typeof CreateUserSchema&gt;;
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Export Your Schema:</strong> Use a tool to dump your SQL schema (DDL) into a text file or query the <code>information_schema</code> directly.<br>
-2. <strong>Run the SQL-to-Zod Generator:</strong> Use a converter that parses SQL syntax and maps database types (INT, VARCHAR, TIMESTAMP) to Zod primitives.<br>
-3. <strong>Map Custom Constraints:</strong> Database-level <code>CHECK</code> constraints or <code>UNIQUE</code> constraints should be manually reflected in the Zod schema for proactive client-side validation.<br>
-4. <strong>Apply to DB Drivers:</strong> Wrap your database queries (e.g., using <code>pg</code> or <code>mysql2</code>) with the Zod <code>.parse()</code> method to validate the results of every <code>SELECT</code> statement.</p>
+<h3>SQL Type to Zod Mapping Reference</h3>
+<pre><code>// PostgreSQL types
+const pgTypeMap = {
+  // Integers
+  'SMALLINT':  z.number().int(),
+  'INTEGER':   z.number().int(),
+  'BIGINT':    z.string(),          // BigInt exceeds JS number precision
+  'SERIAL':    z.number().int().positive(),
+  'BIGSERIAL': z.string(),
 
-<h3>Technical Deep Dive: Type Mapping and Nullability</h3>
-<p>Converting SQL to Zod requires a nuanced understanding of database types versus JavaScript types. For instance, a SQL <code>NUMERIC</code> type often has higher precision than a JavaScript <code>number</code> (which is a 64-bit float), potentially requiring the use of <code>z.string()</code> or a BigInt library. Another critical area is <strong>Nullability</strong>. In SQL, columns are nullable by default unless marked <code>NOT NULL</code>. A robust converter must correctly map these to <code>.nullable()</code> or <code>.optional()</code> in Zod to avoid "Missing field" errors when fetching data from the database.</p>
+  // Floats
+  'REAL':             z.number(),
+  'DOUBLE PRECISION': z.number(),
+  'FLOAT':            z.number(),
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>SQL-to-Zod vs. ORMs:</strong> Modern ORMs like <strong>Prisma</strong> or <strong>Drizzle</strong> provide built-in type safety, often making manual SQL-to-Zod conversion unnecessary for new projects. However, if you are working with a <strong>legacy database</strong>, a <strong>raw SQL driver</strong>, or an environment where a full ORM is too heavy, SQL-to-Zod is the most surgical way to add type safety without changing your data access patterns. It's the "middle ground" between manual mapping and full-blown abstraction.</p>
+  // Exact numerics — use string to preserve precision
+  'NUMERIC':  z.string().regex(/^-?\d+(\.\d+)?$/),
+  'DECIMAL':  z.string().regex(/^-?\d+(\.\d+)?$/),
+  'MONEY':    z.string(),           // e.g. "$49.99"
+
+  // Strings
+  'TEXT':       z.string(),
+  'VARCHAR':    z.string(),
+  'CHAR':       z.string(),
+  'NAME':       z.string(),
+
+  // Booleans
+  'BOOLEAN': z.boolean(),
+
+  // Dates and times
+  'DATE':        z.string().date(),    // "2024-01-15"
+  'TIME':        z.string().time(),    // "08:30:00"
+  'TIMESTAMP':   z.coerce.date(),
+  'TIMESTAMPTZ': z.coerce.date(),      // drivers return Date or string
+
+  // JSON
+  'JSON':  z.unknown(),
+  'JSONB': z.unknown(),
+
+  // Binary
+  'BYTEA': z.instanceof(Buffer),
+
+  // Special types
+  'UUID':  z.string().uuid(),
+  'INET':  z.string().ip(),
+  'CIDR':  z.string(),
+  'ARRAY': (inner: z.ZodType) =&gt; z.array(inner),
+};
+</code></pre>
+
+<h3>Nullable vs. NOT NULL: Getting Optionality Right</h3>
+<pre><code>// SQL:  name TEXT NOT NULL
+// Zod:  z.string()                    (required, non-null)
+
+// SQL:  bio TEXT                       (nullable by default)
+// Zod:  z.string().nullable()          (may be null)
+
+// SQL:  deleted_at TIMESTAMPTZ         (nullable)
+// Zod:  z.coerce.date().nullable()
+
+// SQL:  nickname TEXT DEFAULT NULL     (nullable, has default)
+// Zod:  z.string().nullable().optional()  // absent on INSERT → null at SELECT
+
+// SELECT always returns every column (not optional in TypeScript sense)
+// INSERT may omit columns with defaults — use .partial() for insert schemas
+
+const UserSelectSchema = z.object({
+  id:        z.string().uuid(),     // always present in SELECT
+  email:     z.string().email(),    // NOT NULL
+  nickname:  z.string().nullable(), // may be null
+  deletedAt: z.coerce.date().nullable(),
+});
+
+// For INSERT: columns with defaults can be omitted
+const UserInsertSchema = UserSelectSchema
+  .omit({ id: true })    // generated by DB
+  .extend({
+    nickname:  z.string().optional(),  // absent = use default (NULL)
+    deletedAt: z.coerce.date().optional(),
+  });
+</code></pre>
+
+<h3>Repository Pattern: Validate Every Query Result</h3>
+<pre><code>import { Pool } from 'pg';
+import { z } from 'zod';
+import { UserSchema, CreateUserSchema, type User, type CreateUserInput } from './schemas/user';
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+export class UserRepository {
+  // Validate query result — catches schema drift
+  async findById(id: string): Promise&lt;User | null&gt; {
+    const result = await pool.query(
+      'SELECT id, email, name, role, age, score, is_active, metadata, created_at, deleted_at FROM users WHERE id = $1',
+      [id]
+    );
+    if (result.rows.length === 0) return null;
+
+    // Will throw if DB returns unexpected shape
+    return UserSchema.parse(result.rows[0]);
+  }
+
+  async findAll(limit = 20): Promise&lt;User[]&gt; {
+    const result = await pool.query(
+      'SELECT * FROM users WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT $1',
+      [limit]
+    );
+
+    // z.array() validates each row
+    return z.array(UserSchema).parse(result.rows);
+  }
+
+  async create(input: CreateUserInput): Promise&lt;User&gt; {
+    // Validate input before inserting
+    const validated = CreateUserSchema.parse(input);
+
+    const result = await pool.query(
+      `INSERT INTO users (email, name, role, age)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [validated.email, validated.name, validated.role, validated.age]
+    );
+
+    return UserSchema.parse(result.rows[0]);
+  }
+}
+</code></pre>
+
+<h3>Handling CHECK Constraints with .refine()</h3>
+<pre><code">-- SQL: CHECK (end_date > start_date)
+-- SQL: CHECK (price > 0 AND price <= 99999.99)
+-- SQL: CHECK (status IN ('active', 'inactive', 'archived'))
+
+import { z } from 'zod';
+
+const OrderSchema = z.object({
+  id:         z.string().uuid(),
+  startDate:  z.coerce.date(),
+  endDate:    z.coerce.date(),
+  price:      z.number().positive().max(99999.99),
+  status:     z.enum(['active', 'inactive', 'archived']),
+}).refine(
+  (data) => data.endDate > data.startDate,
+  {
+    message: "end_date must be after start_date",
+    path: ["endDate"],
+  }
+);
+
+// For application-layer validation BEFORE insert
+// (DB constraint is the final guard; Zod gives better error messages)
+const result = OrderSchema.safeParse(orderInput);
+if (!result.success) {
+  const errors = result.error.flatten().fieldErrors;
+  return { status: 400, errors };
+}
+</code></pre>
+
+<h3>SQL ENUM Types</h3>
+<pre><code">-- PostgreSQL ENUM
+CREATE TYPE user_role AS ENUM ('admin', 'editor', 'user', 'guest');
+CREATE TABLE users (
+    id   UUID PRIMARY KEY,
+    role user_role NOT NULL DEFAULT 'user'
+);
+
+-- Generated Zod enum
+const UserRoleSchema = z.enum(['admin', 'editor', 'user', 'guest']);
+type UserRole = z.infer&lt;typeof UserRoleSchema&gt;;
+// → "admin" | "editor" | "user" | "guest"
+
+// Useful for runtime check on user-provided values
+function isValidRole(role: string): role is UserRole {
+  return UserRoleSchema.safeParse(role).success;
+}
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Single Source of Truth:</strong> Always generate your Zod schemas from your SQL migrations to ensure they never drift apart.</li>
-  <li><strong>Use <code>z.coerce</code> for Timestamps:</strong> Database drivers often return dates in different formats; <code>z.coerce.date()</code> is the most resilient way to handle them.</li>
-  <li><strong>Validation at the Boundary:</strong> Use these schemas at the repository layer of your application to ensure only valid data ever reaches your business logic.</li>
+  <li><strong>Generate Zod schemas from the live database, not DDL files:</strong> Query <code>information_schema.columns</code> and <code>information_schema.check_constraints</code> to derive Zod schemas programmatically. Schema files drift; the live database doesn't.</li>
+  <li><strong>Use <code>z.coerce.date()</code> for all timestamp columns:</strong> Different PostgreSQL drivers return timestamps as <code>Date</code> objects, ISO strings, or Unix numbers depending on configuration. <code>z.coerce.date()</code> handles all three formats without special-casing.</li>
+  <li><strong>Use <code>z.string()</code> for NUMERIC/DECIMAL/BIGINT:</strong> JavaScript's <code>number</code> type loses precision beyond 2^53. Financial amounts and large IDs stored as NUMERIC should be parsed as strings and handled with a decimal library (<code>Decimal.js</code>, <code>big.js</code>).</li>
+  <li><strong>Validate at the repository boundary, not in every query:</strong> Create a thin repository layer that wraps your SQL client and validates every result. Business logic above the repository can trust that the data is correctly typed.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Does this handle SQL Enums?</strong><br>
-A: Yes, SQL <code>ENUM</code> types are perfectly mapped to Zod's <code>z.enum()</code>, providing excellent autocompletion and runtime checks.</p>
-<p><strong>Q: What about Foreign Keys?</strong><br>
-A: While Zod doesn't validate database relationships, the field representing the foreign key (e.g., <code>user_id</code>) is typed as a string or number according to the column type.</p>
-<p><strong>Q: Is this compatible with NoSQL databases?</strong><br>
-A: This specific conversion is for SQL, but similar tools exist for MongoDB schemas (see <code>json-to-mongoose-model</code>).</p>
+<p><strong>Q: Why use SQL-to-Zod instead of Prisma or Drizzle?</strong><br>
+A: For legacy databases, microservices that need minimal dependencies, or applications where a full ORM's abstraction cost is prohibitive. Raw SQL gives you access to every database feature without translation; Zod gives you the type safety. It's the right tradeoff when you need control more than abstraction.</p>
+
+<p><strong>Q: What about MySQL type mapping differences?</strong><br>
+A: MySQL returns some types differently: TINYINT(1) maps to boolean, BIGINT as string, DATETIME without timezone as string, DECIMAL as string. The mapping is the same conceptually — use <code>z.coerce.date()</code> for dates, <code>z.string()</code> for BIGINT and DECIMAL. Use <code>mysql2</code>'s <code>typeCast</code> option to control raw type coercion before Zod validation.</p>
+
+<p><strong>Q: How do I handle JSON/JSONB columns?</strong><br>
+A: <code>z.unknown()</code> accepts any JSON value. For typed JSONB columns with a known structure, use a typed schema: <code>z.object({ theme: z.string(), locale: z.string() })</code>. If the structure varies per row, use <code>z.record(z.unknown())</code> and validate the sub-schema separately.</p>

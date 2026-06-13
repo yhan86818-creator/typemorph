@@ -1,1 +1,232 @@
-<h1>Dev Diary: JSON to MONGOOSE SCHEMA</h1><h2>Technical Deep-Dive: JSON Mapping</h2><p>By offloading the boilerplating to a local tool, you reduce the risk of logical gaps. The performance of JSON parsing varies by engine, but your MONGOOSE SCHEMA structures should remain modular. Always ensure that your MONGOOSE SCHEMA implementation supports validation logic for legacy data. Using Zod alongside your MONGOOSE SCHEMA definitions provides a robust defense against bad data. The main hurdle in MONGOOSE SCHEMA generation is ensuring that nullable strings are mapped with 100% precision. Modern dev stacks require automated validation, which is exactly why this JSON to MONGOOSE SCHEMA utility exists. I've found that boilerplate generation takes up nearly 50% of the initial sprint time. Handling JSON schemas often results in silent failures if you aren't careful.</p><h2>A Pro Tip for MONGOOSE SCHEMA Integration</h2><p>Keep your <strong>MONGOOSE SCHEMA</strong> definitions DRY and clean. Automation is a tool, not a replacement for your brain when generating <strong>MONGOOSE SCHEMA</strong>. Consistency is king in <strong>JSON</strong> transformations. Always test your generated schemas against edge-case <strong>JSON</strong> samples. Use this as a starting point, then review the edge cases and check nullability. A two-minute review of the <strong>MONGOOSE SCHEMA</strong> output saves you a headache in production. Don't just take the generated <strong>MONGOOSE SCHEMA</strong> code as gospel. Use this to handle the 95% of the <strong>JSON</strong> mapping, then do a quick manual check. Are those IDs actually numbers? Should that optional field be a required one? Checking for 'Date' vs 'String' mismatches is where you'll find the most value after the <strong>JSON to MONGOOSE SCHEMA</strong> process.</p><h2>Stop Wasting Time on JSON</h2><p>Seriously. Every minute spent on manual <strong>JSON to MONGOOSE SCHEMA</strong> is a minute you aren't shipping features. Get the code, do a quick audit, and get back to work. TypeMorph is about velocity, not boilerplate.</p><h2>Frequently Asked Questions</h2><p><strong>What about empty strings?</strong> The generator detects optionality to keep your code clean.<br><br><strong>Can I customize the MONGOOSE SCHEMA output?</strong> Currently, it follows highly-optimized naming conventions.<br><br><strong>How does it handle camelCase?</strong> It maintains the original casing to ensure API compatibility.<br><br><strong>Is my JSON data saved?</strong> No. Everything happens in the browser's JS memory; nothing is transmitted.<br><br><strong>Does this tool support nested JSON?</strong> Yes, the recursive inference engine handles deep object trees effortlessly.<br><br><strong>Is this suitable for commercial projects?</strong> Absolutely. It's built to streamline professional development workflows.</p><h2>Why 'Local-First' is the Only Way</h2><p>I don't trust random websites with my <strong>JSON</strong> data. Period. This tool uses your machine's CPU to do the work, ensuring <strong>MONGOOSE SCHEMA</strong> safety. I built this specifically because I didn't want to leak my client's <strong>JSON</strong> schemas. TypeMorph is strictly local; it runs in your browser's JS engine. Server-side conversion is a security hole that many <strong>JSON</strong> users overlook. Local processing means your <strong>JSON</strong> never touches our cloud. It satisfies GDPR and company security policies by simply never seeing your data. No server, no risk—that is the TypeMorph promise for <strong>JSON to MONGOOSE SCHEMA</strong>. Data privacy isn't a feature for <strong>MONGOOSE SCHEMA</strong> generation; it's a requirement. Your data, your machine, your rules. No exceptions.</p><h2>The Real Problem with JSON to MONGOOSE SCHEMA</h2><p>Honestly, manually converting <strong>JSON</strong> to <strong>MONGOOSE SCHEMA</strong> is a waste of your engineering time. I've seen too many bugs grow from simple mapping errors. This tool handles the grunt work locally, so you don't have to.</p><h2>Done.</h2><p>Life is too short for manual mapping. - TypeMorph Team</p>
+<h2>JSON to Mongoose Schema: MongoDB Document Modeling with TypeScript</h2>
+<p>Mongoose sits between your application and MongoDB, enforcing schema structure on a database that technically has none. Converting your JSON to a Mongoose schema gives you field-level validation, virtuals, middleware hooks, and static query helpers — all defined once in TypeScript and enforced every time a document is written. The trade-off versus raw MongoDB driver code: you gain a declarative contract and runtime validation; you pay a thin abstraction cost and occasional impedance mismatch when your JSON nesting doesn't fit a flat document model.</p>
+
+<h3>Live Example: User Schema with Validation and TypeScript Types</h3>
+<pre><code>// Input JSON
+{
+  "username": "mongo_dev",
+  "email": "dev@example.com",
+  "role": "editor",
+  "profile": {
+    "bio": "Full-stack developer",
+    "avatarUrl": "https://cdn.example.com/avatars/123.jpg"
+  },
+  "tags": ["typescript", "mongodb"],
+  "createdAt": "2024-01-15T08:30:00Z"
+}
+
+// Generated Mongoose Schema
+import { Schema, model, Document, Types } from 'mongoose';
+
+// TypeScript interface for the document
+export interface IUser extends Document {
+  username: string;
+  email:    string;
+  role:     'admin' | 'editor' | 'viewer';
+  profile:  {
+    bio:       string;
+    avatarUrl: string;
+  };
+  tags:      string[];
+  createdAt: Date;
+}
+
+const ProfileSchema = new Schema({
+  bio:       { type: String, default: '' },
+  avatarUrl: { type: String, default: '' },
+}, { _id: false });  // no _id for embedded sub-docs
+
+const UserSchema = new Schema&lt;IUser&gt;({
+  username: {
+    type:     String,
+    required: true,
+    unique:   true,
+    trim:     true,
+    minlength: 3,
+    maxlength: 50,
+  },
+  email: {
+    type:     String,
+    required: true,
+    unique:   true,
+    lowercase: true,
+    match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Invalid email address'],
+  },
+  role: {
+    type:    String,
+    enum:    ['admin', 'editor', 'viewer'],
+    default: 'viewer',
+  },
+  profile: { type: ProfileSchema, default: () => ({}) },
+  tags:    [{ type: String, trim: true }],
+}, {
+  timestamps: true,   // auto-manages createdAt / updatedAt
+});
+
+export const User = model&lt;IUser&gt;('User', UserSchema);
+</code></pre>
+<p>The <code>{ _id: false }</code> option on embedded sub-document schemas prevents Mongoose from adding an <code>_id</code> field to every profile object — a common source of unexpected data bloat in nested arrays.</p>
+
+<h3>Indexes: The Most Important Mongoose Configuration</h3>
+<p>Indexes belong in the schema definition, not as afterthoughts in ad-hoc migration scripts:</p>
+<pre><code>const ArticleSchema = new Schema({
+  title:     { type: String, required: true },
+  slug:      { type: String, required: true },
+  authorId:  { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  tags:      [String],
+  status:    { type: String, enum: ['draft', 'published', 'archived'] },
+  body:      String,
+  createdAt: Date,
+});
+
+// Single-field index — fast author lookups
+ArticleSchema.index({ authorId: 1 });
+
+// Compound index — for paginated queries by author+status
+ArticleSchema.index({ authorId: 1, status: 1, createdAt: -1 });
+
+// Unique slug index
+ArticleSchema.index({ slug: 1 }, { unique: true });
+
+// Text search index across title and body
+ArticleSchema.index({ title: 'text', body: 'text' });
+
+// Partial index — only index published articles (smaller, faster)
+ArticleSchema.index(
+  { createdAt: -1 },
+  { partialFilterExpression: { status: 'published' } }
+);
+</code></pre>
+
+<h3>Virtuals for Computed Properties</h3>
+<p>Virtuals are properties that exist on the JavaScript object but don't persist to MongoDB — computed from stored fields:</p>
+<pre><code>const UserSchema = new Schema({
+  firstName: String,
+  lastName:  String,
+  email:     String,
+  balance_cents: { type: Number, default: 0 },
+});
+
+// Virtual: full name
+UserSchema.virtual('fullName').get(function() {
+  return `${this.firstName} ${this.lastName}`;
+});
+
+// Virtual: balance in dollars
+UserSchema.virtual('balance').get(function() {
+  return this.balance_cents / 100;
+});
+
+// Include virtuals in JSON output
+UserSchema.set('toJSON', { virtuals: true });
+UserSchema.set('toObject', { virtuals: true });
+
+const user = await User.findById(id);
+console.log(user.fullName);    // "Jane Doe"
+console.log(user.balance);     // 19.99
+</code></pre>
+
+<h3>Middleware Hooks for Business Logic</h3>
+<p>Mongoose pre/post hooks let you attach logic to lifecycle events without modifying every query site:</p>
+<pre><code>import bcrypt from 'bcrypt';
+
+// Hash password before save (only if modified)
+UserSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+  this.password = await bcrypt.hash(this.password, 12);
+  next();
+});
+
+// Normalize email before saving
+UserSchema.pre('save', function(next) {
+  this.email = this.email.toLowerCase();
+  next();
+});
+
+// Post-save logging hook
+UserSchema.post('save', function(doc) {
+  console.log(`User ${doc._id} saved at ${new Date().toISOString()}`);
+});
+
+// Cascade delete: remove user's articles when user is deleted
+UserSchema.pre('deleteOne', { document: true }, async function() {
+  await Article.deleteMany({ authorId: this._id });
+});
+</code></pre>
+
+<h3>Discriminators for Polymorphic Documents</h3>
+<p>When multiple document types share a collection but have different shapes, Mongoose discriminators model this cleanly:</p>
+<pre><code>// Base event schema
+const EventSchema = new Schema({
+  userId:    { type: Schema.Types.ObjectId, ref: 'User' },
+  timestamp: { type: Date, default: Date.now },
+  metadata:  Schema.Types.Mixed,
+}, { discriminatorKey: 'type' });
+
+const Event = model('Event', EventSchema);
+
+// Specialized event types
+const ClickEvent = Event.discriminator('click', new Schema({
+  x: Number,
+  y: Number,
+  elementId: String,
+}));
+
+const PurchaseEvent = Event.discriminator('purchase', new Schema({
+  orderId:   String,
+  amount:    Number,
+  currency:  { type: String, default: 'USD' },
+}));
+
+// Query all events for a user — returns correctly typed documents
+const events = await Event.find({ userId }).sort({ timestamp: -1 });
+// events[0].type === 'click' means events[0] has x, y, elementId
+</code></pre>
+
+<h3>Lean Queries and Performance</h3>
+<pre><code>// Default: returns full Mongoose Document instances (with methods, virtuals)
+const users = await User.find({ role: 'editor' });
+
+// .lean(): returns plain JS objects — 2-5x faster, smaller memory
+// Use when you only need to read data (no save/update needed)
+const users = await User.find({ role: 'editor' }).lean();
+
+// Select only needed fields
+const previews = await User
+  .find({ status: 'active' })
+  .select('username email profile.avatarUrl')
+  .lean();
+
+// Pagination with cursor vs. skip/limit
+// skip() gets slower as offset grows — use cursor-based for large datasets
+const page2 = await User
+  .find({ createdAt: { $lt: lastSeenDate } })
+  .sort({ createdAt: -1 })
+  .limit(20)
+  .lean();
+</code></pre>
+<p>The <code>.lean()</code> method is the single biggest Mongoose performance optimization for read-heavy paths. Mongoose documents carry 2-5× the memory overhead of plain objects and take measurably longer to construct due to getter/setter setup.</p>
+
+<h3>Best Practices for Production</h3>
+<ul>
+  <li><strong>Always define indexes in the schema:</strong> Mongoose syncs schema indexes to MongoDB on connection with <code>autoIndex: true</code> (development default). In production, set <code>autoIndex: false</code> and run index creation as a deploy step — large collections can lock during index builds.</li>
+  <li><strong>Use <code>{ _id: false }</code> on embedded sub-document schemas:</strong> Unless you reference embedded documents by ID, skip the <code>_id</code>. This is especially important for arrays of embedded objects — each element otherwise gets an auto-generated ObjectId.</li>
+  <li><strong>Validate at the application boundary, not only in Mongoose:</strong> Mongoose validation runs on <code>save()</code> but not on <code>updateOne()</code>, <code>findOneAndUpdate()</code>, or bulk operations by default. Add <code>runValidators: true</code> to update operations, or validate with Zod/Valibot before calling Mongoose.</li>
+  <li><strong>Use <code>timestamps: true</code> instead of manual createdAt/updatedAt fields:</strong> Mongoose's built-in timestamps are consistent, automatically set on create, and updated on every save.</li>
+</ul>
+
+<h3>FAQ</h3>
+<p><strong>Q: Should I use Mongoose or the native MongoDB driver?</strong><br>
+A: Use Mongoose when you want schema validation, virtuals, middleware hooks, and population (JOINs). Use the native driver when you need maximum performance, flexible document shapes without schema constraints, or when you're writing low-level tooling. For most application code, Mongoose's abstractions pay for themselves.</p>
+
+<p><strong>Q: How do I handle relationships between collections?</strong><br>
+A: Mongoose <code>populate()</code> performs reference-based joins: store an ObjectId reference and call <code>.populate('fieldName')</code> to replace it with the actual document. For frequently co-queried data, embed documents instead — MongoDB has no JOIN at the database level, so every <code>populate()</code> is a separate query.</p>
+
+<p><strong>Q: Does Mongoose validate on updateOne() and findOneAndUpdate()?</strong><br>
+A: Not by default. Pass <code>{ runValidators: true }</code> to these operations to run schema validators. Be aware that validators on update operations only run on the fields being updated, not the full document.</p>
+
+<p><strong>Q: How do I avoid the N+1 query problem with Mongoose?</strong><br>
+A: Use <code>.populate()</code> with field selection to batch-load references: <code>.populate({ path: 'authorId', select: 'username email' })</code>. For deeply nested references, consider embedding frequently accessed data instead of referencing it, or use MongoDB's <code>$lookup</code> aggregation pipeline directly for complex joins.</p>
+
+<p><strong>Q: What is the difference between Mongoose's Schema.Types.Mixed and a typed sub-schema?</strong><br>
+A: <code>Schema.Types.Mixed</code> is an untyped escape hatch — Mongoose will not validate the content or track changes to it automatically (you must call <code>doc.markModified('fieldName')</code> before saving). A typed sub-schema with a <code>Schema</code> definition validates every write. Use Mixed only for truly unpredictable data like raw webhook payloads.</p>

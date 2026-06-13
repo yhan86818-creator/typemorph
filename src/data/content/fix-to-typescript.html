@@ -1,52 +1,216 @@
-<h2>FIX to TypeScript: Bringing Modern Type Safety to Financial Messaging</h2>
-<p>The FIX (Financial Information eXchange) protocol is the heartbeat of global trading, yet its tag-value format is notoriously difficult to handle in modern web environments. Converting FIX messages to TypeScript interfaces and parsers allows fintech developers to build safer, more reliable trading platforms. By mapping arcane FIX tags (like <code>35=D</code>) to readable TypeScript types (like <code>MsgType.NewOrderSingle</code>), you eliminate a massive category of logic errors and ensure that your front-office applications handle market data with extreme precision.</p>
+<h2>FIX to TypeScript: Tag Dictionary Parsing, Repeating Groups, Decimal Precision, and Session Management</h2>
+<p>The FIX (Financial Information eXchange) protocol uses a tag-value format (<code>35=D\x0149=SENDER\x01</code>) where the SOH character (<code>\x01</code>) separates fields. Converting FIX to TypeScript types requires a FIX data dictionary to map tag numbers to field names and types, special handling for repeating groups (nested arrays of tag-value blocks), and BigDecimal precision for price and quantity fields — JavaScript's <code>number</code> type introduces rounding errors for financial quantities. This guide covers a full FIX 4.4 parser in TypeScript, typed message interfaces, and FIX session sequence number management.</p>
 
-<h3>Live Example: Mapping FIX Messages to Type-Safe Objects</h3>
-<pre><code>// Input FIX Message
-8=FIX.4.4|9=122|35=D|34=215|49=CLIENT|52=20231027-10:00:00|56=SERVER|11=ID_123|21=1|38=100|40=2|44=150.50|54=1|55=AAPL|10=128|
+<h3>Live Example: FIX 4.4 New Order Single to Typed Object</h3>
+<pre><code">// Input FIX 4.4 message (SOH delimited, displayed with | for readability)
+// 8=FIX.4.4|9=176|35=D|49=CLIENT|56=BROKER|34=215|52=20240315-10:00:00.000|
+// 11=ORD-ABC123|21=1|55=AAPL|54=1|38=500|40=2|44=182.50|59=0|10=128|
 
-// Generated TypeScript Interface
-export enum MsgType {
-  NewOrderSingle = 'D',
-  ExecutionReport = '8',
+// TypeScript interfaces for FIX messages
+export enum Side { Buy = '1', Sell = '2', BuyMinus = '3', SellPlus = '4' }
+export enum OrdType { Market = '1', Limit = '2', Stop = '3', StopLimit = '4' }
+export enum TimeInForce { Day = '0', GTC = '1', OPG = '3', IOC = '4', FOK = '6' }
+export enum HandlInst { Automated = '1', SemiAuto = '2', Manual = '3' }
+
+export interface FixHeader {
+  beginString:  string;    // Tag 8 — FIX.4.4
+  bodyLength:   number;    // Tag 9
+  msgType:      string;    // Tag 35
+  senderCompId: string;    // Tag 49
+  targetCompId: string;    // Tag 56
+  msgSeqNum:    number;    // Tag 34
+  sendingTime:  Date;      // Tag 52
 }
 
 export interface NewOrderSingle {
-  ClOrdID: string;      // Tag 11
-  Side: '1' | '2';      // Tag 54 (1=Buy, 2=Sell)
-  Symbol: string;       // Tag 55
-  OrderQty: number;     // Tag 38
-  Price: number;        // Tag 44
-  OrdType: '1' | '2';   // Tag 40 (1=Market, 2=Limit)
+  header:      FixHeader;
+  clOrdId:     string;       // Tag 11 — client order ID
+  handlInst:   HandlInst;    // Tag 21
+  symbol:      string;       // Tag 55
+  side:        Side;         // Tag 54
+  orderQty:    bigint;       // Tag 38 — use bigint for integer quantities
+  ordType:     OrdType;      // Tag 40
+  price?:      string;       // Tag 44 — string for exact decimal (only for Limit orders)
+  timeInForce: TimeInForce;  // Tag 59
 }
 
-// Typed Parser Result
-const order: NewOrderSingle = fixParser.parse(rawFixString);
+export interface ExecutionReport {
+  header:        FixHeader;
+  orderId:       string;     // Tag 37
+  execId:        string;     // Tag 17
+  execType:      string;     // Tag 150
+  ordStatus:     string;     // Tag 39
+  symbol:        string;     // Tag 55
+  side:          Side;       // Tag 54
+  leavesQty:     bigint;     // Tag 151
+  cumQty:        bigint;     // Tag 14
+  avgPx:         string;     // Tag 6 — string for exact decimal
+  fills:         FillReport[];  // Repeating group — Tags 382/375/376/377
+}
+
+// Repeating group for fills (NoContraBrokers = 382)
+export interface FillReport {
+  contraBroker: string;     // Tag 375
+  contraTrader: string;     // Tag 377
+  fillQty:      bigint;     // Tag 376
+}
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Identify FIX Version:</strong> FIX protocol varies between versions (4.2, 4.4, 5.0). Ensure your mapping matches your specific FIX dictionary.<br>
-2. <strong>Map Tags to Names:</strong> Use a data dictionary to translate numeric tags into human-readable property names in your TypeScript interface.<br>
-3. <strong>Define Enums for Fields:</strong> Many FIX fields have specific allowed values. Map these to TypeScript <code>enum</code> or <code>union</code> types for maximum safety.<br>
-4. <strong>Handle Repeating Groups:</strong> FIX uses repeating groups (like multiple allocations). Ensure your TypeScript interface uses <code>Array&lt;T&gt;</code> to represent these structures correctly.</p>
+<h3>FIX Parser Implementation</h3>
+<pre><code">// Full FIX parser with repeating group support
+const SOH = '\x01';
 
-<h3>Technical Deep Dive: Checksums and High-Precision Decimals</h3>
-<p>FIX messaging presents unique challenges for TypeScript. First, the **Checksum (Tag 10)** must be calculated correctly to validate message integrity. Second, financial data requires **High Precision**. JavaScript's <code>number</code> type can lose precision with large values or many decimal places. When converting FIX to TypeScript, it's often best to map currency and price fields to a <code>BigInt</code> or a library like <code>decimal.js</code> to avoid costly rounding errors in trade calculations. Furthermore, handling the **UTCTimestamp (Tag 52)** correctly is vital for maintaining an accurate audit trail of trade execution.</p>
+// FIX tag dictionary (subset of FIX 4.4)
+const TAG_MAP: Record&lt;string, { field: string; type: 'string' | 'int' | 'decimal' | 'datetime' | 'boolean' }&gt; = {
+  '8':   { field: 'beginString',  type: 'string' },
+  '9':   { field: 'bodyLength',   type: 'int' },
+  '34':  { field: 'msgSeqNum',    type: 'int' },
+  '35':  { field: 'msgType',      type: 'string' },
+  '49':  { field: 'senderCompId', type: 'string' },
+  '52':  { field: 'sendingTime',  type: 'datetime' },
+  '56':  { field: 'targetCompId', type: 'string' },
+  '6':   { field: 'avgPx',        type: 'decimal' },
+  '11':  { field: 'clOrdId',      type: 'string' },
+  '14':  { field: 'cumQty',       type: 'int' },
+  '17':  { field: 'execId',       type: 'string' },
+  '21':  { field: 'handlInst',    type: 'string' },
+  '37':  { field: 'orderId',      type: 'string' },
+  '38':  { field: 'orderQty',     type: 'int' },
+  '39':  { field: 'ordStatus',    type: 'string' },
+  '40':  { field: 'ordType',      type: 'string' },
+  '44':  { field: 'price',        type: 'decimal' },
+  '54':  { field: 'side',         type: 'string' },
+  '55':  { field: 'symbol',       type: 'string' },
+  '59':  { field: 'timeInForce',  type: 'string' },
+  '150': { field: 'execType',     type: 'string' },
+  '151': { field: 'leavesQty',    type: 'int' },
+  '375': { field: 'contraBroker', type: 'string' },
+  '376': { field: 'fillQty',      type: 'int' },
+  '377': { field: 'contraTrader', type: 'string' },
+  '382': { field: 'noContraBrokers', type: 'int' },  // repeating group delimiter
+};
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>FIX-to-TypeScript vs. raw string splitting:</strong> Manual parsing with <code>.split('|')</code> is highly dangerous and difficult to maintain. A type-safe approach using generated interfaces is the professional standard. <strong>FIXML (XML-based FIX)</strong> is an alternative, but the standard tag-value format remains dominant due to its smaller footprint and lower latency.</p>
+// Repeating group definitions: delimiter tag → member tags
+const REPEATING_GROUPS: Record&lt;string, { listKey: string; memberTags: string[] }&gt; = {
+  '382': { listKey: 'fills',  memberTags: ['375', '376', '377'] },
+  '454': { listKey: 'securityAltId', memberTags: ['455', '456'] },
+};
+
+function parseFixMessage(rawMsg: string): Record&lt;string, unknown&gt; {
+  const pairs = rawMsg.split(SOH).filter(Boolean);
+  const result: Record&lt;string, unknown&gt; = {};
+  let activeGroup: { listKey: string; memberTags: string[]; current: Record&lt;string, unknown&gt; } | null = null;
+  let currentItems: Record&lt;string, unknown&gt;[] = [];
+
+  for (const pair of pairs) {
+    const eqIdx = pair.indexOf('=');
+    if (eqIdx === -1) continue;
+
+    const tag = pair.slice(0, eqIdx);
+    const raw = pair.slice(eqIdx + 1);
+
+    // Check if this tag starts a repeating group
+    const groupDef = REPEATING_GROUPS[tag];
+    if (groupDef) {
+      // Save previous group if active
+      if (activeGroup && currentItems.length &gt; 0) {
+        result[activeGroup.listKey] = currentItems;
+      }
+      currentItems = [];
+      activeGroup = { ...groupDef, current: {} };
+      continue;
+    }
+
+    // Accumulate into current repeating group item
+    if (activeGroup?.memberTags.includes(tag)) {
+      if (Object.keys(activeGroup.current).length &gt; 0 && tag === activeGroup.memberTags[0]) {
+        // New group item starts
+        currentItems.push(activeGroup.current);
+        activeGroup.current = {};
+      }
+      activeGroup.current[TAG_MAP[tag]?.field ?? tag] = castValue(tag, raw);
+      continue;
+    }
+
+    // Regular field
+    if (activeGroup && currentItems.length &gt;= 0 && !activeGroup.memberTags.includes(tag)) {
+      if (Object.keys(activeGroup.current).length &gt; 0) currentItems.push(activeGroup.current);
+      result[activeGroup.listKey] = currentItems;
+      activeGroup = null;
+    }
+
+    const def = TAG_MAP[tag];
+    result[def?.field ?? `tag_${tag}`] = castValue(tag, raw);
+  }
+
+  return result;
+}
+
+function castValue(tag: string, raw: string): unknown {
+  const def = TAG_MAP[tag];
+  if (!def) return raw;
+  switch (def.type) {
+    case 'int':      return BigInt(raw);
+    case 'decimal':  return raw;           // keep as string — use Decimal.js for arithmetic
+    case 'datetime': return parseFIXDate(raw);
+    case 'boolean':  return raw === 'Y';
+    default:         return raw;
+  }
+}
+
+// FIX datetime format: YYYYMMDD-HH:MM:SS.sss
+function parseFIXDate(fixDate: string): Date {
+  const [date, time] = fixDate.split('-');
+  return new Date(`${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}T${time}Z`);
+}
+</code></pre>
+
+<h3>Decimal Precision for Financial Values</h3>
+<pre><code">// NEVER use JavaScript number for FIX price/quantity arithmetic
+// 0.1 + 0.2 = 0.30000000000000004 in JavaScript
+
+// Wrong — loses precision:
+const price = parseFloat('182.50');   // OK for storage, NOT for arithmetic
+const total = price * 500;            // 91250 — happens to be exact here
+const wrong = 0.1 + 0.2;             // 0.30000000000000004
+
+// Correct — use Decimal.js for all financial arithmetic
+// npm install decimal.js
+import Decimal from 'decimal.js';
+
+function calcOrderValue(priceStr: string, qty: bigint): Decimal {
+  return new Decimal(priceStr).mul(qty.toString());
+}
+
+const orderValue = calcOrderValue('182.50', 500n);
+console.log(orderValue.toFixed(2));  // "91250.00" — exact
+
+// For tick checking (price must be a multiple of tick size):
+function isValidTick(priceStr: string, tickSizeStr: string): boolean {
+  const price    = new Decimal(priceStr);
+  const tickSize = new Decimal(tickSizeStr);
+  const remainder = price.mod(tickSize);
+  return remainder.isZero();
+}
+
+console.log(isValidTick('182.50', '0.01'));  // true
+console.log(isValidTick('182.555', '0.01')); // false
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use a Dictionary-Driven Parser:</strong> Don't hardcode tag mappings. Use a parser that reads standard FIX XML dictionaries to generate your TypeScript models.</li>
-  <li><strong>Validate Tag Presence:</strong> Use your TypeScript interfaces in conjunction with a runtime validator (like Zod) to ensure all required tags are present in every incoming message.</li>
-  <li><strong>Log Raw and Parsed Data:</strong> For compliance and debugging, always log both the original FIX string and the parsed TypeScript object.</li>
+  <li><strong>Store prices and quantities as strings, never as floats:</strong> Parse FIX price fields (Tag 44) and quantity fields (Tag 38) as strings and use Decimal.js for arithmetic. Storing them as JavaScript <code>number</code> introduces floating-point imprecision that causes regulatory compliance failures in trade reconciliation.</li>
+  <li><strong>Validate Tag 10 (checksum) before processing:</strong> The checksum is calculated as the sum of all bytes (including the SOH character) modulo 256, for all fields except the checksum itself. A message with a mismatched checksum has been corrupted in transit and must not be processed.</li>
+  <li><strong>Use sequence numbers for session state:</strong> FIX sessions maintain ordered message sequence numbers (Tag 34). Out-of-sequence messages trigger a resend request (MsgType=2). TypeScript implementations must persist the expected sequence number across reconnections using a database or file, not just in-memory state.</li>
+  <li><strong>Load the full FIX data dictionary as a JSON file:</strong> The official FIX data dictionaries (available at fixtrading.org) define all tags, their types, and valid values. Parse the dictionary at startup and use it to validate field presence, types, and enum values — don't hardcode tag mappings in your application code.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: What is Tag 35?</strong><br>
-A: Tag 35 is the <code>MsgType</code>, the most important tag that defines the structure of the rest of the message.</p>
-<p><strong>Q: How do I handle custom tags?</strong><br>
-A: Many brokers use custom tags (above 10000). Simply add these to your TypeScript interface and update your parser to recognize them.</p>
-<p><strong>Q: Is TypeScript fast enough for FIX?</strong><br>
-A: For many applications, yes. If you are doing high-frequency trading (HFT), you might need C++ or Rust, but for order management systems (OMS), TypeScript is excellent.</p>
+<p><strong>Q: What FIX versions are in use today?</strong><br>
+A: FIX 4.2 remains the most widely deployed version at broker-dealers (it's the "lingua franca" of equity trading). FIX 4.4 is standard for newer venues and multi-asset platforms. FIX 5.0 SP2 with FIXML is used for more complex derivatives workflows. Most market participants support 4.2 at minimum and 4.4 as preferred.</p>
+
+<p><strong>Q: Which npm package should I use for FIX parsing?</strong><br>
+A: <code>@fixio/fixparser</code> supports FIX 4.0–5.0 SP2 with full data dictionary, session management, and TypeScript types. For lighter-weight needs, <code>simple-fix-parser</code> handles basic tag parsing. For HFT systems where JavaScript is too slow, the FIX engine stays in C++ and TypeScript only handles post-trade analytics.</p>
+
+<p><strong>Q: How do I build a FIX session over TCP in Node.js?</strong><br>
+A: Use Node.js <code>net</code> module for the TCP socket. FIX sessions require sending Logon (35=A) after TCP connect, responding to Heartbeat (35=0) and TestRequest (35=1) messages, handling gap fill on resend requests, and sending Logout (35=5) on disconnect. The <code>@fixio/fixparser</code> library handles the full session state machine.</p>

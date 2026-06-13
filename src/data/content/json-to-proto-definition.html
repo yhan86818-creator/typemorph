@@ -1,71 +1,237 @@
-<h2>Generating Protocol Buffers (Proto) from JSON: Schema Definition</h2>
-<p>Protocol Buffers (Protobuf) is Google's language-neutral, platform-neutral, extensible mechanism for serializing structured data. It is significantly faster and smaller than JSON. Converting JSON samples into <code>.proto</code> definitions is the first step in migrating from REST to gRPC or implementing high-performance microservice communication. A well-defined <code>.proto</code> file acts as a strict contract between services.</p>
+<h2>JSON to Proto Definition: Buf CLI, Field Numbers, Well-Known Types, and Proto3 Optionality</h2>
+<p>Converting JSON to a Protobuf <code>.proto</code> file requires understanding decisions JSON doesn't force you to make: which integer type (<code>int32</code>, <code>int64</code>, <code>uint32</code>, <code>uint64</code>, <code>sint64</code>), whether to use <code>optional</code> vs implicit presence, which field numbers to reserve for deleted fields, and how to represent dates (<code>google.protobuf.Timestamp</code>), arbitrary JSON (<code>google.protobuf.Struct</code>), and nullable primitives (<code>google.protobuf.StringValue</code> wrappers). The modern toolchain uses Buf CLI instead of raw protoc, because Buf handles module management, breaking change detection, and linting out of the box.</p>
 
-<h3>Live Example</h3>
-<p>A JSON object representing a user session:</p>
-<pre><code>{
-  "session_id": "sess_001",
-  "user_id": 12345,
-  "is_admin": false,
-  "permissions": ["read", "write"]
-}</code></pre>
-<p>The generated <code>.proto</code> definition (Proto3):</p>
-<pre><code>syntax = "proto3";
+<h3>Live Example: Complete Proto3 Message from JSON</h3>
+<pre><code">// Input JSON (order event)
+{
+  "order_id": "ord_abc123",
+  "user_id": 10042,
+  "status": "PENDING",
+  "total_cents": 4998,
+  "discount_code": null,
+  "items": [
+    { "sku": "SKU-001", "qty": 2, "price_cents": 1999 }
+  ],
+  "shipping": {
+    "address": "123 Main St",
+    "city": "Springfield",
+    "country": "US"
+  },
+  "metadata": { "source": "mobile", "utm_campaign": "summer24" },
+  "created_at": "2024-03-15T10:00:00Z",
+  "updated_at": null
+}
 
-package session.v1;
+// Generated .proto file
+syntax = "proto3";
 
-message UserSession {
-  string session_id = 1;
-  int64 user_id = 2;
-  bool is_admin = 3;
-  repeated string permissions = 4;
-}</code></pre>
+package orders.v1;
 
-<h3>Implementation Guide</h3>
-<ol>
-  <li><strong>Define Syntax:</strong> Always use <code>syntax = "proto3";</code> for modern projects.</li>
-  <li><strong>Assign Tag Numbers:</strong> Every field in a Protobuf message must have a unique number (1, 2, 3...). These are used to identify fields in the binary format.</li>
-  <li><strong>Type Mapping:</strong> Map JSON numbers to <code>int32</code>, <code>int64</code>, <code>float</code>, or <code>double</code>. Map strings to <code>string</code> and booleans to <code>bool</code>.</li>
-  <li><strong>Repeated Fields:</strong> Use the <code>repeated</code> keyword for JSON arrays.</li>
-  <li><strong>Nested Messages:</strong> For JSON objects, define a new <code>message</code> and reference it in the parent.</li>
-</ol>
+option go_package = "github.com/example/orders/v1;ordersv1";
+option java_package = "com.example.orders.v1";
 
-<h3>Technical Deep Dive</h3>
-<p>The "Tag Numbers" (e.g., <code>= 1</code>) are the most critical part of the conversion. Numbers 1 through 15 take one byte to encode, including the identifying number and the field's type. Numbers 16 through 2047 take two bytes. Therefore, you should assign tags 1-15 to the most frequently used fields in your JSON to optimize performance. Protobuf also handles "Optionality" differently than JSON; in Proto3, every field is effectively optional by default, and default values (like 0 or empty string) are not sent over the wire, which is a key reason for its efficiency.</p>
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
 
-<h3>Comparison</h3>
-<table border="1">
-  <tr>
-    <th>Feature</th>
-    <th>JSON</th>
-    <th>Protobuf (.proto)</th>
-  </tr>
-  <tr>
-    <td>Payload Size</td>
-    <td>Large (Verbose)</td>
-    <td>Small (Binary)</td>
-  </tr>
-  <tr>
-    <td>Parsing Speed</td>
-    <td>Slow</td>
-    <td>Very Fast</td>
-  </tr>
-  <tr>
-    <td>Schema Versioning</td>
-    <td>Loose</td>
-    <td>Strict (Backward compatible)</td>
-  </tr>
-</table>
+message OrderItem {
+  string sku         = 1;
+  int32  qty         = 2;
+  int64  price_cents = 3;  // use int64 for money — avoids overflow at high volumes
+}
 
-<h3>Best Practices</h3>
+message ShippingAddress {
+  string address = 1;
+  string city    = 2;
+  string country = 3;
+}
+
+enum OrderStatus {
+  ORDER_STATUS_UNSPECIFIED = 0;  // proto3 enum must have 0 default value
+  ORDER_STATUS_PENDING     = 1;
+  ORDER_STATUS_CONFIRMED   = 2;
+  ORDER_STATUS_SHIPPED     = 3;
+  ORDER_STATUS_DELIVERED   = 4;
+  ORDER_STATUS_CANCELLED   = 5;
+}
+
+message Order {
+  string      order_id      = 1;
+  int64       user_id       = 2;
+  OrderStatus status        = 3;
+  int64       total_cents   = 4;
+
+  // Nullable string — use StringValue wrapper for explicit null distinction
+  // (without wrapper: empty string and "not set" are indistinguishable in proto3)
+  google.protobuf.StringValue discount_code = 5;
+
+  repeated OrderItem items    = 6;
+  ShippingAddress    shipping = 7;
+
+  // Dynamic key-value pairs — map<string, string> for string values
+  map&lt;string, string&gt; metadata = 8;
+
+  google.protobuf.Timestamp created_at = 9;
+
+  // Optional timestamp — using proto3 optional for explicit presence
+  optional google.protobuf.Timestamp updated_at = 10;
+
+  // Reserved field numbers for deleted fields — prevents accidental reuse
+  reserved 11, 12, 15 to 20;
+  reserved "legacy_customer_id", "deprecated_status";
+}
+</code></pre>
+
+<h3>Integer Type Selection</h3>
+<pre><code">// Proto3 integer types — choose based on expected range and encoding
+//
+// int32:    varint encoding, -2B to +2B. Good for: qty, page numbers, counts.
+// int64:    varint encoding, -9×10^18 to +9×10^18. Good for: IDs, money, timestamps.
+// uint32:   unsigned, 0 to 4B. Good for: positive counts, ports, millisecond durations.
+// uint64:   unsigned, 0 to 1.8×10^19. Good for: byte sizes, large unsigned IDs.
+// sint32:   ZigZag encoding — efficient for negative values. Good for: coordinates.
+// sint64:   ZigZag encoding, large negative. Good for: balance deltas.
+// fixed32:  4 bytes always. Good for: values always near 2^32.
+// fixed64:  8 bytes always. Good for: 64-bit hashes, values always near 2^64.
+
+// JSON number inference rules:
+// JSON integer, small range  → int32
+// JSON integer, large values → int64  (use for ALL IDs — JS number max is 2^53)
+// JSON float                → double  (use float only for ML model weights)
+// Financial amounts          → int64 (store as cents/smallest unit, not decimal)
+
+// WRONG — float loses precision for money:
+// amount: float = 4;   // 15.92 becomes 15.9200001...
+
+// CORRECT — store as integer cents:
+// price_cents: int64 = 4;   // 1592 = $15.92 exactly
+
+// Well-known types for semantic clarity:
+// import "google/protobuf/timestamp.proto"
+// google.protobuf.Timestamp created_at = 9;
+// → seconds + nanos since Unix epoch (UTC), maps to JS Date, Python datetime, etc.
+
+// import "google/protobuf/duration.proto"
+// google.protobuf.Duration timeout = 10;
+// → seconds + nanos duration
+
+// import "google/protobuf/struct.proto"
+// google.protobuf.Struct extra_data = 11;  // arbitrary JSON object
+// google.protobuf.Value  any_value  = 12;  // any JSON value (string, number, etc.)
+// google.protobuf.ListValue array    = 13;  // JSON array
+</code></pre>
+
+<h3>Buf CLI: Modern Protobuf Toolchain</h3>
+<pre><code">// Buf CLI replaces raw protoc for most use cases
+// npm install -g @bufbuild/buf  OR  brew install bufbuild/buf/buf
+
+// buf.yaml — workspace configuration
+version: v2
+modules:
+  - path: proto
+deps:
+  - buf.build/googleapis/googleapis     # for google.protobuf.Timestamp etc.
+  - buf.build/bufbuild/protovalidate    # validation annotations
+lint:
+  use:
+    - STANDARD   # enforces naming conventions, package structure, etc.
+breaking:
+  use:
+    - FILE       # detect breaking changes compared to previous version
+
+// buf.gen.yaml — code generation config
+version: v2
+plugins:
+  - remote:  buf.build/protocolbuffers/ts
+    out:     src/generated/ts
+    opt:
+      - target=ts
+  - remote:  buf.build/connectrpc/es
+    out:     src/generated/connect
+
+// Commands:
+// buf lint                      — check naming/style
+// buf build                     — compile and validate
+// buf generate                  — run code generators
+// buf breaking --against .git#branch=main  — detect breaking changes in CI
+// buf dep update                — update dependencies to latest versions
+
+// Generated TypeScript with @bufbuild/protoc-gen-es:
+// src/generated/ts/orders/v1/orders_pb.ts
+import { create, fromJson } from "@bufbuild/protobuf";
+import { OrderSchema } from "./orders/v1/orders_pb";
+
+const order = fromJson(OrderSchema, {
+  orderId:    "ord_abc123",
+  userId:     10042n,        // BigInt for int64
+  status:     "ORDER_STATUS_PENDING",
+  totalCents: 4998n,
+  items:      [{ sku: "SKU-001", qty: 2, priceCents: 1999n }],
+  createdAt:  "2024-03-15T10:00:00Z",
+});
+
+console.log(order.orderId);  // "ord_abc123" — fully typed
+</code></pre>
+
+<h3>Service and RPC Definition</h3>
+<pre><code">// Full service definition with streaming variants
+syntax = "proto3";
+
+package orders.v1;
+
+import "orders/v1/orders.proto";
+
+service OrderService {
+  // Unary RPC
+  rpc CreateOrder(CreateOrderRequest) returns (Order);
+  rpc GetOrder(GetOrderRequest)       returns (Order);
+
+  // Server streaming — returns multiple orders (pagination alternative)
+  rpc ListOrders(ListOrdersRequest)   returns (stream Order);
+
+  // Client streaming — bulk create
+  rpc BulkCreateOrders(stream CreateOrderRequest) returns (BulkCreateResponse);
+
+  // Bidirectional streaming — live order updates
+  rpc WatchOrders(WatchOrdersRequest) returns (stream OrderEvent);
+}
+
+message CreateOrderRequest {
+  string user_id = 1;
+  repeated OrderItemInput items = 2;
+  ShippingAddress shipping = 3;
+  optional string coupon_code = 4;
+}
+
+message GetOrderRequest {
+  string order_id = 1;
+}
+
+message ListOrdersRequest {
+  string user_id   = 1;
+  int32  page      = 2;
+  int32  page_size = 3;
+}
+
+message BulkCreateResponse {
+  int32          created_count = 1;
+  repeated string failed_ids   = 2;
+}
+</code></pre>
+
+<h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Field Naming:</strong> Protobuf convention is <code>snake_case</code> for field names and <code>PascalCase</code> for message names.</li>
-  <li><strong>Avoid Changing Tags:</strong> Once a <code>.proto</code> file is in production, never change the tag numbers, as this will break binary compatibility.</li>
-  <li><strong>Use Packages:</strong> Always define a <code>package</code> in your <code>.proto</code> file to avoid naming collisions across different services.</li>
+  <li><strong>Never reuse or change field numbers once a message is in production:</strong> Field numbers are the actual wire representation — they identify fields in binary serialized data, not the field names. Changing <code>user_id = 2</code> to something else, or reusing number 2 for a new field, silently corrupts all existing serialized data. Use <code>reserved 2;</code> to permanently prevent reuse after a field is deleted.</li>
+  <li><strong>Use Buf CLI's <code>buf breaking</code> in CI to catch breaking changes:</strong> Breaking changes in proto files are subtle — adding a required field, removing a field, changing a type, reordering enum values. Buf detects all of these automatically. Run <code>buf breaking --against .git#branch=main</code> on every PR that touches <code>.proto</code> files.</li>
+  <li><strong>Use <code>google.protobuf.Timestamp</code> for all timestamps, never <code>int64</code> milliseconds:</strong> Raw int64 milliseconds are ambiguous (seconds? milliseconds? microseconds?). <code>Timestamp</code> carries the unit and timezone (UTC) unambiguously, and all Protobuf runtimes provide direct conversion to <code>Date</code>, <code>datetime</code>, <code>time.Time</code>, etc.</li>
+  <li><strong>Prefix enum values with the enum name:</strong> <code>ORDER_STATUS_PENDING</code> not just <code>PENDING</code>. Proto3 enum values are scoped to the package, not the enum — two enums in the same package can't both have a <code>PENDING</code> value. The prefix convention prevents collisions and satisfies Buf's <code>ENUM_VALUE_PREFIX</code> lint rule.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Can Protobuf handle maps?</strong><br>
-A: Yes, if your JSON has an object with dynamic keys, use the <code>map<string, T></code> type in your <code>.proto</code> definition.</p>
-<p><strong>Q: How do I handle dates?</strong><br>
-A: Protobuf doesn't have a native date type. The industry standard is to <code>import "google/protobuf/timestamp.proto"</code> and use the <code>Timestamp</code> message.</p>
+<p><strong>Q: When should I use proto3 <code>optional</code> vs omitting it?</strong><br>
+A: Without <code>optional</code>, a proto3 field with its default value (0, empty string, false) is indistinguishable from an unset field — both serialize to nothing on the wire. With <code>optional</code>, the field has explicit presence tracking via a <code>has_*</code> getter. Use <code>optional</code> when you need to distinguish "not set" from "set to default value" — common for nullable database columns, patch/update operations, and configuration settings where 0 is a valid meaningful value.</p>
+
+<p><strong>Q: Protobuf vs Avro for Kafka — which is better?</strong><br>
+A: Both work well. Protobuf has better language support (20+ generated clients), easier schema evolution with field numbers, and is required for gRPC. Avro has simpler schema definition, native Confluent Schema Registry integration (Avro was designed for it), and slightly smaller payload sizes for nullable fields. If you're already using gRPC, use Protobuf for consistency. If you're Kafka-only, Avro is the Confluent-native choice.</p>
+
+<p><strong>Q: How do I handle polymorphic JSON (objects with different shapes based on a type field)?</strong><br>
+A: Use <code>oneof</code> for mutually exclusive field variants: <code>oneof payload { OrderCreatedPayload order_created = 1; PaymentProcessedPayload payment_processed = 2; }</code>. The <code>oneof</code> ensures only one variant is set at a time, and generated code provides type-safe accessors. Alternatively, use <code>google.protobuf.Any</code> for fully dynamic messages, but this loses type safety.</p>

@@ -1,75 +1,224 @@
-<h2>Jetpack Compose Previews from JSON: Data-Driven Android UI</h2>
-<p>In modern Android development with Jetpack Compose, the <code>@Preview</code> annotation allows for rapid iteration. However, complex UIs often require deep data structures. Converting JSON mock data into Jetpack Compose Preview parameters allows developers to simulate complex server responses, test localization, and verify UI behavior across different data states without running the full app on an emulator.</p>
+<h2>JSON to Jetpack Compose Previews: PreviewParameterProvider, kotlinx.serialization, and Multi-State Testing</h2>
+<p>Jetpack Compose's <code>@Preview</code> annotation makes UI iteration fast — but preview data hardcoded directly in Kotlin drifts from real API responses and misses edge cases. Loading JSON fixtures in previews mirrors what production data actually looks like: variable string lengths, optional fields, nested structures, and localized content. The professional pattern combines <code>PreviewParameterProvider</code> (which generates one preview per data case) with JSON deserialization in the <code>debug</code> source set, ensuring preview-only code never ships to production.</p>
 
-<h3>Live Example</h3>
-<p>A JSON file <code>DashboardData.json</code>:</p>
-<pre><code>{
-  "user_name": "AndroidDev",
-  "notifications": 5,
-  "recent_activities": [
-    {"type": "commit", "message": "Updated UI"},
-    {"type": "review", "message": "Approved PR"}
-  ]
-}</code></pre>
-<p>Jetpack Compose Preview implementation:</p>
-<pre><code>@Preview(showBackground = true)
-@Composable
-fun DashboardPreview() {
-    val context = LocalContext.current
-    val jsonString = context.assets.open("DashboardData.json")
-        .bufferedReader().use { it.readText() }
-    val dashboardData = Gson().fromJson(jsonString, Dashboard::class.java)
+<h3>Live Example: Multi-State Previews with JSON Fixtures</h3>
+<pre><code">// Data models (main source set)
+@Serializable
+data class User(
+    val id:           String,
+    val username:     String,
+    val bio:          String?       = null,
+    val followerCount: Int,
+    val isVerified:   Boolean       = false,
+    @SerialName("joined_at")
+    val joinedAt:     String,
+)
 
-    MyApplicationTheme {
-        DashboardScreen(data = dashboardData)
+@Serializable
+data class UserFeed(
+    val users:     List&lt;User&gt;,
+    val totalCount: Int,
+    val hasMore:   Boolean,
+)
+
+// src/debug/assets/fixtures/user-success.json
+{
+  "id": "usr_001",
+  "username": "alice_dev",
+  "bio": "Android engineer. Building with Compose and Kotlin. Open source contributor.",
+  "followerCount": 1250,
+  "isVerified": true,
+  "joined_at": "2022-03-15T08:00:00Z"
+}
+
+// src/debug/assets/fixtures/user-minimal.json
+{
+  "id": "usr_002",
+  "username": "bob",
+  "followerCount": 3,
+  "isVerified": false,
+  "joined_at": "2024-11-01T08:00:00Z"
+}
+
+// src/debug/kotlin/com/example/fixtures/JsonFixture.kt
+object JsonFixture {
+    val json = Json {
+        ignoreUnknownKeys  = true
+        isLenient          = true
+        coerceInputValues  = true
     }
-}</code></pre>
 
-<h3>Implementation Guide</h3>
-<ol>
-  <li><strong>Asset Management:</strong> Place your JSON files in the <code>src/main/assets</code> or <code>src/debug/assets</code> directory.</li>
-  <li><strong>Serialization Library:</strong> Use Kotlin Serialization, Gson, or Moshi to map the JSON to your Kotlin data classes.</li>
-  <li><strong>Helper Utilities:</strong> Create a standard utility function in your <code>debug</code> source set to read assets as strings.</li>
-  <li><strong>Preview Composable:</strong> Create a separate <code>@Preview</code> composable that loads the data and provides it to the main UI component.</li>
-  <li><strong>Multi-State Previews:</strong> Create multiple JSON files (e.g., <code>loading.json</code>, <code>error.json</code>) to visualize all UI states in the Compose Preview tab.</li>
-</ol>
+    inline fun &lt;reified T&gt; load(context: Context, filename: String): T {
+        val jsonString = context.assets.open("fixtures/$filename.json")
+            .bufferedReader().use { it.readText() }
+        return json.decodeFromString(jsonString)
+    }
+}
 
-<h3>Technical Deep Dive</h3>
-<p>Using JSON for Compose Previews is particularly powerful when combined with <code>PreviewParameterProvider</code>. While <code>PreviewParameterProvider</code> usually involves hardcoding objects in Kotlin, you can implement a provider that reads from a directory of JSON files. This allows you to generate a separate preview for every JSON file in a folder automatically. Technical considerations include ensuring that your serialization library is correctly configured for Kotlin's nullability and default values, which can sometimes differ from the JSON input.</p>
+// src/debug/kotlin/com/example/previews/UserPreviewProvider.kt
+class UserPreviewProvider : PreviewParameterProvider&lt;User&gt; {
+    override val values: Sequence&lt;User&gt; = sequenceOf(
+        Json.decodeFromString(loadFixtureString("user-success")),
+        Json.decodeFromString(loadFixtureString("user-minimal")),
+        // Programmatic edge cases (no JSON file needed for simple variants)
+        User(id = "u3", username = "x".repeat(50), followerCount = 999_999, isVerified = true, joinedAt = "2020-01-01T00:00:00Z"),
+    )
+}
 
-<h3>Comparison</h3>
-<table border="1">
-  <tr>
-    <th>Feature</th>
-    <th>Manual Object Instantiation</th>
-    <th>JSON Mocking</th>
-  </tr>
-  <tr>
-    <td>Nesting Support</td>
-    <td>Tedious to write</td>
-    <td>Natural and easy</td>
-  </tr>
-  <tr>
-    <td>Data Volume</td>
-    <td>Small scale only</td>
-    <td>Supports large payloads</td>
-  </tr>
-  <tr>
-    <td>Type Safety</td>
-    <td>Compile-time checked</td>
-    <td>Runtime checked (Serialization)</td>
-  </tr>
-</table>
+// View composable
+@Composable
+fun UserCard(user: User, modifier: Modifier = Modifier) {
+    Card(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(user.username, style = MaterialTheme.typography.titleMedium)
+                if (user.isVerified) {
+                    Icon(Icons.Default.Verified, contentDescription = "Verified",
+                         tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+            user.bio?.let { bio ->
+                Text(bio, style = MaterialTheme.typography.bodyMedium,
+                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text("${user.followerCount} followers", style = MaterialTheme.typography.labelSmall)
+        }
+    }
+}
 
-<h3>Best Practices</h3>
+// Preview using PreviewParameterProvider — generates one preview per data variant
+@Preview(showBackground = true)
+@Preview(showBackground = true, uiMode = UI_MODE_NIGHT_YES)
+@Composable
+fun UserCardPreview(@PreviewParameter(UserPreviewProvider::class) user: User) {
+    MyAppTheme {
+        UserCard(user = user, modifier = Modifier.padding(8.dp))
+    }
+}
+</code></pre>
+
+<h3>@Preview Annotation Parameters</h3>
+<pre><code">// Common @Preview parameters for comprehensive visual testing
+
+@Preview(
+    name           = "Large text — Accessibility",
+    fontScale      = 2.0f,
+    showBackground = true,
+)
+@Preview(
+    name      = "Tablet landscape",
+    device    = Devices.TABLET,
+    widthDp   = 1024,
+    heightDp  = 768,
+    showSystemUi = true,
+)
+@Preview(
+    name    = "Arabic (RTL)",
+    locale  = "ar",
+    showBackground = true,
+)
+@Preview(
+    name    = "Dark mode",
+    uiMode  = Configuration.UI_MODE_NIGHT_YES or Configuration.UI_MODE_TYPE_NORMAL,
+)
+@Composable
+fun UserCardMultiPreview(@PreviewParameter(UserPreviewProvider::class) user: User) {
+    MyAppTheme {
+        UserCard(user)
+    }
+}
+</code></pre>
+
+<h3>Loading JSON in Preview Composables</h3>
+<pre><code">// For previews that need Context (reading assets), use LocalContext
+@Preview(showBackground = true)
+@Composable
+fun FeedPreview() {
+    val context = LocalContext.current
+    val feed: UserFeed = remember {
+        JsonFixture.load(context, "user-feed")
+    }
+    MyAppTheme {
+        UserFeedScreen(
+            users     = feed.users,
+            hasMore   = feed.hasMore,
+            onLoadMore = {}
+        )
+    }
+}
+
+// Multi-state: loading / empty / populated / error
+@Preview(showBackground = true, name = "Loading state")
+@Composable
+fun FeedLoadingPreview() {
+    MyAppTheme {
+        UserFeedScreen(users = emptyList(), isLoading = true, onLoadMore = {})
+    }
+}
+
+@Preview(showBackground = true, name = "Empty state")
+@Composable
+fun FeedEmptyPreview() {
+    MyAppTheme {
+        UserFeedScreen(users = emptyList(), isLoading = false, onLoadMore = {})
+    }
+}
+
+@Preview(showBackground = true, name = "Error state")
+@Composable
+fun FeedErrorPreview() {
+    MyAppTheme {
+        ErrorScreen(message = "Network error — tap to retry")
+    }
+}
+</code></pre>
+
+<h3>kotlinx.serialization vs Gson vs Moshi</h3>
+<pre><code">// For Compose projects, prefer kotlinx.serialization:
+// - First-class Kotlin support (data classes, sealed classes, nullability)
+// - No reflection at runtime (generates serializers at compile time)
+// - Works with Kotlin Multiplatform
+
+// Gradle setup:
+// plugins { id("org.jetbrains.kotlin.plugin.serialization") version "1.9.0" }
+// dependencies { implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0") }
+
+// kotlinx.serialization — annotation-driven
+@Serializable
+data class Product(
+    val id:    String,
+    val title: String,
+    @SerialName("unit_price")
+    val price: Double,
+    val inStock: Boolean = true,    // default handles missing JSON field
+)
+
+// Decode
+val product = Json.decodeFromString&lt;Product&gt;(jsonString)
+
+// Gson — reflection-based (works without annotation, but less safe)
+val product = Gson().fromJson(jsonString, Product::class.java)
+
+// Moshi — annotation-based, null-safe, Kotlin adapters
+val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
+val adapter = moshi.adapter(Product::class.java)
+val product = adapter.fromJson(jsonString)
+</code></pre>
+
+<h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Debug Source Sets:</strong> Place all JSON-related preview logic in the <code>debug</code> source set to ensure no "mocking" code leaks into the production APK.</li>
-  <li><strong>Stable Models:</strong> Ensure your data classes are marked as <code>@Stable</code> or <code>@Immutable</code> to optimize Compose recomposition during previews.</li>
-  <li><strong>Version Control:</strong> Treat your JSON mock files as part of your test suite and keep them updated as the API evolves.</li>
+  <li><strong>Keep all preview and fixture code in the <code>debug</code> source set:</strong> Create <code>src/debug/kotlin/</code> for preview helpers and <code>src/debug/assets/fixtures/</code> for JSON files. These are included only in debug builds — the release APK/AAB never contains mock data.</li>
+  <li><strong>Use <code>PreviewParameterProvider</code> for data-driven previews:</strong> Rather than writing five separate preview composables for five states, one <code>PreviewParameterProvider</code> generates all five. Adding a new case is just adding another item to the <code>values</code> sequence — no new composable needed.</li>
+  <li><strong>Mark data classes with <code>@Immutable</code> or <code>@Stable</code>:</strong> Compose's recomposition engine skips recomposition for stable/immutable values. If your data class is annotated, the compiler skips the smart recomposition check overhead. For preview purposes, this also makes preview rendering faster.</li>
+  <li><strong>Test RTL layouts explicitly:</strong> Add <code>@Preview(locale = "ar")</code> or <code>@Preview(locale = "he")</code> for right-to-left languages. The same JSON fixture drives the RTL preview — you see immediately if your Row/Column directions are hardcoded or correctly use <code>LayoutDirection</code>.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Can I use this for instrumented tests?</strong><br>
-A: Absolutely. The same JSON files used for previews can be injected into your Compose UI tests using MockWebServer or manual injection.</p>
-<p><strong>Q: How do I handle images?</strong><br>
-A: Your JSON should contain image URLs or resource names. In previews, you can use a placeholder image loader (like Coil's <code>fake</code> loader) to render images without network access.</p>
+<p><strong>Q: Can I use the same JSON fixtures in instrumented UI tests?</strong><br>
+A: Yes — place fixtures in <code>src/androidTest/assets/</code> for instrumented tests and <code>src/debug/assets/</code> for previews. For a single source of truth, define a shared <code>fixtures</code> directory and add symlinks or use a shared Gradle module. The deserialization logic is identical between previews and tests.</p>
+
+<p><strong>Q: Why does my preview not update when I change the JSON file?</strong><br>
+A: Xcode/Android Studio caches preview renders. In Android Studio, use "Refresh Previews" (the circular arrow in the Preview panel) or invalidate caches (<code>File → Invalidate Caches</code>). If the JSON is loaded with <code>remember { ... }</code> and the composable doesn't recompose, the cache is stale — during previews, <code>remember</code> is evaluated once per render.</p>
+
+<p><strong>Q: How do I preview a composable that uses a ViewModel?</strong><br>
+A: Create an interface or abstract class for your ViewModel state (UiState data class), and a preview-only implementation that returns the JSON-loaded data. Your composable should accept the state object directly rather than observing the ViewModel — this makes it both testable and previewable without a real ViewModel lifecycle.</p>

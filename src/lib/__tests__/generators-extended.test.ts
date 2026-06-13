@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { avroGen, mongooseGen, openApiGen, valibotGen, yupGen, typeormGen, drizzleGen, bigQueryGen, dynamoDBGen, sqlToMermaidERGen, apiRouteGen, reactHookGen } from '../generators-extended';
+import { avroGen, mongooseGen, openApiGen, valibotGen, yupGen, typeormGen, drizzleGen, bigQueryGen, dynamoDBGen, sqlToMermaidERGen, apiRouteGen, reactHookGen, envValidatorGen, haskellGen } from '../generators-extended';
 import { mockGen } from '../generators';
 import { inferSchema } from '../engine';
 import { Schema } from '../types';
@@ -344,6 +344,93 @@ describe('generators-extended', () => {
       expect(result).toContain('useUserList');
       expect(result).toContain('useUserCreate');
       expect(result).toContain('useUserDelete');
+    });
+  });
+
+  describe('envValidatorGen', () => {
+    const envSchema = {
+      type: 'object' as const,
+      fields: {
+        DATABASE_URL: { type: 'string' as const, format: 'url' as const },
+        PORT:         { type: 'number' as const, format: 'int' as const },
+        DEBUG:        { type: 'boolean' as const },
+        API_KEY:      { type: 'string' as const },
+        ADMIN_EMAIL:  { type: 'string' as const, format: 'email' as const },
+        OPTIONAL_VAR: { type: 'string' as const, optional: true },
+      },
+    };
+
+    it('generates z.coerce.number().int() for integer fields', () => {
+      const result = envValidatorGen.generate(envSchema);
+      expect(result).toContain('PORT: z.coerce.number().int()');
+    });
+
+    it('generates z.enum transform for boolean fields', () => {
+      const result = envValidatorGen.generate(envSchema);
+      expect(result).toContain('DEBUG: z.enum(["true", "false"]).transform');
+    });
+
+    it('generates z.string().url() for url fields', () => {
+      const result = envValidatorGen.generate(envSchema);
+      expect(result).toContain('DATABASE_URL: z.string().url()');
+    });
+
+    it('generates z.string().email() for email fields', () => {
+      const result = envValidatorGen.generate(envSchema);
+      expect(result).toContain('ADMIN_EMAIL: z.string().email()');
+    });
+
+    it('generates .optional() for optional fields', () => {
+      const result = envValidatorGen.generate(envSchema);
+      expect(result).toContain('OPTIONAL_VAR: z.string().optional()');
+    });
+
+    it('includes envSchema.parse(process.env) at the end', () => {
+      const result = envValidatorGen.generate(envSchema);
+      expect(result).toContain('envSchema.parse(process.env)');
+    });
+
+    it('returns empty string for empty schema', () => {
+      expect(envValidatorGen.generate({ type: 'object', fields: {} })).toBe('');
+    });
+  });
+
+  describe('haskellGen', () => {
+    const schema: Schema = {
+      type: 'object',
+      fields: {
+        userId:    { type: 'string' },
+        itemCount: { type: 'number', format: 'int' },
+        price:     { type: 'number' },
+        isActive:  { type: 'boolean' },
+        email:     { type: 'string', optional: true },
+      },
+    };
+
+    it('uses camelCase for record field names (not snake_case)', () => {
+      const result = haskellGen.generate(schema, 'Order');
+      expect(result).toContain('userId ::');
+      expect(result).toContain('itemCount ::');
+      expect(result).not.toMatch(/user_id\s*::/);
+      expect(result).not.toMatch(/item_count\s*::/);
+    });
+
+    it('uses Int for integer fields, Double for float', () => {
+      const result = haskellGen.generate(schema, 'Order');
+      expect(result).toContain('itemCount :: Int');
+      expect(result).toContain('price :: Double');
+    });
+
+    it('wraps optional fields in Maybe', () => {
+      const result = haskellGen.generate(schema, 'Order');
+      expect(result).toContain('email :: Maybe String');
+    });
+
+    it('includes DeriveGeneric and Aeson instances', () => {
+      const result = haskellGen.generate(schema, 'Order');
+      expect(result).toContain('DeriveGeneric');
+      expect(result).toContain('instance FromJSON');
+      expect(result).toContain('instance ToJSON');
     });
   });
 });

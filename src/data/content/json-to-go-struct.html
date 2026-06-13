@@ -1,51 +1,200 @@
-<h2>JSON to Go Struct: High-Performance Data Modeling in Golang</h2>
-<p>Go's simplicity and performance make it a top choice for building scalable backend services. At the heart of Go's data handling is the <code>struct</code>. Converting JSON samples to Go structs allows you to leverage Go's strict typing and efficient memory management. By using "struct tags," you can precisely control how JSON is unmarshaled into your Go code, ensuring that your application handles external data with the speed and safety that the language is famous for.</p>
+<h2>JSON to Go Struct: Struct Tags, Null Handling, and Performance Serialization</h2>
+<p>Go's approach to JSON is deliberately low-level: the standard library's <code>encoding/json</code> package handles serialization via struct field tags, with no magic or hidden runtime. Converting JSON to Go structs is not just about naming fields — it's about understanding how struct tags control marshaling behavior, how Go's zero-value semantics interact with missing JSON fields, and when to reach for pointer types, custom unmarshalers, or code-generated serializers for hot paths.</p>
 
-<h3>Live Example: Mapping JSON to Tagged Go Structs</h3>
+<h3>Live Example: User Profile with Nested Structs and Tags</h3>
 <pre><code>// Input JSON
 {
   "user_id": 101,
   "user_name": "gopher_dev",
+  "email": "gopher@example.com",
   "is_admin": false,
-  "stats": {
-    "login_count": 42
-  }
+  "profile": {
+    "bio": "Building things in Go",
+    "avatar_url": "https://cdn.example.com/avatars/101.jpg"
+  },
+  "tags": ["backend", "go"],
+  "last_login": "2024-01-15T08:30:00Z"
 }
 
 // Generated Go Struct
+package models
+
+import "time"
+
+type Profile struct {
+    Bio       string `json:"bio"`
+    AvatarURL string `json:"avatar_url"`
+}
+
 type User struct {
-	ID       int    `json:"user_id"`
-	Username string `json:"user_name"`
-	IsAdmin  bool   `json:"is_admin"`
-	Stats    struct {
-		LoginCount int `json:"login_count"`
-	} `json:"stats"`
+    ID        int      `json:"user_id"`
+    Username  string   `json:"user_name"`
+    Email     string   `json:"email"`
+    IsAdmin   bool     `json:"is_admin"`
+    Profile   Profile  `json:"profile"`
+    Tags      []string `json:"tags"`
+    LastLogin time.Time `json:"last_login"`
+}
+</code></pre>
+<p>Go's <code>encoding/json</code> parses ISO 8601 strings into <code>time.Time</code> automatically. The struct tag <code>`json:"user_id"`</code> maps the JSON key <code>user_id</code> to the Go field <code>ID</code> — the naming convention mismatch between snake_case JSON and PascalCase Go is handled entirely in the tag.</p>
+
+<h3>Handling Nullable and Optional Fields</h3>
+<p>Go has no <code>null</code> type — it uses zero values instead. Understanding when to use pointers vs. zero values vs. custom types is critical for correct JSON mapping:</p>
+<pre><code>type Order struct {
+    ID     int    `json:"id"`
+    Status string `json:"status"`
+
+    // Nullable — pointer indicates intentional null vs. absent
+    // *string = nil if JSON "discount_code" is null
+    // *string = &amp;"SAVE10" if present
+    DiscountCode *string `json:"discount_code"`
+
+    // Optional — omit from JSON output if empty
+    InternalNote string `json:"internal_note,omitempty"`
+
+    // Nullable + omit if null in output
+    DeletedAt *time.Time `json:"deleted_at,omitempty"`
+
+    // Ignore this field entirely in JSON
+    rawPayload string `json:"-"`
+}
+
+// Checking a nullable field
+if order.DiscountCode != nil {
+    fmt.Println("Discount:", *order.DiscountCode)
+}
+</code></pre>
+<p>The <code>,omitempty</code> tag omits a field from JSON output when it's the zero value (<code>""</code>, <code>0</code>, <code>false</code>, <code>nil</code>). Pointers are essential when you need to distinguish between "field was present but null" and "field was absent" — both are the zero value without a pointer.</p>
+
+<h3>Custom JSON Unmarshaling</h3>
+<p>When the default mapping isn't sufficient — different date formats, custom type conversion, validation during parsing — implement <code>json.Unmarshaler</code>:</p>
+<pre><code>type UnixTimestamp time.Time
+
+func (t *UnixTimestamp) UnmarshalJSON(data []byte) error {
+    var seconds int64
+    if err := json.Unmarshal(data, &amp;seconds); err != nil {
+        return err
+    }
+    *t = UnixTimestamp(time.Unix(seconds, 0).UTC())
+    return nil
+}
+
+func (t UnixTimestamp) MarshalJSON() ([]byte, error) {
+    return json.Marshal(time.Time(t).Unix())
+}
+
+type Event struct {
+    ID        int           `json:"id"`
+    Name      string        `json:"name"`
+    OccuredAt UnixTimestamp `json:"occurred_at"` // unix seconds in JSON
+}
+
+// Also useful: json.RawMessage for deferred parsing
+type Webhook struct {
+    Type    string          `json:"type"`
+    Payload json.RawMessage `json:"payload"` // parse later based on Type
+}
+
+func (w *Webhook) ParsePayload() (interface{}, error) {
+    switch w.Type {
+    case "payment":
+        var p PaymentPayload
+        return &amp;p, json.Unmarshal(w.Payload, &amp;p)
+    case "refund":
+        var r RefundPayload
+        return &amp;r, json.Unmarshal(w.Payload, &amp;r)
+    }
+    return nil, fmt.Errorf("unknown webhook type: %s", w.Type)
 }
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Analyze Field Names:</strong> Go uses capitalization for exported fields. The converter maps JSON keys to PascalCase Go fields.<br>
-2. <strong>Add Struct Tags:</strong> Use the <code>`json:"key_name"`</code> tag to link the JSON key to the Go field. This allows your Go code to use idiomatic naming while remaining compatible with external APIs.<br>
-3. <strong>Handle Optional Fields:</strong> Add <code>,omitempty</code> to your tags if a field might be missing from the JSON, preventing it from being serialized if it's empty.<br>
-4. <strong>Unmarshal Data:</strong> Use the <code>encoding/json</code> package's <code>json.Unmarshal()</code> function to populate your struct with data from a byte slice.</p>
+<h3>Strict Decoding: Catching Unknown Fields</h3>
+<p>By default, <code>json.Unmarshal</code> silently ignores unknown fields — a source of subtle bugs when the API adds a new field you haven't handled. Use <code>json.Decoder</code> with <code>DisallowUnknownFields()</code> for strict validation:</p>
+<pre><code>func DecodeUser(r io.Reader) (*User, error) {
+    var u User
+    decoder := json.NewDecoder(r)
+    decoder.DisallowUnknownFields()  // error on unknown JSON keys
+    if err := decoder.Decode(&amp;u); err != nil {
+        return nil, fmt.Errorf("decoding user: %w", err)
+    }
+    return &amp;u, nil
+}
 
-<h3>Technical Deep Dive: Reflection and Memory Efficiency</h3>
-<p>Go's <code>encoding/json</code> package uses **Reflection** to map JSON keys to struct fields at runtime. While reflection has a slight performance overhead, it provides a highly flexible way to handle dynamic data. For ultra-high-performance scenarios, you might consider using <strong>easyjson</strong> or <strong>ffjson</strong>, which generate marshaling code at compile-time to bypass reflection entirely. Furthermore, Go's structs are value types, meaning they are stored contiguously in memory, which is significantly more efficient than the pointer-heavy objects found in languages like Java or Python.</p>
+// For HTTP handlers in net/http
+func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
+    var req CreateUserRequest
+    decoder := json.NewDecoder(r.Body)
+    decoder.DisallowUnknownFields()
+    if err := decoder.Decode(&amp;req); err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+    // req is populated and validated structurally
+}
+</code></pre>
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>Go Structs vs. Map[string]interface{}:</strong> Using a map is more flexible for unpredictable JSON, but it sacrifices type safety and performance. Structs are always preferred for well-defined APIs. <strong>Protocol Buffers (Protobuf)</strong> is a powerful alternative for internal service communication, offering even better performance and smaller payload sizes than JSON.</p>
+<h3>High-Performance Serialization with easyjson</h3>
+<p>For hot paths where reflection overhead matters — high-throughput APIs, real-time data processing — code-generate the marshalers:</p>
+<pre><code># Install easyjson
+go install github.com/mailru/easyjson/...@latest
+
+# Generate marshal/unmarshal code for all structs in a file
+easyjson -all models/user.go
+
+# This creates models/user_easyjson.go with hand-optimized
+# MarshalJSON / UnmarshalJSON methods — no reflection at runtime
+</code></pre>
+<p><code>easyjson</code> generates code that is 2-5× faster than <code>encoding/json</code> by eliminating reflection entirely. The generated file is checked into your repo and regenerated after struct changes. Use it for structs that are serialized on every request in production.</p>
+
+<h3>Integration with net/http and Gin</h3>
+<pre><code>// Standard library handler
+func GetUser(w http.ResponseWriter, r *http.Request) {
+    user := User{ ID: 1, Username: "gopher_dev" }
+    w.Header().Set("Content-Type", "application/json")
+    if err := json.NewEncoder(w).Encode(user); err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+    }
+}
+
+// Gin — automatic binding and JSON response
+type CreateUserReq struct {
+    Username string `json:"username" binding:"required,min=3,max=50"`
+    Email    string `json:"email"    binding:"required,email"`
+}
+
+func (h *Handler) CreateUser(c *gin.Context) {
+    var req CreateUserReq
+    if err := c.ShouldBindJSON(&amp;req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+    // req.Username, req.Email — validated
+    user, err := h.db.CreateUser(c, req.Username, req.Email)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
+        return
+    }
+    c.JSON(http.StatusCreated, user)
+}
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Avoid <code>interface{}</code>:</strong> Try to define specific types for all fields to maintain type safety and avoid runtime panics.</li>
-  <li><strong>Use Pointers for Nullability:</strong> If a JSON field can be <code>null</code>, use a pointer (e.g., <code>*string</code>) in your struct to represent the possibility of a nil value.</li>
-  <li><strong>Validate After Unmarshaling:</strong> Go structs only provide structural safety. Use a library like <code>go-playground/validator</code> to enforce business logic (e.g., string length or email format).</li>
+  <li><strong>Use pointers for nullable fields, not zero values:</strong> <code>*string</code> distinguishes between absent and empty string. Zero-value ambiguity is a common Go JSON bug — a missing <code>count</code> field and a <code>count: 0</code> field both produce <code>0</code> without pointers.</li>
+  <li><strong>Validate after unmarshaling:</strong> <code>encoding/json</code> only validates structural types. Use <code>go-playground/validator</code> with struct tags (<code>validate:"required,email"</code>) for business rule validation, or validate explicitly after unmarshaling.</li>
+  <li><strong>Handle unknown fields explicitly:</strong> Use <code>DisallowUnknownFields()</code> for user-facing APIs to catch mismatches early. Be lenient for third-party webhooks where the payload might grow over time.</li>
+  <li><strong>Pre-allocate slices when unmarshaling large arrays:</strong> <code>encoding/json</code> grows slices dynamically. For large JSON arrays, pre-allocate with <code>make([]Item, 0, expectedLen)</code> and append via streaming decoder for memory efficiency.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: How do I handle custom JSON keys?</strong><br>
-A: Simply change the value in the <code>json</code> struct tag to match the key in your JSON data.</p>
-<p><strong>Q: Can I use nested structs?</strong><br>
-A: Yes, Go supports both inline nested structs and referencing separately defined struct types.</p>
-<p><strong>Q: What happens if a JSON field is missing?</strong><br>
-A: Go will initialize the corresponding struct field to its zero value (e.g., 0 for int, "" for string) unless it's a pointer.</p>
+<p><strong>Q: How do I handle JSON keys that are Go reserved words?</strong><br>
+A: Use a struct tag to rename: <code>Type string `json:"type"`</code>. The JSON key <code>type</code> maps to the Go field named however you choose — <code>EventType</code>, <code>Kind</code>, or even <code>Type</code> (Go allows exported fields named after types).</p>
+
+<p><strong>Q: How do I unmarshal JSON arrays at the top level?</strong><br>
+A: Unmarshal into a slice: <code>var users []User; json.Unmarshal(data, &amp;users)</code>. For streaming large arrays (too large to fit in memory), use <code>json.Decoder</code> and call <code>decoder.Token()</code> to advance past the opening bracket, then loop calling <code>decoder.Decode(&amp;item)</code>.</p>
+
+<p><strong>Q: What is the difference between json.Marshal and json.Encoder?</strong><br>
+A: <code>json.Marshal</code> returns a byte slice — use it when you need the JSON as bytes in memory. <code>json.NewEncoder(w).Encode(v)</code> writes directly to an <code>io.Writer</code> — more efficient for HTTP responses or file writes because it avoids the intermediate byte slice allocation.</p>
+
+<p><strong>Q: How do I handle dynamic JSON with unknown structure?</strong><br>
+A: Use <code>map[string]interface{}</code> for fully dynamic JSON, or <code>json.RawMessage</code> to defer parsing of a specific field. For partially-known structures, define the known fields as struct fields and add a <code>map[string]json.RawMessage</code> field with the tag <code>`json:"-"`</code> and implement a custom <code>UnmarshalJSON</code> that captures the remainder.</p>

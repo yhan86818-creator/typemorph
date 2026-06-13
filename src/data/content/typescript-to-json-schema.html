@@ -1,55 +1,276 @@
-<h2>TypeScript to JSON Schema: Standardizing Data Contracts Across Language Boundaries</h2>
-<p>While TypeScript provides excellent safety within the JavaScript ecosystem, many projects involve multiple languages or need to validate data in environments where TypeScript doesn't exist. Converting TypeScript types to JSON Schema bridges this gap. By generating a language-agnostic JSON Schema, you can enforce the same data integrity rules in a Python backend, a Go microservice, or even within a database's check constraints. This is the cornerstone of a "Schema-First" architecture that transcends the boundaries of a single codebase.</p>
+<h2>TypeScript to JSON Schema: ts-json-schema-generator, JSDoc Constraints, $ref for Recursive Types, and Draft 2020-12 vs Draft 7</h2>
+<p>TypeScript's type system is a compile-time tool — at runtime, there's no mechanism to validate that an external API response or user submission actually matches your interface. JSON Schema fills this gap: it's a language-agnostic runtime validation specification that works in Node.js (ajv), browsers, Python (jsonschema), Go (gojsonschema), and CI assertion tools. Generating JSON Schema from TypeScript with <code>ts-json-schema-generator</code> keeps the TypeScript type as the single source of truth while producing a schema that can validate data in any environment. The critical techniques are: using <strong>JSDoc tags for constraints</strong> (<code>@minimum</code>, <code>@pattern</code>, <code>@format</code>), using <strong><code>$ref</code> for recursive and shared types</strong>, and understanding the <strong>Draft 7 vs Draft 2020-12 differences</strong> that affect which validators you can use.</p>
 
-<h3>Live Example: Exporting Type Safety to JSON Schema</h3>
-<pre><code>// Input TypeScript Type
-export type Product = {
-  id: string;
-  name: string;
-  price: number;
-  category?: 'electronics' | 'apparel' | 'home';
-};
+<h3>CLI Setup: ts-json-schema-generator</h3>
+<pre><code">// Installation
+// npm install --save-dev ts-json-schema-generator
 
-// Generated JSON Schema
+// Basic usage: generate schema for a specific type
+// npx ts-json-schema-generator --path src/types/product.ts --type Product --out schema/product.json
+
+// tsconfig.json requirements for the generator:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "id": { "type": "string" },
-    "name": { "type": "string" },
-    "price": { "type": "number" },
-    "category": {
-      "type": "string",
-      "enum": ["electronics", "apparel", "home"]
-    }
-  },
-  "required": ["id", "name", "price"]
+  "compilerOptions": {
+    "strictNullChecks": true,   // required — controls nullable field generation
+    "esModuleInterop":  true,
+    "lib": ["ES2020"]
+  }
 }
+
+// package.json script: regenerate all schemas on type changes
+{
+  "scripts": {
+    "schema:generate": "ts-json-schema-generator --path 'src/types/*.ts' --type '*' --out schema/all.json",
+    "schema:check": "ajv validate -s schema/product.json -d test-fixtures/product.json"
+  }
+}
+
+// CI pipeline: fail if generated schema drifts from types
+// Add to GitHub Actions:
+//   - run: npm run schema:generate
+//   - run: git diff --exit-code schema/   # fails if types changed without schema regen
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Expose Core Types:</strong> Ensure the TypeScript types you want to convert are exported from your source files.<br>
-2. <strong>Integrate a Generator:</strong> Use a tool like <code>typescript-json-schema</code> to crawl your source code and produce the <code>.json</code> schema files.<br>
-3. <strong>Define Validation Levels:</strong> Decide which JSON Schema version (Draft 4, 7, or 2019-09) best suits your target environment.<br>
-4. <strong>Automate the Workflow:</strong> Integrate the conversion into your CI/CD pipeline so that any change to a TypeScript type automatically updates the shared JSON Schema artifacts.</p>
+<h3>JSDoc Tags for Validation Constraints</h3>
+<pre><code">// ts-json-schema-generator reads JSDoc tags and emits them as JSON Schema keywords.
+// Without JSDoc tags, you only get type/required/properties — no format or range validation.
 
-<h3>Technical Deep Dive: Interop and Semantic Constraints</h3>
-<p>JSON Schema is significantly more expressive in some areas than TypeScript, and less so in others. For example, JSON Schema can specify <code>minimum</code> and <code>maximum</code> values for numbers, or <code>pattern</code> (regex) for strings—things TypeScript can only do via comments or third-party validation libraries. When converting, you can often use JSDoc tags (e.g., <code>/** @minLength 5 */</code>) in your TypeScript code. The generator reads these tags and translates them into the corresponding JSON Schema properties, effectively allowing you to write "extended" types that carry validation metadata across the language barrier.</p>
+import { z } from 'zod'; // shown for comparison only
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>TypeScript to JSON Schema vs. Manual JSON Schema:</strong> Writing JSON Schema manually is incredibly verbose and error-prone. Converting from TypeScript is the modern standard. <strong>Protocol Buffers (Protobuf)</strong> is a strong alternative for cross-language type safety, offering binary serialization for better performance, but JSON Schema remains the preferred choice for REST APIs and configuration files due to its human-readable nature and broad tooling support.</p>
+export interface Product {
+  /**
+   * Unique product identifier
+   * @minLength 5
+   * @maxLength 20
+   * @pattern ^[A-Z]{2}-\d{4,6}$
+   */
+  sku: string;
+
+  /**
+   * Human-readable name
+   * @minLength 2
+   * @maxLength 100
+   */
+  name: string;
+
+  /**
+   * Price in USD, stored as cents to avoid floating-point issues
+   * @minimum 0
+   * @maximum 1000000
+   * @multipleOf 1
+   */
+  priceCents: number;
+
+  /**
+   * Discount percentage (0-100)
+   * @minimum 0
+   * @maximum 100
+   * @exclusiveMinimum 0
+   */
+  discountPercent?: number;
+
+  /**
+   * ISO 8601 date when the product was added
+   * @format date-time
+   */
+  createdAt: string;
+
+  /**
+   * Product page URL
+   * @format uri
+   */
+  productUrl?: string;
+
+  /**
+   * Product image (base64 encoded)
+   * @contentEncoding base64
+   * @contentMediaType image/jpeg
+   */
+  imageThumbnail?: string;
+
+  category:  ProductCategory;
+  tags:      string[];
+}
+
+export enum ProductCategory {
+  Electronics = 'electronics',
+  Apparel     = 'apparel',
+  Home        = 'home',
+  Sports      = 'sports',
+}
+
+// Generated schema (excerpt):
+// {
+//   "$schema": "http://json-schema.org/draft-07/schema#",
+//   "type": "object",
+//   "properties": {
+//     "sku": {
+//       "type": "string",
+//       "minLength": 5,
+//       "maxLength": 20,
+//       "pattern": "^[A-Z]{2}-\\d{4,6}$"
+//     },
+//     "priceCents": {
+//       "type": "integer",
+//       "minimum": 0,
+//       "maximum": 1000000,
+//       "multipleOf": 1
+//     },
+//     "createdAt": {
+//       "type": "string",
+//       "format": "date-time"
+//     },
+//     "category": {
+//       "type": "string",
+//       "enum": ["electronics", "apparel", "home", "sports"]
+//     }
+//   },
+//   "required": ["sku", "name", "priceCents", "createdAt", "category", "tags"]
+// }
+</code></pre>
+
+<h3>$ref for Recursive Types and Shared Definitions</h3>
+<pre><code">// Recursive types generate $defs (Draft 2020-12) or definitions (Draft 7)
+// and use $ref to avoid infinite schema expansion
+
+export interface TreeNode {
+  id:       string;
+  label:    string;
+  value?:   number;
+  children: TreeNode[];  // recursive — would cause infinite JSON if inlined
+}
+
+// Generated schema handles this with $ref:
+// {
+//   "$schema": "http://json-schema.org/draft-07/schema#",
+//   "definitions": {
+//     "TreeNode": {
+//       "type": "object",
+//       "properties": {
+//         "id":       { "type": "string" },
+//         "label":    { "type": "string" },
+//         "value":    { "type": "number" },
+//         "children": { "type": "array", "items": { "$ref": "#/definitions/TreeNode" } }
+//       },
+//       "required": ["id", "label", "children"]
+//     }
+//   },
+//   "$ref": "#/definitions/TreeNode"
+// }
+
+// Shared types across multiple schemas: use $defs in a root schema
+export interface ApiResponse&lt;T&gt; {
+  data:   T;
+  meta:   PaginationMeta;
+  errors: ApiError[];
+}
+
+export interface PaginationMeta {
+  /** @minimum 1 */
+  page:    number;
+  /** @minimum 1 @maximum 100 */
+  perPage: number;
+  total:   number;
+}
+
+export interface ApiError {
+  code:    string;
+  message: string;
+  /**
+   * JSON Pointer to the field that caused the error
+   * @pattern ^(/[^/~]*(~[01][^/~]*)*)*$
+   */
+  path?:   string;
+}
+
+// Generate schemas for all types in a file:
+// npx ts-json-schema-generator --path src/types/api.ts --type 'ApiResponse' --out schema/api-response.json
+// Result uses $ref internally for PaginationMeta and ApiError
+</code></pre>
+
+<h3>Runtime Validation with ajv</h3>
+<pre><code">import Ajv, { ValidateFunction } from 'ajv';
+import addFormats from 'ajv-formats';   // adds 'date-time', 'uri', 'email', etc.
+import productSchema from '../schema/product.json';
+import type { Product } from './types/product';
+
+// ajv setup — Draft 7 (most compatible)
+const ajv = new Ajv({ allErrors: true, strict: false });
+addFormats(ajv);  // required for @format date-time, uri, email
+
+const validateProduct: ValidateFunction&lt;Product&gt; = ajv.compile(productSchema) as ValidateFunction&lt;Product&gt;;
+
+function assertProduct(data: unknown): Product {
+  if (!validateProduct(data)) {
+    const errors = validateProduct.errors?.map(e =>
+      `${e.instancePath || '(root)'}: ${e.message}`
+    );
+    throw new Error(`Invalid product data:\n${errors?.join('\n')}`);
+  }
+  return data;
+}
+
+// Usage:
+const raw = await fetchProductFromApi(id);
+const product = assertProduct(raw);
+// product is now typed as Product with validated constraints
+
+// For Draft 2020-12 (newer, needed for if/then/else, unevaluatedProperties):
+import Ajv2020 from 'ajv/dist/2020';
+const ajv2020 = new Ajv2020({ allErrors: true });
+// Note: ts-json-schema-generator defaults to Draft 7 output
+// Use --schema-id flag to switch: --schema-id http://json-schema.org/draft/2020-12/schema
+</code></pre>
+
+<h3>Draft 7 vs Draft 2020-12: Key Differences</h3>
+<pre><code">// Draft 7 (default output): compatible with ajv v8, most online validators,
+// OpenAPI 3.0 (which embeds Draft 4/7 schemas)
+
+// Draft 2020-12: required for:
+// - unevaluatedProperties (stricter object validation than additionalProperties)
+// - $dynamicRef/$dynamicAnchor (improved recursive references)
+// - prefixItems (for typed tuple validation — replaced Draft 7's items array form)
+// - if/then/else (available in Draft 7, but 2020-12 has improved anchoring)
+
+// Draft 7 tuple (deprecated in 2020-12):
+{
+  "type": "array",
+  "items": [{ "type": "string" }, { "type": "number" }],  // tuple form
+  "additionalItems": false
+}
+
+// Draft 2020-12 tuple:
+{
+  "type": "array",
+  "prefixItems": [{ "type": "string" }, { "type": "number" }],
+  "items": false  // no additional items
+}
+
+// Recommendation:
+// - Use Draft 7 for: REST API validation, OpenAPI integration, widest tool support
+// - Use Draft 2020-12 for: new projects with ajv 2020, strict object validation
+//   with unevaluatedProperties, schema registries requiring latest spec
+
+// Schema registry hosting (share schemas between services):
+// POST your schema JSON to a registry URL so other services can reference it
+// OpenAPI schema: $ref: 'https://schemas.yourcompany.com/product.json#'
+// ajv remote ref: ajv.addSchema(schema, 'https://schemas.yourcompany.com/product.json')
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use <code>additionalProperties: false</code>:</strong> By default, JSON Schema allows extra fields. Explicitly disabling them ensures your data matches your TypeScript types exactly.</li>
-  <li><strong>Version Your Schemas:</strong> Use a tool like <code>ajv</code> to validate data against specific versions of your schema to prevent breaking changes in production.</li>
-  <li><strong>Centralize Schemas:</strong> Host your generated JSON Schemas at a public URL (or an internal registry) so all your services can reference the same "source of truth."</li>
+  <li><strong>Add <code>additionalProperties: false</code> to catch unknown fields:</strong> By default, JSON Schema (and ts-json-schema-generator output) allows extra properties — your TypeScript interface might not have them, but the schema won't reject them. Pass <code>--additional-properties false</code> to the generator, or add it manually to the root schema. This catches API responses that add new fields before your types are updated, preventing silent data corruption.</li>
+  <li><strong>Commit generated schemas to version control and check for drift in CI:</strong> Run <code>ts-json-schema-generator</code> in CI and <code>git diff --exit-code schema/</code> to fail the build if TypeScript types changed without regenerating schemas. This prevents the schemas used by Python/Go services from drifting from the TypeScript source of truth. The generation is fast enough to run on every PR.</li>
+  <li><strong>Use <code>ajv-formats</code> for <code>@format</code> tags to work at runtime:</strong> ajv v8 does not validate <code>format</code> keywords by default — it requires the <code>ajv-formats</code> package. Without it, <code>@format date-time</code> annotations are silently ignored and invalid dates like <code>"not-a-date"</code> pass validation. Always install and register <code>ajv-formats</code> alongside ajv.</li>
+  <li><strong>Generate schemas at build time, not at startup:</strong> Running ts-json-schema-generator at application startup is slow (it invokes the TypeScript compiler) and requires devDependencies in production. Run it as a build step, commit the output JSON files, and import them as static JSON in your production code. The schemas are stable artifacts, not dynamic outputs.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Can I convert complex unions?</strong><br>
-A: Yes, JSON Schema's <code>anyOf</code> and <code>oneOf</code> keywords are used to represent TypeScript's union types accurately.</p>
-<p><strong>Q: Does it support external references ($ref)?</strong><br>
-A: High-quality generators can handle nested types by creating internal definitions and using <code>$ref</code> to point to them, keeping the schema organized.</p>
-<p><strong>Q: Is there a way to validate JSON Schema at runtime?</strong><br>
-A: Yes, libraries like <code>AJV</code> (Another JSON Validator) are the industry standard for high-performance JSON Schema validation in Node.js and the browser.</p>
+<p><strong>Q: What is the difference between ts-json-schema-generator and typescript-json-schema?</strong><br>
+A: Both use the TypeScript compiler API. <code>ts-json-schema-generator</code> (the newer package) is actively maintained, supports TypeScript 5.x, handles generics more correctly, and has better JSDoc annotation support. The older <code>typescript-json-schema</code> package has known issues with complex generics, mapped types, and conditional types. Prefer <code>ts-json-schema-generator</code> for new projects.</p>
+
+<p><strong>Q: How do I generate JSON Schema for generic types like <code>ApiResponse&lt;Product&gt;</code>?</strong><br>
+A: ts-json-schema-generator partially supports generics. For instantiated generics, create a named alias: <code>export type ProductApiResponse = ApiResponse&lt;Product&gt;</code> and generate for <code>ProductApiResponse</code>. The generator will inline the generic parameter. Fully dynamic generics (where T is unknown at generation time) produce incomplete schemas with <code>{}</code> for the type parameter — create concrete aliases for each variant you need.</p>
+
+<p><strong>Q: Can I use Zod instead of generating JSON Schema from TypeScript?</strong><br>
+A: Yes — Zod and ts-json-schema-generator solve the same problem from different directions. Zod defines validation logic first and can export JSON Schema with <code>zod-to-json-schema</code>. ts-json-schema-generator starts from TypeScript interface definitions. Use Zod when validation logic is complex (cross-field validation, transforms, async refinements) and you want to keep types and validation colocated. Use ts-json-schema-generator when you have existing TypeScript interfaces you don't want to rewrite in Zod, or when you need JSON Schema output to share with non-TypeScript teams.</p>

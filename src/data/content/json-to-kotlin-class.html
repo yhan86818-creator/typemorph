@@ -1,58 +1,255 @@
-<h2>JSON to Dart Class: Accelerating Flutter Development with Type Safety</h2>
-<p>Dart is the language behind Flutter, and its handling of JSON is critical for building responsive, data-driven mobile and web applications. Converting JSON samples to Dart classes allows you to move beyond manual <code>Map&lt;String, dynamic&gt;</code> manipulation into a world of structured objects. This approach enables full IDE autocompletion, compile-time error checking, and seamless integration with popular serialization libraries like <code>json_serializable</code> or <code>freezed</code>, making your Flutter development faster and more reliable.</p>
+<h2>JSON to Kotlin Data Class: Serialization with kotlinx.serialization and Moshi</h2>
+<p>Kotlin's data classes are the natural fit for JSON mapping — they come with generated <code>equals()</code>, <code>hashCode()</code>, <code>copy()</code>, and <code>toString()</code> built into the language. Converting your JSON to Kotlin data classes unlocks two dominant serialization libraries: <strong>kotlinx.serialization</strong> (Kotlin-first, multiplatform-ready, compile-time code generation) and <strong>Moshi</strong> (Square's reflection-based library with Kotlin codegen adapter). For Android development, Retrofit + Moshi or Retrofit + kotlinx.serialization is the standard stack. For backend Kotlin with Ktor or Spring Boot, kotlinx.serialization integrates natively.</p>
 
-<h3>Live Example: Mapping JSON to Dart Classes with json_serializable</h3>
+<h3>Live Example: Order Model with kotlinx.serialization</h3>
 <pre><code>// Input JSON
 {
-  "id": "USR_001",
-  "name": "Alex Rivera",
-  "is_online": true,
-  "points": 1250
+  "order_id": "ORD-772",
+  "status": "shipped",
+  "customer_name": "Sarah Jenkins",
+  "is_gift": false,
+  "items": [
+    { "sku": "WGT-001", "quantity": 2, "unit_price": 49.99 }
+  ],
+  "created_at": "2024-01-15T08:30:00Z"
 }
 
-// Generated Dart Class
-import 'package:json_annotation/json_annotation.dart';
+// Generated Kotlin Data Classes
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 
-part 'user.g.dart';
+@Serializable
+data class OrderItem(
+    val sku: String,
+    val quantity: Int,
+    @SerialName("unit_price")
+    val unitPrice: Double
+)
 
-@JsonSerializable()
-class User {
-  final String id;
-  final String name;
-  @JsonKey(name: 'is_online')
-  final bool isOnline;
-  final int points;
+@Serializable
+data class Order(
+    @SerialName("order_id")
+    val orderId: String,
+    val status: OrderStatus,
+    @SerialName("customer_name")
+    val customerName: String,
+    @SerialName("is_gift")
+    val isGift: Boolean,
+    val items: List&lt;OrderItem&gt;,
+    @SerialName("created_at")
+    val createdAt: String  // ISO 8601 string — use kotlinx-datetime for parsing
+)
 
-  User({required this.id, required this.name, required this.isOnline, required this.points});
+@Serializable
+enum class OrderStatus {
+    @SerialName("pending")    PENDING,
+    @SerialName("shipped")    SHIPPED,
+    @SerialName("delivered")  DELIVERED,
+    @SerialName("cancelled")  CANCELLED
+}
 
-  factory User.fromJson(Map&lt;String, dynamic&gt; json) =&gt; _$UserFromJson(json);
-  Map&lt;String, dynamic&gt; toJson() =&gt; _$UserToJson(this);
+// Deserialize
+import kotlinx.serialization.json.Json
+
+val json = Json { ignoreUnknownKeys = true }
+val order: Order = json.decodeFromString(jsonString)
+
+// Serialize
+val jsonOut: String = json.encodeToString(order)
+</code></pre>
+<p><code>@SerialName("snake_case_key")</code> maps the JSON key to a Kotlin property name following Kotlin's camelCase convention. Using <code>ignoreUnknownKeys = true</code> in the <code>Json</code> config makes the model tolerant of extra fields in the API response — essential when consuming APIs that evolve over time.</p>
+
+<h3>Nullable and Optional Fields</h3>
+<pre><code>import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
+
+@Serializable
+data class UserProfile(
+    val id: String,
+    val username: String,
+    val email: String,
+
+    // Nullable — field is present but may be null
+    val bio: String? = null,
+
+    // Optional with default — field may be absent from JSON
+    val role: String = "user",
+
+    // Nullable optional — absent OR null → null
+    val deletedAt: String? = null,
+
+    // Nested nullable object
+    val address: Address? = null,
+)
+
+@Serializable
+data class Address(
+    val street: String,
+    val city: String,
+    val country: String,
+    val postalCode: String? = null,
+)
+</code></pre>
+<p>In Kotlin + kotlinx.serialization, a field with a default value is optional in JSON — if the key is absent, the default is used. A nullable type (<code>T?</code>) without a default requires the key to be present (even if null). To handle both absent and null, use <code>val field: T? = null</code>.</p>
+
+<h3>Custom Serializers</h3>
+<pre><code>import kotlinx.serialization.KSerializer
+import kotlinx.serialization.descriptors.*
+import kotlinx.serialization.encoding.*
+import kotlinx.datetime.Instant
+
+// Custom serializer for kotlinx-datetime Instant
+object InstantSerializer : KSerializer&lt;Instant&gt; {
+    override val descriptor = PrimitiveSerialDescriptor("Instant", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: Instant) {
+        encoder.encodeString(value.toString())
+    }
+
+    override fun deserialize(decoder: Decoder): Instant {
+        return Instant.parse(decoder.decodeString())
+    }
+}
+
+@Serializable
+data class Event(
+    val id: String,
+    val name: String,
+    @Serializable(with = InstantSerializer::class)
+    val occurredAt: Instant,
+)
+
+// Custom serializer for sealed classes (discriminated unions)
+@Serializable
+sealed class ApiEvent {
+    @Serializable
+    @SerialName("click")
+    data class Click(val x: Int, val y: Int) : ApiEvent()
+
+    @Serializable
+    @SerialName("keypress")
+    data class Keypress(val key: String, val ctrl: Boolean) : ApiEvent()
+}
+
+// Deserializes {"type": "click", "x": 100, "y": 200} automatically
+// kotlinx.serialization reads the "type" field as discriminator
+</code></pre>
+
+<h3>Moshi with Kotlin Codegen</h3>
+<pre><code>// build.gradle.kts (app)
+dependencies {
+    implementation("com.squareup.moshi:moshi:1.15.0")
+    implementation("com.squareup.moshi:moshi-kotlin:1.15.0")
+    ksp("com.squareup.moshi:moshi-kotlin-codegen:1.15.0")
+}
+
+// Model with Moshi
+import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
+
+@JsonClass(generateAdapter = true)  // triggers codegen
+data class Product(
+    val id: String,
+    val name: String,
+    @Json(name = "unit_price")
+    val unitPrice: Double,
+    val inStock: Boolean,
+    val tags: List&lt;String&gt; = emptyList(),
+)
+
+// Moshi instance with Kotlin adapter
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+
+val moshi = Moshi.Builder()
+    .addLast(KotlinJsonAdapterFactory())
+    .build()
+
+val adapter = moshi.adapter(Product::class.java)
+val product: Product? = adapter.fromJson(jsonString)
+val json: String = adapter.toJson(product)
+</code></pre>
+
+<h3>Retrofit Integration for Android</h3>
+<pre><code>// API interface with kotlinx.serialization converter
+import retrofit2.Retrofit
+import retrofit2.http.*
+import kotlinx.serialization.Serializable
+import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import okhttp3.MediaType.Companion.toMediaType
+
+@Serializable
+data class UserResponse(
+    val id: String,
+    val username: String,
+    val email: String,
+)
+
+interface UserApi {
+    @GET("users/{id}")
+    suspend fun getUser(@Path("id") id: String): UserResponse
+
+    @POST("users")
+    suspend fun createUser(@Body request: CreateUserRequest): UserResponse
+
+    @GET("users")
+    suspend fun listUsers(
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20,
+    ): List&lt;UserResponse&gt;
+}
+
+// Retrofit setup
+val json = Json { ignoreUnknownKeys = true; isLenient = true }
+val retrofit = Retrofit.Builder()
+    .baseUrl("https://api.example.com/")
+    .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+    .build()
+
+val api = retrofit.create(UserApi::class.java)
+</code></pre>
+
+<h3>Ktor Backend Integration</h3>
+<pre><code>// Ktor server with kotlinx.serialization
+import io.ktor.server.application.*
+import io.ktor.server.routing.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.plugins.contentnegotiation.*
+
+fun Application.configureRouting() {
+    install(ContentNegotiation) {
+        json(Json { prettyPrint = false; ignoreUnknownKeys = true })
+    }
+
+    routing {
+        post("/users") {
+            val request = call.receive&lt;CreateUserRequest&gt;()  // auto-deserialized
+            val user = userService.create(request)
+            call.respond(user)  // auto-serialized
+        }
+    }
 }
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Define Class Properties:</strong> Map JSON keys to Dart class fields. Use <code>camelCase</code> for property names.<br>
-2. <strong>Add Annotations:</strong> Use <code>@JsonSerializable()</code> and <code>@JsonKey(name: 'original_key')</code> to configure the mapping.<br>
-3. <strong>Run Build Runner:</strong> Use <code>flutter pub run build_runner build</code> to generate the boilerplate <code>.g.dart</code> files.<br>
-4. <strong>Implement Factory Constructors:</strong> Use the generated <code>_$UserFromJson</code> function in your <code>fromJson</code> factory to handle the conversion.</p>
-
-<h3>Technical Deep Dive: Code Generation vs. Reflection</h3>
-<p>Dart's approach to JSON is unique because it intentionally avoids runtime reflection (to keep app size small and performance high). Instead, it relies on **Code Generation**. When you convert JSON to a Dart class, you are creating a template that the <code>build_runner</code> uses to write optimized serialization code. This code is compiled directly into your app, offering the same performance as hand-written logic. Furthermore, using libraries like <strong>Freezed</strong> adds support for <strong>Value Equality</strong> and <strong>Data Classes</strong>, bringing advanced functional programming patterns to your Dart data layer.</p>
-
-<h3>Comparison & Alternatives</h3>
-<p><strong>Dart Classes vs. raw Maps:</strong> Maps are the default in Dart but are highly unsafe and lead to runtime errors. Explicit classes are the standard for Flutter production apps. <strong>BuiltValue</strong> is another alternative that offers immutability and deep nesting support, though it is more verbose than the modern <code>json_serializable</code> + <code>freezed</code> stack.</p>
-
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use Final Fields:</strong> Make your data classes immutable by using <code>final</code> for all fields, ensuring data consistency throughout your app's state.</li>
-  <li><strong>Handle Null Safety:</strong> Leverage Dart's sound null safety by correctly using <code>?</code> for optional JSON fields to prevent null-pointer exceptions.</li>
-  <li><strong>Centralize Mapping Logic:</strong> Keep your model classes in a dedicated <code>models/</code> directory to separate data concerns from your UI logic.</li>
+  <li><strong>Use <code>ignoreUnknownKeys = true</code> globally:</strong> Set this on your <code>Json</code> instance. API responses evolve — unknown fields should not crash your app.</li>
+  <li><strong>Prefer data classes over regular classes for JSON models:</strong> Data classes get structural equality for free. Two <code>Order</code> instances with the same field values are equal with <code>==</code>, which is critical for correct state management in Android ViewModels.</li>
+  <li><strong>Use sealed classes for discriminated unions:</strong> <code>sealed class ApiEvent</code> with <code>@SerialName</code> on each subclass provides exhaustive <code>when</code> expression handling — the compiler forces you to handle every event type.</li>
+  <li><strong>Use <code>copy()</code> for immutable updates:</strong> Never mutate JSON model fields (use <code>val</code>). Create updated versions with <code>order.copy(status = OrderStatus.DELIVERED)</code> — this is the idiomatic Kotlin pattern for state updates.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Why do I need build_runner?</strong><br>
-A: Since Dart doesn't use reflection for performance reasons, <code>build_runner</code> is needed to generate the code that actually maps JSON to your objects.</p>
-<p><strong>Q: How do I handle nested JSON arrays?</strong><br>
-A: Define a separate class for the objects in the array and use it as a <code>List&lt;MyObject&gt;</code> in your main class.</p>
-<p><strong>Q: Can I use this for non-Flutter projects?</strong><br>
-A: Yes, these patterns work in any Dart project, including CLI tools and server-side Dart applications.</p>
+<p><strong>Q: kotlinx.serialization vs. Moshi — which should I use?</strong><br>
+A: kotlinx.serialization is the recommended choice for new projects. It supports Kotlin Multiplatform (shared code across Android/iOS/JVM), uses compile-time code generation (no reflection at runtime), and integrates natively with Ktor. Moshi is excellent for Android-only projects or teams already invested in Square's OkHttp/Retrofit ecosystem — its codegen adapter is well-tested and battle-hardened.</p>
+
+<p><strong>Q: How do I parse ISO 8601 dates in Kotlin?</strong><br>
+A: Use <code>kotlinx-datetime</code> (<code>implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.5.0")</code>) for multiplatform datetime types. Register a custom serializer or use <code>@Contextual</code> with a serializer registered on the <code>Json</code> instance. For JVM-only, <code>java.time.Instant</code> with a custom serializer works too.</p>
+
+<p><strong>Q: What is the Kotlin equivalent of TypeScript's <code>Record&lt;string, unknown&gt;</code>?</strong><br>
+A: Use <code>Map&lt;String, Any?&gt;</code> with <code>JsonObject</code> from kotlinx.serialization for structured access, or <code>kotlinx.serialization.json.JsonElement</code> for a typed JSON tree that can be traversed without a concrete data class.</p>
+
+<p><strong>Q: How do I handle a JSON field named the same as a Kotlin keyword?</strong><br>
+A: Use <code>@SerialName("type")</code> with a renamed property: <code>@SerialName("type") val kind: String</code>. The JSON key is <code>"type"</code>; the Kotlin property is <code>kind</code>.</p>

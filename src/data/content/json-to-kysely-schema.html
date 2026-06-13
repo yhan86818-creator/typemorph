@@ -1,60 +1,230 @@
-<h2>JSON to Kysely Schema: Type-Safe SQL Queries without the ORM Overhead</h2>
-<p>Kysely is the ultimate tool for developers who love SQL but hate the lack of type safety in traditional query builders. By converting JSON samples to Kysely interface definitions, you create a robust "Database Interface" that provides full autocompletion for your SQL queries. Unlike heavy ORMs, Kysely is a pure type-level wrapper that disappears at runtime, giving you the raw speed of native SQL with the developer experience of a high-end IDE.</p>
+<h2>JSON to Kysely: Type-Safe SQL Query Building Without the ORM Layer</h2>
+<p>Kysely occupies a specific niche: you want to write real SQL — including window functions, recursive CTEs, lateral joins, and database-specific syntax — but you also want TypeScript to catch typos in column names, incorrect column types in WHERE clauses, and broken JOIN references at compile time. It achieves this without adding a runtime query engine or generating code. The TypeScript types you define from your JSON shape become the contract your entire query layer is checked against.</p>
 
-<h3>Live Example: Mapping JSON Shapes to Kysely Tables</h3>
+<h3>Live Example: Database Interface from JSON Shape</h3>
 <pre><code>// Input JSON
 {
   "user_id": "uuid-123",
   "email": "dev@kysely.dev",
   "is_active": true,
+  "subscription_tier": "pro",
   "profile": {
     "bio": "SQL Enthusiast",
-    "avatar_url": "https://..."
-  }
+    "avatar_url": "https://cdn.example.com/avatars/dev.jpg"
+  },
+  "created_at": "2024-01-15T08:30:00Z"
 }
 
-// Generated Kysely Schema (TypeScript)
-import { Generated, JSONColumnType } from 'kysely';
+// Generated Kysely Database Interface
+import { Generated, Insertable, Selectable, Updateable, JSONColumnType } from 'kysely';
 
+// Table row shape — what SELECT queries return
+interface UserTable {
+  user_id:           string;
+  email:             string;
+  is_active:         boolean;
+  subscription_tier: 'free' | 'pro' | 'enterprise';
+  profile:           JSONColumnType&lt;
+                       { bio: string; avatar_url: string },  // SELECT type
+                       { bio?: string; avatar_url?: string }, // INSERT type
+                       { bio?: string; avatar_url?: string }  // UPDATE type
+                     &gt;;
+  created_at: Generated&lt;Date&gt;;  // auto-set by DB, optional on insert
+}
+
+// Derived types for each operation
+export type User       = Selectable&lt;UserTable&gt;;
+export type NewUser    = Insertable&lt;UserTable&gt;;
+export type UserUpdate = Updateable&lt;UserTable&gt;;
+
+// Root database interface — all tables
 export interface Database {
   users: UserTable;
 }
+</code></pre>
+<p><code>JSONColumnType&lt;Select, Insert, Update&gt;</code> lets you express that a JSON column's SELECT type (non-null, fully typed) differs from its INSERT type (optional fields) — because the database might set defaults that aren't in the INSERT payload. This is more precise than any ORM that uses a single type for all three operations.</p>
 
-export interface UserTable {
-  user_id: string; // Manually map to UUID
-  email: string;
-  is_active: boolean;
-  profile: JSONColumnType&lt;{
-    bio: string;
-    avatar_url: string;
-  }&gt;;
-  created_at: Generated&lt;Date&gt;;
-}
+<h3>Type-Safe Queries: SELECT, INSERT, UPDATE, DELETE</h3>
+<pre><code>import { Kysely, PostgresDialect } from 'kysely';
+import { Pool } from 'pg';
+import { Database } from './schema';
+
+const db = new Kysely&lt;Database&gt;({
+  dialect: new PostgresDialect({ pool: new Pool({ connectionString: process.env.DATABASE_URL }) }),
+});
+
+// SELECT — TypeScript knows every column name and type
+const activeUsers = await db
+  .selectFrom('users')
+  .select(['user_id', 'email', 'subscription_tier'])
+  .where('is_active', '=', true)
+  .orderBy('created_at', 'desc')
+  .limit(20)
+  .execute();
+// activeUsers: Array&lt;{ user_id: string; email: string; subscription_tier: 'free'|'pro'|'enterprise' }&gt;
+
+// INSERT — NewUser type enforced at compile time
+const newUser: NewUser = {
+  user_id: crypto.randomUUID(),
+  email:   'newuser@example.com',
+  is_active: true,
+  subscription_tier: 'free',
+};
+await db.insertInto('users').values(newUser).execute();
+
+// UPDATE — UpdateUser type (all fields optional)
+await db
+  .updateTable('users')
+  .set({ subscription_tier: 'pro', is_active: true })
+  .where('user_id', '=', userId)
+  .execute();
+
+// DELETE with returning
+const deleted = await db
+  .deleteFrom('users')
+  .where('user_id', '=', userId)
+  .returning(['user_id', 'email'])
+  .executeTakeFirst();
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Define the Root Database Interface:</strong> Create an interface where keys are table names and values are the table definitions.<br>
-2. <strong>Map JSON Fields:</strong> Use the converter to translate JSON primitives to TypeScript types within the table interfaces.<br>
-3. <strong>Use <code>Generated&lt;T&gt;</code>:</strong> Mark columns like <code>id</code> or <code>created_at</code> as <code>Generated</code> to tell Kysely that these values are handled by the database during inserts.<br>
-4. <strong>Handle JSON Columns:</strong> Use <code>JSONColumnType&lt;T&gt;</code> for columns that store JSON, providing a TypeScript interface for the internal structure.</p>
+<h3>Joins with Full Type Safety</h3>
+<p>Kysely's type system tracks the tables in scope and validates column references across joined tables:</p>
+<pre><code>interface PostTable {
+  id:        Generated&lt;number&gt;;
+  author_id: string;
+  title:     string;
+  body:      string;
+  status:    'draft' | 'published';
+  created_at: Generated&lt;Date&gt;;
+}
 
-<h3>Technical Deep Dive: The Type-Level Magic of Kysely</h3>
-<p>Kysely's power lies in its advanced use of TypeScript's mapped types and conditional types. When you convert JSON to a Kysely schema, you aren't just defining an interface; you are providing the "knowledge" Kysely needs to validate your <code>.select()</code>, <code>.where()</code>, and <code>.join()</code> clauses. One unique aspect is how Kysely handles <strong>Insert/Update/Select types</strong> separately. A column might be required during <code>SELECT</code> but optional during <code>INSERT</code> (if it has a default). A high-quality converter will help you differentiate these states using Kysely's built-in helper types.</p>
+// Database interface with both tables
+interface Database {
+  users: UserTable;
+  posts: PostTable;
+}
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>Kysely vs. Knex:</strong> Knex is a popular query builder but lacks the deep type safety that Kysely offers. Kysely was designed from the ground up to solve the "type-safety gap" in Knex. <strong>Prisma</strong> is an alternative that provides even more abstraction, but Kysely is preferred by those who want to write "real SQL" and avoid the complexity of a hidden runtime engine.</p>
+// JOIN — column names from both tables are type-checked
+const results = await db
+  .selectFrom('posts')
+  .innerJoin('users', 'users.user_id', 'posts.author_id')
+  .select([
+    'posts.id',
+    'posts.title',
+    'posts.status',
+    'users.email as author_email',   // aliased — typed as string
+    'users.subscription_tier',
+  ])
+  .where('posts.status', '=', 'published')
+  .where('users.is_active', '=', true)
+  .orderBy('posts.created_at', 'desc')
+  .execute();
+
+// results[0].title — string
+// results[0].author_email — string
+// results[0].subscription_tier — 'free' | 'pro' | 'enterprise'
+// Typo in any column name: TypeScript compile error
+</code></pre>
+
+<h3>CTEs and Window Functions</h3>
+<p>This is where Kysely outshines every ORM — complex SQL is fully type-safe:</p>
+<pre><code>// Common Table Expression with typed CTE reference
+const result = await db
+  .with('active_users', (db) =>
+    db.selectFrom('users')
+      .select(['user_id', 'email', 'created_at'])
+      .where('is_active', '=', true)
+  )
+  .selectFrom('active_users')
+  .innerJoin('posts', 'posts.author_id', 'active_users.user_id')
+  .select([
+    'active_users.email',
+    db.fn.count('posts.id').as('post_count'),
+  ])
+  .groupBy('active_users.user_id')
+  .having(db.fn.count('posts.id'), '&gt;=', 5)
+  .execute();
+// result[0].email — string
+// result[0].post_count — string (PostgreSQL COUNT returns bigint as string)
+
+// Window function
+const ranked = await db
+  .selectFrom('posts')
+  .select([
+    'id',
+    'author_id',
+    'created_at',
+    db.fn.agg&lt;number&gt;('ROW_NUMBER').over(b =>
+      b.partitionBy('author_id').orderBy('created_at', 'desc')
+    ).as('rank_in_author'),
+  ])
+  .execute();
+</code></pre>
+
+<h3>kysely-codegen: Generate Types from Your Live Database</h3>
+<p>For existing databases, generate the TypeScript interfaces automatically:</p>
+<pre><code># Install
+npm install --save-dev kysely-codegen
+
+# Generate interfaces from PostgreSQL
+npx kysely-codegen --dialect postgres --url $DATABASE_URL --out-file src/db/types.ts
+
+# Output: src/db/types.ts
+# export interface DB {
+#   users: UsersTable;
+#   posts: PostsTable;
+#   ...
+# }
+# export interface UsersTable {
+#   user_id: string;
+#   email: string;
+#   is_active: Generated&lt;boolean&gt;;
+#   ...
+# }
+</code></pre>
+<p>This eliminates schema drift entirely — regenerate after every migration and your TypeScript types always match the actual database schema. Works with PostgreSQL, MySQL, SQLite, and MSSQL.</p>
+
+<h3>Transactions</h3>
+<pre><code>// Transaction — all queries share a connection and roll back together on error
+await db.transaction().execute(async (trx) => {
+  const user = await trx
+    .insertInto('users')
+    .values(newUser)
+    .returning('user_id')
+    .executeTakeFirstOrThrow();
+
+  await trx
+    .insertInto('posts')
+    .values({ author_id: user.user_id, title: 'First Post', body: '...', status: 'draft' })
+    .execute();
+  // If this throws, the user insert is automatically rolled back
+});
+</code></pre>
+
+<h3>Kysely vs. Drizzle vs. Knex</h3>
+<ul>
+  <li><strong>Kysely vs. Knex:</strong> Knex is the pioneer of JavaScript query builders but has minimal TypeScript support — column names are strings with no compile-time validation. Kysely is the type-safe successor designed from the ground up for TypeScript.</li>
+  <li><strong>Kysely vs. Drizzle:</strong> Drizzle defines schemas in TypeScript and derives types + migrations from them. Kysely only needs a TypeScript interface — it doesn't own your schema. Use Kysely when your schema lives elsewhere (another tool, a DBA's migrations), or when you want fine-grained SQL control. Use Drizzle when you want TypeScript to be the source of truth for your schema definition and migrations.</li>
+  <li><strong>Kysely vs. Prisma:</strong> Prisma generates a client and abstracts SQL behind a high-level API. Kysely writes SQL that you can read directly — there's no hidden query plan. For complex reporting queries or databases Prisma doesn't support well, Kysely is more flexible.</li>
+</ul>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Stay Close to the Metal:</strong> Use Kysely when you need to write complex queries (like window functions or recursive CTEs) that are difficult or impossible in traditional ORMs.</li>
-  <li><strong>Automate Schema Sync:</strong> Use tools like <code>kysely-codegen</code> to generate your TypeScript interfaces directly from your live database, ensuring they never drift from the actual schema.</li>
-  <li><strong>Type-Safe Joins:</strong> Leverage Kysely's ability to track types across multiple table joins, ensuring that joined data is always correctly typed.</li>
+  <li><strong>Use <code>executeTakeFirstOrThrow()</code> when you expect exactly one row:</strong> <code>executeTakeFirst()</code> returns <code>T | undefined</code>. If undefined would be a bug (fetching by primary key), use <code>executeTakeFirstOrThrow()</code> to throw a <code>NoResultError</code> instead of silently passing <code>undefined</code> into business logic.</li>
+  <li><strong>Generate types from the live database with kysely-codegen:</strong> Hand-written interfaces and real schemas drift over time. Automate regeneration in your CI pipeline after migrations run.</li>
+  <li><strong>Centralize the <code>db</code> instance:</strong> Create one <code>db</code> instance, export it from a dedicated module, and import it everywhere. Multiple instances each maintain their own connection pool.</li>
+  <li><strong>Use <code>.selectAll()</code> only in codegen-driven codebases:</strong> <code>selectAll()</code> returns all columns but requires your interface to be exactly correct. For hand-written interfaces, enumerate selected columns explicitly — it makes query intent clear and avoids over-fetching.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Is Kysely an ORM?</strong><br>
-A: No, Kysely is a type-safe SQL query builder. It doesn't handle migrations or complex object-relational mapping by default.</p>
-<p><strong>Q: Does it work with TypeScript 5?</strong><br>
-A: Yes, Kysely is built with the latest TypeScript features and is highly optimized for performance and accuracy.</p>
-<p><strong>Q: Can I use it with any database?</strong><br>
-A: Kysely has official dialects for PostgreSQL, MySQL, and SQLite, and a thriving community for other databases.</p>
+<p><strong>Q: Does Kysely handle migrations?</strong><br>
+A: Kysely has a <code>Migrator</code> class that runs migration files (JavaScript/TypeScript functions), but it doesn't auto-generate migrations from a schema definition. Use Kysely's Migrator with hand-written SQL or TypeScript migration files, or use <code>kysely-codegen</code> to generate types from a schema managed by another migration tool (Flyway, Liquibase, etc.).</p>
+
+<p><strong>Q: Can I use Kysely with connection pooling in serverless environments?</strong><br>
+A: Yes. Use <code>@neondatabase/serverless</code> for Neon, <code>@planetscale/database</code> for PlanetScale, or the standard <code>pg</code> pool for regular PostgreSQL. Each has a Kysely dialect package. In Lambda/Edge environments, configure the pool with <code>max: 1</code> to avoid connection exhaustion from concurrent function instances.</p>
+
+<p><strong>Q: How do I handle database-generated fields like auto-increment IDs?</strong><br>
+A: Wrap the column type in <code>Generated&lt;T&gt;</code> (e.g., <code>Generated&lt;number&gt;</code> for serial, <code>Generated&lt;Date&gt;</code> for default now()). Kysely's <code>Insertable&lt;T&gt;</code> utility automatically makes <code>Generated</code> fields optional on insert — you don't pass them in, and the SELECT result type has the actual value.</p>
+
+<p><strong>Q: Can Kysely validate query results at runtime?</strong><br>
+A: No — Kysely is TypeScript-only with no runtime component. Pair it with Zod or Valibot for runtime validation of query results if you need to guard against schema drift between your TypeScript types and the actual database schema.</p>

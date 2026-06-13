@@ -1,74 +1,236 @@
-<h2>Converting JSON to Ruby on Rails Migrations: Convention over Configuration</h2>
-<p>Ruby on Rails is famous for its "Convention over Configuration" philosophy. Its Active Record migrations are a powerful way to evolve your database schema using Ruby code. Converting JSON definitions to Rails Migrations allows you to quickly bootstrap your "M" in the MVC pattern, ensuring that your database structure perfectly matches the data your application will consume.</p>
+<h2>JSON to Rails Migration: Active Record, JSONB, and Production-Safe Schema Changes</h2>
+<p>Rails migrations are versioned Ruby files that use the Active Record DSL to evolve your database schema. They generate different SQL depending on your adapter (PostgreSQL, MySQL, SQLite) — the same <code>t.decimal</code> becomes <code>NUMERIC</code> on Postgres and <code>DECIMAL</code> on MySQL. Converting JSON to a Rails migration requires understanding which column types Rails maps to which SQL, how to use <code>t.jsonb</code> for queryable structured data on PostgreSQL, how to enforce NOT NULL with <code>null: false</code>, and when to use <code>structure.sql</code> instead of <code>schema.rb</code> for features that Rails' schema dumper can't represent.</p>
 
-<h3>Live Example</h3>
-<p>A JSON object representing a product:</p>
-<pre><code>{
-  "name": "Mechanical Keyboard",
-  "price": 129.99,
-  "stock_count": 50,
-  "category": "Electronics"
-}</code></pre>
-<p>The generated Rails Migration:</p>
-<pre><code>class CreateProducts < ActiveRecord::Migration[7.0]
+<h3>Live Example: Complete E-commerce Migration</h3>
+<pre><code># Input JSON
+{
+  "sku": "WIDGET-PRO-L",
+  "name": "Widget Pro (Large)",
+  "price": 149.99,
+  "stock_count": 250,
+  "category": "hardware",
+  "is_available": true,
+  "attributes": { "color": "black", "weight_kg": 1.2 },
+  "published_at": "2024-01-15T08:30:00Z"
+}
+
+# Generated migration — db/migrate/20240101000001_create_products.rb
+class CreateProducts &lt; ActiveRecord::Migration[7.1]
   def change
     create_table :products do |t|
-      t.string :name, null: false
-      t.decimal :price, precision: 8, scale: 2
-      t.integer :stock_count, default: 0
-      t.string :category
+      t.string  :sku,          null: false, limit: 64
+      t.string  :name,         null: false, limit: 200
+      t.decimal :price,        null: false, precision: 10, scale: 2
+      t.integer :stock_count,  null: false, default: 0
+      t.string  :category,     null: false, limit: 30
+      t.boolean :is_available, null: false, default: true
+      t.jsonb   :attributes,   default: {}   # PostgreSQL JSONB
+      t.datetime :published_at
+      t.references :brand, null: true, foreign_key: true  # adds brand_id + FK constraint
 
+      t.timestamps  # adds created_at, updated_at NOT NULL
+    end
+
+    add_index :products, :sku, unique: true
+    add_index :products, [:category, :is_available],
+              name: 'idx_products_category_available'
+    add_index :products, :published_at
+    # GIN index for JSONB containment queries (@>)
+    add_index :products, :attributes, using: :gin,
+              name: 'idx_products_attributes_gin'
+  end
+end
+</code></pre>
+<p>Using <code>null: false</code> adds the NOT NULL constraint at the database level — not just application validation. The database rejects NULL inserts even if your Rails validation is bypassed. <code>t.jsonb</code> is PostgreSQL-specific and enables <code>@></code> containment queries with the GIN index.</p>
+
+<h3>Active Record Model: Querying JSONB</h3>
+<pre><code"># app/models/product.rb
+class Product &lt; ApplicationRecord
+  belongs_to :brand, optional: true
+  has_many   :order_lines
+  has_many   :orders, through: :order_lines
+
+  # Validations
+  validates :sku,      presence: true, uniqueness: true, length: { maximum: 64 }
+  validates :name,     presence: true
+  validates :price,    presence: true, numericality: { greater_than: 0 }
+  validates :category, inclusion: { in: %w[hardware software services accessory] }
+
+  # Scopes
+  scope :available,      -> { where(is_available: true) }
+  scope :in_category,    ->(cat) { where(category: cat) }
+  scope :published,      -> { where.not(published_at: nil).where('published_at &lt;= ?', Time.current) }
+
+  # JSONB querying (PostgreSQL) — works with GIN index
+  scope :with_color, ->(color) {
+    where("attributes @> ?", { color: color }.to_json)
+  }
+
+  # Access JSONB as a hash
+  def primary_color
+    attributes_json = read_attribute(:attributes)
+    attributes_json&.dig('color') || 'unknown'
+  end
+end
+
+# Query examples
+Product.available.in_category('hardware').order(price: :asc)
+
+# JSONB containment — uses GIN index
+Product.where("attributes @> ?", { color: 'black' }.to_json)
+
+# JSONB key access
+Product.where("attributes ->> 'color' = ?", 'black')   # ->> returns text
+Product.where("(attributes ->> 'weight_kg')::float > ?", 1.0)
+
+# ANY in JSONB array
+# attributes = { "tags": ["featured", "sale"] }
+Product.where("attributes -> 'tags' ? ?", 'featured')  # key exists in array
+</code></pre>
+
+<h3>Adding Columns to an Existing Table</h3>
+<pre><code"># New migration — never edit existing migration files after they've run
+# db/migrate/20240301000001_add_description_to_products.rb
+
+class AddDescriptionToProducts &lt; ActiveRecord::Migration[7.1]
+  def change
+    add_column :products, :description, :text
+    add_column :products, :meta_title,  :string, limit: 100
+    add_column :products, :tags,        :jsonb,  default: []
+
+    # Add index to new column
+    add_index :products, :tags, using: :gin
+
+    # Safe: add NOT NULL with default first, then remove default if needed
+    add_column :products, :view_count, :integer, null: false, default: 0
+  end
+end
+</code></pre>
+
+<h3>Changing Columns: Safe vs Unsafe</h3>
+<pre><code"># SAFE: adding a nullable column or a column with default
+add_column :users, :avatar_url, :string
+
+# SAFE: adding an index
+add_index :products, :category
+
+# UNSAFE on large tables (locks the table):
+# - change_column (requires full rewrite on some DBs)
+# - add NOT NULL column without default
+# - add unique index without CONCURRENTLY
+
+# Safe approach: add NOT NULL to large table
+# 1. Add nullable first
+add_column :products, :slug, :string
+
+# 2. Backfill in a separate migration or rake task
+Product.find_each do |product|
+  product.update_column(:slug, product.name.parameterize + "-" + product.sku.downcase)
+end
+
+# 3. Add NOT NULL in a third migration (after backfill confirms 0 nulls)
+change_column_null :products, :slug, false
+add_index :products, :slug, unique: true
+
+# PostgreSQL: create index without table lock
+# Add to your migration:
+disable_ddl_transaction!
+add_index :products, :email, algorithm: :concurrently
+</code></pre>
+
+<h3>structure.sql vs schema.rb</h3>
+<pre><code"># config/application.rb
+config.active_record.schema_format = :sql  # use structure.sql instead of schema.rb
+
+# When to use structure.sql:
+# - You use PostgreSQL-specific features: JSONB, partial indexes, GIN indexes,
+#   custom types, functions, triggers, extensions (uuid-ossp, pgcrypto)
+# - You have CHECK constraints
+# - You have custom sequences
+#
+# schema.rb only captures what Rails knows how to represent.
+# structure.sql is a verbatim pg_dump — it captures everything.
+
+# CHECK constraint (requires structure.sql to be preserved in dump)
+class AddAgeConstraint &lt; ActiveRecord::Migration[7.1]
+  def up
+    execute &lt;&lt;-SQL
+      ALTER TABLE users
+        ADD CONSTRAINT age_must_be_positive CHECK (age IS NULL OR age >= 0);
+    SQL
+  end
+
+  def down
+    execute "ALTER TABLE users DROP CONSTRAINT age_must_be_positive"
+  end
+end
+</code></pre>
+
+<h3>Polymorphic Associations</h3>
+<pre><code"># A Comment can belong to Post or Product
+class CreateComments &lt; ActiveRecord::Migration[7.1]
+  def change
+    create_table :comments do |t|
+      t.references :commentable, polymorphic: true, null: false
+      # ^ adds commentable_id :bigint, commentable_type :string
+      # ^ adds composite index on [commentable_type, commentable_id]
+      t.references :user, null: false, foreign_key: true
+      t.text :body, null: false
       t.timestamps
     end
-    add_index :products, :name
   end
-end</code></pre>
+end
 
-<h3>Implementation Guide</h3>
-<ol>
-  <li><strong>Rails Generator:</strong> You can often generate the starting migration using the CLI: <code>rails generate migration CreateProducts name:string price:decimal</code>.</li>
-  <li><strong>Type Mapping:</strong> Map JSON numbers to <code>:integer</code>, <code>:decimal</code>, or <code>:float</code>. Use <code>:decimal</code> for currency for higher precision.</li>
-  <li><strong>Precision and Scale:</strong> For decimal types, always specify <code>precision</code> (total digits) and <code>scale</code> (decimal places).</li>
-  <li><strong>Indexes:</strong> Use <code>add_index</code> in the migration for fields that will be frequently searched.</li>
-  <li><strong>Execution:</strong> Run <code>bin/rails db:migrate</code> to apply the changes and update your <code>schema.rb</code>.</li>
-</ol>
+# model
+class Comment &lt; ApplicationRecord
+  belongs_to :commentable, polymorphic: true
+  belongs_to :user
+end
 
-<h3>Technical Deep Dive</h3>
-<p>Rails migrations are versioned and stored in the <code>db/migrate</code> directory. The <code>change</code> method is preferred as it is reversible; Rails automatically knows how to "drop_table" if you decide to rollback. When converting from JSON, pay attention to the <code>null: false</code> constraint. If your JSON sample always has a value for a field, it's often a good practice to enforce that at the database level. Also, remember that Rails uses <code>bigint</code> for IDs by default in newer versions, which is reflected in how foreign keys are created via <code>t.references</code>.</p>
+class Product &lt; ApplicationRecord
+  has_many :comments, as: :commentable
+end
+</code></pre>
 
-<h3>Comparison</h3>
-<table border="1">
-  <tr>
-    <th>Feature</th>
-    <th>Rails Migrations</th>
-    <th>Standard SQL</th>
-  </tr>
-  <tr>
-    <td>Syntax</td>
-    <td>Ruby DSL</td>
-    <td>SQL strings</td>
-  </tr>
-  <tr>
-    <td>Version Control</td>
-    <td>Native</td>
-    <td>External tool needed</td>
-  </tr>
-  <tr>
-    <td>Database Support</td>
-    <td>MySQL, Postgres, SQLite</td>
-    <td>Single database only</td>
-  </tr>
-</table>
+<h3>N+1 Prevention: includes vs joins</h3>
+<pre><code"># N+1: 1 query + N queries for associations
+products = Product.all
+products.each { |p| puts p.brand.name }   # N queries to brands
 
-<h3>Best Practices</h3>
+# includes: separate queries + Ruby merge (best for deep nesting or rendering)
+products = Product.includes(:brand, order_lines: :order)
+
+# joins: SQL JOIN (best for filtering on associations)
+# Only select products that HAVE an order
+products = Product.joins(:order_lines)
+                  .where(order_lines: { status: 'pending' })
+                  .distinct
+
+# eager_load: LEFT OUTER JOIN + merges in Ruby (like includes but single query)
+products = Product.eager_load(:brand)
+                  .where(brands: { country: 'US' })
+
+# preload: always separate queries regardless of where()
+Product.preload(:brand)
+</code></pre>
+
+<h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use t.references:</strong> Instead of manually creating an <code>author_id</code> column, use <code>t.references :author, foreign_key: true</code> to handle indexing and constraints automatically.</li>
-  <li><strong>Avoid Floats for Money:</strong> Always use <code>:decimal</code> for prices to avoid floating-point arithmetic errors.</li>
-  <li><strong>Keep Migrations Small:</strong> If you are adding many fields from a large JSON object, consider splitting them into multiple migrations for better reviewability.</li>
+  <li><strong>Always use <code>null: false</code> for required columns:</strong> Application-layer validations can be bypassed (by seeds, background jobs, console operations). Database-level NOT NULL is the real guarantee. Add <code>null: false</code> to every column that your business logic requires to exist.</li>
+  <li><strong>Use <code>precision: 10, scale: 2</code> for money:</strong> <code>t.float</code> uses IEEE 754 floating point, which cannot exactly represent 0.10 or 0.20. <code>t.decimal(precision: 10, scale: 2)</code> maps to NUMERIC — exact arithmetic. For high-value financial data, use <code>precision: 19, scale: 4</code>.</li>
+  <li><strong>Use <code>algorithm: :concurrently</code> for production indexes:</strong> Regular <code>add_index</code> locks the table for the duration of index building. On large tables (>100k rows), use <code>algorithm: :concurrently</code> with <code>disable_ddl_transaction!</code> to allow reads and writes during index creation.</li>
+  <li><strong>Check migration status before deploying:</strong> Run <code>bin/rails db:migrate:status</code> to see which migrations are pending. A deployment that runs <code>db:migrate</code> will apply all pending migrations in order — verify this is what you want before deploying.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: How do I handle JSON columns in Rails?</strong><br>
-A: Rails supports JSON and JSONB columns natively in PostgreSQL. Use <code>t.jsonb :metadata</code> in your migration.</p>
-<p><strong>Q: Can I convert an existing database to JSON?</strong><br>
-A: Yes, you can use the <code>as_json</code> method on any ActiveRecord model to export your data back to JSON format.</p>
+<p><strong>Q: When should I use <code>t.jsonb</code> vs separate columns?</strong><br>
+A: <code>t.jsonb</code> (PostgreSQL) is right for flexible or schema-less attributes — product metadata, event payloads, user preferences. Use separate typed columns when you need to sort, filter frequently, or enforce business constraints. A GIN index on JSONB enables fast containment queries, but it's slower than a B-tree index on a dedicated column for equality queries.</p>
+
+<p><strong>Q: What's the difference between <code>db:schema:load</code> and <code>db:migrate</code>?</strong><br>
+A: <code>db:migrate</code> runs all pending migrations in order — safe for production. <code>db:schema:load</code> loads <code>schema.rb</code> (or <code>structure.sql</code>) directly, recreating the database from scratch without running individual migrations — much faster for setting up a new development or CI database, but never safe for production because it drops and recreates the database.</p>
+
+<p><strong>Q: How do I roll back a specific migration?</strong><br>
+A: <code>bin/rails db:migrate:down VERSION=20240101000001</code> rolls back a specific migration. <code>bin/rails db:rollback STEP=3</code> rolls back the last 3 migrations. The <code>down</code> method in your migration handles the rollback — if you don't have one, use a <code>reversible</code> block in <code>change</code>, or separate <code>up</code> and <code>down</code> methods.</p>
+
+<p><strong>Q: Should I use UUID or integer primary keys?</strong><br>
+A: Integer (bigint) primary keys are the Rails default — faster for joins and index scans, easy to sort. UUIDs (<code>t.uuid :id, primary_key: true, default: 'gen_random_uuid()'</code> on PostgreSQL) are better when IDs appear in URLs (non-enumerable, non-guessable) or when you need to generate IDs in the application before the DB insert (useful for distributed systems or offline-first apps).</p>

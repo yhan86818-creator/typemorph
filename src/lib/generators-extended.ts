@@ -8,6 +8,10 @@ const toPascalCase = (s: string) =>
   s.replace(/(^\w|[_\s-]\w)/g, m => m.replace(/[_\s-]/, '').toUpperCase());
 const toSnakeCase = (s: string) =>
   s.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
+const toCamelCase = (s: string) => {
+  const p = toPascalCase(s);
+  return p.charAt(0).toLowerCase() + p.slice(1);
+};
 const toScreamingSnake = (s: string) => toSnakeCase(s).toUpperCase();
 
 // トップレベルが配列（行の集合）の場合は要素オブジェクトのフィールドを解決する。
@@ -315,6 +319,42 @@ export const envGen = {
     res += flattenEnv(f, '');
     return res;
   }
+};
+
+// ─── ENV VALIDATOR (T3-style Zod) ────────────────────────────────────────────
+export const envValidatorGen = {
+  generate: (schema: Schema): string => {
+    const f = getFields(schema);
+    if (!Object.keys(f).length) return '';
+
+    const fieldToZod = (k: string, v: Schema): string => {
+      if (v.type === 'boolean') {
+        // env vars are strings; coerce "true"/"false" to boolean
+        return `  ${k}: z.enum(["true", "false"]).transform(v => v === "true")`;
+      }
+      if (v.type === 'number') {
+        const intPart = v.format === 'int' ? '.int()' : '';
+        return `  ${k}: z.coerce.number()${intPart}`;
+      }
+      if (v.format === 'url') return `  ${k}: z.string().url()`;
+      if (v.format === 'email') return `  ${k}: z.string().email()`;
+      const optPart = v.optional ? '.optional()' : '';
+      return `  ${k}: z.string()${optPart}`;
+    };
+
+    const lines = Object.entries(f).map(([k, v]) => fieldToZod(k, v));
+
+    return `import { z } from "zod";
+
+export const envSchema = z.object({
+${lines.join(',\n')},
+});
+
+export type Env = z.infer<typeof envSchema>;
+
+// Throws at startup if any env var is missing or invalid
+export const env = envSchema.parse(process.env);`;
+  },
 };
 
 // ─── .properties ─────────────────────────────────────────────────────────────
@@ -1614,10 +1654,10 @@ export const haskellGen = {
     res += `data ${typeName} = ${typeName}\n  { `;
     const fieldsArr = Object.entries(f).map(([k, v]) => {
       let haskellType = 'String';
-      if (v.type === 'number') haskellType = 'Double';
+      if (v.type === 'number') haskellType = v.format === 'int' ? 'Int' : 'Double';
       else if (v.type === 'boolean') haskellType = 'Bool';
-      if (v.optional) haskellType = `Maybe ${haskellType}`;
-      return `${toSnakeCase(k)} :: ${haskellType}`;
+      if (v.optional || v.nullable) haskellType = `Maybe ${haskellType}`;
+      return `${toCamelCase(k)} :: ${haskellType}`;
     });
     res += fieldsArr.join('\n  , ') + '\n  } deriving (Show, Generic)\n\n';
     res += `instance FromJSON ${typeName}\ninstance ToJSON ${typeName}\n`;

@@ -1,67 +1,286 @@
-<h2>JSON to PHP DTO: Modern Data Handling for Scalable Web Applications</h2>
-<p>PHP has evolved significantly with the introduction of strict typing and readonly properties in recent versions. Converting JSON samples to PHP DTOs (Data Transfer Objects) allows you to move away from messy associative arrays and towards structured, type-safe objects. This approach is essential for modern frameworks like Laravel and Symfony, enabling better IDE support, easier unit testing, and more resilient business logic that handles external data with confidence.</p>
+<h2>JSON to Elixir Struct: Pattern Matching, Jason, and Ecto Schemas</h2>
+<p>Elixir structs are maps with a fixed set of keys and optional default values, enforced at compile time. Converting JSON to Elixir structs requires understanding three layers: the <code>defstruct</code> definition and its defaults, Jason's <code>@derive</code> macro for encoding/decoding, and the distinction between structs (for in-memory data passing) and Ecto schemas (for database-backed data with changesets and validation). Elixir's pattern matching makes JSON processing particularly expressive — you can destructure, validate, and transform in a single <code>with</code> chain.</p>
 
-<h3>Live Example: Mapping JSON to PHP 8.2+ Readonly DTOs</h3>
-<pre><code>// Input JSON
+<h3>Live Example: User Struct with Jason Decoding</h3>
+<pre><code># Input JSON
 {
-  "user_id": 45,
-  "full_name": "Maria Garcia",
-  "email_verified": true,
-  "roles": ["editor", "admin"]
+  "user_id": "usr_001",
+  "username": "alice_dev",
+  "email": "alice@example.com",
+  "role": "admin",
+  "is_active": true,
+  "metadata": { "timezone": "UTC", "locale": "en-US" }
 }
 
-// Generated PHP Code
-declare(strict_types=1);
+# Generated Elixir Struct
+defmodule MyApp.User do
+  @derive {Jason.Encoder, only: [:user_id, :username, :email, :role, :is_active]}
 
-namespace App\Dto;
+  @enforce_keys [:user_id, :username, :email]   # required on struct creation
+  defstruct [
+    :user_id,
+    :username,
+    :email,
+    role:      "viewer",    # default value
+    is_active: true,
+    metadata:  %{}
+  ]
 
-readonly class UserDto
-{
-    /**
-     * @param string[] $roles
-     */
-    public function __construct(
-        public int $userId,
-        public string $fullName,
-        public bool $emailVerified,
-        public array $roles,
-    ) {}
+  @type t :: %__MODULE__{
+    user_id:  String.t(),
+    username: String.t(),
+    email:    String.t(),
+    role:     String.t(),
+    is_active: boolean(),
+    metadata:  map()
+  }
+end
 
-    public static function fromArray(array $data): self
-    {
-        return new self(
-            userId: $data['user_id'],
-            fullName: $data['full_name'],
-            emailVerified: $data['email_verified'],
-            roles: $data['roles'],
-        );
-    }
-}
+# Decoding JSON → Struct
+defmodule MyApp.User do
+  def from_json(json_string) when is_binary(json_string) do
+    with {:ok, map} &lt;- Jason.decode(json_string) do
+      from_map(map)
+    end
+  end
+
+  def from_map(%{} = map) do
+    {:ok, %__MODULE__{
+      user_id:  Map.fetch!(map, "user_id"),
+      username: Map.fetch!(map, "username"),
+      email:    Map.fetch!(map, "email"),
+      role:     Map.get(map, "role", "viewer"),
+      is_active: Map.get(map, "is_active", true),
+      metadata:  Map.get(map, "metadata", %{})
+    }}
+  rescue
+    KeyError -> {:error, :missing_required_field}
+  end
+end
+
+# Usage
+{:ok, user} = MyApp.User.from_json(json_payload)
+user.username    # "alice_dev"
+user.role        # "admin"
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Enable Strict Types:</strong> Always start your files with <code>declare(strict_types=1);</code> to ensure type safety.<br>
-2. <strong>Define the DTO:</strong> Map JSON keys to constructor-promoted properties. PHP prefers <code>camelCase</code> for property names.<br>
-3. <strong>Use Readonly Classes:</strong> In PHP 8.2+, use <code>readonly class</code> to ensure your DTOs are immutable once created.<br>
-4. <strong>Implement a Factory Method:</strong> Create a <code>fromArray</code> or <code>fromJson</code> static method to handle the conversion logic and any necessary data casting.</p>
+<h3>Pattern Matching for JSON Processing</h3>
+<p>Elixir's pattern matching enables declarative JSON transformation that would require conditional logic in other languages:</p>
+<pre><code">defmodule MyApp.EventParser do
+  # Pattern match on the event type key
+  def parse(%{"type" => "user_created", "payload" => payload}) do
+    {:user_event, :created, parse_user(payload)}
+  end
 
-<h3>Technical Deep Dive: Constructor Promotion and Property Attributes</h3>
-<p>The introduction of **Constructor Property Promotion** in PHP 8.0 drastically reduced the boilerplate needed for DTOs. Instead of defining private fields, a constructor, and getters, you can do it all in the constructor signature. When you convert JSON to a PHP DTO, you are setting up a memory-efficient object that PHP's engine can optimize. Furthermore, you can use **Attributes** (like those in Symfony's Serializer or Laravel's Data package) to handle complex mapping rules, such as date formatting or property renaming, without cluttering your core class logic.</p>
+  def parse(%{"type" => "order_placed", "payload" => payload}) do
+    {:order_event, :placed, parse_order(payload)}
+  end
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>PHP DTOs vs. Associative Arrays:</strong> Arrays are the "old way" in PHP—flexible but dangerous and difficult to document. DTOs are the modern standard for professional development. <strong>JSON Schema for PHP</strong> is an alternative for pure validation, but DTOs provide the added benefit of object-oriented data access throughout your application.</p>
+  def parse(%{"type" => type}) do
+    {:error, {:unknown_type, type}}
+  end
+
+  def parse(_) do
+    {:error, :invalid_shape}
+  end
+
+  # Process a list of events from JSON array
+  def parse_many(json_list) when is_list(json_list) do
+    json_list
+    |> Enum.map(&parse/1)
+    |> Enum.split_with(fn {status, _} -> status != :error end)
+    # → {successes, failures}
+  end
+
+  defp parse_user(%{"id" => id, "email" => email} = data) do
+    %MyApp.User{
+      user_id:  id,
+      username: Map.get(data, "username", ""),
+      email:    email
+    }
+  end
+end
+</code></pre>
+
+<h3>with Chains for JSON Validation Pipelines</h3>
+<pre><code">def process_api_request(body) do
+  with {:ok, json}    &lt;- Jason.decode(body),
+       {:ok, params}  &lt;- validate_required(json, ["user_id", "amount"]),
+       {:ok, amount}  &lt;- parse_decimal(params["amount"]),
+       {:ok, user}    &lt;- MyApp.Accounts.fetch_user(params["user_id"]),
+       :ok            &lt;- authorize(user, :make_payment) do
+    MyApp.Payments.charge(user, amount)
+  else
+    {:error, %Jason.DecodeError{}} -&gt;
+      {:error, :invalid_json}
+    {:error, {:missing_fields, fields}} -&gt;
+      {:error, {:validation, "Missing: #{Enum.join(fields, ", ")}"}}
+    {:error, :user_not_found} -&gt;
+      {:error, :not_found}
+    {:error, :unauthorized} -&gt;
+      {:error, :forbidden}
+  end
+end
+
+defp validate_required(map, keys) do
+  missing = Enum.reject(keys, &Map.has_key?(map, &1))
+  if missing == [], do: {:ok, map}, else: {:error, {:missing_fields, missing}}
+end
+
+defp parse_decimal(value) when is_binary(value) do
+  case Decimal.parse(value) do
+    {decimal, ""} -&gt; {:ok, decimal}
+    _             -&gt; {:error, :invalid_decimal}
+  end
+end
+</code></pre>
+
+<h3>Ecto Schema: Database-Backed Structs with Changesets</h3>
+<pre><code">defmodule MyApp.Schema.User do
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  schema "users" do
+    field :user_id,   :string
+    field :username,  :string
+    field :email,     :string
+    field :role,      :string,  default: "viewer"
+    field :is_active, :boolean, default: true
+    field :metadata,  :map,     default: %{}
+
+    timestamps()   # inserts inserted_at, updated_at
+  end
+
+  @required_fields [:user_id, :username, :email]
+  @optional_fields [:role, :is_active, :metadata]
+  @valid_roles ~w[admin editor viewer]
+
+  def changeset(user, attrs) do
+    user
+    |&gt; cast(attrs, @required_fields ++ @optional_fields)
+    |&gt; validate_required(@required_fields)
+    |&gt; validate_format(:email, ~r/^[^\s@]+@[^\s@]+\.[^\s@]+$/)
+    |&gt; validate_inclusion(:role, @valid_roles)
+    |&gt; validate_length(:username, min: 3, max: 50)
+    |&gt; unique_constraint(:user_id)
+    |&gt; unique_constraint(:email)
+  end
+end
+
+# Insert from JSON
+defmodule MyApp.Accounts do
+  alias MyApp.Repo
+  alias MyApp.Schema.User
+
+  def create_user(attrs) do
+    %User{}
+    |&gt; User.changeset(attrs)
+    |&gt; Repo.insert()
+  end
+
+  # Returns {:ok, user} or {:error, changeset}
+  # changeset.errors contains field-level error messages
+end
+
+# Usage in Phoenix controller
+def create(conn, params) do
+  case MyApp.Accounts.create_user(params) do
+    {:ok, user} -&gt;
+      conn |&gt; put_status(:created) |&gt; json(%{id: user.id})
+    {:error, changeset} -&gt;
+      errors = Ecto.Changeset.traverse_errors(changeset, &translate_error/1)
+      conn |&gt; put_status(:unprocessable_entity) |&gt; json(%{errors: errors})
+  end
+end
+</code></pre>
+
+<h3>Struct vs Ecto Schema: When to Use Each</h3>
+<pre><code">## Plain defstruct — use when:
+# - In-memory data transfer (no DB persistence)
+# - Parsing external API responses
+# - Function parameters that need type documentation
+# - No validation rules needed (or validation done elsewhere)
+
+defmodule MyApp.ApiResponse do
+  defstruct [:status, :data, :error, request_id: nil]
+end
+
+## Ecto Schema — use when:
+# - Data is stored in a database table
+# - You need changeset validation (multi-step form, API endpoint)
+# - You need associations (has_many, belongs_to)
+# - You need query composition (Ecto.Query)
+
+## Embedded Ecto Schema — use for nested JSON objects without a table:
+defmodule MyApp.Schema.Address do
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  embedded_schema do
+    field :street, :string
+    field :city,   :string
+    field :zip,    :string
+    field :country, :string, default: "US"
+  end
+
+  def changeset(address, attrs) do
+    address
+    |&gt; cast(attrs, [:street, :city, :zip, :country])
+    |&gt; validate_required([:street, :city, :zip])
+  end
+end
+
+defmodule MyApp.Schema.User do
+  use Ecto.Schema
+
+  schema "users" do
+    field :name, :string
+    embeds_one :address, MyApp.Schema.Address, on_replace: :update
+  end
+end
+</code></pre>
+
+<h3>Jason Encoder/Decoder Customization</h3>
+<pre><code">## Custom JSON encoding for a struct
+defmodule MyApp.Money do
+  defstruct [:amount, :currency]
+
+  defimpl Jason.Encoder do
+    def encode(%{amount: amount, currency: currency}, opts) do
+      Jason.Encode.map(%{
+        "amount"   =&gt; Decimal.to_string(amount),
+        "currency" =&gt; currency
+      }, opts)
+    end
+  end
+end
+
+## Custom decoder: Jason.decode with atoms (use carefully — atoms aren't GC'd)
+Jason.decode(json, keys: :atoms)
+# → %{user_id: "usr_001", username: "alice"}  (atom keys)
+
+## Preferred: keys as strings (default), pattern match on strings
+Jason.decode(json)
+# → %{"user_id" => "usr_001", "username" => "alice"}  (string keys)
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Keep DTOs Simple:</strong> DTOs should only contain data and factory methods. Avoid adding business logic or service dependencies to them.</li>
-  <li><strong>Type Everything:</strong> Use PHP's full range of type hints, including <code>nullable</code> (?) and <code>mixed</code> (sparingly), to accurately reflect the incoming JSON structure.</li>
-  <li><strong>Use Static Analysis:</strong> Tools like **PHPStan** or **Psalm** work best with DTOs, helping you catch potential type mismatches before they hit production.</li>
+  <li><strong>Use <code>@enforce_keys</code> for required struct fields:</strong> Without <code>@enforce_keys</code>, <code>%User{}</code> silently sets missing fields to <code>nil</code>. With it, creating the struct without required fields raises a compile-time error, catching mistakes before runtime.</li>
+  <li><strong>Always pattern match on <code>{:ok, value}</code> and <code>{:error, reason}</code>:</strong> Elixir conventions use tagged tuples. Use <code>with</code> chains to compose multiple operations that may fail, keeping the happy path flat and errors explicit at the end.</li>
+  <li><strong>Prefer string keys in JSON maps:</strong> Using <code>Jason.decode(json, keys: :atoms)</code> is convenient but dangerous — atoms are not garbage collected, and an attacker could exhaust memory by sending arbitrary JSON keys. Always decode with string keys (the default) and access known keys explicitly.</li>
+  <li><strong>Use Ecto embedded schemas for nested JSON:</strong> For structured sub-objects stored in a JSON/JSONB column, <code>embeds_one</code> / <code>embeds_many</code> gives you changeset validation, type coercion, and nested error messages on the parent's changeset.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: What is the benefit of 'readonly'?</strong><br>
-A: It prevents properties from being modified after the object is instantiated, making your data flow predictable and thread-safe (in environments where that matters).</p>
-<p><strong>Q: How do I handle missing optional fields?</strong><br>
-A: Use nullable types (e.g., <code>public ?string $bio</code>) and provide a default value of <code>null</code> in your factory method if the key is missing from the JSON.</p>
-<p><strong>Q: Can I use this with Laravel?</strong><br>
-A: Yes! This pattern is highly recommended for Laravel's Form Requests and Controller logic to ensure your models receive validated, structured data.</p>
+<p><strong>Q: What's the difference between a struct and a map in Elixir?</strong><br>
+A: A struct is a map with a fixed set of keys (defined at compile time), an enforced module name as a key (<code>__struct__</code>), and optional default values. Pattern matching on a struct (<code>%User{} = value</code>) ensures the value is that specific struct type, not any map. Maps are flexible and untyped.</p>
+
+<p><strong>Q: How do I handle large JSON arrays efficiently?</strong><br>
+A: Use <code>Jason.decode_stream/2</code> (or <code>:ijson</code> for event-driven parsing) for JSON streams too large to hold in memory. For processing large arrays from disk, the <code>Stream</code> module combined with line-by-line reading works for newline-delimited JSON (NDJSON).</p>
+
+<p><strong>Q: How does Ecto handle JSON/JSONB columns?</strong><br>
+A: Use <code>field :metadata, :map</code> for a simple map, or define an <code>embedded_schema</code> for structured access with validation. On PostgreSQL with JSONB, Ecto's <code>fragment</code> lets you use <code>@></code> (containment) and <code>->></code> (key access) operators in queries: <code>where(fragment("metadata @> ?", ^%{key: value}))</code>.</p>
+
+<p><strong>Q: Should I use Jason or Poison for JSON in Elixir?</strong><br>
+A: Jason — it's significantly faster (benchmarks show 3-10× vs Poison), actively maintained, and used by Phoenix and Ecto. Poison is largely legacy. The only reason to use Poison today is maintaining an older codebase that already depends on it.</p>

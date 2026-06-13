@@ -1,57 +1,293 @@
-<h2>JSON to OpenAPI 3: Automating API Documentation and Standardization</h2>
-<p>In the world of API development, documentation is often an afterthought. Converting JSON samples (requests and responses) into an OpenAPI 3.0 specification (formerly Swagger) changes the game. By automating the creation of your API contract, you ensure that your documentation is always accurate, your team is aligned, and you can leverage a vast ecosystem of tools for client generation, mock servers, and automated testing. This is the first step toward a "Design-First" API strategy that scales.</p>
+<h2>JSON to OpenAPI 3: Discriminators, Webhooks, Security Schemes, and Spectral Linting</h2>
+<p>OpenAPI 3.1 (released 2021) is fully aligned with JSON Schema 2020-12, which changes how several important patterns work compared to 3.0: <code>nullable</code> is replaced with <code>type: ['string', 'null']</code>, <code>exclusiveMinimum</code> becomes a number rather than a boolean, and the <code>$schema</code> keyword is now supported for inline schema meta-references. Beyond the spec upgrade, production OpenAPI work involves: using <code>discriminator</code> for polymorphic responses, generating webhook definitions alongside REST endpoints, wiring OAuth2/OIDC security schemes correctly, and running Spectral to catch spec quality issues before they affect generated clients.</p>
 
-<h3>Live Example: Turning JSON Samples into OpenAPI 3.0 Definitions</h3>
-<pre><code>// Input JSON Response
+<h3>Live Example: Complete OpenAPI 3.1 Schema from JSON</h3>
+<pre><code"># Input JSON samples (request and response)
+# POST /orders body:
 {
-  "id": "PROD-001",
-  "name": "Wireless Mouse",
-  "price": 29.99,
-  "in_stock": true
+  "customer_id": "cust_001",
+  "items": [{ "sku": "SKU-A", "qty": 2 }],
+  "shipping_address": {
+    "street": "123 Main St", "city": "Springfield", "country": "US"
+  },
+  "coupon_code": null
+}
+# Response:
+{
+  "id": "ord_abc123",
+  "status": "PENDING",
+  "total_cents": 4998,
+  "created_at": "2024-03-15T10:00:00Z"
 }
 
-// Generated OpenAPI 3.0 Schema (YAML)
+# Generated OpenAPI 3.1 spec
+openapi: 3.1.0
+info:
+  title: Order Service API
+  version: 1.0.0
+  description: REST API for order management
+
 components:
   schemas:
-    Product:
+    OrderItem:
       type: object
-      required: [id, name, price, in_stock]
+      required: [sku, qty]
       properties:
-        id:
+        sku:  { type: string, example: SKU-A }
+        qty:  { type: integer, minimum: 1 }
+        price_cents:
+          type:        integer
+          readOnly:    true
+          description: Calculated server-side
+
+    Address:
+      type: object
+      required: [street, city, country]
+      properties:
+        street:  { type: string }
+        city:    { type: string }
+        country: { type: string, minLength: 2, maxLength: 2, example: US }
+
+    CreateOrderRequest:
+      type: object
+      required: [customer_id, items, shipping_address]
+      properties:
+        customer_id:
           type: string
-          example: PROD-001
-        name:
+          pattern: '^cust_[a-z0-9]+$'
+        items:
+          type:     array
+          items:    { $ref: '#/components/schemas/OrderItem' }
+          minItems: 1
+        shipping_address:
+          $ref: '#/components/schemas/Address'
+        coupon_code:
+          type:    ['string', 'null']   # OpenAPI 3.1: nullable, not nullable: true
+          example: null
+
+    Order:
+      type: object
+      required: [id, status, total_cents, created_at]
+      properties:
+        id:          { type: string, readOnly: true }
+        status:
           type: string
-        price:
-          type: number
-          format: float
-        in_stock:
-          type: boolean
+          enum: [PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED]
+        total_cents: { type: integer, readOnly: true }
+        created_at:  { type: string, format: date-time, readOnly: true }
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:    { type: string }
+        message: { type: string }
+        details: { type: array, items: { type: string } }
+
+paths:
+  /orders:
+    post:
+      operationId: createOrder
+      summary:     Create a new order
+      tags:        [Orders]
+      security:    [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:   { $ref: '#/components/schemas/CreateOrderRequest' }
+            examples:
+              standard: { $ref: '#/components/examples/StandardOrder' }
+      responses:
+        '201':
+          description: Order created
+          headers:
+            Location: { schema: { type: string }, description: URL of the created order }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401':
+          description: Not authenticated
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Gather Representative Samples:</strong> Use your actual API logs or sample data to provide the converter with the "truth" of your data structure.<br>
-2. <strong>Generate the Schema:</strong> Use the converter to map JSON primitives to OpenAPI types (string, number, boolean, array).<br>
-3. <strong>Enrich with Metadata:</strong> Add <code>description</code>, <code>example</code>, and <code>format</code> (like <code>email</code> or <code>uuid</code>) to make your documentation truly useful.<br>
-4. <strong>Assemble the Spec:</strong> Combine your schemas into a full OpenAPI document, including paths, methods (GET, POST), and security definitions.</p>
+<h3>Discriminator for Polymorphic Responses</h3>
+<pre><code"># OneOf with discriminator — API returns different event types on the same endpoint
+components:
+  schemas:
+    EventBase:
+      type: object
+      required: [type, timestamp]
+      properties:
+        type:      { type: string }
+        timestamp: { type: string, format: date-time }
 
-<h3>Technical Deep Dive: The Difference between JSON and OpenAPI Schemas</h3>
-<p>While OpenAPI uses a subset of **JSON Schema**, it has its own unique features. For example, OpenAPI 3.0 supports the <code>nullable</code> keyword (unlike Draft 4 JSON Schema) and introduces the <code>discriminator</code> property for handling polymorphic types (oneOf/anyOf). When converting JSON to OpenAPI, you are not just mapping types; you are creating a **Semantic Contract**. A high-quality converter will infer not just the types, but also the "shape" of your API, identifying which fields are required based on their presence in multiple samples and suggesting appropriate <code>format</code> strings for standard data types.</p>
+    OrderEvent:
+      allOf:
+        - $ref: '#/components/schemas/EventBase'
+        - type: object
+          required: [order_id, status]
+          properties:
+            order_id: { type: string }
+            status:   { type: string, enum: [PENDING, CONFIRMED, SHIPPED] }
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>OpenAPI 3 vs. JSON API Spec:</strong> OpenAPI is for describing *any* REST API, while JSON API is a specific *standard* for how JSON should be structured. <strong>AsyncAPI</strong> is an alternative for event-driven systems (like WebSockets or Kafka), while <strong>GraphQL</strong> is a different paradigm entirely that eliminates the need for separate documentation specs.</p>
+    PaymentEvent:
+      allOf:
+        - $ref: '#/components/schemas/EventBase'
+        - type: object
+          required: [payment_id, amount_cents]
+          properties:
+            payment_id:   { type: string }
+            amount_cents: { type: integer }
+
+    WebhookEvent:
+      oneOf:
+        - $ref: '#/components/schemas/OrderEvent'
+        - $ref: '#/components/schemas/PaymentEvent'
+      discriminator:
+        propertyName: type
+        mapping:
+          order_created:   '#/components/schemas/OrderEvent'
+          order_shipped:   '#/components/schemas/OrderEvent'
+          payment_success: '#/components/schemas/PaymentEvent'
+          payment_failed:  '#/components/schemas/PaymentEvent'
+</code></pre>
+
+<h3>Security Schemes: Bearer and OAuth2</h3>
+<pre><code"># Security schemes defined in components — referenced by operations
+components:
+  securitySchemes:
+    bearerAuth:
+      type:         http
+      scheme:       bearer
+      bearerFormat: JWT
+
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.example.com/oauth/authorize
+          tokenUrl:         https://auth.example.com/oauth/token
+          scopes:
+            orders:read:   Read orders
+            orders:write:  Create and modify orders
+            admin:         Full access
+
+    apiKey:
+      type: apiKey
+      in:   header
+      name: X-API-Key
+
+# Apply security globally (can be overridden per-operation)
+security:
+  - bearerAuth: []
+
+paths:
+  /admin/orders:
+    get:
+      security:
+        - oauth2: [admin]   # overrides global security for this endpoint
+</code></pre>
+
+<h3>Webhooks (OpenAPI 3.1)</h3>
+<pre><code"># Webhooks describe events the server sends to clients — new in OpenAPI 3.1
+webhooks:
+  orderStatusChanged:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookEvent'
+      responses:
+        '200':
+          description: Webhook received (client must return 2xx to acknowledge)
+
+  # Describe the webhook registration endpoint separately as a path
+paths:
+  /webhooks:
+    post:
+      summary:     Register a webhook endpoint
+      operationId: registerWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url, events]
+              properties:
+                url:    { type: string, format: uri }
+                secret: { type: string, description: HMAC signing secret }
+                events:
+                  type:  array
+                  items: { type: string, enum: [order_created, order_shipped, payment_success] }
+</code></pre>
+
+<h3>Spectral Linting: Catching Spec Quality Issues</h3>
+<pre><code">// Spectral lints OpenAPI specs against quality rules
+// npm install -D @stoplight/spectral-cli
+
+// .spectral.yml — quality ruleset
+extends: ['spectral:oas']
+rules:
+  # Require all operations to have an operationId
+  operation-operationId:
+    severity: error
+
+  # Require all schemas to have examples
+  oas3-schema-examples:
+    given: "$.components.schemas.*"
+    severity: warn
+    then:
+      field: example
+      function: truthy
+
+  # Require all 2xx responses to have a content schema
+  operation-success-response:
+    severity: warn
+
+  # Disallow inline schemas (require $ref for reuse)
+  no-inline-schemas:
+    given: "$.paths.*.*.responses.*.content.*.schema"
+    severity: warn
+    then:
+      function: schema
+      functionOptions:
+        schema: { required: ['$ref'] }
+
+// Run in CI:
+// npx spectral lint openapi.yaml --ruleset .spectral.yml
+
+// Or use Spectral JS API:
+import { Spectral } from '@stoplight/spectral-core';
+import { oas } from '@stoplight/spectral-formats';
+
+const spectral = new Spectral();
+spectral.setRuleset({ extends: [oas], rules: {} });
+const issues = await spectral.run(specDocument);
+const errors = issues.filter(i =&gt; i.severity === 0);  // 0 = error
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use <code>$ref</code>:</strong> Don't repeat yourself. Define your models once in <code>components/schemas</code> and reference them throughout your specification.</li>
-  <li><strong>Include Error Responses:</strong> Document your 400, 401, and 500 responses to help frontend developers build resilient error handling logic.</li>
-  <li><strong>Validate the Spec:</strong> Use tools like <code>spectral</code> to lint your OpenAPI document and ensure it follows industry best practices.</li>
+  <li><strong>Use <code>readOnly</code> and <code>writeOnly</code> on schema properties:</strong> Fields like <code>id</code>, <code>created_at</code>, and <code>total_cents</code> are server-generated and should be <code>readOnly: true</code>. Password fields should be <code>writeOnly: true</code>. Code generators use these hints to omit read-only fields from request bodies and write-only fields from response types.</li>
+  <li><strong>Add <code>operationId</code> to every endpoint:</strong> Code generators (openapi-generator, oazapfts, hey-api) use <code>operationId</code> as the function name for generated API clients. Without it, generators create awkward names from the path and method. Use snake_case or camelCase consistently: <code>createOrder</code>, <code>getOrderById</code>, <code>listOrders</code>.</li>
+  <li><strong>Define error schemas in <code>components</code> and reuse them:</strong> Every 4xx and 5xx response should reference a shared error schema. Consumers need to know the error format to handle it. Defining it once in <code>components/schemas/Error</code> ensures consistency across all endpoints.</li>
+  <li><strong>Migrate from OpenAPI 3.0 <code>nullable: true</code> to 3.1 <code>type: ['string', 'null']</code>:</strong> OpenAPI 3.1 uses JSON Schema 2020-12 which doesn't have the <code>nullable</code> keyword. Use the type array form. Many tools still support <code>nullable</code> for backward compatibility, but write new specs using the correct 3.1 syntax.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Can I generate code from OpenAPI?</strong><br>
-A: Yes! Tools like <code>openapi-generator</code> can create client SDKs and server stubs in over 50 different languages from your spec.</p>
-<p><strong>Q: What is the difference between OpenAPI and Swagger?</strong><br>
-A: Swagger was the original name. Starting with version 3.0, the specification was renamed to OpenAPI, while "Swagger" now refers to the set of tools (UI, Editor, etc.).</p>
-<p><strong>Q: Is YAML better than JSON for OpenAPI?</strong><br>
-A: Most developers prefer YAML for its readability and support for comments, but OpenAPI supports both formats equally.</p>
+<p><strong>Q: What's the difference between <code>allOf</code>, <code>anyOf</code>, and <code>oneOf</code>?</strong><br>
+A: <code>allOf</code> means the data must satisfy ALL listed schemas (used for inheritance/extension). <code>anyOf</code> means the data must satisfy AT LEAST ONE schema. <code>oneOf</code> means the data must satisfy EXACTLY ONE schema (used for mutually exclusive variants). For polymorphism with a discriminator property, use <code>oneOf</code>. For adding properties to a base schema, use <code>allOf</code>.</p>
+
+<p><strong>Q: How do I handle pagination in an OpenAPI spec?</strong><br>
+A: OpenAPI doesn't have a built-in pagination concept — define it as a pattern. Use a reusable <code>Pagination</code> component schema with <code>page</code>, <code>page_size</code>, <code>total</code>, and <code>has_more</code>. For cursor-based pagination, use <code>next_cursor</code> and <code>prev_cursor</code>. Add these as query parameters on list endpoints and include the pagination schema in list response wrappers.</p>
+
+<p><strong>Q: Should I write the OpenAPI spec by hand or generate it from code?</strong><br>
+A: Design-first (spec by hand → generate server stubs) produces better API design but requires discipline to keep the spec in sync with implementation. Code-first (implement → generate spec) is easier to maintain but produces worse API design (exposes internal naming, missing descriptions). Use code-first with heavy Spectral linting to enforce quality, or design-first with contract testing to verify sync.</p>

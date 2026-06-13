@@ -1,60 +1,234 @@
-<h2>JSON to TOML: The Clean Path to Minimalist Configuration</h2>
-<p>TOML (Tom's Obvious, Minimal Language) was designed with a single goal: to be the best possible format for configuration files. Converting JSON to TOML transforms complex, nested data into a format that looks like a standard "INI" file but with powerful data types. This conversion is ideal for project metadata (like <code>Cargo.toml</code> in Rust or <code>pyproject.toml</code> in Python), tool settings, and any scenario where you want a configuration file that is extremely easy for humans to read and write without the "indentation anxiety" of YAML.</p>
+<h2>JSON to TOML: @iarna/toml, Array of Tables, Date Types, and pyproject.toml Patterns</h2>
+<p>TOML is the configuration format of choice for Rust (<code>Cargo.toml</code>), Python (<code>pyproject.toml</code>), and an increasing number of developer tools. Converting JSON to TOML isn't just reformatting — TOML has native date/time types JSON lacks, a two-tier nesting model (tables and array of tables), and rules about key ordering that affect output clarity. The critical TOML concept JSON developers miss is the <strong>array of tables</strong> (<code>[[section]]</code>): the only way to represent an array of objects in TOML, used for dependencies, plugins, and multi-server configuration.</p>
 
-<h3>Live Example: Translating JSON to Elegant TOML</h3>
-<pre><code>// Input JSON
-{
-  "project": {
-    "name": "TypeMorph",
-    "version": "2.1.0"
+<h3>Live Example: @iarna/toml Conversion with Type Mapping</h3>
+<pre><code">import TOML from '@iarna/toml';
+
+// Input JSON config
+const config = {
+  package: {
+    name:        "myapp",
+    version:     "1.2.0",
+    description: "A demo application",
+    authors:     ["Alice Chen <alice@example.com>", "Bob Kim <bob@example.com>"],
+    repository:  "https://github.com/example/myapp",
+    license:     "MIT",
+    edition:     "2024",
   },
-  "dependencies": {
-    "react": "^18.2.0",
-    "typescript": "5.0.4"
+  dependencies: {
+    "serde":       { version: "1.0", features: ["derive"] },
+    "tokio":       { version: "1",   features: ["full"] },
+    "reqwest":     { version: "0.11", optional: true },
   },
-  "database": {
-    "enabled": true,
-    "ports": [8000, 8001]
-  }
-}
+  dev_dependencies: {
+    "criterion": "0.5",
+    "proptest":  "1.0",
+  },
+  profile: {
+    release: { opt_level: 3, lto: "thin", codegen_units: 1 },
+    dev:     { opt_level: 0, debug: true },
+  },
+};
 
-// Generated TOML
-[project]
-name = "TypeMorph"
-version = "2.1.0"
+const tomlString = TOML.stringify(config);
+console.log(tomlString);
 
-[dependencies]
-react = "^18.2.0"
-typescript = "5.0.4"
+// Output:
+// [package]
+// name = "myapp"
+// version = "1.2.0"
+// description = "A demo application"
+// authors = ["Alice Chen <alice@example.com>", "Bob Kim <bob@example.com>"]
+// repository = "https://github.com/example/myapp"
+// license = "MIT"
+// edition = "2024"
+//
+// [dependencies.serde]
+// version = "1.0"
+// features = ["derive"]
+//
+// [dependencies.tokio]
+// version = "1"
+// features = ["full"]
+//
+// [dependencies.reqwest]
+// version = "0.11"
+// optional = true
+//
+// [dev_dependencies]
+// criterion = "0.5"
+// proptest = "1.0"
+//
+// [profile.release]
+// opt_level = 3
+// lto = "thin"
+// codegen_units = 1
+//
+// [profile.dev]
+// opt_level = 0
+// debug = true
 
-[database]
-enabled = true
-ports = [ 8000, 8001 ]
+// Parsing TOML back to JavaScript object
+const parsed = TOML.parse(tomlString);
+console.log(parsed.package.version);     // "1.2.0"
+console.log(parsed.dependencies.tokio);  // { version: "1", features: ["full"] }
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Map Root Keys:</strong> Direct key-value pairs at the top of the JSON become simple <code>key = value</code> lines.<br>
-2. <strong>Create Tables:</strong> JSON objects become TOML "Tables," denoted by square brackets (e.g., <code>[database]</code>).<br>
-3. <strong>Handle Arrays:</strong> JSON arrays become TOML arrays <code>[1, 2, 3]</code>. TOML allows arrays to span multiple lines for better readability.<br>
-4. <strong>Format Strings:</strong> TOML uses standard double quotes for strings but also supports triple-quotes <code>"""</code> for multi-line strings, which is much cleaner than escaped JSON.</p>
+<h3>Array of Tables: The Critical TOML Pattern</h3>
+<pre><code">// TOML's array of tables ([[section]]) represents an array of objects
+// This is NOT the same as a TOML array of simple values
 
-<h3>Technical Deep Dive: Tables, Arrays of Tables, and Strictness</h3>
-<p>TOML is unique because of its **Table-based Structure**. Unlike JSON or YAML, which use nesting, TOML uses headers to define sections. This makes files much flatter and easier to scan. A key technical feature is the **Array of Tables** (denoted by <code>[[table_name]]</code>), which is the TOML way to represent an array of objects. While TOML is simple, it is also **Strictly Typed**. It has first-class support for Dates and Times (ISO 8601), which are often just strings in JSON. Converting JSON to TOML allows you to use these native types, making your configuration more semantic and less error-prone.</p>
+// JSON input with array of objects:
+const serverConfig = {
+  servers: [
+    { host: "web-01.internal", port: 8080, role: "primary",  region: "us-east" },
+    { host: "web-02.internal", port: 8080, role: "replica",  region: "us-east" },
+    { host: "web-03.internal", port: 8081, role: "replica",  region: "eu-west" },
+  ],
+  databases: [
+    { url: "postgres://db1.internal/app",   pool_min: 5,  pool_max: 20 },
+    { url: "postgres://db2.internal/audit", pool_min: 2,  pool_max: 5  },
+  ],
+};
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>TOML vs. YAML vs. JSON:</strong> TOML is better than YAML for flat or medium-complexity configuration because it isn't whitespace-sensitive. It's better than JSON because it's human-editable and supports comments. <strong>INI</strong> is a legacy alternative, but it lacks standardized support for arrays and nested data, which TOML handles with ease.</p>
+// @iarna/toml correctly generates array of tables:
+TOML.stringify(serverConfig);
+// [[servers]]
+// host = "web-01.internal"
+// port = 8080
+// role = "primary"
+// region = "us-east"
+//
+// [[servers]]
+// host = "web-02.internal"
+// port = 8080
+// role = "replica"
+// region = "us-east"
+//
+// [[servers]]
+// host = "web-03.internal"
+// port = 8081
+// role = "replica"
+// region = "eu-west"
+//
+// [[databases]]
+// url = "postgres://db1.internal/app"
+// pool_min = 5
+// pool_max = 20
+//
+// [[databases]]
+// url = "postgres://db2.internal/audit"
+// pool_min = 2
+// pool_max = 5
+
+// Parsing array of tables — result is a JS array of objects
+const parsed = TOML.parse(tomlOutput);
+parsed.servers.forEach(s => console.log(s.host, s.region));
+</code></pre>
+
+<h3>Native Date and Time Types</h3>
+<pre><code">// TOML has four native date/time types that JSON lacks:
+// 1. Offset Date-Time:  2024-03-15T10:30:00Z
+// 2. Local Date-Time:   2024-03-15T10:30:00  (no timezone)
+// 3. Local Date:        2024-03-15
+// 4. Local Time:        10:30:00
+
+// In @iarna/toml, JavaScript Date objects serialize to TOML Offset Date-Time
+const release = {
+  released_at: new Date('2024-03-15T10:00:00Z'),  // JS Date → TOML datetime
+  maintenance_until: new Date('2025-03-15'),
+};
+
+TOML.stringify(release);
+// released_at = 2024-03-15T10:00:00.000Z
+// maintenance_until = 2025-03-15T00:00:00.000Z
+
+// TOML Local Date (no time) — use TOML.LocalDate from @iarna/toml
+import { LocalDate, LocalTime, LocalDateTime } from '@iarna/toml';
+
+const config = {
+  start_date:  new LocalDate(2024, 3, 15),           // 2024-03-15
+  daily_reset: new LocalTime(0, 0, 0),               // 00:00:00
+  published:   new LocalDateTime(2024, 3, 15, 10, 0), // 2024-03-15T10:00:00
+};
+
+TOML.stringify(config);
+// start_date = 2024-03-15
+// daily_reset = 00:00:00
+// published = 2024-03-15T10:00:00
+</code></pre>
+
+<h3>pyproject.toml and Modern Python Config Patterns</h3>
+<pre><code">// Python's pyproject.toml uses TOML for all project configuration
+// Generate it from a JSON project definition:
+
+const pythonProject = {
+  tool: {
+    poetry: {
+      name:        "data-pipeline",
+      version:     "0.3.1",
+      description: "ETL pipeline for analytics",
+      authors:     ["Data Team <data@example.com>"],
+      packages:    [{ include: "pipeline" }],
+      dependencies: {
+        python:   "^3.11",
+        pandas:   "^2.0.0",
+        "pydantic": "^2.0.0",
+        httpx:    { version: "^0.25.0", extras: ["http2"] },
+      },
+    },
+    ruff: {
+      line_length:          100,
+      target_version:       ["py311"],
+      select:               ["E", "F", "I", "N", "W"],
+      ignore:               ["E501"],
+      "per-file-ignores":   { "tests/**": ["S101"] },
+    },
+    mypy: {
+      python_version:     "3.11",
+      strict:             true,
+      ignore_missing_imports: false,
+    },
+    pytest: {
+      ini_options: {
+        testpaths:          ["tests"],
+        asyncio_mode:       "auto",
+        addopts:            "--cov=pipeline --cov-report=term-missing",
+      },
+    },
+  },
+  build_system: {
+    requires:           ["poetry-core>=1.0.0"],
+    "build-backend":    "poetry.core.masonry.api",
+  },
+};
+
+const pyprojectToml = TOML.stringify(pythonProject);
+writeFileSync('pyproject.toml', pyprojectToml);
+// Generates:
+// [tool.poetry]
+// name = "data-pipeline"
+// ...
+// [tool.ruff]
+// ...
+// [build-system]
+// ...
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Keep it Flat:</strong> TOML excels at flat structures. If your JSON is more than 3 levels deep, consider if it's the right format or if you can simplify your configuration.</li>
-  <li><strong>Use Comments:</strong> One of the biggest advantages of TOML over JSON is the ability to add <code>#</code> comments. Use them liberally to explain your settings.</li>
-  <li><strong>Order Matters for Readability:</strong> While not strictly required by the spec, grouping related tables together makes your TOML files much easier for other developers to navigate.</li>
+  <li><strong>Use TOML for configuration where humans edit the file; use JSON for machine-to-machine data:</strong> TOML's design is specifically for config files that engineers read and modify. It's more comfortable to write than JSON (no trailing comma anxiety, supports comments) and more explicit than YAML (no indentation-based nesting ambiguity). Don't use TOML for API responses or data exchange — use JSON.</li>
+  <li><strong>Place all top-level keys before any table headers:</strong> TOML has a rule that top-level key-value pairs must come before any <code>[table]</code> or <code>[[array of tables]]</code> headers. Violating this order causes a parse error. When generating TOML programmatically, ensure scalar values at the root are output before nested tables.</li>
+  <li><strong>Understand the two-level dotted key syntax for shallow nesting:</strong> <code>[dependencies.serde]</code> is equivalent to <code>[dependencies]</code> followed by <code>[dependencies.serde]</code>. For sparse objects (most keys are undefined), the dotted syntax is cleaner. For dense objects (all keys defined), a <code>[section]</code> block is cleaner. @iarna/toml uses dotted keys for inline-friendly shapes automatically.</li>
+  <li><strong>Use TOML's native date types instead of string representations:</strong> If your JSON has <code>"release_date": "2024-03-15"</code>, convert it to a TOML LocalDate when generating TOML. Tools that read TOML (Cargo, Poetry, rustfmt) understand native date types and can validate ranges, compare versions, and compute durations without string parsing.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Is TOML supported in Node.js?</strong><br>
-A: Yes, libraries like <code>@iarna/toml</code> or <code>toml</code> are widely used to parse and stringify TOML in JavaScript environments.</p>
-<p><strong>Q: Can TOML handle binary data?</strong><br>
-A: No, TOML is for text-based configuration. For binary data, stick with JSON (Base64) or a binary format like Protobuf.</p>
-<p><strong>Q: Does TOML have a size limit?</strong><br>
-A: No, but it's designed for configuration. For massive datasets, JSON or a database is much more appropriate.</p>
+<p><strong>Q: Why doesn't TOML support null/nil?</strong><br>
+A: By design — TOML is for configuration, not data transfer. A configuration key with no value should either be omitted or use a sentinel value (<code>""</code>, <code>-1</code>, <code>false</code>). If you need null semantics in a TOML-configured application, handle it at the application layer by checking for the absence of the key rather than a null value. This is one reason TOML is not used for JSON-equivalent data exchange.</p>
+
+<p><strong>Q: Can TOML files import other TOML files?</strong><br>
+A: TOML has no include or import directive — there's no equivalent of YAML's <code>!!include</code>. If your configuration is complex enough to need includes, it's usually a sign that you should use a proper configuration management system (like Ansible group_vars or Kubernetes ConfigMaps) rather than TOML files. Some tools (like Cargo workspaces) handle multi-file configuration at the tool level, not the TOML spec level.</p>
+
+<p><strong>Q: Does @iarna/toml support TOML 1.0?</strong><br>
+A: Yes, @iarna/toml v3.0+ is TOML 1.0 compliant. The older <code>toml</code> npm package (without the @iarna scope) supports an older spec version. For full TOML 1.0 support including the 8-byte hex escape (<code>\UHHHHHHHH</code>), use @iarna/toml or the newer <code>smol-toml</code> package which is TOML 1.0 compliant and has no dependencies.</p>

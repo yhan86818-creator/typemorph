@@ -1,82 +1,231 @@
-<h2>Mapping JSON to Snowflake Tables: Structuring Semi-Structured Data</h2>
-<p>Snowflake's architecture is uniquely optimized for handling semi-structured data through its <code>VARIANT</code> data type. However, for performance-critical analytical queries, flattening JSON into structured relational tables is often necessary. Converting JSON schemas to Snowflake DDL (Data Definition Language) involves mapping JSON primitives to Snowflake's robust type system, including <code>NUMBER</code>, <code>VARCHAR</code>, and <code>TIMESTAMP_NTZ</code>.</p>
+<h2>JSON to Snowflake Table: VARIANT, FLATTEN, and the Raw-to-Refined Pipeline</h2>
+<p>Snowflake's semi-structured data handling separates it from traditional data warehouses. The VARIANT type stores JSON, Avro, Parquet, and ORC natively without predefined schema — you query fields with colon notation (<code>$1:user.email::STRING</code>) and Snowflake's query optimizer prunes columns within the binary-encoded VARIANT even without explicit indexes. The professional pattern for JSON ingestion is a two-layer architecture: a raw landing table with a single VARIANT column (load everything, validate nothing), followed by a structured refined table built by a COPY/SELECT transform that casts fields to typed columns. This keeps ingestion fast and schema evolution safe.</p>
 
-<h3>Live Example</h3>
-<p>Consider a JSON log entry:</p>
-<pre><code>{
-  "request_id": "req-9876",
-  "client_ip": "192.168.1.1",
-  "details": {
-    "duration_ms": 145,
-    "status": 200
+<h3>Live Example: Raw Landing → Structured Refined Table</h3>
+<pre><code">-- Input JSON (user event)
+{
+  "user_id":    "usr_001",
+  "email":      "alice@example.com",
+  "event_type": "purchase",
+  "amount":     "149.99",
+  "currency":   "USD",
+  "metadata": {
+    "device": "mobile",
+    "campaign": "summer_sale",
+    "items": [
+      { "sku": "WIDGET-L", "quantity": 2, "price": "59.99" },
+      { "sku": "CABLE-USB", "quantity": 1, "price": "29.99" }
+    ]
   },
-  "tags": ["api", "v2", "auth"]
-}</code></pre>
-<p>The Snowflake DDL to create a structured table would be:</p>
-<pre><code>CREATE OR REPLACE TABLE raw_requests (
-    request_id VARCHAR(50) NOT NULL,
-    client_ip VARCHAR(45),
-    duration_ms NUMBER(10, 0),
-    status_code NUMBER(3, 0),
-    tags VARIANT,
-    ingested_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+  "occurred_at": "2024-01-15T10:30:00Z"
+}
+
+-- Layer 1: Raw landing table (VARIANT — no schema enforcement)
+CREATE TABLE raw.events_landing (
+    raw_data    VARIANT                              NOT NULL,
+    file_name   VARCHAR(500),
+    loaded_at   TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
 );
 
--- Flattening query example
-INSERT INTO raw_requests (request_id, client_ip, duration_ms, status_code, tags)
-SELECT 
-    $1:request_id::VARCHAR,
-    $1:client_ip::VARCHAR,
-    $1:details.duration_ms::NUMBER,
-    $1:details.status::NUMBER,
-    $1:tags::VARIANT
-FROM @my_stage/logs.json (file_format => my_json_format);</code></pre>
+-- Load JSON from S3 stage (COPY INTO)
+COPY INTO raw.events_landing (raw_data, file_name)
+FROM (
+    SELECT $1, METADATA$FILENAME
+    FROM @my_s3_stage/events/
+)
+FILE_FORMAT = (TYPE = 'JSON' STRIP_OUTER_ARRAY = TRUE);
 
-<h3>Implementation Guide</h3>
-<ol>
-  <li><strong>Define File Formats:</strong> Create a <code>FILE FORMAT</code> in Snowflake that specifies <code>TYPE = 'JSON'</code>.</li>
-  <li><strong>Identify Key Fields:</strong> Determine which JSON fields should be promoted to their own columns and which should remain in a <code>VARIANT</code> column.</li>
-  <li><strong>Type Mapping:</strong> Map JSON numbers to <code>NUMBER</code> or <code>FLOAT</code>, and strings to <code>VARCHAR</code>. Be mindful of Snowflake's default string length limits.</li>
-  <li><strong>Handling Nesting:</strong> Use dot notation (e.g., <code>$1:parent.child</code>) to access nested elements during ingestion.</li>
-  <li><strong>Automate with Tasks:</strong> Use Snowflake Tasks and Streams to automatically process new JSON files as they arrive in your cloud storage (S3/GCS/Azure).</li>
-</ol>
+-- Layer 2: Structured refined table
+CREATE TABLE refined.events (
+    event_id     VARCHAR(36)   NOT NULL DEFAULT gen_random_uuid(),
+    user_id      VARCHAR(50)   NOT NULL,
+    email        VARCHAR(255),
+    event_type   VARCHAR(50)   NOT NULL,
+    amount       NUMBER(12, 4),
+    currency     CHAR(3),
+    device       VARCHAR(50),
+    campaign     VARCHAR(100),
+    occurred_at  TIMESTAMP_NTZ NOT NULL,
+    loaded_at    TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+    raw_data     VARIANT,          -- preserve original for debugging
+    PRIMARY KEY (event_id)
+);
 
-<h3>Technical Deep Dive</h3>
-<p>Snowflake's <code>VARIANT</code> type stores semi-structured data in a compressed, columnar format. When you query a <code>VARIANT</code> column using colon notation, Snowflake's optimizer can often prune columns within the JSON, providing performance similar to a structured table. However, "schema-on-read" incurs a slight overhead compared to "schema-on-write." For massive datasets (terabytes+), explicitly defining columns for frequently filtered or joined fields is a critical optimization strategy.</p>
+-- Populate refined from raw using colon notation
+INSERT INTO refined.events (user_id, email, event_type, amount, currency,
+                              device, campaign, occurred_at, raw_data)
+SELECT
+    r.raw_data:user_id::VARCHAR(50),
+    r.raw_data:email::VARCHAR(255),
+    r.raw_data:event_type::VARCHAR(50),
+    r.raw_data:amount::NUMBER(12,4),
+    r.raw_data:currency::CHAR(3),
+    r.raw_data:metadata:device::VARCHAR(50),
+    r.raw_data:metadata:campaign::VARCHAR(100),
+    r.raw_data:occurred_at::TIMESTAMP_NTZ,
+    r.raw_data
+FROM raw.events_landing r
+WHERE r.raw_data:event_type IS NOT NULL;
+</code></pre>
 
-<h3>Comparison</h3>
-<table border="1">
-  <tr>
-    <th>Approach</th>
-    <th>VARIANT Column</th>
-    <th>Structured Table</th>
-  </tr>
-  <tr>
-    <td>Flexibility</td>
-    <td>Very High (Schema-less)</td>
-    <td>Low (Fixed Schema)</td>
-  </tr>
-  <tr>
-    <td>Query Speed</td>
-    <td>High (Optimized)</td>
-    <td>Maximum (Direct Access)</td>
-  </tr>
-  <tr>
-    <td>Storage</td>
-    <td>Compressed (Slightly larger)</td>
-    <td>Highly Optimized</td>
-  </tr>
-</table>
+<h3>Snowflake Type Reference for JSON Mapping</h3>
+<pre><code">-- Snowflake Types vs JSON
+-- JSON string    → VARCHAR(N) or TEXT (≤16MB)
+-- JSON number    → NUMBER(p, s), FLOAT, or INTEGER
+-- JSON boolean   → BOOLEAN
+-- JSON null      → NULL (any nullable column)
+-- JSON object    → VARIANT or OBJECT
+-- JSON array     → VARIANT or ARRAY
 
-<h3>Best Practices</h3>
+-- Timestamp types (choose carefully):
+-- TIMESTAMP_NTZ  — "No TimeZone": stored as-is, recommended for most data
+-- TIMESTAMP_TZ   — stores UTC + timezone offset: good for user-timezone-aware data
+-- TIMESTAMP_LTZ  — "Local TimeZone": converts to session timezone on display
+
+-- Numeric precision:
+-- NUMBER(p, s)     — exact decimal, p=total digits, s=decimal places
+-- NUMBER(10, 2)    — max 99,999,999.99 (use for money)
+-- FLOAT/FLOAT8     — 64-bit IEEE 754 (avoid for financial amounts)
+-- INTEGER/INT      — 38-digit integer (Snowflake integers are NUMBER)
+
+-- Colon notation for extraction:
+raw_data:user_id                     -- returns VARIANT
+raw_data:user_id::VARCHAR            -- cast to string
+raw_data:amount::NUMBER(12,4)        -- cast to decimal
+raw_data:occurred_at::TIMESTAMP_NTZ  -- cast timestamp string
+raw_data:is_active::BOOLEAN          -- cast boolean
+raw_data:metadata:device::VARCHAR    -- nested path
+raw_data:items[0]:sku::VARCHAR       -- array element by index (0-indexed!)
+</code></pre>
+
+<h3>FLATTEN: Exploding JSON Arrays into Rows</h3>
+<pre><code">-- FLATTEN turns a JSON array into multiple rows (like PostgreSQL UNNEST)
+-- Useful for extracting order line items from nested arrays
+
+-- events.raw_data:metadata.items = [{"sku":"WIDGET-L","quantity":2},...]
+
+SELECT
+    e.user_id,
+    e.occurred_at,
+    f.value:sku::VARCHAR     AS item_sku,
+    f.value:quantity::INT    AS item_qty,
+    f.value:price::NUMBER    AS item_price,
+    f.index                  AS item_position  -- 0-based array index
+FROM refined.events e,
+     LATERAL FLATTEN(input => e.raw_data:metadata:items) f
+WHERE e.event_type = 'purchase';
+-- Each row becomes one item × one event
+
+-- FLATTEN options:
+-- PATH       — which sub-path to flatten (default: entire column)
+-- OUTER      — include rows with NULL/empty arrays (like LEFT JOIN)
+-- RECURSIVE  — flatten nested arrays recursively
+-- MODE       — 'BOTH', 'ARRAY', 'OBJECT' (what to expand)
+
+SELECT
+    f.key,          -- key name (for OBJECT mode)
+    f.value,        -- value (VARIANT)
+    f.index,        -- position (for ARRAY mode)
+    f.path,         -- full path from root
+    f.this          -- current element (context)
+FROM TABLE(FLATTEN(input => PARSE_JSON('{"a":1,"b":2}'), MODE => 'OBJECT')) f;
+</code></pre>
+
+<h3>Clustering Keys for Query Performance</h3>
+<pre><code">-- Snowflake doesn't use traditional indexes — it uses micro-partitioning
+-- Each micro-partition holds 50-500MB of compressed data
+-- Clustering keys control how rows are sorted across micro-partitions
+
+-- Good clustering keys:
+-- Columns frequently used in WHERE, GROUP BY, JOIN
+-- High-cardinality columns with range queries (dates, IDs)
+
+-- Apply clustering to large tables (>1TB recommended)
+ALTER TABLE refined.events
+CLUSTER BY (occurred_at, event_type);
+
+-- Automatic clustering maintains the ordering as new data arrives
+-- Monitor clustering efficiency:
+SELECT SYSTEM$CLUSTERING_INFORMATION('refined.events', '(occurred_at, event_type)');
+
+-- Query that benefits from clustering (prunes micro-partitions):
+SELECT user_id, SUM(amount) AS total
+FROM refined.events
+WHERE occurred_at >= '2024-01-01'
+  AND occurred_at <  '2024-02-01'
+  AND event_type = 'purchase'
+GROUP BY user_id;
+-- Snowflake scans only the micro-partitions within the date/type range
+</code></pre>
+
+<h3>Streams and Tasks: Incremental Processing</h3>
+<pre><code">-- Stream: tracks INSERT/UPDATE/DELETE changes to a table (CDC)
+CREATE STREAM raw.events_stream ON TABLE raw.events_landing;
+
+-- Task: scheduled SQL that processes stream records
+CREATE TASK transform_events
+    WAREHOUSE = my_warehouse
+    SCHEDULE  = '5 minute'
+    WHEN SYSTEM$STREAM_HAS_DATA('raw.events_stream')
+AS
+INSERT INTO refined.events (user_id, email, event_type, amount, currency, occurred_at)
+SELECT
+    s.raw_data:user_id::VARCHAR,
+    s.raw_data:email::VARCHAR,
+    s.raw_data:event_type::VARCHAR,
+    s.raw_data:amount::NUMBER(12,4),
+    s.raw_data:currency::CHAR(3),
+    s.raw_data:occurred_at::TIMESTAMP_NTZ
+FROM raw.events_stream s
+WHERE s.METADATA$ACTION = 'INSERT';  -- only process new rows
+
+-- Start the task
+ALTER TASK transform_events RESUME;
+</code></pre>
+
+<h3>Querying VARIANT with Semi-Structured Paths</h3>
+<pre><code">-- Check if a key exists
+SELECT COUNT(*)
+FROM raw.events_landing
+WHERE raw_data:metadata:campaign IS NOT NULL;
+
+-- Use TYPEOF() to inspect types at query time
+SELECT TYPEOF(raw_data:amount) AS amount_type
+FROM raw.events_landing
+LIMIT 5;
+-- → "TEXT" (JSON numbers may come as strings — always cast)
+
+-- Handle missing keys gracefully with TRY_CAST
+SELECT
+    raw_data:user_id::VARCHAR                      AS user_id,
+    TRY_CAST(raw_data:amount::VARCHAR AS NUMBER)   AS amount,     -- NULL if malformed
+    COALESCE(raw_data:currency::VARCHAR, 'USD')    AS currency
+FROM raw.events_landing;
+
+-- Aggregate directly on VARIANT (works but slower than structured column)
+SELECT
+    raw_data:event_type::VARCHAR AS event_type,
+    COUNT(*) AS cnt,
+    SUM(raw_data:amount::NUMBER) AS total
+FROM raw.events_landing
+GROUP BY 1
+ORDER BY cnt DESC;
+</code></pre>
+
+<h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Upper Case Columns:</strong> Snowflake defaults to upper case for unquoted identifiers; align your JSON keys or DDL accordingly.</li>
-  <li><strong>Use TIMESTAMP_NTZ:</strong> For most data warehousing needs, <code>TIMESTAMP_NTZ</code> (No Time Zone) is the most performant for joins and filters.</li>
-  <li><strong>Flatten Sparingly:</strong> Only flatten the top 10-20 most used fields to balance query speed and table maintainability.</li>
+  <li><strong>Use TIMESTAMP_NTZ for most event timestamps:</strong> TIMESTAMP_NTZ stores the value as-is without timezone conversion. TIMESTAMP_TZ adds a timezone offset per row, which is useful for user activity but adds storage cost. TIMESTAMP_LTZ converts to the current session timezone on read — confusing and error-prone for analytics.</li>
+  <li><strong>Always cast VARIANT values, never use them uncast in JOINs:</strong> VARIANT comparisons do not use pruning efficiently. Always cast to a typed column (<code>::VARCHAR</code>, <code>::NUMBER</code>) before JOIN conditions and WHERE filters. Uncasted VARIANT in a JOIN is a full table scan.</li>
+  <li><strong>Use PARSE_JSON() for programmatic JSON construction:</strong> When INSERT-ing structured data as VARIANT, use <code>PARSE_JSON('{"key":"value"}')</code> rather than string literals. Snowflake validates the JSON syntax and stores it in the efficient binary format rather than as a raw string.</li>
+  <li><strong>Separate raw and refined into different schemas:</strong> Landing data belongs in a <code>raw</code> schema, transformed data in <code>refined</code> or <code>analytics</code>. This separates the concerns of ingestion reliability (raw: load everything fast) from query performance (refined: typed, clustered, cleaned).</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: What is the maximum size for a VARIANT?</strong><br>
-A: A single <code>VARIANT</code> value can be up to 16 MB (compressed).</p>
-<p><strong>Q: Can I index JSON data in Snowflake?</strong><br>
-A: Snowflake doesn't use traditional indexes, but it uses micro-partitioning. Flattening data into columns allows Snowflake to better prune partitions based on those values.</p>
+<p><strong>Q: When should I use VARIANT vs individual columns?</strong><br>
+A: VARIANT for exploratory data, frequently-changing schemas, or attributes queried rarely. Individual typed columns for dimensions and metrics used in regular WHERE clauses, GROUP BY, and JOINs. A common pattern: key analytical fields (user_id, amount, timestamp) as columns, everything else in a VARIANT <code>properties</code> column.</p>
+
+<p><strong>Q: How do Snowflake micro-partitions compare to BigQuery partitions?</strong><br>
+A: BigQuery uses explicit DATE/TIMESTAMP partition columns that you define — queries without a partition filter scan everything. Snowflake automatically partitions every table into micro-partitions (~100MB compressed); clustering keys tell Snowflake how to order rows across micro-partitions. Both reduce data scanned; Snowflake's approach is more automatic but BigQuery's explicit partitions are more predictable.</p>
+
+<p><strong>Q: How do I handle schema evolution (new JSON keys added over time)?</strong><br>
+A: The raw VARIANT landing table never needs migration — new keys just appear in the VARIANT. The refined table needs <code>ALTER TABLE ADD COLUMN</code> for new fields, plus a backfill. This is the advantage of the two-layer approach: you can always re-derive the refined table from the preserved raw data.</p>

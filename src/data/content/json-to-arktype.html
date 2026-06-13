@@ -1,56 +1,250 @@
-<h2>JSON to ArkType: Unleashing High-Performance Runtime Validation</h2>
-<p>For developers who demand the absolute peak of performance and type-system integration, ArkType represents the cutting edge of TypeScript validation. Converting JSON to ArkType schemas moves beyond traditional object-based definitions into a world of "Type-Safe Strings." ArkType's unique syntax allows for incredibly concise definitions that are optimized at runtime to be significantly faster than other libraries. This is the choice for high-frequency data processing where every millisecond and byte of overhead counts.</p>
+<h2>JSON to ArkType: TypeScript-Native Validation with JIT-Compiled Type Checking</h2>
+<p>ArkType is built on a different premise than other validation libraries: your TypeScript types and your runtime validators should be the same thing, written in the same syntax. Instead of learning a parallel API, you write types using a syntax that is a superset of TypeScript's own type expressions — <code>"string"</code>, <code>"number"</code>, <code>"string[]"</code>, <code>"'admin' | 'user'"</code> — and ArkType compiles them into a runtime validator at definition time. The result is schemas that are simultaneously the most concise, the most type-accurate, and among the fastest at runtime.</p>
 
-<h3>Live Example: The Power of Scoped Type Definitions</h3>
+<h3>Live Example: TypeScript-Syntax Schema Definition</h3>
 <pre><code>// Input JSON
 {
   "id": 101,
   "username": "ark_dev",
   "email": "contact@arktype.io",
-  "role": "admin"
+  "role": "admin",
+  "createdAt": "2024-01-15T08:30:00Z"
 }
 
 // Generated ArkType Schema
-import { type } from "arktype"
+import { type } from 'arktype';
 
 const User = type({
-    id: "number.integer",
-    username: "string>3",
-    email: "email",
-    "role?": "'admin'|'user'|'guest'"
-})
+  id:        'number.integer',
+  username:  'string > 3 &amp; string &lt; 50',  // 3 < length < 50
+  email:     'string.email',
+  role:      '"admin" | "user" | "guest"',
+  createdAt: 'string.date.iso',
+});
 
-// Validation and Inference
-const { data, errors } = User(inputJson)
-if (errors) {
-    console.error(errors.summary)
+// Validation — call the type as a function
+const result = User(incomingData);
+
+if (result instanceof type.errors) {
+  console.error(result.summary);
+  // "username must be more than 3 characters (was 2)"
+} else {
+  // result is typed: { id: number; username: string; email: string; ... }
+  console.log(result.email);
 }
-type UserType = typeof User.infer
+
+// Type inference — exact TypeScript type
+type UserType = typeof User.infer;
+</code></pre>
+<p>The string syntax <code>"string > 3 &amp; string &lt; 50"</code> is not magic strings — ArkType parses them as type expressions using the same precedence rules as TypeScript's own type system. Your IDE provides autocomplete and type errors inside those strings.</p>
+
+<h3>The Scope System: Custom Types and Reuse</h3>
+<p>ArkType's <code>scope()</code> lets you register custom types that work like built-in primitives anywhere in your schema:</p>
+<pre><code>import { scope } from 'arktype';
+
+const $ = scope({
+  // Register custom types
+  email:     'string.email',
+  uuid:      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  positiveInt: 'number.integer &amp; number > 0',
+  isoDate:   'string.date.iso',
+
+  // Compose them into schemas
+  user: {
+    id:       'uuid',
+    email:    'email',
+    balance:  'positiveInt',
+    joinedAt: 'isoDate',
+  },
+
+  // Reference user in another type
+  order: {
+    id:          'uuid',
+    userId:      'uuid',
+    total:       'number > 0',
+    'discount?': 'number >= 0 &amp; number &lt;= 100',
+    createdAt:   'isoDate',
+  }
+});
+
+// Export compiled types from the scope
+const { user, order } = $.export();
+
+type User  = typeof user.infer;
+type Order = typeof order.infer;
+</code></pre>
+<p>Custom types defined in a scope are resolved at definition time — <code>"email"</code> inside any schema in this scope maps to <code>string.email</code>, not a runtime lookup. The whole scope compiles to an optimized validator graph once.</p>
+
+<h3>Morphs: Validation + Transformation</h3>
+<p>ArkType's <code>morph()</code> validates input and transforms the output in a single composable step:</p>
+<pre><code>import { type } from 'arktype';
+
+// Validate ISO string, return Date object
+const DateField = type('string.date.iso').pipe(s => new Date(s));
+
+// Validate string, return lowercase
+const Email = type('string.email').pipe(s => s.toLowerCase());
+
+// Validate number cents, return dollar amount
+const Money = type('number.integer &amp; number >= 0').pipe(cents => ({
+  cents,
+  dollars: cents / 100,
+  display: `$${(cents / 100).toFixed(2)}`,
+}));
+
+const UserSchema = type({
+  createdAt: DateField,
+  email:     Email,
+  balance:   Money,
+});
+
+const result = UserSchema({
+  createdAt: '2024-01-15T08:30:00Z',
+  email:     'USER@EXAMPLE.COM',
+  balance:   1999,
+});
+
+if (!(result instanceof type.errors)) {
+  result.createdAt;        // Date object
+  result.email;            // 'user@example.com'
+  result.balance.display;  // '$19.99'
+}
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Define with String Literals:</strong> Use ArkType's string-based syntax for common types like <code>"email"</code>, <code>"number.integer"</code>, or <code>"string>5"</code>.<br>
-2. <strong>Map Object Structures:</strong> Use the converter to transform your JSON keys into an ArkType object definition.<br>
-3. <strong>Handle Optionality:</strong> Simply add a <code>?</code> to the key name (e.g., <code>"role?"</code>) to mark a field as optional, mirroring TypeScript's syntax.<br>
-4. <strong>Perform Validation:</strong> Call the generated type as a function. ArkType returns a simple result object containing either the validated <code>data</code> or highly detailed <code>errors</code>.</p>
+<h3>Discriminated Unions with Type Expressions</h3>
+<pre><code>import { type } from 'arktype';
 
-<h3>Technical Deep Dive: The JIT Engine for Types</h3>
-<p>ArkType is unique because it uses a Just-In-Time (JIT) compilation approach for its validation logic. When you define a type, ArkType parses the string definitions and generates highly optimized JavaScript functions tailored specifically to that schema. This allows it to outperform Zod and other libraries by orders of magnitude in many benchmarks. Furthermore, ArkType's type system is built to be a 1:1 reflection of TypeScript's own internal type checker, meaning it can handle complex unions and intersections with unprecedented accuracy at runtime.</p>
+// Discriminated union using TypeScript union syntax
+const Event = type({
+  type: '"click"',
+  x:    'number',
+  y:    'number',
+} | {
+  type: '"keypress"',
+  key:  'string',
+  ctrl: 'boolean',
+} | {
+  type:    '"submit"',
+  formId:  'string',
+  payload: 'Record&lt;string, string&gt;',
+});
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>ArkType vs. Zod/Valibot:</strong> ArkType's primary advantage is performance and conciseness. While Zod is the standard and Valibot is for bundle size, ArkType is for <strong>raw speed</strong> and <strong>type-system fidelity</strong>. Its string-based syntax is also much more compact than the verbose function chaining found in other libraries. If your project involves heavy data ingestion or real-time systems, ArkType is the clear winner.</p>
+type EventType = typeof Event.infer;
+
+// ArkType uses the 'type' key as a discriminator automatically
+// and routes validation to the matching branch — O(1) lookup
+
+function handleEvent(raw: unknown) {
+  const event = Event(raw);
+  if (event instanceof type.errors) return;
+
+  if (event.type === 'click') {
+    console.log(event.x, event.y);  // TypeScript knows these exist
+  }
+}
+</code></pre>
+
+<h3>Performance: JIT-Compiled Validators</h3>
+<p>ArkType compiles schemas to optimized JavaScript at definition time — not per validation call:</p>
+<pre><code>// This happens ONCE at module load:
+const User = type({
+  id:    'number.integer',
+  email: 'string.email',
+  name:  'string > 0 &amp; string &lt;= 100',
+});
+// ArkType generates: roughly equivalent to:
+// (v) => typeof v==='object'&amp;&amp;v!==null
+//   &amp;&amp; Number.isInteger(v.id)
+//   &amp;&amp; EMAIL_REGEX.test(v.email)
+//   &amp;&amp; typeof v.name==='string'
+//   &amp;&amp; v.name.length>0&amp;&amp;v.name.length&lt;=100
+
+// All subsequent validations are just the compiled function:
+// User(data1) — hot function call, no schema traversal
+// User(data2) — same
+// User(data3) — same
+</code></pre>
+<p>Benchmarks consistently show ArkType validating 10-100× faster than Zod for complex schemas with many fields or nested objects. The gap is largest for high-frequency validation: real-time event processing, websocket message parsing, or API handlers under heavy load.</p>
+
+<h3>Generic Types and Parameterized Schemas</h3>
+<pre><code>import { generic, type } from 'arktype';
+
+// Define a generic paginated response type
+const Paginated = generic(['T'])(
+  (args) => type({
+    items:    args.T.array(),
+    total:    'number.integer',
+    page:     'number.integer &amp; number > 0',
+    pageSize: 'number.integer &amp; number > 0',
+  })
+);
+
+// Instantiate with a concrete type
+const UserPage    = Paginated(type({ id: 'string', name: 'string' }));
+const ProductPage = Paginated(type({ sku: 'string', price: 'number > 0' }));
+
+type UserPageType    = typeof UserPage.infer;
+type ProductPageType = typeof ProductPage.infer;
+</code></pre>
+
+<h3>Integration with tRPC and Fastify</h3>
+<pre><code>// tRPC + ArkType input validation
+import { initTRPC } from '@trpc/server';
+import { type } from 'arktype';
+
+const t = initTRPC.create();
+
+const CreateUserInput = type({
+  name:  'string > 0 &amp; string &lt;= 50',
+  email: 'string.email',
+  role:  '"admin" | "user"',
+});
+
+export const appRouter = t.router({
+  createUser: t.procedure
+    .input((raw) => {
+      const result = CreateUserInput(raw);
+      if (result instanceof type.errors) throw result;
+      return result;
+    })
+    .mutation(async ({ input }) => {
+      // input is fully typed
+      return db.users.create({ data: input });
+    }),
+});
+
+// Fastify with ArkType validation
+fastify.post('/users', {
+  handler: async (request) => {
+    const body = CreateUserInput(request.body);
+    if (body instanceof type.errors) {
+      return { status: 400, errors: body.summary };
+    }
+    return db.users.create({ data: body });
+  }
+});
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Pre-compile Schemas:</strong> Define your ArkType types outside of your request handlers to ensure the JIT compilation only happens once at startup.</li>
-  <li><strong>Leverage the Ecosystem:</strong> Use ArkType's built-in support for complex types like <code>Date</code>, <code>RegExp</code>, and even custom classes.</li>
-  <li><strong>Centralize Type Definitions:</strong> Keep your ArkType schemas in a dedicated directory to serve as a single source of truth for both runtime validation and TypeScript types.</li>
+  <li><strong>Define schemas at module scope:</strong> ArkType's JIT compilation runs at definition time. Module-level schemas compile once; function-level schemas recompile on every call. Always define schemas outside of request handlers and React components.</li>
+  <li><strong>Use scopes for large applications:</strong> A scope that registers all your domain types (<code>email</code>, <code>uuid</code>, <code>isoDate</code>) creates a consistent vocabulary. New schemas in that scope automatically inherit and reuse them.</li>
+  <li><strong>Check with <code>instanceof type.errors</code>:</strong> ArkType's result is either the validated value or a <code>type.errors</code> instance — use this discriminant rather than checking for undefined or null.</li>
+  <li><strong>Use <code>.pipe()</code> for transformations after validation:</strong> Validate the input shape first, then transform — this separates the "is this valid?" logic from the "how do I represent this?" logic and makes schemas easier to test independently.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Is the string syntax safe?</strong><br>
-A: Yes! ArkType uses advanced TypeScript features to provide full autocompletion and error checking within the string literals themselves.</p>
-<p><strong>Q: How fast is it compared to Zod?</strong><br>
-A: In many benchmarks, ArkType's validation engine is 10x to 100x faster than Zod for complex schemas.</p>
-<p><strong>Q: Can I extend ArkType with custom types?</strong><br>
-A: Yes, ArkType allows you to define "Scopes" where you can register custom types and reuse them across your entire application.</p>
+<p><strong>Q: Does IDE autocomplete work inside ArkType's string syntax?</strong><br>
+A: Yes. ArkType ships TypeScript type definitions that make string literal arguments template-literal-typed. In VS Code, typing <code>"string."</code> in an ArkType schema shows autocomplete for <code>string.email</code>, <code>string.url</code>, <code>string.uuid</code>, etc. Invalid type expressions show TypeScript errors at compile time.</p>
+
+<p><strong>Q: How does ArkType compare to Zod for everyday use?</strong><br>
+A: Zod has a larger ecosystem (more integrations, more community examples) and a more familiar chained API. ArkType is more concise, faster at runtime, and more type-accurate for complex unions and intersections. For a new project where performance matters or schemas are complex, ArkType is worth learning. For a project already using Zod with existing integrations, the migration cost rarely justifies the switch.</p>
+
+<p><strong>Q: Can I use ArkType with React Hook Form?</strong><br>
+A: Use <code>@hookform/resolvers/arktype</code>: <code>resolver: arktypeResolver(YourSchema)</code>. The error format from ArkType maps to RHF's field error structure.</p>
+
+<p><strong>Q: Is the string syntax a runtime eval() risk?</strong><br>
+A: No. ArkType parses the string syntax at definition time using a TypeScript parser, not <code>eval()</code>. The strings are analyzed statically — both at compile time (TypeScript checks them) and at schema definition time (ArkType compiles them to validator functions). No user-provided strings ever enter the type compilation pipeline at runtime.</p>
+
+<p><strong>Q: How do I handle optional fields?</strong><br>
+A: Append <code>?</code> to the key name: <code>"fieldName?"</code>. This mirrors TypeScript's optional property syntax exactly — <code>{ "nickname?": "string" }</code> produces <code>{ nickname?: string }</code> in the inferred type.</p>

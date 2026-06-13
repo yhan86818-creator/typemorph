@@ -1,58 +1,242 @@
-<h2>JSON to AsyncAPI Definition: Orchestrating Event-Driven Architectures</h2>
-<p>As applications move toward real-time responsiveness, event-driven architectures (EDA) using Kafka, RabbitMQ, or WebSockets have become standard. Converting JSON message samples into an AsyncAPI definition provides the same level of structure and documentation for events that OpenAPI provides for REST. By defining your event schemas, channels, and protocols in a standardized way, you ensure that your distributed services can communicate reliably without manual coordination or "blind" integration.</p>
+<h2>JSON to AsyncAPI 3: Kafka Bindings, Channel Operations, Schema Registry, and Message Correlation</h2>
+<p>AsyncAPI 3.0 (2023) restructured the spec significantly from 2.x: channels no longer contain operations directly — instead, operations reference channels and specify <code>action: send</code> or <code>action: receive</code>. This matters because a Kafka topic is the same channel whether you're a producer or consumer, but the direction is different for each service. This guide covers the AsyncAPI 3.0 structure, Kafka-specific bindings (consumer group, partition, offset reset), message headers for correlation and tracing, schema registry integration, and the AsyncAPI Generator for producing documentation and service stubs.</p>
 
-<h3>Live Example: Mapping Event JSON to AsyncAPI Definitions</h3>
-<pre><code>// Input JSON Event (UserSignedUp)
-{
-  "user_id": "u_992",
-  "email": "newuser@example.com",
-  "signup_at": "2023-10-27T10:00:00Z"
-}
+<h3>Live Example: AsyncAPI 3.0 for a Kafka Event System</h3>
+<pre><code"># Input JSON event payloads
+# OrderCreated event:
+{ "order_id": "ord_abc", "customer_id": "cust_001", "total_cents": 4998, "created_at": "2024-03-15T10:00:00Z" }
+# PaymentProcessed event:
+{ "payment_id": "pay_xyz", "order_id": "ord_abc", "status": "SUCCESS", "processed_at": "2024-03-15T10:00:05Z" }
 
-// Generated AsyncAPI Definition (YAML)
-asyncapi: 2.6.0
+# Generated AsyncAPI 3.0 definition
+asyncapi: 3.0.0
 info:
-  title: User Service API
+  title:   Order Processing System
   version: 1.0.0
+  description: |
+    Event-driven order processing pipeline.
+    Producers publish to order.created and payment.processed.
+    Downstream services subscribe and react.
+
+defaultContentType: application/json
+
+servers:
+  production:
+    host:     kafka.internal:9092
+    protocol: kafka
+    security:
+      - saslScram: []
+  development:
+    host:     localhost:9092
+    protocol: kafka
+
 channels:
-  user/signedup:
-    subscribe:
-      message:
-        $ref: '#/components/messages/UserSignedUp'
-components:
-  messages:
-    UserSignedUp:
-      payload:
-        type: object
-        properties:
-          user_id: { type: string }
-          email: { type: string, format: email }
-          signup_at: { type: string, format: date-time }
+  order-created:
+    address:  orders.created.v1       # Kafka topic name
+    messages:
+      OrderCreatedMessage:
+        $ref: '#/components/messages/OrderCreated'
+    bindings:
+      kafka:
+        topic:             orders.created.v1
+        partitions:        12
+        replicas:          3
+        topicConfiguration:
+          retentionMs:     604800000  # 7 days
+          cleanupPolicy:   [delete]
+
+  payment-processed:
+    address:  payments.processed.v1
+    messages:
+      PaymentProcessedMessage:
+        $ref: '#/components/messages/PaymentProcessed'
+
+operations:
+  # Order Service: publishes OrderCreated
+  publishOrderCreated:
+    action:   send
+    channel:  { $ref: '#/channels/order-created' }
+    messages:
+      - $ref: '#/channels/order-created/messages/OrderCreatedMessage'
+
+  # Notification Service: consumes OrderCreated
+  receiveOrderCreated:
+    action:   receive
+    channel:  { $ref: '#/channels/order-created' }
+    bindings:
+      kafka:
+        groupId:          { type: string, enum: [notification-service] }
+        clientId:         { type: string }
+        autoOffsetReset:  earliest
+    messages:
+      - $ref: '#/channels/order-created/messages/OrderCreatedMessage'
+
+  # Payment Service: publishes PaymentProcessed
+  publishPaymentProcessed:
+    action:  send
+    channel: { $ref: '#/channels/payment-processed' }
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Capture Event Samples:</strong> Record actual messages from your message broker or WebSocket streams.<br>
-2. <strong>Identify Channels:</strong> Map your JSON events to specific topics (Kafka) or queues (RabbitMQ), which become "channels" in AsyncAPI.<br>
-3. <strong>Generate Schemas:</strong> Use the converter to turn your JSON payloads into reusable message schemas.<br>
-4. <strong>Define Protocols:</strong> Specify the server information, including the protocol (e.g., <code>kafka</code>, <code>amqp</code>, <code>ws</code>) and connection details.</p>
+<h3>Message Headers for Correlation and Tracing</h3>
+<pre><code"># Message headers carry metadata separate from the business payload
+components:
+  messages:
+    OrderCreated:
+      name:    OrderCreated
+      title:   Order Created Event
+      summary: Fired when a new order is placed
+      headers:
+        type: object
+        required: [correlationId, traceId, eventType, version]
+        properties:
+          correlationId:
+            type:        string
+            format:      uuid
+            description: Ties all events from one user action together
+          traceId:
+            type:        string
+            description: OpenTelemetry trace ID for distributed tracing
+          eventType:
+            type:        string
+            const:       order.created
+          version:
+            type:        string
+            pattern:     '^\d+\.\d+$'
+            example:     "1.0"
+          publishedAt:
+            type:        string
+            format:      date-time
+      payload:
+        type: object
+        required: [order_id, customer_id, total_cents, created_at]
+        properties:
+          order_id:    { type: string, pattern: '^ord_[a-z0-9]+$' }
+          customer_id: { type: string }
+          total_cents: { type: integer, minimum: 0 }
+          created_at:  { type: string, format: date-time }
+          items:
+            type:  array
+            items:
+              type: object
+              required: [sku, qty, price_cents]
+              properties:
+                sku:         { type: string }
+                qty:         { type: integer, minimum: 1 }
+                price_cents: { type: integer, minimum: 0 }
+      correlationId:
+        description: Used to trace the event through the pipeline
+        location:    $message.header#/correlationId
 
-<h3>Technical Deep Dive: Decoupling and Schema Registries</h3>
-<p>The primary value of an AsyncAPI definition is **Service Decoupling**. In a REST API, the client calls the server directly. In an event-driven system, the producer doesn't know who the consumers are. By converting JSON to AsyncAPI, you create a "Contract" that consumers can rely on. A high-quality converter will also help you prepare schemas for a **Schema Registry** (like Confluent Schema Registry), ensuring that any change to your event structure is checked for backward compatibility before it is published to the broker.</p>
+    PaymentProcessed:
+      payload:
+        type: object
+        required: [payment_id, order_id, status, processed_at]
+        properties:
+          payment_id:   { type: string }
+          order_id:     { type: string }
+          status:
+            type: string
+            enum: [SUCCESS, FAILED, REFUNDED]
+          processed_at: { type: string, format: date-time }
+          failure_code:
+            type: ['string', 'null']
+            description: Set when status is FAILED
+</code></pre>
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>AsyncAPI vs. OpenAPI:</strong> OpenAPI is for "Request-Response" (synchronous), while AsyncAPI is for "Publish-Subscribe" (asynchronous). They use the same underlying JSON Schema format for data, making them highly compatible. <strong>CloudEvents</strong> is a related standard for describing event metadata, which can be used alongside AsyncAPI for even greater interoperability.</p>
+<h3>AMQP (RabbitMQ) Bindings</h3>
+<pre><code"># AsyncAPI supports multiple protocols via bindings
+channels:
+  order-notifications:
+    address: order.notifications
+    bindings:
+      amqp:
+        is:       routingKey
+        exchange:
+          name:       order-events
+          type:       topic
+          durable:    true
+          autoDelete: false
+    messages:
+      OrderNotification:
+        $ref: '#/components/messages/OrderCreated'
+
+servers:
+  rabbitmq:
+    host:     rabbitmq.internal:5672
+    protocol: amqp
+    bindings:
+      amqp:
+        exchange: order-events
+        vhost:    /production
+
+# WebSocket bindings
+servers:
+  websocket:
+    host:     wss://realtime.example.com
+    protocol: wss
+
+channels:
+  live-prices:
+    address: /prices
+    bindings:
+      ws:
+        bindingVersion: 0.1.0
+</code></pre>
+
+<h3>AsyncAPI Generator: Documentation and Code Stubs</h3>
+<pre><code">// AsyncAPI Generator produces HTML docs, server stubs, and clients
+// npm install -g @asyncapi/generator
+
+// Generate HTML documentation
+// ag asyncapi.yaml @asyncapi/html-template -o ./docs
+
+// Generate Node.js service stub (handles Kafka subscribe boilerplate)
+// ag asyncapi.yaml @asyncapi/nodejs-template -o ./src/generated
+
+// Generate Python stub
+// ag asyncapi.yaml @asyncapi/python-pydantic-template -o ./src
+
+// Programmatic generation in CI:
+import { Generator } from '@asyncapi/generator';
+import path from 'path';
+
+const generator = new Generator(
+  '@asyncapi/html-template',
+  path.resolve('./docs'),
+  { templateParams: { singleFile: true } }
+);
+
+await generator.generateFromFile('./asyncapi.yaml');
+
+// Validate spec before generating
+import { Parser } from '@asyncapi/parser';
+
+const parser = new Parser();
+const { document, diagnostics } = await parser.parse(specYaml);
+
+if (diagnostics.length &gt; 0) {
+  const errors = diagnostics.filter(d =&gt; d.severity === 0);
+  if (errors.length &gt; 0) {
+    console.error('AsyncAPI spec errors:', errors);
+    process.exit(1);
+  }
+}
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Document Headers:</strong> Events often carry vital metadata in headers (like trace IDs). Ensure your AsyncAPI definition includes header schemas, not just the payload.</li>
-  <li><strong>Use Avro or Protobuf:</strong> While AsyncAPI supports JSON, many event-driven systems use binary formats for performance. Use AsyncAPI to document the *logical* structure regardless of the wire format.</li>
-  <li><strong>Automate Documentation:</strong> Use the AsyncAPI Generator to produce HTML documentation or code stubs (in Java, Go, Node.js) directly from your definition.</li>
+  <li><strong>Use AsyncAPI 3.0's <code>action: send/receive</code> model:</strong> In 2.x, channels had <code>subscribe</code> and <code>publish</code> which were confusing (from whose perspective?). AsyncAPI 3.0 uses <code>action: send</code> (this service produces) and <code>action: receive</code> (this service consumes), which is unambiguous. Operations can reference the same channel with different actions for different services.</li>
+  <li><strong>Always document message headers separately from the payload:</strong> Correlation IDs, trace IDs, and schema version in headers are just as important as the event payload. Without header documentation, consumers don't know what correlation metadata is available. The <code>correlationId.location</code> field tells AsyncAPI where to find the correlation ID for end-to-end message tracing.</li>
+  <li><strong>Include Kafka topic configuration in bindings:</strong> Partition count, replication factor, and retention policy are operational parameters that consumers need to understand. Documenting them in bindings means your AsyncAPI spec is also the record of your Kafka topic configuration, not just the message shape.</li>
+  <li><strong>Reference schemas from your Avro Schema Registry via <code>$ref</code> or <code>schemaFormat</code>:</strong> For Kafka+Avro systems, use <code>schemaFormat: 'application/vnd.apache.avro;version=1.9.0'</code> in the message schema field and reference the AVSC file. This connects your AsyncAPI documentation directly to the authoritative schema, preventing documentation drift.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Does AsyncAPI support WebSockets?</strong><br>
-A: Yes, it is the primary standard for documenting WebSocket APIs, including sub-protocols like Socket.io.</p>
-<p><strong>Q: Can I use AsyncAPI with MQTT?</strong><br>
-A: Absolutely! AsyncAPI was designed to support a wide range of messaging protocols used in IoT and backend services.</p>
-<p><strong>Q: What is the latest version of AsyncAPI?</strong><br>
-A: Version 3.0 was recently released, offering even more flexibility and better alignment with OpenAPI's structure.</p>
+<p><strong>Q: When should I use AsyncAPI instead of OpenAPI?</strong><br>
+A: Use AsyncAPI for event-driven, publish-subscribe, or streaming APIs: Kafka topics, RabbitMQ queues, WebSocket connections, MQTT channels, and Server-Sent Events. Use OpenAPI for request-response REST APIs. A system often needs both — REST for synchronous operations, Kafka events for async side effects — and both specs can coexist in the same repository.</p>
+
+<p><strong>Q: Can I share JSON Schema components between AsyncAPI and OpenAPI specs?</strong><br>
+A: Yes. Define shared schemas in a separate file (<code>schemas/product.yaml</code>) and reference them from both specs with relative <code>$ref</code> paths. Both OpenAPI 3.1 and AsyncAPI 3.0 use JSON Schema 2020-12, so schemas written for one are compatible with the other. This is the canonical way to share message types between REST API responses and event payloads.</p>
+
+<p><strong>Q: How do I handle schema evolution for Kafka messages?</strong><br>
+A: Maintain backward compatibility: add new optional fields, never remove existing fields, never change field types. Version your topic names (<code>orders.created.v1</code>, <code>orders.created.v2</code>) when you need breaking changes. Document the compatibility level in the AsyncAPI bindings and enforce it via Confluent Schema Registry's compatibility check in CI before deploying schema changes.</p>

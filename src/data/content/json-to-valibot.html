@@ -1,52 +1,215 @@
-<h2>JSON to Valibot: Revolutionizing Type Validation with Tiny Bundle Sizes</h2>
-<p>As web applications strive for maximum performance and minimal initial load times, the size of our validation libraries becomes a critical factor. Valibot emerged as a solution to the "heavyweight" nature of traditional validation libraries. Converting JSON to Valibot schemas allows you to maintain rigorous runtime safety while benefiting from an architecture designed for tree-shaking. This approach is particularly effective for modern frontend frameworks like Next.js or Nuxt, where every kilobyte of JavaScript counts toward your Core Web Vitals.</p>
+<h2>JSON to Valibot: Tree-Shakeable Validation with Per-Feature Bundle Costs</h2>
+<p>Valibot is built on a single observation: most validation libraries are monolithic — you ship the whole library even if you only use 10% of it. Valibot inverts this by defining every validator as an independently importable function. Your bundle includes only the validators you actually call. For a Next.js app with a small checkout form, that can mean 0.6kb of validation code instead of 12kb. Converting your JSON to Valibot schemas is a direct investment in client-side performance — the JSON shape you paste in determines exactly which validator functions get imported.</p>
 
-<h3>Live Example: Modular Schema Definition</h3>
+<h3>Live Example: Order Schema with Pipeline Validations</h3>
 <pre><code>// Input JSON
 {
   "orderId": "ORD-123",
   "customer": "Jane Doe",
   "amount": 150.50,
-  "currency": "USD"
+  "currency": "USD",
+  "items": [
+    { "sku": "WGT-001", "qty": 2, "unitPrice": 75.25 }
+  ]
 }
 
 // Generated Valibot Schema
 import * as v from 'valibot';
 
-const OrderSchema = v.object({
-  orderId: v.pipe(v.string(), v.regex(/^ORD-\d+$/)),
-  customer: v.pipe(v.string(), v.minLength(2)),
-  amount: v.pipe(v.number(), v.minValue(0)),
-  currency: v.picklist(['USD', 'EUR', 'GBP'])
+const OrderItemSchema = v.object({
+  sku:       v.pipe(v.string(), v.regex(/^[A-Z]{3}-\d{3}$/)),
+  qty:       v.pipe(v.number(), v.integer(), v.minValue(1)),
+  unitPrice: v.pipe(v.number(), v.minValue(0)),
 });
 
-// Type Inference
+const OrderSchema = v.object({
+  orderId:  v.pipe(v.string(), v.regex(/^ORD-\d+$/)),
+  customer: v.pipe(v.string(), v.minLength(2), v.maxLength(100)),
+  amount:   v.pipe(v.number(), v.minValue(0)),
+  currency: v.picklist(['USD', 'EUR', 'GBP', 'JPY']),
+  items:    v.pipe(v.array(OrderItemSchema), v.minLength(1)),
+});
+
 type Order = v.InferOutput&lt;typeof OrderSchema&gt;;
+
+const result = v.safeParse(OrderSchema, incomingData);
+if (!result.success) {
+  const flat = v.flatten&lt;typeof OrderSchema&gt;(result.issues);
+  // flat.nested['items.0.qty'] — path-keyed errors
+  console.error(flat.nested);
+}
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Import Modular Functions:</strong> Unlike Zod, which uses a chained API, Valibot uses standalone functions. This is the key to its small size.<br>
-2. <strong>Map JSON to Schemas:</strong> Use the converter to translate your JSON fields into Valibot's <code>object</code>, <code>string</code>, and <code>number</code> primitives.<br>
-3. <strong>Apply Pipeline Validations:</strong> Use <code>v.pipe()</code> to combine multiple validation steps, such as checking for a string format and its length simultaneously.<br>
-4. <strong>Execute Parsing:</strong> Use <code>v.parse()</code> or <code>v.safeParse()</code> to validate your incoming JSON against the schema and handle errors gracefully.</p>
+<h3>The v.pipe() Architecture: Validators as Data</h3>
+<p>Valibot separates <em>schemas</em> (what type is this?) from <em>actions</em> (what constraints does it have?). This is the architectural reason for its small bundle:</p>
+<pre><code>// Without pipe — schema only, no constraints
+// Bundle cost: just v.string()
+const NameSchema = v.string();
 
-<h3>Technical Deep Dive: Tree-Shaking and the Functional Approach</h3>
-<p>Valibot's architecture is its superpower. In traditional libraries, the entire library is often included in your bundle even if you only use a fraction of its features. Valibot's functional approach means that if you don't use <code>v.email()</code>, that code never reaches your user's browser. When converting JSON to Valibot, you are essentially creating a tailored validation suite that is optimized at the build step. One unique insight is the separation of "actions" (validations) from "schemas" (structures), which allows for highly granular control over the validation logic.</p>
+// With pipe — adds only the actions you use
+// Bundle cost: v.string() + v.minLength + v.maxLength + v.trim
+const NameSchema = v.pipe(
+  v.string(),
+  v.trim(),           // strip whitespace before validation
+  v.minLength(1, 'Name is required'),
+  v.maxLength(50, 'Name too long')
+);
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>Valibot vs. Zod:</strong> Zod is more established and has a slightly more ergonomic chained syntax, but it's much larger. Valibot is up to 98% smaller than Zod when properly tree-shaken. <strong>ArkType</strong> is another alternative that focuses on raw performance and a unique string-based syntax, but Valibot remains the best choice for developers prioritizing bundle size without sacrificing type safety.</p>
+// Compare with Zod:
+// z.string().trim().min(1).max(50)
+// Ships the entire z.string() prototype chain regardless
+
+// Valibot ships only what is imported:
+import { string, pipe, trim, minLength, maxLength } from 'valibot';
+// Only these 5 functions in your bundle
+</code></pre>
+<p>A bundler using tree-shaking can statically analyze these imports and eliminate every Valibot function you don't import. With Zod's chained method API, the entire prototype chain must be included because the bundler can't prove which methods will be called at runtime.</p>
+
+<h3>Transforms and Custom Actions in Pipelines</h3>
+<p>Valibot's <code>v.transform()</code> and <code>v.check()</code> integrate directly into the validation pipeline — validate and transform in a single pass:</p>
+<pre><code>const UserSchema = v.object({
+  // Coerce ISO string to Date, validate range
+  createdAt: v.pipe(
+    v.string(),
+    v.isoTimestamp(),
+    v.transform(s => new Date(s)),
+    v.check(d => d &lt;= new Date(), 'Date cannot be in the future'),
+  ),
+
+  // Normalize email to lowercase before storage
+  email: v.pipe(
+    v.string(),
+    v.email(),
+    v.transform(s => s.toLowerCase()),
+  ),
+
+  // Custom business rule: admin requires email domain
+  role: v.picklist(['admin', 'user', 'guest']),
+});
+
+// Cross-field validation with v.check() at the object level
+const AdminUserSchema = v.pipe(
+  UserSchema,
+  v.check(
+    user => user.role !== 'admin' || user.email.endsWith('@company.com'),
+    'Admin accounts must use a company email address'
+  )
+);
+</code></pre>
+
+<h3>Discriminated Unions for Polymorphic JSON</h3>
+<pre><code>const ClickEventSchema = v.object({
+  type: v.literal('click'),
+  x: v.number(),
+  y: v.number(),
+});
+
+const KeyEventSchema = v.object({
+  type: v.literal('keypress'),
+  key: v.string(),
+  ctrlKey: v.boolean(),
+});
+
+const DomEventSchema = v.variant('type', [
+  ClickEventSchema,
+  KeyEventSchema,
+]);
+
+type DomEvent = v.InferOutput&lt;typeof DomEventSchema&gt;;
+
+// v.variant() is Valibot's equivalent of z.discriminatedUnion()
+// It checks the discriminator key first — O(1) lookup
+</code></pre>
+
+<h3>Integration with SvelteKit Form Actions</h3>
+<p>Valibot's small size and modular design make it ideal for form validation in frameworks that run on the edge (Cloudflare Workers, Vercel Edge):</p>
+<pre><code>// src/routes/checkout/+page.server.ts (SvelteKit)
+import * as v from 'valibot';
+import { fail } from '@sveltejs/kit';
+
+const CheckoutSchema = v.object({
+  email:    v.pipe(v.string(), v.email()),
+  name:     v.pipe(v.string(), v.minLength(2)),
+  cardLast4: v.pipe(v.string(), v.regex(/^\d{4}$/)),
+});
+
+export const actions = {
+  default: async ({ request }) => {
+    const formData = Object.fromEntries(await request.formData());
+    const result = v.safeParse(CheckoutSchema, formData);
+
+    if (!result.success) {
+      return fail(400, {
+        errors: v.flatten(result.issues).nested,
+        values: formData,
+      });
+    }
+
+    // result.output is typed CheckoutOutput
+    await processCheckout(result.output);
+  }
+};
+</code></pre>
+<p>At Cloudflare Workers' 1MB worker size limit, Valibot's sub-1kb footprint for simple schemas leaves room for actual business logic. Zod's 12kb baseline consumes 1.2% of the total limit before any application code.</p>
+
+<h3>v.flatten() Error Format for Forms</h3>
+<pre><code>const result = v.safeParse(OrderSchema, rawInput);
+
+if (!result.success) {
+  const flat = v.flatten&lt;typeof OrderSchema&gt;(result.issues);
+
+  // flat.root — top-level errors (e.g., wrong type for the whole input)
+  // flat.nested — field-keyed errors
+  // {
+  //   "orderId":      ["Invalid format"],
+  //   "items.0.qty":  ["Must be at least 1"],
+  //   "items.0.sku":  ["Does not match pattern"]
+  // }
+
+  // Map to form field error display
+  Object.entries(flat.nested ?? {}).forEach(([path, messages]) => {
+    console.log(`${path}: ${messages?.[0]}`);
+  });
+}
+</code></pre>
+<p>The nested path format (<code>items.0.qty</code>) maps directly to dot-notation accessors used by form libraries like React Hook Form, Superforms (SvelteKit), or FormKit (Vue).</p>
+
+<h3>Lazy Schemas for Recursive JSON Structures</h3>
+<pre><code>// Recursive type: tree node with children
+type TreeNode = {
+  id: string;
+  label: string;
+  children: TreeNode[];
+};
+
+// v.lazy() defers schema resolution — required for recursive types
+const TreeNodeSchema: v.GenericSchema&lt;TreeNode&gt; = v.object({
+  id:       v.string(),
+  label:    v.string(),
+  children: v.lazy(() => v.array(TreeNodeSchema)),
+});
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use safeParse:</strong> Always use <code>safeParse</code> in production to avoid unhandled exceptions. It returns an object indicating success or failure along with detailed error issues.</li>
-  <li><strong>Modularize Large Schemas:</strong> Break large JSON structures into smaller, reusable Valibot schemas that can be imported across different parts of your application.</li>
-  <li><strong>Combine with TypeScript:</strong> Use <code>v.InferOutput</code> to ensure your application logic is fully aware of the validated data structure.</li>
+  <li><strong>Always use <code>v.safeParse()</code> for external data:</strong> <code>v.parse()</code> throws on failure — fine for startup config, not for user input or API responses. <code>v.safeParse()</code> returns a discriminated union you handle explicitly.</li>
+  <li><strong>Define schemas at module level:</strong> Don't define schemas inside request handlers or React components. Module-level definitions are parsed once; handler-level definitions re-parse on every call.</li>
+  <li><strong>Use <code>v.InferInput</code> for form states and <code>v.InferOutput</code> for domain models:</strong> Input is the raw type before transforms (string dates, uncoerced numbers); output is the transformed type your app logic works with.</li>
+  <li><strong>Measure actual bundle impact:</strong> Run <code>npx bundle-wizard</code> or use Rollup's bundle analyzer to confirm tree-shaking is working. Some bundler configs disable tree-shaking for node_modules — verify with <code>sideEffects: false</code> in the Valibot package.json (it's already set).</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Is Valibot really that much smaller?</strong><br>
-A: Yes. Because it's modular, a basic schema can result in as little as 0.5kb of code, whereas Zod starts around 12kb.</p>
-<p><strong>Q: Can I use Valibot on the server?</strong><br>
-A: Absolutely. It works perfectly in Node.js, Bun, Deno, and Edge environments.</p>
-<p><strong>Q: Does it support custom validation logic?</strong><br>
-A: Yes, you can use the <code>v.check()</code> function within a pipeline to implement any custom business logic you need.</p>
+<p><strong>Q: How much smaller is Valibot than Zod in practice?</strong><br>
+A: For a simple schema validating 5 string fields with email/URL/min checks, Valibot typically ships ~600 bytes gzipped versus Zod's ~11kb gzipped. For schemas using most of Zod's feature set (transforms, discriminated unions, refinements), the gap narrows — roughly 2-3kb vs 12kb. The savings are most significant for client-side validation with constrained schemas.</p>
+
+<p><strong>Q: Does Valibot work with React Hook Form?</strong><br>
+A: Yes. Use <code>@hookform/resolvers/valibot</code>: <code>resolver: valibotResolver(YourSchema)</code>. The error format from <code>v.flatten()</code> maps correctly to RHF's field error structure.</p>
+
+<p><strong>Q: Can I use Valibot on the server as well as the client?</strong><br>
+A: Yes — Valibot works in Node.js, Bun, Deno, Cloudflare Workers, and any browser environment. The bundle size advantage matters most for client-side code; on the server, use whichever library has the best DX for your team.</p>
+
+<p><strong>Q: What is the difference between v.InferInput and v.InferOutput?</strong><br>
+A: <code>InferInput</code> is the raw type before transforms — what you pass to <code>safeParse()</code>. <code>InferOutput</code> is the type after transforms — what you get back from a successful parse. If your schema has a <code>v.transform(s => new Date(s))</code> on a date field, <code>InferInput</code> has <code>string</code> and <code>InferOutput</code> has <code>Date</code>.</p>
+
+<p><strong>Q: Is Valibot stable enough for production?</strong><br>
+A: Valibot v1.0 is stable. It is used in production by teams in the SvelteKit, Remix, and Nuxt ecosystems. The API has been stable since the v1 release, with no breaking changes expected.</p>

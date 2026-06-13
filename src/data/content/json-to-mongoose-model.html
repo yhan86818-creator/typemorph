@@ -1,59 +1,252 @@
-<h2>JSON to Mongoose Model: Rapid Prototyping for MongoDB Applications</h2>
-<p>MongoDB's schemaless nature is a double-edged sword: it offers flexibility but can lead to data inconsistency as your application grows. Mongoose provides a schema-based solution to model your application data. Converting JSON samples directly to Mongoose models allows you to quickly establish a structured data layer for your Node.js application. This ensures that every document saved to your MongoDB collection follows a predefined shape, complete with type checking, validation, and middleware support.</p>
+<h2>JSON to Mongoose Model: TypeScript Types, Static Methods, and Aggregation Pipelines</h2>
+<p>A Mongoose Model is more than a schema validator — it is the entry point to every MongoDB query your application makes. Converting your JSON to a Mongoose Model means defining not just the document shape, but the TypeScript interface that makes queries type-safe, the static methods that encapsulate common query patterns, and the instance methods that attach business logic to each document. This guide covers the complete model layer: from the schema definition that TypeMorph generates to the query helpers, aggregation pipelines, and population strategies that make Mongoose the standard for MongoDB in Node.js.</p>
 
-<h3>Live Example: Converting JSON Objects to Mongoose Schemas</h3>
+<h3>Live Example: Article Model with Full TypeScript Support</h3>
 <pre><code>// Input JSON
 {
-  "title": "Introduction to Mongoose",
-  "author": "John Doe",
-  "views": 150,
-  "metadata": {
-    "tags": ["mongodb", "nodejs"],
-    "isPublished": true
-  }
+  "title": "Introduction to Mongoose Models",
+  "authorId": "usr_9921",
+  "body": "Mongoose models provide a type-safe interface...",
+  "tags": ["mongodb", "nodejs", "typescript"],
+  "status": "published",
+  "viewCount": 150,
+  "publishedAt": "2024-01-15T08:30:00Z"
 }
 
-// Generated Mongoose Model (JavaScript/TypeScript)
-const mongoose = require('mongoose');
+// Generated Mongoose Model (TypeScript)
+import { Schema, model, Document, Model, Types } from 'mongoose';
 
-const ArticleSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  author: { type: String, default: 'Anonymous' },
-  views: { type: Number, min: 0 },
-  metadata: {
-    tags: [String],
-    isPublished: { type: Boolean, default: false }
-  },
-  createdAt: { type: Date, default: Date.now }
+// 1. Document interface (instance shape)
+export interface IArticle extends Document {
+  title:       string;
+  authorId:    Types.ObjectId;
+  body:        string;
+  tags:        string[];
+  status:      'draft' | 'published' | 'archived';
+  viewCount:   number;
+  publishedAt: Date | null;
+  updatedAt:   Date;
+  createdAt:   Date;
+  // Virtual
+  excerpt:     string;
+  // Instance method
+  archive():   Promise&lt;IArticle&gt;;
+}
+
+// 2. Static methods interface
+interface ArticleModel extends Model&lt;IArticle&gt; {
+  findPublished(limit?: number): Promise&lt;IArticle[]&gt;;
+  findByAuthor(authorId: string): Promise&lt;IArticle[]&gt;;
+  incrementView(id: string): Promise&lt;void&gt;;
+}
+
+// 3. Schema definition
+const ArticleSchema = new Schema&lt;IArticle, ArticleModel&gt;({
+  title:       { type: String, required: true, trim: true, maxlength: 200 },
+  authorId:    { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  body:        { type: String, required: true },
+  tags:        [{ type: String, trim: true, lowercase: true }],
+  status:      { type: String, enum: ['draft', 'published', 'archived'], default: 'draft' },
+  viewCount:   { type: Number, default: 0, min: 0 },
+  publishedAt: { type: Date, default: null },
+}, { timestamps: true });
+
+// Virtual: first 200 chars of body
+ArticleSchema.virtual('excerpt').get(function() {
+  return this.body.substring(0, 200) + (this.body.length &gt; 200 ? '…' : '');
 });
 
-const Article = mongoose.model('Article', ArticleSchema);
-module.exports = Article;
+// Instance method
+ArticleSchema.methods.archive = async function(): Promise&lt;IArticle&gt; {
+  this.status = 'archived';
+  return this.save();
+};
+
+// Static methods
+ArticleSchema.statics.findPublished = function(limit = 20) {
+  return this.find({ status: 'published' })
+    .sort({ publishedAt: -1 })
+    .limit(limit)
+    .lean();
+};
+
+ArticleSchema.statics.findByAuthor = function(authorId: string) {
+  return this.find({ authorId: new Types.ObjectId(authorId) }).lean();
+};
+
+ArticleSchema.statics.incrementView = async function(id: string) {
+  await this.updateOne({ _id: id }, { $inc: { viewCount: 1 } });
+};
+
+// Index definitions
+ArticleSchema.index({ status: 1, publishedAt: -1 });
+ArticleSchema.index({ authorId: 1 });
+ArticleSchema.index({ tags: 1 });
+ArticleSchema.index({ title: 'text', body: 'text' });
+
+export const Article = model&lt;IArticle, ArticleModel&gt;('Article', ArticleSchema);
+</code></pre>
+<p>Typing the model as <code>model&lt;IArticle, ArticleModel&gt;</code> gives TypeScript complete awareness of both instance methods (<code>article.archive()</code>) and static methods (<code>Article.findPublished()</code>). Without the second generic, static methods aren't recognized at compile time.</p>
+
+<h3>Population: Replacing ObjectId References with Documents</h3>
+<pre><code>// Single populate
+const article = await Article.findById(id)
+  .populate&lt;{ authorId: IUser }&gt;('authorId', 'username email avatarUrl')
+  .lean();
+
+// article.authorId.username — typed as string (not ObjectId)
+
+// Deep populate
+const articles = await Article.find({ status: 'published' })
+  .populate({
+    path: 'authorId',
+    select: 'username profile',
+    populate: {
+      path: 'profile',  // nested reference inside User
+      select: 'avatarUrl bio',
+    }
+  })
+  .lean();
+
+// Virtual populate — no ObjectId stored on Article, User has articleIds
+UserSchema.virtual('articles', {
+  ref:         'Article',
+  localField:  '_id',
+  foreignField: 'authorId',
+});
+
+const userWithArticles = await User.findById(userId)
+  .populate('articles', 'title status publishedAt')
+  .lean();
+// userWithArticles.articles — IArticle[] without full body
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Analyze Data Types:</strong> Identify which JSON fields should be <code>String</code>, <code>Number</code>, <code>Boolean</code>, or <code>Date</code>.<br>
-2. <strong>Map Nested Objects:</strong> JSON's hierarchical structure maps perfectly to Mongoose's nested schemas or subdocuments.<br>
-3. <strong>Add Validation:</strong> Enhance the generated model with Mongoose-specific validators like <code>required: true</code>, <code>min/max</code>, or custom <code>validate</code> functions.<br>
-4. <strong>Define Indexes:</strong> For fields that will be frequently searched (like <code>email</code> or <code>slug</code>), add <code>unique: true</code> or <code>index: true</code> to the schema definition.</p>
+<h3>Aggregation Pipelines from JSON Data</h3>
+<p>Mongoose exposes MongoDB's aggregation pipeline directly — no SQL translation layer:</p>
+<pre><code>// Top authors by published article count with view totals
+const topAuthors = await Article.aggregate([
+  { $match: { status: 'published' } },
+  {
+    $group: {
+      _id:         '$authorId',
+      articleCount: { $sum: 1 },
+      totalViews:   { $sum: '$viewCount' },
+      latestAt:     { $max: '$publishedAt' },
+    }
+  },
+  { $sort: { totalViews: -1 } },
+  { $limit: 10 },
+  {
+    $lookup: {
+      from:         'users',
+      localField:   '_id',
+      foreignField: '_id',
+      as:           'author',
+      pipeline: [
+        { $project: { username: 1, email: 1, _id: 0 } }
+      ]
+    }
+  },
+  { $unwind: '$author' },
+]);
 
-<h3>Technical Deep Dive: Virtuals, Middleware, and Type Casting</h3>
-<p>Mongoose is much more than a simple schema validator. When you convert JSON to Mongoose, you are setting up a powerful runtime engine. Mongoose handles **Type Casting** automatically; for example, if you pass a string "123" to a <code>Number</code> field, Mongoose will convert it for you. Furthermore, you can add <strong>Virtuals</strong> (computed properties that aren't stored in DB) and <strong>Middleware</strong> (pre/post hooks for save, delete, etc.) to your models. This makes Mongoose models the "intelligent" core of your MongoDB application, capable of handling complex business logic at the data layer.</p>
+// Tag frequency analysis from JSON tags array
+const tagStats = await Article.aggregate([
+  { $match: { status: 'published' } },
+  { $unwind: '$tags' },
+  { $group: { _id: '$tags', count: { $sum: 1 } } },
+  { $sort: { count: -1 } },
+  { $limit: 20 },
+]);
+</code></pre>
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>Mongoose vs. Native MongoDB Driver:</strong> The native driver is faster but requires manual validation. Mongoose is the industry standard for Node.js due to its rich feature set. <strong>Prisma (for MongoDB)</strong> is a modern alternative that offers better TypeScript integration and a unified API across different databases, but Mongoose remains the most powerful choice for MongoDB-specific features like aggregations and complex subdocuments.</p>
+<h3>Lean Queries and Projection for Performance</h3>
+<pre><code>// .lean() — plain JS objects, 2-5x faster reads, no Mongoose overhead
+// Use when you only need data (no save/update)
+const articles = await Article.find({ status: 'published' })
+  .select('title publishedAt viewCount tags')  // project only needed fields
+  .lean&lt;Pick&lt;IArticle, 'title' | 'publishedAt' | 'viewCount' | 'tags'&gt;[]&gt;();
+
+// .lean() with TypeScript generic for correct type
+const article = await Article.findById(id)
+  .lean&lt;IArticle&gt;();
+
+// Cursor-based pagination (better than skip() for large collections)
+const PAGE_SIZE = 20;
+const page2 = await Article.find({
+  status: 'published',
+  publishedAt: { $lt: lastSeenDate },  // cursor condition
+}).sort({ publishedAt: -1 }).limit(PAGE_SIZE).lean();
+</code></pre>
+
+<h3>Atomic Updates with $inc, $push, $set</h3>
+<pre><code>// Increment view count atomically — no race condition
+await Article.updateOne(
+  { _id: articleId },
+  { $inc: { viewCount: 1 } }
+);
+
+// Add a tag without duplicates
+await Article.updateOne(
+  { _id: articleId },
+  { $addToSet: { tags: 'typescript' } }  // $addToSet = $push if not exists
+);
+
+// Update nested field without overwriting sibling fields
+await Article.updateOne(
+  { _id: articleId },
+  { $set: { 'metadata.featured': true } }
+);
+
+// findOneAndUpdate — returns the updated document
+const updated = await Article.findOneAndUpdate(
+  { _id: articleId, status: 'draft' },
+  { $set: { status: 'published', publishedAt: new Date() } },
+  { new: true, runValidators: true }  // new: return updated doc; runValidators: run schema validators
+).lean();
+</code></pre>
+
+<h3>Model.create() vs new Model().save()</h3>
+<pre><code>// Model.create() — preferred for single inserts
+// Runs validators and middleware
+const article = await Article.create({
+  title: 'My Post',
+  authorId: userId,
+  body: 'Content here...',
+  tags: ['typescript'],
+});
+
+// Model.insertMany() — preferred for bulk inserts
+// Skips middleware by default (faster), runs validators
+const articles = await Article.insertMany(
+  jsonArray.map(item => ({ ...item, authorId: userId })),
+  { ordered: false }  // continue on partial failure
+);
+
+// new Article().save() — useful when you need the document instance
+// before saving (e.g., to call instance methods or set virtuals)
+const article = new Article({ title: '...', authorId: userId, body: '...' });
+article.tags = computeTags(article.body);
+await article.save();
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use <code>lean()</code> for Performance:</strong> When fetching data that you don't need to modify, use <code>.lean()</code> to get plain JavaScript objects instead of heavy Mongoose documents.</li>
-  <li><strong>Define Subdocuments:</strong> For complex nested JSON, use separate <code>Schema</code> objects for subdocuments to improve readability and reuse logic.</li>
-  <li><strong>Sanitize Inputs:</strong> Even with Mongoose validation, always sanitize user inputs to prevent NoSQL injection attacks.</li>
+  <li><strong>Use <code>runValidators: true</code> on update operations:</strong> Schema validators run on <code>save()</code> and <code>create()</code> but NOT on <code>updateOne()</code> by default. Add <code>{ runValidators: true }</code> to all update operations that set user-provided values.</li>
+  <li><strong>Use <code>.lean()</code> for all read-only queries:</strong> Non-lean queries return Mongoose Document instances — full prototype chain, change tracking, and setter logic. For listing pages, reports, and API responses where you only read data, <code>.lean()</code> cuts memory usage and query time significantly.</li>
+  <li><strong>Avoid <code>Model.find({}).exec()</code>:</strong> Mongoose queries are thenables — <code>await Article.find({})</code> works without <code>.exec()</code>. Use <code>.exec()</code> only when you need a proper Promise (for <code>Promise.all()</code>) or explicit cursor control.</li>
+  <li><strong>Define indexes in the schema, not in the database:</strong> Schema-defined indexes are tracked in version control. Set <code>autoIndex: false</code> in production and run index creation as an explicit deploy step for large collections.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Does Mongoose support TypeScript?</strong><br>
-A: Yes, you can use the <code>InferSchemaType</code> and <code>Model</code> types from Mongoose to get full TypeScript support for your models.</p>
-<p><strong>Q: Can I change the schema later?</strong><br>
-A: Yes, but existing documents in MongoDB won't be updated automatically. You may need to run a migration script if you add required fields.</p>
-<p><strong>Q: How do I handle relationships?</strong><br>
-A: Use <code>mongoose.Schema.Types.ObjectId</code> with the <code>ref</code> property to create references between different collections.</p>
+<p><strong>Q: What is the difference between IArticle and the generated Mongoose type?</strong><br>
+A: Since Mongoose 6, you can use <code>InferSchemaType&lt;typeof ArticleSchema&gt;</code> to infer the document type directly from the schema without writing a separate interface. The manual interface approach gives you more control over virtual types and method signatures; the inferred approach is less boilerplate for simple models.</p>
+
+<p><strong>Q: How do I handle soft deletes (deletedAt)?</strong><br>
+A: Add a <code>deletedAt: { type: Date, default: null }</code> field and use the <code>mongoose-delete</code> plugin, or add a custom pre-find middleware that filters <code>{ deletedAt: null }</code> automatically. The plugin approach is more comprehensive — it overrides all query methods to exclude soft-deleted documents by default.</p>
+
+<p><strong>Q: Can I use Mongoose with TypeScript strict mode?</strong><br>
+A: Yes. The <code>model&lt;IArticle, ArticleModel&gt;()</code> pattern with separate document and model interfaces works under strict mode. Use <code>Types.ObjectId</code> (not <code>ObjectId</code> from the <code>bson</code> package) for ObjectId fields to avoid typing issues.</p>
+
+<p><strong>Q: How do I connect Mongoose to MongoDB in a serverless environment (Vercel/Lambda)?</strong><br>
+A: Cache the connection across invocations using a module-level singleton: check <code>mongoose.connections[0].readyState</code> before calling <code>mongoose.connect()</code>. Each Lambda/Vercel function execution reuses the same module if it's still warm, so the connection persists across requests within a warm instance.</p>

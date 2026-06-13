@@ -1,63 +1,279 @@
-<h2>JSON to Elixir Struct: Harnessing Functional Integrity with Ecto</h2>
-<p>Elixir's concurrency and fault tolerance make it a powerhouse for real-time systems. While Elixir handles maps natively, professional applications use <code>structs</code> to enforce data shapes and logic. Converting JSON samples to Elixir structs—often combined with <code>Ecto.Schema</code>—allows you to bring order to the dynamic world of functional programming. This approach ensures that your Phoenix applications or distributed systems handle data with the precision and reliability that the Erlang VM is famous for.</p>
+<h2>JSON to Lua Table: Type Mapping, Serialization Libraries, and LÖVE Integration</h2>
+<p>Lua tables are the single data structure that underlies all of Lua — they serve as arrays, dictionaries, objects, and modules simultaneously. JSON maps naturally to Lua tables, but the conversion requires understanding some key differences: JSON <code>null</code> becomes <code>nil</code> (which removes a key from a table entirely), JSON arrays map to 1-indexed Lua tables, and Lua has no native JSON encoding — you need a library. Common contexts for JSON-to-Lua conversion include LÖVE 2D game development, Nginx configuration via <code>lua-nginx-module</code>, Neovim plugin config, and Redis Lua scripting.</p>
 
-<h3>Live Example: Mapping JSON to Elixir Structs with Ecto</h3>
-<pre><code>// Input JSON
+<h3>Live Example: JSON to Lua Table</h3>
+<pre><code">-- Input JSON
 {
-  "id": "TX-991",
-  "amount": 1500.0,
-  "currency": "USD",
-  "meta": {
-    "source": "stripe"
+  "player": {
+    "name": "Alex",
+    "level": 12,
+    "health": 100.0,
+    "is_alive": true,
+    "inventory": ["sword", "shield", "potion"],
+    "stats": {
+      "strength": 15,
+      "dexterity": 12,
+      "intelligence": 8
+    }
   }
 }
 
-// Generated Elixir Code
-defmodule MyApp.Financial.Transaction do
-  use Ecto.Schema
-  import Ecto.Changeset
+-- Generated Lua Table
+local player = {
+  name     = "Alex",
+  level    = 12,
+  health   = 100.0,
+  is_alive = true,
 
-  @primary_key {:id, :string, autogenerate: false}
-  embedded_schema do
-    field :amount, :float
-    field :currency, :string
-    embeds_one :meta, Meta, primary_key: false do
-      field :source, :string
-    end
+  -- JSON arrays → Lua tables with integer keys (1-indexed)
+  inventory = {"sword", "shield", "potion"},
+
+  -- Nested objects → nested tables
+  stats = {
+    strength     = 15,
+    dexterity    = 12,
+    intelligence = 8,
+  },
+}
+
+-- Access patterns
+print(player.name)              -- "Alex"
+print(player.inventory[1])      -- "sword" (1-indexed, not 0)
+print(player.stats.strength)    -- 15
+print(#player.inventory)        -- 3 (length operator on sequence tables)
+
+-- Table as namespace (equivalent to JSON object)
+local config = {}
+config["server.host"] = "localhost"   -- string keys with dots use bracket notation
+config["server.port"] = 8080
+
+-- Nil means absence (not the same as JSON null → avoid nil in sequences)
+player.nickname = nil   -- removes the key from the table
+print(player.nickname)  -- nil
+</code></pre>
+
+<h3>JSON Type Mapping Reference</h3>
+<pre><code">-- JSON Type     →  Lua Type
+-- string        →  string    (unchanged)
+-- number        →  number    (integer or float, Lua treats both as number)
+-- boolean       →  boolean   (true/false)
+-- null          →  nil       (WARNING: nil in array position shifts length)
+-- object {}     →  table     (hash table, string keys)
+-- array  []     →  table     (sequence table, integer keys starting at 1)
+
+-- IMPORTANT: Lua arrays are 1-indexed
+-- JSON: [10, 20, 30]
+local arr = {10, 20, 30}
+arr[1]  -- 10 (not arr[0])
+arr[3]  -- 30
+
+-- The # operator counts ONLY sequence elements (no gaps)
+local seq = {10, 20, 30}
+#seq  -- 3
+
+-- Hash tables don't have a meaningful length
+local hash = {name = "Alice", age = 30}
+#hash  -- 0 (# only counts integer keys)
+-- Use a counter or pairs() to count hash entries:
+local count = 0
+for _ in pairs(hash) do count = count + 1 end
+
+-- Mixed tables (object + array) are valid Lua but unusual
+local mixed = {"first", "second", extra = "value"}
+mixed[1]      -- "first"
+mixed.extra   -- "value"
+</code></pre>
+
+<h3>JSON Parsing Libraries</h3>
+<pre><code">-- Lua has no built-in JSON support — use a library
+
+-- 1. json4lua (classic, single file)
+-- https://github.com/craigmj/json4lua
+local json = require("json")
+
+local data = json.decode('{"name":"Alice","score":42}')
+print(data.name)   -- "Alice"
+
+local output = json.encode({name = "Bob", score = 99})
+print(output)  -- '{"name":"Bob","score":99}'
+
+-- 2. dkjson (single file, pure Lua, most portable)
+local json = require("dkjson")
+local data, pos, err = json.decode(jsonString, 1, nil)
+if err then
+  print("Error:", err)
+else
+  print(data.name)
+end
+local str = json.encode(data, { indent = true })
+
+-- 3. cjson (C extension, fastest — used in Nginx/OpenResty)
+-- Available in OpenResty / lua-nginx-module
+local cjson = require("cjson")
+local data   = cjson.decode(body)
+local output = cjson.encode(data)
+
+-- 4. LÖVE 2D built-in (JSON is not built-in, but can load files)
+-- In LÖVE, use a Lua JSON library dropped in the project root
+local json = require("json")   -- json.lua from rxi/json.lua
+</code></pre>
+
+<h3>Metatables: Adding Methods to Tables</h3>
+<pre><code">-- Lua's OOP uses metatables — equivalent to adding methods to a parsed JSON object
+
+local Player = {}
+Player.__index = Player
+
+function Player.new(data)
+  -- data is a table parsed from JSON
+  local self = setmetatable({}, Player)
+  self.name     = data.name or "Unknown"
+  self.level    = data.level or 1
+  self.health   = data.health or 100
+  self.is_alive = data.is_alive ~= false   -- ~= is Lua's !=
+  self.inventory = data.inventory or {}
+  self.stats    = data.stats or {}
+  return self
+end
+
+function Player:greet()
+  return string.format("Hi, I'm %s (Lv.%d)", self.name, self.level)
+end
+
+function Player:totalStats()
+  local total = 0
+  for _, v in pairs(self.stats) do
+    total = total + v
   end
+  return total
+end
 
-  def changeset(transaction, attrs) do
-    transaction
-    |> cast(attrs, [:id, :amount, :currency])
-    |> validate_required([:id, :amount, :currency])
-    |> cast_embed(:meta)
+function Player:addItem(item)
+  table.insert(self.inventory, item)
+end
+
+-- Usage
+local json = require("json")
+local data   = json.decode(jsonString)
+local player = Player.new(data.player)
+
+print(player:greet())         -- "Hi, I'm Alex (Lv.12)"
+print(player:totalStats())    -- 35
+player:addItem("fireball")
+print(#player.inventory)      -- 4
+</code></pre>
+
+<h3>Iterating and Transforming Tables</h3>
+<pre><code">-- pairs() iterates all key-value pairs (hash + sequence)
+for key, value in pairs(player) do
+  print(key, value)
+end
+
+-- ipairs() iterates ONLY integer-keyed sequence (stops at first nil)
+for i, item in ipairs(player.inventory) do
+  print(i, item)   -- 1: sword, 2: shield, 3: potion
+end
+
+-- Transforming an array of JSON objects into a lookup table
+-- Input: [{"id": 1, "name": "sword"}, {"id": 2, "name": "shield"}]
+local items = json.decode(jsonArray)
+local itemById = {}
+for _, item in ipairs(items) do
+  itemById[item.id] = item   -- lookup table by ID
+end
+
+print(itemById[1].name)   -- "sword"
+print(itemById[2].name)   -- "shield"
+
+-- Table.sort (sorts in place)
+table.sort(player.inventory, function(a, b)
+  return a < b   -- alphabetical
+end)
+-- → {"potion", "shield", "sword"}
+</code></pre>
+
+<h3>LÖVE 2D Game Dev: Loading Config from JSON</h3>
+<pre><code">-- LÖVE 2D (love2d.org) — common use case for Lua JSON
+-- conf.lua is Lua, but level data, localization, and settings can be JSON
+
+-- main.lua
+local json = require("lib.json")   -- drop json.lua in lib/ folder
+
+local levelData = nil
+
+function love.load()
+  -- Load level from JSON file via LÖVE's filesystem API
+  local contents, size = love.filesystem.read("levels/level1.json")
+  if contents then
+    levelData = json.decode(contents)
+  end
+end
+
+function love.draw()
+  if not levelData then return end
+
+  -- Render tiles from JSON config
+  for y, row in ipairs(levelData.tiles) do
+    for x, tile in ipairs(row) do
+      if tile ~= 0 then
+        love.graphics.draw(
+          tileSheet,
+          tileQuads[tile],
+          (x - 1) * 32,
+          (y - 1) * 32
+        )
+      end
+    end
   end
 end
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Define the Module:</strong> Create a new module for your data structure, usually within your application's context.<br>
-2. <strong>Use <code>embedded_schema</code>:</strong> For data that doesn't live in a database but needs structure, use <code>embedded_schema</code> to define types and nesting.<br>
-3. <strong>Implement <code>changeset/2</code>:</strong> Use <code>Ecto.Changeset</code> to handle the mapping, casting, and validation of incoming JSON maps.<br>
-4. <strong>Apply Validations:</strong> Add rules like <code>validate_required</code> or custom logic to ensure the JSON meets your business requirements.</p>
+<h3>OpenResty/Nginx: JSON in HTTP Handlers</h3>
+<pre><code">-- nginx.conf Lua block (lua-nginx-module / OpenResty)
+location /api/user {
+    content_by_lua_block {
+        local cjson = require("cjson")
+        local redis = require("resty.redis")
 
-<h3>Technical Deep Dive: The Changeset Pattern and Immutability</h3>
-<p>Elixir doesn't "mutate" data into a struct. Instead, it uses the **Changeset Pattern**. When you convert JSON to an Elixir struct, you are defining a set of rules for how a raw map should be transformed into a trusted struct. The <code>cast/3</code> function is critical—it filters out unwanted keys and ensures that values match the expected types. This functional approach to data mapping means your application state is always predictable, and errors are handled as first-class citizens rather than through exceptions.</p>
+        -- Parse request body
+        ngx.req.read_body()
+        local body   = ngx.req.get_body_data()
+        local ok, data = pcall(cjson.decode, body)
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>Elixir Structs vs. Maps:</strong> Maps are the default in Elixir but offer no compile-time or runtime guarantees about which keys exist. Structs provide those guarantees. <strong>Jason</strong> is the standard library for raw JSON parsing, while <strong>Ecto</strong> is the standard for adding structure and validation to that parsed data.</p>
+        if not ok then
+            ngx.status = 400
+            ngx.say(cjson.encode({error = "Invalid JSON"}))
+            return
+        end
+
+        -- Cache in Redis
+        local r = redis:new()
+        r:connect("127.0.0.1", 6379)
+        r:set("user:" .. data.id, body)
+
+        ngx.header["Content-Type"] = "application/json"
+        ngx.say(cjson.encode({status = "ok", id = data.id}))
+    }
+}
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Keep Schemas Decoupled:</strong> If your JSON comes from an external API, define a separate "Integration Schema" rather than using your database models directly.</li>
-  <li><strong>Use Enums:</strong> Use libraries like <code>ecto_enum</code> to map JSON string values to internal Elixir atoms for better performance and readability.</li>
-  <li><strong>Pattern Match on Structs:</strong> Leverage Elixir's powerful pattern matching on your generated structs to write clean, expressive business logic.</li>
+  <li><strong>Use 1-based indexing consistently:</strong> Lua arrays start at index 1. JSON arrays start at 0. When converting, the JSON element at index <code>0</code> becomes the Lua element at index <code>1</code>. Never use 0 as a table index in Lua — it doesn't cause an error but breaks <code>#</code> (length) and <code>ipairs()</code>.</li>
+  <li><strong>Treat nil carefully in tables:</strong> <code>null</code> in JSON becomes <code>nil</code> in Lua, which is semantically "remove this key." For JSON null values that should be preserved as "explicitly absent," use a sentinel value like <code>json.null</code> (provided by most JSON libraries) rather than bare <code>nil</code>.</li>
+  <li><strong>Choose cjson for performance-critical code:</strong> <code>cjson</code> (written in C) is 10-50× faster than pure Lua JSON libraries. Use it in Nginx/OpenResty handlers. Use a pure Lua library (dkjson, json.lua) when deploying to environments without C extensions (Neovim plugins, LÖVE games).</li>
+  <li><strong>Pre-allocate large tables:</strong> For tables created from large JSON arrays in tight loops, pre-allocate with <code>local t = table.new(100, 0)</code> (LuaJIT extension) or just <code>local t = {}</code> and let the runtime grow it — modern LuaJIT handles this efficiently.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: What is 'embedded_schema'?</strong><br>
-A: It's a way to use Ecto's validation and typing features for data that isn't mapped to a database table, perfect for API payloads.</p>
-<p><strong>Q: How do I handle unknown keys?</strong><br>
-A: The <code>cast</code> function automatically ignores any keys in the JSON map that aren't defined in your schema, providing a layer of security.</p>
-<p><strong>Q: Is Ecto required for structs?</strong><br>
-A: No, you can define a plain struct using <code>defstruct</code>, but Ecto provides the type casting and validation that most professional projects need.</p>
+<p><strong>Q: Does Lua have a native JSON type?</strong><br>
+A: No — Lua predates JSON's popularity. All JSON support comes from third-party libraries. In embedded environments (Neovim, LÖVE, OpenResty), the JSON library is typically bundled with the host or installed as a single Lua file.</p>
+
+<p><strong>Q: How do I handle JSON numbers that exceed Lua's precision?</strong><br>
+A: Lua 5.3+ has native 64-bit integers; LuaJIT uses 64-bit floats. Very large integers in JSON (>2^53) lose precision when loaded as Lua numbers. For precise large integers, store them as strings in JSON and parse with <code>tonumber()</code> or a bignum library.</p>
+
+<p><strong>Q: What is the difference between pairs() and ipairs() for JSON arrays?</strong><br>
+A: <code>ipairs()</code> iterates only consecutive integer keys starting from 1 — correct for JSON arrays converted to Lua sequences. <code>pairs()</code> iterates all keys including string keys and non-consecutive integers. For JSON arrays, always use <code>ipairs()</code>; for JSON objects, use <code>pairs()</code>.</p>
+
+<p><strong>Q: Can I use Lua for server-side JSON APIs?</strong><br>
+A: Yes — OpenResty (Nginx + LuaJIT) is widely used for high-performance API servers. Lapis is a full web framework for OpenResty. For standalone Lua, <code>lua-http</code> or Turbo.lua provide HTTP server capabilities with JSON handling via cjson.</p>

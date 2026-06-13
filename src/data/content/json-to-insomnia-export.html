@@ -1,59 +1,241 @@
-<h2>JSON to Insomnia Export: Streamlining API Exploration and Debugging</h2>
-<p>Insomnia is favored by developers for its minimalist design and robust handling of GraphQL and REST APIs. Converting your JSON samples into an Insomnia export file allows you to quickly bootstrap your API workspace. This automation ensures that all your headers, query parameters, and request bodies are correctly configured, allowing you to focus on debugging and exploring your API rather than wasting time on manual setup.</p>
+<h2>JSON to Insomnia Export: Workspace Format, Environment Chaining, and Request Templates</h2>
+<p>Insomnia's export format (v4) organizes everything — workspaces, request groups, individual requests, environments, and environment templates — into a flat <code>resources</code> array linked by <code>_id</code> references. Understanding this structure lets you generate complete workspaces programmatically: from an OpenAPI spec, from a list of API endpoints, or from JSON request/response samples. The distinctive features of Insomnia exports are chained responses (response from request A becomes input to request B), template tags (<code>{% response %}</code>, <code>{% env %}</code>), and sub-environments that overlay the base environment for staging vs production configuration.</p>
 
-<h3>Live Example: Converting JSON Samples to Insomnia Workspaces</h3>
-<pre><code>// Input JSON Request List
-[
-  { "id": "req_1", "name": "Get User", "url": "/users/1" },
-  { "id": "req_2", "name": "Update User", "url": "/users/1", "method": "PUT" }
-]
-
-// Generated Insomnia Export (Partial YAML/JSON)
-{
+<h3>Live Example: Insomnia Export v4 Format</h3>
+<pre><code">{
   "_type": "export",
   "__export_format": 4,
+  "__export_date": "2024-03-15T10:00:00.000Z",
+  "__export_source": "insomnia.desktop.app:v2023.5.8",
   "resources": [
     {
-      "_id": "req_1",
-      "name": "Get User",
-      "url": "{{ _.base_url }}/users/1",
-      "method": "GET",
-      "_type": "request"
+      "_id":         "wrk_01",
+      "_type":       "workspace",
+      "name":        "Product API",
+      "description": "E-commerce product catalog API",
+      "scope":       "collection"
     },
     {
-      "_id": "req_2",
-      "name": "Update User",
-      "url": "{{ _.base_url }}/users/1",
-      "method": "PUT",
-      "_type": "request"
+      "_id":         "env_base",
+      "_type":       "environment",
+      "parentId":    "wrk_01",
+      "name":        "Base Environment",
+      "data": {
+        "baseUrl":   "https://api.example.com/v2",
+        "apiVersion":"v2"
+      }
+    },
+    {
+      "_id":         "env_prod",
+      "_type":       "environment",
+      "parentId":    "env_base",
+      "name":        "Production",
+      "data": {
+        "baseUrl":   "https://api.example.com/v2",
+        "apiKey":    "prod_key_goes_here"
+      }
+    },
+    {
+      "_id":         "env_staging",
+      "_type":       "environment",
+      "parentId":    "env_base",
+      "name":        "Staging",
+      "data": {
+        "baseUrl":   "https://staging.api.example.com/v2",
+        "apiKey":    "staging_key_goes_here"
+      }
+    },
+    {
+      "_id":         "grp_products",
+      "_type":       "request_group",
+      "parentId":    "wrk_01",
+      "name":        "Products",
+      "description": "Product CRUD endpoints"
+    },
+    {
+      "_id":         "req_list_products",
+      "_type":       "request",
+      "parentId":    "grp_products",
+      "name":        "List Products",
+      "method":      "GET",
+      "url":         "{{ _.baseUrl }}/products",
+      "parameters": [
+        { "name": "page",      "value": "1",    "enabled": true },
+        { "name": "page_size", "value": "20",   "enabled": true },
+        { "name": "in_stock",  "value": "true", "enabled": false }
+      ],
+      "headers": [
+        { "name": "X-API-Key",  "value": "{{ _.apiKey }}", "enabled": true },
+        { "name": "Accept",     "value": "application/json", "enabled": true }
+      ]
+    },
+    {
+      "_id":         "req_create_product",
+      "_type":       "request",
+      "parentId":    "grp_products",
+      "name":        "Create Product",
+      "method":      "POST",
+      "url":         "{{ _.baseUrl }}/products",
+      "headers": [
+        { "name": "X-API-Key",     "value": "{{ _.apiKey }}",         "enabled": true },
+        { "name": "Content-Type",  "value": "application/json",       "enabled": true }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text":     "{\n  \"name\": \"New Product\",\n  \"price_cents\": 2999,\n  \"category_id\": \"cat_electronics\"\n}"
+      }
     }
   ]
 }
 </code></pre>
 
-<h3>Step-by-Step Implementation Guide</h3>
-<p>1. <strong>Map Resources:</strong> Identify each API call in your JSON and map it to an Insomnia <code>request</code> resource type.<br>
-2. <strong>Set HTTP Details:</strong> Use the converter to translate your JSON properties into Insomnia's <code>url</code>, <code>method</code>, <code>headers</code>, and <code>body</code> fields.<br>
-3. <strong>Configure Environments:</strong> Use Insomnia's <code>_.variable</code> syntax to handle dynamic base URLs and authentication tokens.<br>
-4. <strong>Import the Export:</strong> Use the "Import Data" feature in Insomnia to load your generated JSON/YAML file into your workspace.</p>
+<h3>Response Chaining with Template Tags</h3>
+<pre><code">{
+  "_id":    "req_get_product",
+  "_type":  "request",
+  "name":   "Get Product (using created ID)",
+  "method": "GET",
+  "url":    "{{ _.baseUrl }}/products/{% response 'body', 'req_create_product', '$.id', 'when-expired', 60 %}",
+  // ↑ Extracts the 'id' field from the body of req_create_product
+  // Insomnia template tag syntax: {% response 'attribute', 'requestId', 'jsonpath', 'trigger', 'maxAge' %}
+  "headers": [
+    { "name": "X-API-Key", "value": "{{ _.apiKey }}", "enabled": true }
+  ]
+}
 
-<h3>Technical Deep Dive: Plugin Support and Environment Management</h3>
-<p>Insomnia's architecture is highly extensible via **Plugins**. When you convert JSON to an Insomnia export, you can leverage features like "Response Tagging," where one request can use the output of another as a variable. Furthermore, Insomnia's **Environment Management** is one of its strongest points. You can define multiple "sub-environments" (like Dev, Staging, Prod) in your JSON export, allowing you to switch between them with a single click. The export format is a specific JSON/YAML structure that includes metadata for every request, folder, and environment, making it a powerful tool for team collaboration.</p>
+// Other useful template tags:
+// {% env 'API_KEY' %}               — value from environment variable
+// {% timestamp %}                   — current Unix timestamp
+// {% now 'iso-8601' %}              — current datetime
+// {% uuid %}                        — random UUID
+// {% randomInt 1, 1000 %}           — random integer
+// {% base64 'encode', 'username:password' %}  — base64 encode
 
-<h3>Comparison & Alternatives</h3>
-<p><strong>Insomnia vs. Postman:</strong> Insomnia is often faster and has better native support for GraphQL, while Postman is more focused on enterprise testing features. <strong>HTTPie</strong> is a great CLI-based alternative. Converting between these tools is common, as they all share a similar philosophy of organizing requests into collections or workspaces.</p>
+// OAuth2 token extraction (login → use token in all subsequent requests):
+{
+  "_id":    "req_login",
+  "_type":  "request",
+  "name":   "Login",
+  "method": "POST",
+  "url":    "{{ _.baseUrl }}/auth/login",
+  "body": {
+    "mimeType": "application/json",
+    "text":     "{\"email\": \"{{ _.email }}\", \"password\": \"{{ _.password }}\"}"
+  }
+}
+
+// In a subsequent request, reference the token from the login response:
+{
+  "_id":    "req_get_profile",
+  "_type":  "request",
+  "name":   "Get Profile",
+  "method": "GET",
+  "url":    "{{ _.baseUrl }}/users/me",
+  "authentication": {
+    "type":   "bearer",
+    "token":  "{% response 'body', 'req_login', '$.access_token', 'when-expired', 3600 %}"
+  }
+}
+</code></pre>
+
+<h3>Programmatic Collection Generation</h3>
+<pre><code">// Generate an Insomnia v4 export from an OpenAPI spec
+import yaml   from 'js-yaml';
+import { v4 as uuidv4 } from 'uuid';
+
+interface InsomniaResource {
+  _id:    string;
+  _type:  string;
+  [key: string]: unknown;
+}
+
+function openApiToInsomnia(spec: any): object {
+  const workspaceId = `wrk_${uuidv4().replace(/-/g, '').slice(0, 12)}`;
+  const resources: InsomniaResource[] = [
+    {
+      _id:         workspaceId,
+      _type:       'workspace',
+      name:        spec.info.title,
+      description: spec.info.description ?? '',
+      scope:       'collection',
+    },
+    {
+      _id:      `env_base_${workspaceId}`,
+      _type:    'environment',
+      parentId: workspaceId,
+      name:     'Base Environment',
+      data: {
+        baseUrl: spec.servers?.[0]?.url ?? 'http://localhost:3000',
+      },
+    },
+  ];
+
+  // Group by tags
+  const tagGroups: Record&lt;string, string&gt; = {};
+
+  for (const [path, methods] of Object.entries(spec.paths ?? {})) {
+    for (const [method, operation] of Object.entries(methods as any)) {
+      if (!['get','post','put','patch','delete'].includes(method)) continue;
+
+      const op        = operation as any;
+      const tag       = op.tags?.[0] ?? 'Default';
+      const groupKey  = `grp_${tag.replace(/\W/g, '_').toLowerCase()}`;
+
+      if (!tagGroups[tag]) {
+        tagGroups[tag] = groupKey;
+        resources.push({ _id: groupKey, _type: 'request_group', parentId: workspaceId, name: tag });
+      }
+
+      const reqId = `req_${op.operationId ?? uuidv4().slice(0, 8)}`;
+      const headers: any[] = [{ name: 'Accept', value: 'application/json', enabled: true }];
+      if (['post','put','patch'].includes(method)) {
+        headers.push({ name: 'Content-Type', value: 'application/json', enabled: true });
+      }
+
+      const exampleBody = op.requestBody?.content?.['application/json']?.example;
+
+      resources.push({
+        _id:      reqId,
+        _type:    'request',
+        parentId: tagGroups[tag],
+        name:     op.summary ?? `${method.toUpperCase()} ${path}`,
+        method:   method.toUpperCase(),
+        url:      `{{ _.baseUrl }}${path}`,
+        headers,
+        body:     exampleBody ? { mimeType: 'application/json', text: JSON.stringify(exampleBody, null, 2) } : undefined,
+      });
+    }
+  }
+
+  return {
+    _type:             'export',
+    __export_format:   4,
+    __export_date:     new Date().toISOString(),
+    __export_source:   'generated',
+    resources,
+  };
+}
+
+import { writeFileSync } from 'fs';
+const spec    = yaml.load(readFileSync('./openapi.yaml', 'utf-8'));
+const exported = openApiToInsomnia(spec);
+writeFileSync('./insomnia-collection.json', JSON.stringify(exported, null, 2));
+</code></pre>
 
 <h3>Best Practices for Production</h3>
 <ul>
-  <li><strong>Use Folders for Organization:</strong> Group related requests into folders in your JSON export to keep your Insomnia sidebar organized.</li>
-  <li><strong>Leverage Base Environments:</strong> Define common headers (like <code>Content-Type</code>) in the base environment to avoid repeating them in every request.</li>
-  <li><strong>Keep Secret Data Out:</strong> Just like with Postman, never include actual secrets in your export files. Use environment variables and fill them in manually after import.</li>
+  <li><strong>Store credentials in sub-environments, not the base environment:</strong> The base environment should have structure only (<code>baseUrl</code>, <code>apiVersion</code>). Sub-environments (Staging, Production) hold actual credentials. This lets you commit the base environment to Git while keeping the sub-environments (with real API keys) in a secrets manager.</li>
+  <li><strong>Use response chaining for multi-step workflows:</strong> Insomnia's <code>{% response %}</code> tag is the key feature that distinguishes it from basic HTTP clients. A login → create → verify workflow where each step uses the previous response's data tests your entire authentication flow in one collection run.</li>
+  <li><strong>Use Insomnia's Git Sync for team collaboration:</strong> Insomnia has built-in Git repository sync. Store your workspace export in a <code>insomnia/</code> directory in your API repository. Engineers clone the repo, import the workspace, and immediately have a correctly configured API client — no manual setup.</li>
+  <li><strong>Generate the export from your OpenAPI spec, not from the UI:</strong> Building the Insomnia workspace by clicking through the UI doesn't scale for APIs with 50+ endpoints. Generate it from the OpenAPI spec using a script and re-generate when the spec changes.</li>
 </ul>
 
 <h3>FAQ</h3>
-<p><strong>Q: Does Insomnia support GraphQL?</strong><br>
-A: Yes! Insomnia has some of the best GraphQL support in the industry, including schema introspection and fragment management.</p>
-<p><strong>Q: How do I handle cookie sessions?</strong><br>
-A: Insomnia manages cookies automatically for you, just like a browser does, which is very helpful for testing stateful APIs.</p>
-<p><strong>Q: Can I export from Postman to Insomnia?</strong><br>
-A: Yes, Insomnia has a built-in importer that can read Postman Collections and convert them into its native format.</p>
+<p><strong>Q: What's the difference between Insomnia and Postman for modern teams?</strong><br>
+A: Insomnia is lighter with a cleaner UI and better GraphQL support. Postman has more enterprise features: team collaboration, API monitoring, and a larger ecosystem of community collections. Insomnia's export format is simpler to generate programmatically. For solo developers or small teams, Insomnia's simplicity is an advantage. For large teams with test automation requirements, Postman's Newman CLI integration is more mature.</p>
+
+<p><strong>Q: Can I run Insomnia tests in CI like Newman does for Postman?</strong><br>
+A: Yes, using the Inso CLI (<code>npm install inso</code>). Run <code>inso run tests</code> to execute test suites from an Insomnia collection in CI. It supports the same export format and produces JUnit-compatible XML output for CI test reporting.</p>
+
+<p><strong>Q: How do I handle self-signed SSL certificates in Insomnia?</strong><br>
+A: In Insomnia Settings → Preferences → Request/Response, disable SSL validation globally. For per-request control, add a client certificate. For proxied requests through mitmproxy or Charles, configure the proxy under Application → Preferences and add the proxy's CA certificate.</p>
