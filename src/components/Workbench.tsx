@@ -4,7 +4,7 @@ import Editor, { useMonaco } from '@monaco-editor/react';
 import LZString from 'lz-string';
 import {
   Terminal, Share2, Copy, FileJson, Settings, Loader2, Monitor, Trash2, Code2, Zap, Crown, Upload, ChevronDown,
-  Lightbulb, Edit3, Check, PanelLeftClose, PanelLeftOpen, MoreHorizontal, Link, Download, Archive, ArrowLeftRight,
+  Lightbulb, Edit3, Check, PanelLeftClose, PanelLeftOpen, MoreHorizontal, Link, Download, Archive,
   Bookmark, BookmarkCheck, Library
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1383,7 +1383,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
         ['--left-width' as any]: isLeftCollapsed ? '0%' : `${leftWidth}%`,
         ['--right-width' as any]: isLeftCollapsed ? '100%' : `${100 - leftWidth}%`
       }}
-      className={`flex flex-col md:flex-row h-[calc(100vh-80px)] px-6 pt-6 pb-0 bg-slate-50 dark:bg-[#0A0A0A] relative ${isResizing ? 'cursor-col-resize select-none' : ''}`}
+      className={`flex flex-col md:flex-row h-[calc(100vh-80px)] px-6 pt-6 pb-6 bg-slate-50 dark:bg-[#0A0A0A] relative ${isResizing ? 'cursor-col-resize select-none' : ''}`}
     >
       <div 
         className={`flex flex-col min-w-0 h-full transition-all duration-300 ease-in-out overflow-hidden ${isLeftCollapsed ? 'w-0 md:w-0 opacity-0 pointer-events-none' : 'w-full md:flex-none md:w-[calc(var(--left-width)-12px)] opacity-100'}`}
@@ -1400,21 +1400,6 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
             )}
           </div>
           <div className="flex items-center gap-2">
-            {/* Compare versions shortcut */}
-            {input.trim() && (
-              <button
-                onClick={() => {
-                  setDiffSeedContent(input);
-                  setDiffSeedKey(k => k + 1);
-                  setOutputTab('diff');
-                }}
-                className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-slate-500 dark:text-slate-300 px-3 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all"
-                title="Load current schema into the Breaking Change Detector"
-              >
-                <ArrowLeftRight size={12} />
-                <span className="hidden sm:inline">Compare</span>
-              </button>
-            )}
             {/* Save to Library */}
             {input.trim() && (
               <button
