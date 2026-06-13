@@ -171,7 +171,7 @@ function cmdDiff(oldText: string, newText: string, breakingOnly: boolean) {
 function cmdConvert(format: string, text: string, root: string) {
   const { obj } = parseInput(text);
   try {
-    const output = runEngine(obj, format, { rootName: root });
+    const output = runEngine(obj, format, '', { rootName: root });
     if (!output || output.startsWith('// Unsupported')) {
       console.error(red(`typemorph: unsupported format "${format}". Run \`typemorph list\` to see all formats.`));
       process.exit(1);
@@ -192,7 +192,7 @@ async function main() {
     return;
   }
   if (argv.includes('--version') || argv.includes('-v')) {
-    console.log('0.2.0');
+    console.log('0.2.1');
     return;
   }
 

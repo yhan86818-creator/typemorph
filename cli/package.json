@@ -1,6 +1,6 @@
 {
   "name": "typemorph-cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Schema engineering CLI — convert JSON/YAML/SQL/OpenAPI to 18+ typed code formats, grade schema quality, and detect breaking changes.",
   "keywords": [
     "json", "typescript", "zod", "schema", "codegen", "go", "rust",

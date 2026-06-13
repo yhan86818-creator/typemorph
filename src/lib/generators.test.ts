@@ -191,11 +191,11 @@ describe('generators', () => {
   });
 
   describe('zodGen - name-based validation', () => {
-    it('should add .min(0) for age field', () => {
+    it('should add .int().min(0).max(150) for age field', () => {
       const json = { age: 25 };
       const schema = inferSchema(json);
       const result = zodGen.generate(schema, 'Root');
-      expect(result).toContain('z.number().min(0)');
+      expect(result).toContain('z.number().int().min(0).max(150)');
     });
 
     it('should add .min(0) for price field', () => {
@@ -208,7 +208,6 @@ describe('generators', () => {
     it('should add .email() for email field without format', () => {
       const json = { email: 'test@example.com' };
       const schema = inferSchema(json);
-      // Remove format to test name-based inference
       if (schema.fields?.email) schema.fields.email.format = undefined;
       const result = zodGen.generate(schema, 'Root');
       expect(result).toContain('z.string().email()');
@@ -221,17 +220,104 @@ describe('generators', () => {
       const result = zodGen.generate(schema, 'Root');
       expect(result).toContain('z.string().url()');
     });
+
+    it('should add .min(0).max(5) for rating field', () => {
+      const json = { rating: 4.5 };
+      const schema = inferSchema(json);
+      const result = zodGen.generate(schema, 'Root');
+      expect(result).toContain('z.number().min(0).max(5)');
+    });
+
+    it('should add .min(0).max(100) for score field', () => {
+      const json = { score: 87 };
+      const schema = inferSchema(json);
+      const result = zodGen.generate(schema, 'Root');
+      expect(result).toContain('z.number().min(0).max(100)');
+    });
+
+    it('should add .min(0).max(100) for percentage field', () => {
+      const json = { percentage: 75.5 };
+      const schema = inferSchema(json);
+      const result = zodGen.generate(schema, 'Root');
+      expect(result).toContain('z.number().min(0).max(100)');
+    });
+
+    it('should add .int().min(1900).max(2100) for year field', () => {
+      const json = { year: 2024 };
+      const schema = inferSchema(json);
+      const result = zodGen.generate(schema, 'Root');
+      expect(result).toContain('z.number().int().min(1900).max(2100)');
+    });
+
+    it('should add .int().min(1).max(12) for month field', () => {
+      const json = { month: 6 };
+      const schema = inferSchema(json);
+      const result = zodGen.generate(schema, 'Root');
+      expect(result).toContain('z.number().int().min(1).max(12)');
+    });
+
+    it('should add .int().min(0) for count field', () => {
+      const json = { count: 10 };
+      const schema = inferSchema(json);
+      const result = zodGen.generate(schema, 'Root');
+      expect(result).toContain('z.number().int().min(0)');
+    });
+
+    it('should add .min(-90).max(90) for latitude field', () => {
+      const json = { latitude: 35.6 };
+      const schema = inferSchema(json);
+      const result = zodGen.generate(schema, 'Root');
+      expect(result).toContain('z.number().min(-90).max(90)');
+    });
+
+    it('should add .min(-180).max(180) for longitude field', () => {
+      const json = { longitude: 139.7 };
+      const schema = inferSchema(json);
+      const result = zodGen.generate(schema, 'Root');
+      expect(result).toContain('z.number().min(-180).max(180)');
+    });
+
+    it('should add .min(1).trim() for required name field', () => {
+      const json = { name: 'Alice' };
+      const schema = inferSchema(json);
+      if (schema.fields?.name) schema.fields.name.format = undefined;
+      const result = zodGen.generate(schema, 'Root');
+      expect(result).toContain('z.string().min(1).trim()');
+    });
+
+    it('should add .trim() (no .min) for optional title field', () => {
+      const json = { title: 'Dr.' };
+      const schema = inferSchema(json);
+      if (schema.fields?.title) { schema.fields.title.format = undefined; schema.fields.title.optional = true; }
+      const result = zodGen.generate(schema, 'Root');
+      expect(result).toContain('z.string().trim()');
+      expect(result).not.toContain('z.string().min(1).trim()');
+    });
+
+    it('should add .min(1) for required non-semantic string field', () => {
+      const json = { slug: 'my-post' };
+      const schema = inferSchema(json);
+      if (schema.fields?.slug) schema.fields.slug.format = undefined;
+      const result = zodGen.generate(schema, 'Root');
+      expect(result).toContain('z.string().min(1)');
+    });
+
+    it('should NOT add .min(1) for long-text fields like description', () => {
+      const json = { description: '' };
+      const schema = inferSchema(json);
+      if (schema.fields?.description) schema.fields.description.format = undefined;
+      const result = zodGen.generate(schema, 'Root');
+      expect(result).not.toContain('z.string().min(1)');
+    });
   });
 
   describe('zodGen - ID field detection (BUG-02 regression)', () => {
     it('[bugfix] should NOT add .uuid() to fields whose names merely end in "id" as a substring (valid, grid, bid)', () => {
       // Previously `.endsWith('id')` matched "valid", "grid", "bid" etc. which are NOT ID fields.
       // Fixed by requiring camelCase /Id$/ or /ID$/ boundary.
+      // Required strings now also get .min(1) — assert no .uuid(), not exact z.string()
       const schema = inferSchema({ valid: 'some-label', grid: 'layout-3x3', bid: 'auction-item' });
       const result = zodGen.generate(schema, 'Root');
-      expect(result).toContain('valid: z.string(),');
-      expect(result).toContain('grid: z.string(),');
-      expect(result).toContain('bid: z.string(),');
       expect(result).not.toContain('valid: z.string().uuid()');
       expect(result).not.toContain('grid: z.string().uuid()');
       expect(result).not.toContain('bid: z.string().uuid()');
