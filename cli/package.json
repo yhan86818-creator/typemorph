@@ -1,0 +1,28 @@
+{
+  "name": "typemorph-cli",
+  "version": "0.2.0",
+  "description": "Schema engineering CLI — convert JSON/YAML/SQL/OpenAPI to 18+ typed code formats, grade schema quality, and detect breaking changes.",
+  "keywords": [
+    "json", "typescript", "zod", "schema", "codegen", "go", "rust",
+    "openapi", "graphql", "prisma", "quality", "diff", "breaking-changes"
+  ],
+  "homepage": "https://typemorph.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yhan86818-creator/typemorph"
+  },
+  "license": "MIT",
+  "bin": {
+    "typemorph": "./dist/cli.js"
+  },
+  "files": [
+    "dist/cli.js"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "prepublishOnly": "npm run build"
+  }
+}
