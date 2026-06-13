@@ -1,107 +1,92 @@
 # TypeMorph
 
-> **Premium, Local-First Schema Engineering Workbench for Modern Software Architects.**
+> **100% browser-local schema engineering workbench.**
 
-[![Live Demo](https://img.shields.io/badge/Demo-Live_on_Cloudflare-3B82F6?style=for-the-badge&logo=cloudflare&logoColor=white)](https://typemorph.dev)
-[![GitHub Stars](https://img.shields.io/github/stars/yhan86818-creator/ai-factory?style=for-the-badge&logo=github&logoColor=white&color=yellow)](https://github.com/yhan86818-creator/ai-factory)
-[![License](https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge)](LICENSE)
+[![Live](https://img.shields.io/badge/Live-typemorph.dev-3B82F6?style=for-the-badge&logo=cloudflare&logoColor=white)](https://typemorph.dev)
+[![npm](https://img.shields.io/npm/v/typemorph-cli?style=for-the-badge&logo=npm&color=CB3837)](https://www.npmjs.com/package/typemorph-cli)
+[![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
 
-TypeMorph is an institutional-grade schema transformation and visualization platform. Engineered for elite developers, it delivers a **100% client-side sandbox** supporting 290+ developer and financial converter utilities, augmented by opt-in direct AI synthesis (BYOK).
+Paste any JSON, YAML, SQL DDL, OpenAPI spec, or TypeScript interface — TypeMorph infers the schema once and compiles it to 18+ typed outputs simultaneously, entirely inside your browser.
 
 ---
 
-## The Privacy Manifesto
+## Features
 
-We value corporate data sovereignty above all else. TypeMorph clearly separates standard offline browser-only processing from transparent direct AI operations:
+- **18+ output formats** — TypeScript, Zod, Go, Rust, Python, Java, Kotlin, Swift, C#, Dart, PHP, GraphQL, Prisma, Protobuf, JSON Schema, Mock JSON, SQL, Mermaid ER
+- **Schema Quality Score** — local rule-based grading (A–F) with field-level feedback
+- **Breaking Change Detector** — semantic diff between two schema versions with severity scoring
+- **Schema Library** — save and restore schemas across sessions (localStorage, 50 slots)
+- **CLI** — `typemorph-cli` on npm for scripting and CI pipelines
+- **100% local** — no server, no upload endpoint, no cloud processing
+
+---
+
+## How it works
 
 ```
-[ Your Sensitive Schema ]
-       │
-       ├─► (100% Local-First Engine) ──► Executed in Sandboxed Browser Memory (Zero Network Traffic)
-       │
-       └─► (BYOK AI Workbenches)    ──► Direct SSL Connection ──► Google Gemini API (No Proxy, No Interception)
+Input (JSON / YAML / SQL / OpenAPI / TypeScript)
+  └─► inferSchema()  →  Schema AST
+        └─► generators  →  TypeScript, Zod, Go, Rust, Python … (18 targets)
 ```
 
-1. **Local-First Engine**: All standard conversions (JSON to TypeScript/Go/Rust, SQL DDL, FIX protocol, etc.) run **entirely inside your browser's client-side JavaScript sandbox**. Your code never leaves your local device.
-2. **BYOK AI Model**: Advanced neural features connect directly from your client to Google Gemini's official API using **your own Gemini API Key (Bring Your Own Key)**. TypeMorph does not proxy, store, or intercept your keys or intellectual property on conversion servers.
-3. **Zero Data Retention**: Guest history resides solely in your browser's local storage. Cloud history sync (Supabase) is strictly opt-in and active only for logged-in accounts. A **Nuclear Wipe option** is available in the CONFIG popover to instantly purge all local, cloud, and URL hash parameters.
-4. **100% Ethical & Open**: No third-party advertisements, no retargeting tracking, and **absolutely zero training** of AI models using your input payloads.
-5. **Explicit-Only Share Policy**: By default, the **Share** button encodes your schema into an LZ-compressed `#data=...` URL hash — the data lives entirely in the URL string, no server is ever contacted. Only when your schema is too large for a URL (> 2,000 characters compressed) does the app automatically escalate to cloud storage — and **only if you explicitly click the Share button**. The raw auto-sync to URL hash on every keystroke has been intentionally removed to prevent inadvertent data exposure via browser history.
+All parsing and code generation runs in your browser via a single AST pipeline. Your schema never leaves your machine.
 
 ---
 
-## Key Architectural Pillars
+## CLI
 
-TypeMorph is divided into 4 specialized, highly optimized workspaces:
+```bash
+npm install -g typemorph-cli
 
-### 1. Interactive Workbench (Monaco Editor)
-*   **290+ High-Performance Parsers**: Convert from JSON, XML, YAML, SQL DDL, cURL, SWIFT MT/MX, FIX Protocol to 15+ target languages.
-*   **Dynamic Privacy Indicators**: Real-time visual badge switching between `Local Mode (100% Private)` and `AI Mode (BYOK Cloud)` based on your current API configuration.
-*   **Smart Empty-State Drag & Drop**: Load schemas instantly by dropping `.json` or `.yaml` files directly into the Monaco editor, or launch a complex sample payload with one click.
-*   **Auto-Healing Syntax Parser**: Paste malformed or trailing-comma payloads and let the sandboxed AI automatically repair it on the fly.
-
-### 2. Logic Lab (Complete Service Synthesis)
-*   Don't just generate static TS interfaces. Synthesize complete operational codebases including:
-    *   **1-Click React Query hooks** mapped to your schema structure.
-    *   **Fully typed Mock Services** and database mock class generators.
-    *   **Pristine documentation** with clean dependency installation instructions.
-
-### 3. Architecture Visuals (Interactive ER Diagrams)
-*   Paste raw structures or SQL DDL, and watch a beautiful entity-relationship diagram render instantly.
-*   **Role-Based Dynamic Styling**: The engine automatically classifies nodes (`API`, `Database`, `Client`) and applies sleek, color-coordinated dark mode neon themes.
-*   **High-Resolution Export**: Export 3x transparent PNGs or SVGs ready for slide presentations or architectural reviews.
-
-### 4. Smart Structural Diff (AST Semantic Compare)
-*   Standard text-diffs fail when keys are reordered or whitespaces change.
-*   TypeMorph's **Smart Diff parses schemas into an abstract AST**, matching properties semantically.
-*   Filters out formatting noise to highlight actual, structural payload changes.
+typemorph zod schema.json          # convert to Zod
+typemorph typescript schema.json   # convert to TypeScript
+typemorph quality schema.json      # schema quality score
+typemorph diff v1.json v2.json     # breaking change detection
+typemorph list                     # list all supported formats
+```
 
 ---
 
-## 1-Click Self-Host & Deployment
+## Local development
 
-Deploy your own private instance of TypeMorph to Cloudflare Pages in less than a minute.
+```bash
+git clone https://github.com/yhan86818-creator/typemorph.git
+cd typemorph
+npm install
+npm run dev
+```
 
-### Deploy to Cloudflare Pages
-1. Fork this repository.
-2. Run the build command:
-   ```bash
-   npm run build
-   ```
-3. Deploy the static `out` directory to Cloudflare Pages via Wrangler or your Cloudflare Dashboard.
+Open [http://localhost:3000](http://localhost:3000).
+
+**Run tests:**
+```bash
+npx vitest run
+```
+
+**Build static export:**
+```bash
+npm run build
+# output → out/
+```
+
+**Deploy to Cloudflare Pages:**
+```bash
+npx wrangler pages deploy out --project-name your-project
+```
 
 ---
 
-## Local Development & Setup
+## Tech stack
 
-TypeMorph is built using **Next.js 16 (App Router)** and styled with **Vanilla CSS & modern dark-mode layouts**.
-
-### Prerequisites
-*   Node.js 18+
-*   npm or pnpm
-
-### Installation
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yhan86818-creator/ai-factory.git
-   cd ai-factory/typemorph
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Launch the local development server:
-   ```bash
-   npm run dev
-   ```
-4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+- Next.js (static export)
+- Tailwind CSS v4
+- Monaco Editor
+- Vitest
+- esbuild (CLI bundler)
+- Cloudflare Pages
 
 ---
 
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more information.
-
----
-
-*Crafted with care by engineers, for software architects.*
+MIT — see [LICENSE](LICENSE).
