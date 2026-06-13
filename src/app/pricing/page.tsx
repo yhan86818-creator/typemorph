@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import { trackProClick } from '@/lib/analytics';
-import { ShieldCheck, Zap, Sparkles, Check, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Zap, Check, ArrowRight, Cpu } from 'lucide-react';
 import GlobalFooter from '@/components/GlobalFooter';
 import Link from 'next/link';
 
@@ -11,13 +11,13 @@ export default function PricingPage() {
       <main className="max-w-6xl mx-auto px-6 pt-32 pb-40">
         <div className="text-center mb-24">
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white font-mono text-[9px] uppercase tracking-wider mb-6 border border-slate-200 dark:border-white/10">
-            <Zap size={11} /> [the-anti-saas-manifesto-v2]
+            <Zap size={11} /> [local-first · zero-cloud · pay-once]
           </div>
           <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-8 text-slate-900 dark:text-white leading-tight">
-            The Professional Tool.<br />Bring Your Own Key.
+            The Professional Schema Tool.<br />Pay Once. Own It.
           </h1>
           <p className="text-xl text-slate-500 dark:text-slate-400 font-medium max-w-3xl mx-auto leading-relaxed">
-            Stop overpaying for AI-wrapped SaaS. Use your own Gemini API key and pay pennies to Google for compute, while paying us for a superior engineering workbench.
+            TypeMorph runs 100% in your browser. No cloud processing, no subscriptions for core features. Upgrade once to unlock the full professional workbench — forever.
           </p>
         </div>
 
@@ -31,11 +31,12 @@ export default function PricingPage() {
             <div className="text-3xl font-black text-slate-900 dark:text-white mb-6">$0<span className="text-xs text-slate-400 font-normal ml-2">/ forever</span></div>
             <ul className="space-y-4 mb-10 flex-1">
               {[
-                "100% Local-First Processing",
-                "All Standard Converters (JSON, YAML, etc.)",
-                "Unlimited Local Processing",
-                "AI Trial: 3 Uses / Day (No Privacy Masking)",
-                "Standard Copy-Paste Workflow"
+                "100% Browser-Local Processing",
+                "18+ Format Converters (TypeScript, Go, Rust, Zod, Python, Swift…)",
+                "JSON / YAML / SQL / OpenAPI / TypeScript Input",
+                "Schema Quality Score (A–F Grading)",
+                "Breaking Change Detector",
+                "Standard Copy-Paste Workflow",
               ].map((f, i) => (
                 <li key={i} className="flex items-start gap-2.5 text-xs font-bold text-slate-600 dark:text-slate-400">
                   <Check size={14} className="text-slate-300 dark:text-slate-600 mt-0.5 shrink-0" />
@@ -63,15 +64,15 @@ export default function PricingPage() {
               </div>
               <ul className="space-y-4 mb-10 flex-1">
                 {[
-                  "Unlimited Local & AI Conversions",
-                  "Local Privacy Shield (Auto PII Masking)",
+                  "Everything in Free, Forever",
+                  "Unlimited Conversions (No Daily Limit)",
                   "Local File Sync (Auto-Save to Filesystem)",
                   "Bulk Folder & Multi-File Processing",
-                  "Explainable Logic & Schema Diff Impact",
-                  "Priority Feature Requests"
+                  "CLI Access (typemorph-cli on npm)",
+                  "Priority Feature Requests",
                 ].map((f, i) => (
                   <li key={i} className="flex items-start gap-2.5 text-xs font-black text-slate-900 dark:text-white">
-                    <Sparkles size={14} className="text-slate-700 dark:text-white mt-0.5 shrink-0" />
+                    <Cpu size={14} className="text-slate-700 dark:text-white mt-0.5 shrink-0" />
                     <span className="leading-snug">{f}</span>
                   </li>
                 ))}
@@ -109,13 +110,13 @@ export default function PricingPage() {
               <div>
                 <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider mb-3">Why a One-Time Payment?</h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                  We believe developers are tired of subscription fatigue. Since you bring your own AI API key and all execution happens locally, we have virtually zero server costs. A flat $25 lifetime payment gives you unrestricted access to our best-in-class local workbench forever.
+                  We believe developers are tired of subscription fatigue. Since all execution happens locally in your browser, we have virtually zero server costs. A flat $25 lifetime payment gives you unrestricted access to our best-in-class local workbench forever.
                 </p>
               </div>
               <div>
-                <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider mb-3">Why Bring Your Own Key?</h4>
+                <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider mb-3">Why Local-First?</h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                  Most AI tools charge $20+/mo for &quot;cloud processing&quot; while paying pennies to Google/OpenAI. We think that&apos;s unfair. By using your own API key, you pay exactly what it costs (often $0 with Google&apos;s free tier), and we are physically unable to see or store your data.
+                  Every conversion — TypeScript, Zod, Go, Rust, Prisma — runs inside your browser with sub-millisecond latency. Your schemas never leave your machine. No upload endpoint, no logging, no cloud round-trips. What you type stays yours.
                 </p>
               </div>
             </div>
@@ -127,10 +128,10 @@ export default function PricingPage() {
               </h4>
               <div className="space-y-6">
                 {[
-                  { title: "Physical Data Isolation", desc: "Our authentication server (Gumroad) knows ONLY that you paid. Our app knows ONLY your code. There is no physical wire connecting the two." },
-                  { title: "Client-Side Execution", desc: "290+ parsers and transformation engines run inside your browser's Web Worker. We don't have a 'Server-Side Engine' where your code could be logged." },
-                  { title: "Direct AI Communication", desc: "Your Gemini API Key is stored in your LocalStorage (AES encrypted). When you click 'Generate', your browser talks DIRECTLY to Google. It never passes through a TypeMorph proxy." },
-                  { title: "Physical Barrier to Data", desc: "Check our Network Tab: We don't even have an 'Upload' or 'Save' endpoint. It is technically impossible for us to steal what we cannot receive." }
+                  { title: "Physical Data Isolation", desc: "Our payment processor (Gumroad) knows ONLY that you paid. Our app knows ONLY your code. There is no physical wire connecting the two." },
+                  { title: "Client-Side Execution", desc: "290+ parsers and transformation engines run inside your browser. We don't have a server-side engine where your schemas could be logged or stored." },
+                  { title: "No Upload Endpoint", desc: "Check our Network Tab: we don't even have an 'Upload' or 'Save' endpoint. It is technically impossible for us to see what we cannot receive." },
+                  { title: "Open Inspection", desc: "Our transformation logic is written in TypeScript and ships directly to your browser. You can inspect, audit, or fork every line of inference and generation code." },
                 ].map((item, i) => (
                   <div key={i} className="flex gap-4">
                     <div className="flex-none w-6 h-6 rounded-full bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white flex items-center justify-center text-[10px] font-black border border-slate-200 dark:border-white/10">{i + 1}</div>
@@ -150,9 +151,10 @@ export default function PricingPage() {
           <h2 className="text-xl font-black mb-12 text-center text-slate-900 dark:text-white uppercase tracking-widest">General Inquiries</h2>
           <div className="space-y-4">
             {[
-              { q: "Is it really a one-time payment?", a: "Yes! You pay $25 once and get lifetime access to all Pro features. There are no recurring fees or hidden costs." },
+              { q: "Is it really a one-time payment?", a: "Yes. You pay $25 once and get lifetime access to all Pro features. No recurring fees, no hidden costs." },
               { q: "Do you offer Team/Enterprise plans?", a: "Yes. For teams requiring bulk licensing, please contact me directly." },
-              { q: "How does the license activation work?", a: "After purchasing through Gumroad, you'll receive a license key via email. Simply enter it into the app, and the Pro features will unlock instantly in your browser." }
+              { q: "How does the license activation work?", a: "After purchasing through Gumroad, you'll receive a license key via email. Enter it into the app and Pro features unlock instantly in your browser." },
+              { q: "Is the CLI also covered by the Pro license?", a: "The typemorph-cli npm package is free and open. The Pro license unlocks the full in-browser workbench — bulk folder mode, file sync, and unlimited conversions." },
             ].map((item, i) => (
               <div key={i} className="p-6 bg-white dark:bg-white/[0.03] rounded-xl border border-slate-100 dark:border-white/10">
                 <h4 className="font-black text-slate-900 dark:text-white mb-2 text-sm">{item.q}</h4>

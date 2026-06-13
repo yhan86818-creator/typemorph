@@ -50,7 +50,20 @@ export default function PrivacyPolicy() {
             If you opt-in to use the &quot;AI Smart Repair&quot; features, the specific block of code you request to be repaired may be routed through our secure Gemini API proxy. However, this is strictly initiated by user action, and the data is transiently processed without retention.
           </p>
 
-          <h2>4. Cookies & Local Storage</h2>
+          <h2>4. URL Import & What Leaves Your Browser</h2>
+          <p>
+            TypeMorph can load schemas directly from a URL. Here is exactly what happens in each case:
+          </p>
+          <ul>
+            <li><strong>Schema conversion — always local.</strong> Parsing, type inference, and code generation happen entirely in your browser. The schema content is never sent to any server.</li>
+            <li><strong>Direct fetch (CORS-allowed URLs).</strong> Your browser fetches the URL directly. No server is involved. This is the default path for most public OpenAPI specs.</li>
+            <li><strong>Proxy fetch — explicit opt-in only.</strong> When a URL is blocked by CORS, TypeMorph stops and shows a warning. It does <em>not</em> silently route the request through a server. If you choose to click &quot;Try via proxy,&quot; the URL is sent to our Cloudflare Worker, which fetches the content on your behalf and returns it. <strong>Do not use the proxy for internal, authenticated, or otherwise sensitive URLs.</strong></li>
+          </ul>
+          <p>
+            The short version: if you never click &quot;Try via proxy,&quot; nothing beyond standard page analytics ever leaves your machine.
+          </p>
+
+          <h2>5. Cookies & Local Storage</h2>
           <p>
             We use your browser&apos;s Local Storage to save your UI preferences (like Dark Mode) and temporarily cache your last clipboard text so you don&apos;t lose work if you accidentally refresh the page. This data lives on your hard drive, not ours.
           </p>
@@ -58,9 +71,9 @@ export default function PrivacyPolicy() {
           <blockquote>
             &quot;Our philosophy is simple: Developer tools should solve problems, not create security vulnerabilities. Your code is yours.&quot;
           </blockquote>
-          
+
           <p className="text-sm text-slate-400 mt-12">
-            Last Updated: May 2026
+            Last Updated: June 2026
           </p>
         </div>
       </div>

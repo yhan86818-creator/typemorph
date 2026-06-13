@@ -2535,19 +2535,19 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
               Unlock TypeMorph
             </h2>
             <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-6 font-sans">
-              You've reached your free daily limit for AI features. Upgrade to <b>TypeMorph</b> to unlock unlimited, 100% private conversions.
+              You've reached your free daily limit. Upgrade to <b>TypeMorph Pro</b> to unlock unlimited conversions, bulk folder mode, and local file sync.
             </p>
 
             <div className="w-full flex flex-col gap-3">
-              <button 
+              <button
                 onClick={() => {
                   trackProClick('workbench_paywall_pricing');
                   window.open('https://typemorph.dev/pricing', '_blank');
                 }}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-950 dark:bg-white text-white dark:text-slate-950 font-bold text-sm shadow-xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
               >
-                Subscribe to Pro 
-                <span className="text-xs opacity-70 bg-white/20 dark:bg-black/10 px-2 py-0.5 rounded-full">$4.99/mo</span>
+                Get Lifetime Access
+                <span className="text-xs opacity-70 bg-white/20 dark:bg-black/10 px-2 py-0.5 rounded-full">$25 once</span>
               </button>
               <button 
                 onClick={() => {
