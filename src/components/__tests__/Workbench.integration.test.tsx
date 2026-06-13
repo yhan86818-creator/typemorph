@@ -59,12 +59,14 @@ vi.mock('@/lib/engine', () => {
   return {
     __esModule: true,
     runEngine,
+    inferSchema: vi.fn(() => null),
     parseYAML: vi.fn(),
     parseXML: vi.fn(),
     parseCurl: vi.fn(),
     curlToTypeScript: vi.fn(),
     parseSQLToZod: vi.fn(),
     parseOpenAPI: vi.fn(),
+    parseTypeScriptToSchema: vi.fn(),
     getDecisions: vi.fn(() => []),
   };
 });
@@ -83,10 +85,6 @@ vi.mock('@/lib/analytics', () => ({
   trackInferenceError: vi.fn(),
 }));
 
-vi.mock('@/lib/privacy', () => ({
-  __esModule: true,
-  processPii: vi.fn(() => ({ detectedTypes: [], maskedText: '' }))
-}));
 
 vi.mock('@/lib/supabase', () => ({
   __esModule: true,
@@ -100,7 +98,6 @@ const renderWorkbench = (outputTab = 'typescript', setOutputTab = () => {}) =>
     <Workbench
       slug="json-to-typescript"
       isDark={false}
-      geminiKey=""
       outputTab={outputTab}
       setOutputTab={setOutputTab}
       user={null}
@@ -114,8 +111,7 @@ const renderWorkbenchWithState = () => {
       <Workbench
         slug="json-to-typescript"
         isDark={false}
-        geminiKey=""
-        outputTab={outputTab}
+          outputTab={outputTab}
         setOutputTab={setOutputTab}
         user={null}
       />
@@ -150,13 +146,13 @@ describe('Workbench integration', () => {
     await waitFor(() => expect(outputEditor.value).toBe('// Generated typescript'));
   });
 
-  test('shows parse error state for invalid JSON', async () => {
+  test('shows parse error indicator for invalid JSON', async () => {
     renderWorkbench();
 
     const inputEditor = screen.getByTestId('input-editor') as HTMLTextAreaElement;
     fireEvent.change(inputEditor, { target: { value: '{invalid json' } });
 
-    await waitFor(() => expect(screen.getByText('Heal Schema')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('Syntax Error')).toBeDefined());
   });
 
   test('switches output tabs and renders new generated output', async () => {

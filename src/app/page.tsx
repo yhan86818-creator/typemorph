@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  Sun, Moon, ShieldCheck, Download, Crown, 
+import {
+  Sun, Moon, ShieldCheck, Download, Crown,
   Search, ExternalLink, GitBranch, X, MessageSquare,
-  LayoutTemplate, Home, Key,
+  LayoutTemplate, Home,
   PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -32,7 +32,6 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
   const [trialCount, setTrialCount] = useState(100);
   const [isDark, setIsDark] = useState(false);
   const [licenseKey, setLicenseKey] = useState("");
-  const [geminiKey, setGeminiKey] = useState("");
   const [selectedSlug, setSelectedSlug] = useState(initialSlug || 'json-to-typescript');
   // slug が約束する出力形式を初期タブに設定する。
   // 解決できない（runEngine 未対応の）slug は 'typescript' にフォールバック。
@@ -70,8 +69,6 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
     setTimeout(() => {
       setMounted(true);
       if (localStorage.getItem('typemorph_pro') === 'true') setIsPro(true);
-      const savedKey = localStorage.getItem('typemorph_gemini_key');
-      if (savedKey) setGeminiKey(savedKey);
       const savedTheme = localStorage.getItem('typemorph_theme');
       if (savedTheme === 'light') {
         setIsDark(false);
@@ -203,33 +200,6 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
               </button>
             )}
             
-            {/* API Key Input */}
-            <div className="relative group flex flex-col items-end">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                  <Key size={12} className={geminiKey ? 'text-slate-700 dark:text-white' : 'text-slate-400'} />
-                </div>
-                <input 
-                  type="password" 
-                  placeholder="Gemini API Key" 
-                  value={geminiKey}
-                  onChange={(e) => {
-                    setGeminiKey(e.target.value);
-                    localStorage.setItem('typemorph_gemini_key', e.target.value);
-                  }}
-                  className="w-40 bg-slate-100 dark:bg-white/10 border-none outline-none pl-8 pr-3 py-1.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:ring-1 focus:ring-slate-900 dark:focus:ring-white transition-all placeholder:text-slate-400"
-                />
-              </div>
-              <a 
-                href="https://aistudio.google.com/app/apikey" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors mt-1 pr-1"
-              >
-                Get Free API Key
-              </a>
-            </div>
-
             <button onClick={toggleTheme} className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
               {isDark ? <Sun size={16} /> : <Moon size={16} />}
             </button>
@@ -275,9 +245,8 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
             {view === 'landing' && <LandingView onSelect={handleSelectTool} />}
             {view === 'app' && (
               <Workbench 
-                slug={selectedSlug} 
-                isDark={mounted ? isDark : false} 
-                geminiKey={geminiKey}
+                slug={selectedSlug}
+                isDark={mounted ? isDark : false}
                 outputTab={outputTab} 
                 setOutputTab={setOutputTab} 
                 isPro={isPro} 

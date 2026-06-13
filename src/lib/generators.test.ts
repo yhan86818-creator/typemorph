@@ -190,7 +190,7 @@ describe('generators', () => {
     });
   });
 
-  describe('zodGen - Semantic Validator', () => {
+  describe('zodGen - name-based validation', () => {
     it('should add .min(0) for age field', () => {
       const json = { age: 25 };
       const schema = inferSchema(json);
