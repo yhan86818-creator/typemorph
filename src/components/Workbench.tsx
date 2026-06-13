@@ -4,7 +4,8 @@ import Editor, { useMonaco } from '@monaco-editor/react';
 import LZString from 'lz-string';
 import {
   Terminal, Share2, Copy, FileJson, Settings, Loader2, Monitor, Trash2, Code2, Zap, Crown, Upload, ChevronDown,
-  Lightbulb, Edit3, Check, PanelLeftClose, PanelLeftOpen, MoreHorizontal, Link, Download, Archive, ArrowLeftRight
+  Lightbulb, Edit3, Check, PanelLeftClose, PanelLeftOpen, MoreHorizontal, Link, Download, Archive, ArrowLeftRight,
+  Bookmark, BookmarkCheck, Library
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -36,6 +37,7 @@ import { getWorkbenchEditorText, WorkbenchOutputStatus } from './workbench-utils
 import { resolveSlugTarget, monacoLanguageForTarget } from '@/lib/targets';
 import { User } from '@supabase/supabase-js';
 import SuperBatchModal from './SuperBatchModal';
+import { loadLibrary, saveToLibrary, deleteFromLibrary, renameInLibrary, autoName, type LibraryEntry } from '@/lib/schemaLibrary';
 import dynamic from 'next/dynamic';
 import { SmartDiffView } from '@/components/SmartDiffView';
 import { FullStackArchitectView } from '@/components/FullStackArchitectView';
@@ -311,6 +313,10 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     try { return inferSchema(jsonData); } catch { return null; }
   }, [jsonData]);
   const [history, setHistory] = useState<any[]>([]);
+  const [library, setLibrary] = useState<LibraryEntry[]>([]);
+  const [savedJustNow, setSavedJustNow] = useState(false);
+  const [libraryRenamingId, setLibraryRenamingId] = useState<string | null>(null);
+  const [libraryRenameValue, setLibraryRenameValue] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
   const setOutputStateFor = useCallback((lang: string, status: 'idle' | 'loading' | 'error' | 'unsupported', message?: string) => {
@@ -349,7 +355,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     csharp: 'cs', protobuf: 'proto', graphql: 'graphql', sql: 'sql',
     jsonschema: 'schema.json', mock: 'json', json: 'json', er: 'mmd', doc: 'md',
   };
-  const VISUAL_TABS = new Set(['graph', 'history', 'diff', 'architect', 'ui']);
+  const VISUAL_TABS = new Set(['graph', 'history', 'diff', 'architect', 'ui', 'saved']);
 
   const handleDownload = () => {
     const content = outputs[outputTab];
@@ -1159,6 +1165,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
         localStorage.removeItem('typemorph_history');
       }
     }
+    setTimeout(() => setLibrary(loadLibrary()), 0);
   }, []);
 
   const saveToHistory = useCallback(async (content: string) => {
@@ -1196,6 +1203,27 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
       }
     }
   }, [user, slug, outputs, saveCloudHistory]);
+
+  const handleSaveToLibrary = useCallback(() => {
+    if (!input || input.trim().length < 5) return;
+    const name = autoName(input, slug);
+    const entry = saveToLibrary({ name, content: input, slug });
+    setLibrary(loadLibrary());
+    setSavedJustNow(true);
+    setTimeout(() => setSavedJustNow(false), 2000);
+  }, [input, slug]);
+
+  const handleDeleteFromLibrary = useCallback((id: string) => {
+    deleteFromLibrary(id);
+    setLibrary(loadLibrary());
+  }, []);
+
+  const handleLibraryRenameCommit = useCallback((id: string) => {
+    if (libraryRenameValue.trim()) renameInLibrary(id, libraryRenameValue.trim());
+    setLibraryRenamingId(null);
+    setLibraryRenameValue('');
+    setLibrary(loadLibrary());
+  }, [libraryRenameValue]);
 
   // Hybrid Smart Share: URL hash for small payloads, Supabase for large ones.
   // Data NEVER leaves the browser unless the user explicitly clicks this button.
@@ -1385,6 +1413,17 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
               >
                 <ArrowLeftRight size={12} />
                 <span className="hidden sm:inline">Compare</span>
+              </button>
+            )}
+            {/* Save to Library */}
+            {input.trim() && (
+              <button
+                onClick={handleSaveToLibrary}
+                className={`flex items-center gap-1.5 text-[10px] font-mono uppercase px-3 py-1.5 rounded-xl transition-all ${savedJustNow ? 'text-emerald-500 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30' : 'text-slate-500 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}
+                title="Save to Library"
+              >
+                {savedJustNow ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
+                <span className="hidden sm:inline">{savedJustNow ? 'Saved!' : 'Save'}</span>
               </button>
             )}
             {/* ⋯ More Menu */}
@@ -1845,6 +1884,18 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
           <div className="flex items-center gap-2">
             {/* 機能ボタン群 */}
             <div className="hidden md:flex items-center gap-1">
+              <button
+                onClick={() => setOutputTab('saved')}
+                className={`relative flex items-center justify-center w-9 h-9 rounded-xl transition-all ${outputTab === 'saved' ? 'bg-slate-100 dark:bg-white/10 text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}
+                title="Schema Library"
+              >
+                <Library size={14} />
+                {library.length > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 text-white text-[8px] font-black rounded-full flex items-center justify-center">
+                    {library.length > 9 ? '9+' : library.length}
+                  </span>
+                )}
+              </button>
               <button
                 onClick={() => setOutputTab('history')}
                 className="flex items-center justify-center text-slate-500 dark:text-slate-300 w-9 h-9 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all"
@@ -2340,6 +2391,63 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                       }}
                     />
                   </div>
+                </div>
+              ) : outputTab === 'saved' ? (
+                <div className="flex flex-col h-full bg-[#0A0A0A] overflow-y-auto">
+                  <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-white/[0.06]">
+                    <div>
+                      <h2 className="text-sm font-semibold text-white">Schema Library</h2>
+                      <p className="text-xs text-slate-500">{library.length} saved · click to restore</p>
+                    </div>
+                    {library.length > 0 && (
+                      <button onClick={() => { localStorage.removeItem('typemorph_library'); setLibrary([]); }} className="text-[10px] font-mono text-slate-500 hover:text-red-500 transition-colors">Clear all</button>
+                    )}
+                  </div>
+                  {library.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center flex-1 gap-3 text-center p-8">
+                      <Bookmark size={28} className="text-slate-700" />
+                      <p className="text-xs text-slate-500">No saved schemas yet</p>
+                      <p className="text-[10px] text-slate-600">Click <span className="font-bold text-slate-400">Save</span> in the input panel to save a schema</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col divide-y divide-white/[0.05]">
+                      {library.map(entry => (
+                        <div key={entry.id} className="group flex items-start gap-3 px-4 py-3 hover:bg-white/[0.03] transition-colors">
+                          <button
+                            className="flex-1 text-left min-w-0"
+                            onClick={() => { setInput(entry.content); setOutputTab('typescript'); }}
+                          >
+                            {libraryRenamingId === entry.id ? (
+                              <input
+                                autoFocus
+                                value={libraryRenameValue}
+                                onChange={e => setLibraryRenameValue(e.target.value)}
+                                onBlur={() => handleLibraryRenameCommit(entry.id)}
+                                onKeyDown={e => { if (e.key === 'Enter') handleLibraryRenameCommit(entry.id); if (e.key === 'Escape') { setLibraryRenamingId(null); } }}
+                                className="w-full text-xs font-bold bg-white/10 text-white px-2 py-0.5 rounded outline-none border border-white/20"
+                                onClick={e => e.stopPropagation()}
+                              />
+                            ) : (
+                              <p className="text-xs font-bold text-white truncate">{entry.name}</p>
+                            )}
+                            <p className="text-[10px] font-mono text-slate-500 mt-0.5 truncate">{entry.slug} · {new Date(entry.savedAt).toLocaleDateString()}</p>
+                          </button>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                            <button
+                              onClick={() => { setLibraryRenamingId(entry.id); setLibraryRenameValue(entry.name); }}
+                              className="p-1.5 text-slate-500 hover:text-white rounded-lg hover:bg-white/10 transition-all"
+                              title="Rename"
+                            ><Edit3 size={11} /></button>
+                            <button
+                              onClick={() => handleDeleteFromLibrary(entry.id)}
+                              className="p-1.5 text-slate-500 hover:text-red-400 rounded-lg hover:bg-red-950/30 transition-all"
+                              title="Delete"
+                            ><Trash2 size={11} /></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ) : outputTab === 'history' ? (
                 <div className="flex flex-col h-full p-4 gap-3 bg-white dark:bg-[#0A0A0A] overflow-y-auto">
