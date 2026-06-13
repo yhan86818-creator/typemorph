@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  Sun, Moon, ShieldCheck, Download, Crown,
+  ShieldCheck, Download, Crown,
   Search, ExternalLink, GitBranch, X, MessageSquare,
   LayoutTemplate, Home,
   PanelLeftClose, PanelLeftOpen
@@ -30,7 +30,6 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
   const [view, setView] = useState<any>(initialSlug ? 'app' : defaultView);
   const [isPro, setIsPro] = useState(true);
   const [trialCount, setTrialCount] = useState(100);
-  const [isDark, setIsDark] = useState(false);
   const [licenseKey, setLicenseKey] = useState("");
   const [selectedSlug, setSelectedSlug] = useState(initialSlug || 'json-to-typescript');
   // slug が約束する出力形式を初期タブに設定する。
@@ -69,14 +68,6 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
     setTimeout(() => {
       setMounted(true);
       if (localStorage.getItem('typemorph_pro') === 'true') setIsPro(true);
-      const savedTheme = localStorage.getItem('typemorph_theme');
-      if (savedTheme === 'light') {
-        setIsDark(false);
-        document.documentElement.classList.remove('dark');
-      } else {
-        setIsDark(true);
-        document.documentElement.classList.add('dark');
-      }
     }, 0);
 
     // PWA Support
@@ -89,13 +80,6 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
       window.removeEventListener('beforeinstallprompt', handleInstallPrompt);
     };
   }, []);
-
-  const toggleTheme = () => {
-    const newDark = !isDark;
-    setIsDark(newDark);
-    localStorage.setItem('typemorph_theme', newDark ? 'dark' : 'light');
-    document.documentElement.classList.toggle('dark');
-  };
 
   const handleInstall = async () => {
     if (!deferredPrompt) return;
@@ -137,7 +121,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
   };
 
   return (
-    <div className={`${initialSlug ? 'w-full overflow-x-hidden' : 'min-h-screen overflow-hidden'} flex flex-col ${isDark ? 'dark' : ''} bg-white dark:bg-[#0A0A0A] transition-colors duration-500`}>
+    <div className={`${initialSlug ? 'w-full overflow-x-hidden' : 'min-h-screen overflow-hidden'} flex flex-col bg-[#0A0A0A]`}>
       {/* Top Navigation Cockpit */}
       <nav className={`${initialSlug ? 'sticky' : 'fixed'} top-0 left-0 right-0 h-20 border-b border-slate-200 dark:border-[#1A1A1A] bg-white/80 dark:bg-[#0A0A0A]/80 backdrop-blur-xl z-[100] px-6`}>
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between">
@@ -200,11 +184,6 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
               </button>
             )}
             
-            <button onClick={toggleTheme} className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
-              {isDark ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
-            
-
           </div>
         </div>
       </nav>
@@ -215,7 +194,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
           <Sidebar 
             selectedSlug={selectedSlug} 
             onSelect={handleSelectTool} 
-            isDark={mounted ? isDark : false} 
+            isDark={true} 
             setView={setView}
             currentView={view} 
             isCollapsed={isSidebarCollapsed}
@@ -246,7 +225,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
             {view === 'app' && (
               <Workbench 
                 slug={selectedSlug}
-                isDark={mounted ? isDark : false}
+                isDark={true}
                 outputTab={outputTab} 
                 setOutputTab={setOutputTab} 
                 isPro={isPro} 
@@ -296,12 +275,12 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
       <AuthModal 
         isOpen={showAuthModal} 
         onClose={() => setShowAuthModal(false)} 
-        isDark={mounted ? isDark : false} 
+        isDark={true} 
       />
       <FeedbackModal
         isOpen={showFeedbackModal}
         onClose={() => setShowFeedbackModal(false)}
-        isDark={mounted ? isDark : false}
+        isDark={true}
       />
       {/* Deployment Verification Tag */}
       <div className="fixed bottom-2 right-2 text-[10px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-700 pointer-events-none z-[500]">
