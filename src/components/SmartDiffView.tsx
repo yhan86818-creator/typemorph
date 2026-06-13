@@ -91,8 +91,8 @@ const SAMPLE_B = `{
   }
 }`;
 
-export function SmartDiffView({ isDark }: { isDark: boolean }) {
-  const [textA, setTextA] = useState(SAMPLE_A);
+export function SmartDiffView({ isDark, initialContent }: { isDark: boolean; initialContent?: string }) {
+  const [textA, setTextA] = useState(initialContent ?? SAMPLE_A);
   const [textB, setTextB] = useState(SAMPLE_B);
   const [result, setResult] = useState<{
     diffs: SchemaDiff[];

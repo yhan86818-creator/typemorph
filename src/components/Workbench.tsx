@@ -4,7 +4,7 @@ import Editor, { useMonaco } from '@monaco-editor/react';
 import LZString from 'lz-string';
 import {
   Terminal, Share2, Copy, FileJson, Settings, Loader2, Monitor, Trash2, Code2, Zap, Crown, Upload, ChevronDown,
-  Lightbulb, Edit3, Check, PanelLeftClose, PanelLeftOpen, MoreHorizontal, Link, Download, Archive
+  Lightbulb, Edit3, Check, PanelLeftClose, PanelLeftOpen, MoreHorizontal, Link, Download, Archive, ArrowLeftRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -331,6 +331,8 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     if (!localStorage.getItem('typemorph_graph_tab_visited')) setShowGraphBadge(true);
   }, []);
   const [hasParseError, setHasParseError] = useState(false);
+  const [diffSeedContent, setDiffSeedContent] = useState('');
+  const [diffSeedKey, setDiffSeedKey] = useState(0);
   const [showMobileLangs, setShowMobileLangs] = useState(false);
   const [saveCloudHistory, setSaveCloudHistory] = useState<boolean>(true);
   const [lastWipedContent, setLastWipedContent] = useState<string>("");
@@ -1312,11 +1314,11 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     { id: 'go', label: 'Go' },
     { id: 'python', label: 'Python' },
     { id: 'rust', label: 'Rust' },
+    { id: 'diff', label: '↔ Diff' },
   ];
 
   const moreTabs = [
     { id: 'er', label: 'ER Diagram' },
-    { id: 'diff', label: 'Diff' },
     { id: 'architect', label: 'Architect' },
     { id: 'dart', label: 'Dart' },
     { id: 'php', label: 'PHP' },
@@ -1370,6 +1372,21 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
             )}
           </div>
           <div className="flex items-center gap-2">
+            {/* Compare versions shortcut */}
+            {input.trim() && (
+              <button
+                onClick={() => {
+                  setDiffSeedContent(input);
+                  setDiffSeedKey(k => k + 1);
+                  setOutputTab('diff');
+                }}
+                className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-slate-500 dark:text-slate-300 px-3 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all"
+                title="Load current schema into the Breaking Change Detector"
+              >
+                <ArrowLeftRight size={12} />
+                <span className="hidden sm:inline">Compare</span>
+              </button>
+            )}
             {/* ⋯ More Menu */}
             <div className="relative group/more">
               <button
@@ -2396,7 +2413,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                 </div>
               ) : outputTab === 'diff' ? (
                 <div className="flex-1 min-h-0 overflow-hidden">
-                  <SmartDiffView isDark={isDark} />
+                  <SmartDiffView key={diffSeedKey} isDark={isDark} initialContent={diffSeedContent || undefined} />
                 </div>
               ) : (
                 <div className="flex-1 min-h-0 flex flex-col">
