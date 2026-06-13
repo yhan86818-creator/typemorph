@@ -31,7 +31,7 @@ import {
   trackInferenceError,
 } from '@/lib/analytics';
 import { JsonVisualizer, Toast } from './SharedUI';
-import { History as HistoryIcon, Clock, FolderOpen } from 'lucide-react';
+import { History as HistoryIcon, FolderOpen } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getWorkbenchEditorText, WorkbenchOutputStatus } from './workbench-utils';
 import { resolveSlugTarget, monacoLanguageForTarget } from '@/lib/targets';
@@ -355,7 +355,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     csharp: 'cs', protobuf: 'proto', graphql: 'graphql', sql: 'sql',
     jsonschema: 'schema.json', mock: 'json', json: 'json', er: 'mmd', doc: 'md',
   };
-  const VISUAL_TABS = new Set(['graph', 'history', 'diff', 'architect', 'ui', 'saved']);
+  const VISUAL_TABS = new Set(['graph', 'diff', 'architect', 'ui', 'saved']);
 
   const handleDownload = () => {
     const content = outputs[outputTab];
@@ -516,12 +516,6 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
   const [schemaDiffs, setSchemaDiffs] = useState<SchemaDiff[]>([]);
   const baselineJsonRef = useRef<any>(null);
 
-  interface SchemaHistoryEntry {
-    timestamp: Date;
-    diffs: SchemaDiff[];
-    inputSnapshot: string;
-  }
-  const [schemaHistory, setSchemaHistory] = useState<SchemaHistoryEntry[]>([]);
 
   const acceptNewBaseline = () => {
     if (jsonData) {
@@ -1035,16 +1029,6 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
           try {
             const diffs = compareSchemas(baselineJsonRef.current, jsonObj);
             setSchemaDiffs(diffs);
-            if (diffs.length > 0) {
-              setSchemaHistory(prev => [
-                {
-                  timestamp: new Date(),
-                  diffs,
-                  inputSnapshot: safeStringify(jsonObj).slice(0, 200)
-                },
-                ...prev.slice(0, 19) // 最大20件保持
-              ]);
-            }
           } catch (e) {
             console.error(e);
           }
@@ -1465,7 +1449,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
             return filteredHistory.length > 0 && (
               <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
                 <span className="flex items-center gap-1 text-[10px] font-mono uppercase text-slate-500 dark:text-slate-350 tracking-wider shrink-0 font-bold">
-                  <Clock size={10} /> History:
+                  Recent:
                 </span>
                 {filteredHistory.map((h, i) => (
                   <button 
@@ -1880,13 +1864,6 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                     {library.length > 9 ? '9+' : library.length}
                   </span>
                 )}
-              </button>
-              <button
-                onClick={() => setOutputTab('history')}
-                className="flex items-center justify-center text-slate-500 dark:text-slate-300 w-9 h-9 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all"
-                title="Schema Change History"
-              >
-                <Clock size={14} />
               </button>
             </div>
 
@@ -2428,72 +2405,6 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                               className="p-1.5 text-slate-500 hover:text-red-400 rounded-lg hover:bg-red-950/30 transition-all"
                               title="Delete"
                             ><Trash2 size={11} /></button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : outputTab === 'history' ? (
-                <div className="flex flex-col h-full p-4 gap-3 bg-white dark:bg-[#0A0A0A] overflow-y-auto">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-sm font-semibold text-slate-800 dark:text-[#E8E8E8]">Schema Change History</h2>
-                      <p className="text-xs text-slate-400 dark:text-[#707070]">Changes detected since baseline</p>
-                    </div>
-                    {schemaHistory.length > 0 && (
-                      <button
-                        onClick={() => setSchemaHistory([])}
-                        className="text-[10px] font-mono text-slate-400 hover:text-red-500 transition-colors"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-
-                  {schemaHistory.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center flex-1 text-center">
-                      <p className="text-xs text-slate-400 dark:text-[#707070]">No changes detected yet</p>
-                      <p className="text-[10px] text-slate-300 dark:text-[#505050] mt-1">Edit your JSON to track schema changes</p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-3">
-                      {schemaHistory.map((entry, i) => (
-                        <div key={i} className="border border-slate-200 dark:border-[#1A1A1A] rounded-lg p-3 flex flex-col gap-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-mono text-slate-400 dark:text-[#707070]">
-                              {entry.timestamp.toLocaleTimeString()}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              {entry.diffs.filter(d => d.severity === 'error').length > 0 && (
-                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
-                                  {entry.diffs.filter(d => d.severity === 'error').length} breaking
-                                </span>
-                              )}
-                              {entry.diffs.filter(d => d.severity === 'warning').length > 0 && (
-                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400">
-                                  {entry.diffs.filter(d => d.severity === 'warning').length} warning
-                                </span>
-                              )}
-                              {entry.diffs.filter(d => d.severity === 'info').length > 0 && (
-                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white">
-                                  {entry.diffs.filter(d => d.severity === 'info').length} added
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            {entry.diffs.map((d, j) => (
-                              <div key={j} className="flex items-center gap-2 text-[10px]">
-                                <span className={`font-mono ${d.severity === 'error' ? 'text-red-500' : d.severity === 'warning' ? 'text-yellow-500' : 'text-slate-500'}`}>
-                                  {d.type === 'removed' ? '−' : d.type === 'added' ? '+' : '~'}
-                                </span>
-                                <code className="font-mono text-slate-600 dark:text-[#A0A0A0]">{d.path}</code>
-                                {d.oldType && d.newType && (
-                                  <span className="text-slate-400 dark:text-[#707070]">{d.oldType} → {d.newType}</span>
-                                )}
-                              </div>
-                            ))}
                           </div>
                         </div>
                       ))}
