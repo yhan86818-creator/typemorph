@@ -96,6 +96,27 @@ export function LandingView({ onSelect }: LandingViewProps) {
             The premium schema workbench for modern software architects. <br className="hidden md:block" />
             160+ tools, 100% local-first, including institutional-grade financial & database engineering.
           </p>
+
+          <div className="flex items-center justify-center gap-3 mt-6 flex-wrap">
+            <a
+              href="https://marketplace.visualstudio.com/items?itemName=TypeMorph.typemorph-vscode"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-white/10 hover:bg-slate-700 dark:hover:bg-white/20 text-white text-xs font-bold rounded-lg border border-slate-700 dark:border-white/10 transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 100 100" fill="currentColor"><path d="M74.3 6.9L42.7 36.1 19.2 18.4 6.9 24.8v50.4l12.3 6.4 23.5-17.7 31.6 29.2L93.1 87V13L74.3 6.9zM19.2 63.6V36.4l16.8 13.6-16.8 13.6zm55.1 14.5L48.5 50l25.8-28.1v55.2z"/></svg>
+              VS Code Extension
+            </a>
+            <a
+              href="https://www.npmjs.com/package/typemorph-cli"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-lg border border-slate-200 dark:border-white/10 transition-colors"
+            >
+              <Terminal size={14} />
+              CLI — npm install typemorph-cli
+            </a>
+          </div>
         </motion.div>
 
         {/* Search Cockpit */}

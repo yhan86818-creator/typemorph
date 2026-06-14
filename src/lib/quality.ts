@@ -43,7 +43,7 @@ const FORMAT_KEYWORDS: Record<string, RegExp> = {
 };
 
 function isCamel(s: string): boolean {
-  return /^[a-z][a-zA-Z0-9]*$/.test(s) && s !== s.toUpperCase();
+  return /^[a-z][a-zA-Z0-9]*$/.test(s) && s !== s.toUpperCase() && /[A-Z]/.test(s);
 }
 function isSnake(s: string): boolean {
   return /^[a-z][a-z0-9_]*$/.test(s) && s.includes('_');

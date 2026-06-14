@@ -3,3 +3,5 @@ build.mjs
 tsconfig.json
 node_modules/
 *.map
+*.json
+!package.json

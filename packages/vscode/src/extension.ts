@@ -90,14 +90,14 @@ async function cmdQuality() {
 
   const schema  = parsed.schemas[0]?.schema ?? inferSchema(parsed.json);
   const result  = analyzeQuality(schema);
-  const icon    = result.grade === 'A' ? '$(pass)' : result.grade === 'B' ? '$(info)' : '$(warning)';
-  const msg     = `${icon} Schema Quality: ${result.grade}  (${result.score}/100)`;
+  const grade   = result.grade;
+  const msg     = `Schema Quality: ${grade}  (${result.score}/100)`;
 
   const detail = result.issues.length
     ? result.issues.map(i => `• ${i.message}`).join('\n')
     : 'No issues found.';
 
-  vscode.window.showInformationMessage(msg, { detail, modal: false });
+  vscode.window.showInformationMessage(msg, { detail, modal: true });
 }
 
 // ── Extension lifecycle ───────────────────────────────────────────────────────

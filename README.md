@@ -1,21 +1,22 @@
 # TypeMorph
 
-> **100% browser-local schema engineering workbench.**
+> **100% browser-local schema conversion workbench.**
 
 [![Live](https://img.shields.io/badge/Live-typemorph.dev-3B82F6?style=for-the-badge&logo=cloudflare&logoColor=white)](https://typemorph.dev)
+[![VS Code](https://img.shields.io/badge/VS%20Code-Extension-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=TypeMorph.typemorph-vscode)
 [![npm](https://img.shields.io/npm/v/typemorph-cli?style=for-the-badge&logo=npm&color=CB3837)](https://www.npmjs.com/package/typemorph-cli)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
 
-Paste any JSON, YAML, SQL DDL, OpenAPI spec, or TypeScript interface — TypeMorph infers the schema once and compiles it to 18+ typed outputs simultaneously, entirely inside your browser.
+Paste any JSON, YAML, OpenAPI spec, or JSON Schema — TypeMorph infers the schema and converts it to 160+ output formats, entirely inside your browser.
 
 ---
 
 ## Features
 
-- **18+ output formats** — TypeScript, Zod, Go, Rust, Python, Java, Kotlin, Swift, C#, Dart, PHP, GraphQL, Prisma, Protobuf, JSON Schema, Mock JSON, SQL, Mermaid ER
-- **Schema Quality Score** — local rule-based grading (A–F) with field-level feedback
+- **160+ output formats** — TypeScript, Zod, Go, Rust, Python, Java, Kotlin, Swift, C#, Dart, PHP, GraphQL, Prisma, Protobuf, SQL, Mermaid, and more
+- **Schema Quality Score** — A–F grading with field-level feedback
 - **Breaking Change Detector** — semantic diff between two schema versions with severity scoring
-- **Schema Library** — save and restore schemas across sessions (localStorage, 50 slots)
+- **VS Code Extension** — convert schemas without leaving your editor (`Ctrl+Shift+T`)
 - **CLI** — `typemorph-cli` on npm for scripting and CI pipelines
 - **100% local** — no server, no upload endpoint, no cloud processing
 
@@ -32,6 +33,13 @@ Input (JSON / YAML / SQL / OpenAPI / TypeScript)
 All parsing and code generation runs in your browser via a single AST pipeline. Your schema never leaves your machine.
 
 ---
+
+## VS Code Extension
+
+Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=TypeMorph.typemorph-vscode).
+
+- `Ctrl+Shift+T` — convert current file or selection
+- Right-click → **TypeMorph: Check Schema Quality**
 
 ## CLI
 
