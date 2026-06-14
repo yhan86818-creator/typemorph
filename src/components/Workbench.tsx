@@ -1424,11 +1424,17 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     { id: 'zod', label: 'Zod' },
     { id: 'go', label: 'Go' },
     { id: 'python', label: 'Python' },
-    { id: 'rust', label: 'Rust' },
-    { id: 'diff', label: '↔ Diff' },
+    ...(!isEnvInput ? [
+      { id: 'rust', label: 'Rust' },
+      { id: 'diff', label: '↔ Diff' },
+    ] : []),
   ];
 
   const moreTabs = [
+    ...(isEnvInput ? [
+      { id: 'rust', label: 'Rust' },
+      { id: 'diff', label: '↔ Diff' },
+    ] : []),
     { id: 'er', label: 'ER Diagram' },
     { id: 'architect', label: 'Architect' },
     { id: 'dart', label: 'Dart' },

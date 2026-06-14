@@ -81,3 +81,19 @@ San Jose CA US
 </ul>
 
 <blockquote>"The MT103 is the heartbeat of global cross-border payments. Engineers who can efficiently parse, validate, and transform these messages are among the most valuable in the fintech industry."</blockquote>
+
+<h2>FAQ</h2>
+<p><strong>Q: How do I handle MT103 messages where optional fields like :56A: (Intermediary Institution) are absent?</strong><br>
+A: Optional fields simply won't appear in the message text. A robust parser should treat any field not prefixed with <code>:</code> followed by a known tag as either a continuation line of the previous field or noise to skip. Build your JSON schema with all optional fields set to <code>null</code> by default, then populate them only when the corresponding tag is present. This keeps your downstream code consistent regardless of whether a given MT103 includes an intermediary leg.</p>
+
+<p><strong>Q: What is the difference between MT103 and MT202, and when should I convert each to JSON?</strong><br>
+A: MT103 is a customer credit transfer — it moves funds on behalf of a named individual or corporate entity and always includes ordering customer (:50:) and beneficiary (:59:) details. MT202 is an interbank cover payment with no beneficiary customer fields. Convert MT103 when building end-to-end payment tracing, sanctions screening, or customer-facing reconciliation. Convert MT202 when auditing nostro/vostro settlements or interbank liquidity flows. The JSON schemas differ: MT202 has no <code>orderingCustomer</code> or <code>beneficiaryCustomer</code> nodes.</p>
+
+<p><strong>Q: MT103 has multiple variants of the :50: field (:50A:, :50K:, :50F:). How do I normalize them in JSON?</strong><br>
+A: Each variant encodes the ordering customer differently — :50A: uses a BIC, :50K: uses free-text name/address lines, :50F: uses a structured party identifier. In JSON, model a single <code>orderingCustomer</code> object with a <code>format</code> discriminator field (<code>"A"</code>, <code>"K"</code>, or <code>"F"</code>) alongside the parsed sub-fields. This avoids three separate JSON keys and lets downstream code branch on <code>orderingCustomer.format</code> rather than checking which top-level key exists.</p>
+
+<p><strong>Q: Is it safe to paste a real MT103 message into TypeMorph?</strong><br>
+A: Yes. TypeMorph processes all data entirely in your browser — no network request is made during conversion. The MT103 text never leaves your machine. This is why TypeMorph is appropriate for development and testing workflows under PCI-DSS or SOC2 frameworks, where production payment data cannot be sent to third-party cloud services. Verify this in your browser's DevTools Network tab: you will see zero outbound requests during conversion.</p>
+
+<p><strong>Q: How does MT103-to-JSON conversion fit into an ISO 20022 (MX) migration?</strong><br>
+A: ISO 20022 replaces MT messages with XML-based MX messages (pacs.008 for customer credit transfers). During the coexistence period (SWIFT's full cutover target is November 2025), many institutions receive both formats. Converting MT103 to JSON first gives you a structured intermediate representation that maps cleanly to ISO 20022 field groups: <code>:32A:</code> → <code>IntrBkSttlmAmt</code>, <code>:50K:</code> → <code>Dbtr</code>, <code>:59:</code> → <code>Cdtr</code>. JSON-to-pacs.008 libraries (such as <code>iso20022js</code>) can then consume that intermediate JSON directly.</p>

@@ -1958,9 +1958,9 @@ export const converters: Converter[] = [
   {
     "category": "Web & Frontend",
     "slug": "json-to-openapi-definition",
-  "title": "Convert JSON to Openapi Definition",
-  "description": "Quickly transform JSON data into Openapi Definition format.",
-  "h1": "JSON to Openapi Definition Converter"
+  "title": "JSON to OpenAPI Definition: $ref Schemas, Prism Mock Server & Design-First Workflow",
+  "description": "Convert JSON to a full OpenAPI definition with $ref component schemas, Prism mock servers, and callbacks. Design-first approach for parallel frontend and backend development.",
+  "h1": "JSON to OpenAPI Definition: $ref Component Schemas, Prism Mocking, and Design-First Workflow"
 },
   {
     "category": "Database",
