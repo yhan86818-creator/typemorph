@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "outDir": "dist",
+    "lib": ["ES2020"],
+    "types": ["vscode"]
+  },
+  "include": ["src"]
+}

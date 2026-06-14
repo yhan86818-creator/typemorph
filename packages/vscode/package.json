@@ -1,0 +1,58 @@
+{
+  "name": "typemorph-vscode",
+  "displayName": "TypeMorph",
+  "description": "Schema conversion in your editor — JSON to TypeScript, Zod, Go, and 160+ formats",
+  "version": "0.1.0",
+  "publisher": "typemorph",
+  "license": "MIT",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other"],
+  "keywords": ["json", "typescript", "zod", "schema", "converter", "codegen"],
+  "icon": "icon.png",
+  "repository": { "type": "git", "url": "https://github.com/typemorph/typemorph" },
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "typemorph.convert",
+        "title": "TypeMorph: Convert Schema…"
+      },
+      {
+        "command": "typemorph.quality",
+        "title": "TypeMorph: Check Schema Quality"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "typemorph.convert",
+          "when": "editorTextFocus",
+          "group": "typemorph@1"
+        },
+        {
+          "command": "typemorph.quality",
+          "when": "editorTextFocus",
+          "group": "typemorph@2"
+        }
+      ],
+      "commandPalette": [
+        { "command": "typemorph.convert" },
+        { "command": "typemorph.quality" }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "typemorph.convert",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+shift+t",
+        "when": "editorTextFocus"
+      }
+    ]
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.28.0",
+    "typescript": "^5"
+  }
+}
