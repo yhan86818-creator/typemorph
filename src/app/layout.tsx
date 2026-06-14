@@ -24,15 +24,15 @@ export const metadata: Metadata = {
     default: "TypeMorph | The Elite Local-First Schema Engineering Workbench",
     template: "%s | TypeMorph"
   },
-  description: "Institutional-grade schema transformation platform. 200+ local-first tools for database design, API synthesis, and code generation. 100% private, no-cloud processing for corporate data sovereignty.",
+  description: "Institutional-grade schema transformation platform. 160+ local-first tools for database design, API synthesis, and code generation. 100% private, no-cloud processing for corporate data sovereignty.",
   metadataBase: new URL('https://typemorph.dev'),
   icons: {
     icon: '/favicon.png',
     apple: '/favicon.png',
   },
   openGraph: {
-    title: "TypeMorph | 200+ Institutional-Grade Local-First Developer Tools",
-    description: "Secure your architecture with the world's most comprehensive local-first workbench. Zero data retention, BYOK AI synthesis, and 200+ parsers.",
+    title: "TypeMorph | 160+ Institutional-Grade Local-First Developer Tools",
+    description: "Secure your architecture with the world's most comprehensive local-first workbench. Zero data retention and 160+ parsers.",
     url: 'https://typemorph.dev',
     siteName: 'TypeMorph',
     images: [
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'TypeMorph | Elite Schema Engineering Workbench',
-    description: '200+ local-first tools for modern architects. 100% private data sovereignty.',
+    description: '160+ local-first tools for modern architects. 100% private data sovereignty.',
     images: ['/og-image.png'],
   },
   verification: {

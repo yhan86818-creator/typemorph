@@ -46,7 +46,7 @@ export default function TermsOfService() {
 
           <h2>3. Disclaimer of Warranties (The &quot;No Guarantees&quot; Clause)</h2>
           <p>
-            The service is provided on an &quot;AS IS&quot; and &quot;AS AVAILABLE&quot; basis. While our parsing logic and AI models are highly advanced, they are not infallible. <strong>We make no warranties, expressed or implied, regarding the accuracy, reliability, or safety of the generated code.</strong>
+            The service is provided on an &quot;AS IS&quot; and &quot;AS AVAILABLE&quot; basis. While our rule-based parsing logic is highly advanced, it is not infallible. <strong>We make no warranties, expressed or implied, regarding the accuracy, reliability, or safety of the generated code.</strong>
           </p>
           <ul>
             <li>You are strictly responsible for reviewing and testing all output before deploying it to a production environment.</li>
@@ -60,7 +60,7 @@ export default function TermsOfService() {
 
           <h2>5. Acceptable Use</h2>
           <p>
-            You agree not to use the service to decompile, reverse engineer, or maliciously attack the platform&apos;s infrastructure. While the application runs locally, attempting to overload our static hosting endpoints or AI proxy servers via automated botnets will result in a permanent IP ban.
+            You agree not to use the service to decompile, reverse engineer, or maliciously attack the platform&apos;s infrastructure. While the application runs locally, attempting to overload our static hosting endpoints via automated botnets will result in a permanent IP ban.
           </p>
 
           <p className="text-sm text-slate-400 mt-12">

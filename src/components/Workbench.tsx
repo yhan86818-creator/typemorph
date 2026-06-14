@@ -301,6 +301,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
   const [isResizing, setIsResizing] = useState(false);
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
   const previousLeftWidthRef = useRef(50);
+  const autoCollapsedRef = useRef(false);
 
   const toggleLeftPanel = useCallback(() => {
     if (isLeftCollapsed) {
@@ -311,6 +312,24 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
       setIsLeftCollapsed(true);
     }
   }, [isLeftCollapsed, leftWidth]);
+
+  useEffect(() => {
+    const isFullscreenTab = outputTab === 'architect' || outputTab === 'diff';
+    if (isFullscreenTab) {
+      if (!isLeftCollapsed) {
+        setIsLeftCollapsed(true);
+        autoCollapsedRef.current = true;
+      }
+    } else {
+      if (autoCollapsedRef.current) {
+        setIsLeftCollapsed(false);
+        autoCollapsedRef.current = false;
+      }
+    }
+  // outputTab の変化だけで発火させる。isLeftCollapsed を deps に入れると
+  // ユーザーが手動展開した瞬間に再折りたたみされるため意図的に除外。
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outputTab]);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const startResize = useCallback((e: React.MouseEvent) => {

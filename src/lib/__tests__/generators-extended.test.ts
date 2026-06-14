@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { avroGen, mongooseGen, openApiGen, valibotGen, yupGen, typeormGen, drizzleGen, bigQueryGen, dynamoDBGen, sqlToMermaidERGen, apiRouteGen, reactHookGen, envValidatorGen, haskellGen } from '../generators-extended';
+import { avroGen, mongooseGen, openApiGen, valibotGen, yupGen, typeormGen, drizzleGen, bigQueryGen, dynamoDBGen, sqlToMermaidERGen, apiRouteGen, reactHookGen, envValidatorGen, haskellGen, mermaidERGen, piniaStoreGen } from '../generators-extended';
 import { mockGen } from '../generators';
 import { inferSchema } from '../engine';
 import { Schema } from '../types';
@@ -332,6 +332,127 @@ describe('generators-extended', () => {
       expect(result).toContain('export async function GET');
       expect(result).toContain('export async function POST');
       expect(result).toContain('UserSchema');
+    });
+  });
+
+  describe('apiRouteGen — semantic Zod validators', () => {
+    it('applies .uuid() to id and _id FK fields', () => {
+      const schema = inferSchema({
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        user_id: '550e8400-e29b-41d4-a716-000000000001',
+      });
+      const result = apiRouteGen.generate(schema, 'Post');
+      expect(result).toContain('id: z.string().uuid()');
+      expect(result).toContain('user_id: z.string().uuid()');
+    });
+
+    it('applies .email() to email field', () => {
+      const schema = inferSchema({ email: 'test@example.com' });
+      const result = apiRouteGen.generate(schema, 'User');
+      expect(result).toContain('email: z.string().email()');
+    });
+
+    it('applies .url() to url/link/website fields', () => {
+      const schema = inferSchema({ profile_url: 'https://example.com', website: 'https://example.com' });
+      if (schema.fields?.profile_url) schema.fields.profile_url.format = undefined;
+      if (schema.fields?.website) schema.fields.website.format = undefined;
+      const result = apiRouteGen.generate(schema, 'User');
+      expect(result).toContain('profile_url: z.string().url()');
+      expect(result).toContain('website: z.string().url()');
+    });
+
+    it('applies .int().min(0).max(150) to age field', () => {
+      const schema = inferSchema({ age: 28 });
+      const result = apiRouteGen.generate(schema, 'User');
+      expect(result).toContain('age: z.number().int().min(0).max(150)');
+    });
+
+    it('applies .min(0) to price and amount fields', () => {
+      const schema = inferSchema({ price: 99.9, amount: 100 });
+      const result = apiRouteGen.generate(schema, 'Order');
+      expect(result).toContain('price: z.number().min(0)');
+      expect(result).toContain('amount: z.number().min(0)');
+    });
+
+    it('applies .min(1).trim() to required name field', () => {
+      const schema = inferSchema({ username: 'alice' });
+      const result = apiRouteGen.generate(schema, 'User');
+      expect(result).toContain('username: z.string().min(1).trim()');
+    });
+
+    it('applies .datetime() to fields inferred as datetime format', () => {
+      const schema = inferSchema({ created_at: '2024-01-01T00:00:00Z' });
+      const result = apiRouteGen.generate(schema, 'Post');
+      expect(result).toContain('created_at: z.string().datetime()');
+    });
+
+    it('applies z.boolean() to boolean fields', () => {
+      const schema = inferSchema({ is_active: true });
+      const result = apiRouteGen.generate(schema, 'User');
+      expect(result).toContain('is_active: z.boolean()');
+    });
+  });
+
+  describe('mermaidERGen', () => {
+    it('generates basic erDiagram with correct field types', () => {
+      const schema = inferSchema({ id: '1', name: 'Alice', age: 30 });
+      const result = mermaidERGen.generate(schema, 'User');
+      expect(result).toContain('erDiagram');
+      expect(result).toContain('User {');
+      expect(result).toContain('string name');
+      expect(result).toContain('float age');
+    });
+
+    it('[FK inference] detects _id suffix and emits }o--|| reference', () => {
+      const schema = inferSchema({ id: '1', user_id: '2', title: 'Post' });
+      const result = mermaidERGen.generate(schema, 'Post');
+      expect(result).toContain('User {');
+      expect(result).toContain('Post }o--|| User : "references"');
+    });
+
+    it('[FK inference] detects camelCase Id suffix and emits }o--|| reference', () => {
+      const schema = inferSchema({ id: '1', authorId: '2', content: 'text' });
+      const result = mermaidERGen.generate(schema, 'Post');
+      expect(result).toContain('Author {');
+      expect(result).toContain('Post }o--|| Author : "references"');
+    });
+
+    it('[FK inference] bare id field does NOT generate a self-reference', () => {
+      const schema = inferSchema({ id: '1', title: 'Post' });
+      const result = mermaidERGen.generate(schema, 'Post');
+      expect(result).not.toContain('}o--||');
+    });
+
+    it('emits ||--o{ for nested object children', () => {
+      const schema = inferSchema({ id: '1', address: { city: 'Tokyo', zip: '100-0001' } });
+      const result = mermaidERGen.generate(schema, 'User');
+      expect(result).toContain('Address {');
+      expect(result).toContain('User ||--o{ Address : "has"');
+    });
+  });
+
+  describe('piniaStoreGen', () => {
+    it('update action uses Partial<XxxState> — not ReturnType<typeof this.$state>', () => {
+      const schema = inferSchema({ id: '1', name: 'Alice', email: 'a@b.com' });
+      const result = piniaStoreGen.generate(schema, 'User');
+      expect(result).toContain('update(data: Partial<UserState>)');
+      expect(result).not.toContain('ReturnType<typeof this.$state>');
+    });
+
+    it('uses Object.assign(this, data) — not Object.assign(this.$state, data)', () => {
+      const schema = inferSchema({ id: '1', name: 'Alice' });
+      const result = piniaStoreGen.generate(schema, 'Item');
+      expect(result).toContain('Object.assign(this, data)');
+      expect(result).not.toContain('Object.assign(this.$state, data)');
+    });
+
+    it('generates correct initial state values per type', () => {
+      const schema = inferSchema({ id: '1', name: 'Alice', count: 5, active: true });
+      const result = piniaStoreGen.generate(schema, 'Counter');
+      expect(result).toContain("id: '' as string");
+      expect(result).toContain("name: '' as string");
+      expect(result).toContain("count: 0 as number");
+      expect(result).toContain("active: false as boolean");
     });
   });
 

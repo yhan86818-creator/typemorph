@@ -5,7 +5,9 @@ import Editor from '@monaco-editor/react';
 import { Database, Layout, Server, Type, ShieldCheck, Download, Copy, CheckCircle2 } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { inferSchema } from '@/lib/engine';
+import { inferSchema, parseYAML } from '@/lib/engine';
+import { isOpenAPISpec, parseOpenAPIComponents } from '@/lib/openapi-parser';
+import { isJSONSchema, parseJSONSchema } from '@/lib/jsonschema-parser';
 import { tsGen, zodGen, prismaGen } from '@/lib/generators';
 import { apiRouteGen, reactHookGen } from '@/lib/generators-extended';
 
@@ -40,9 +42,32 @@ export function FullStackArchitectView({ isDark }: Props) {
     setError('');
     setIsProcessing(true);
     try {
-      const parsed = JSON.parse(input);
-      const schema = inferSchema(parsed);
-      const name = 'Root';
+      let parsed: any;
+      try {
+        parsed = JSON.parse(input);
+      } catch {
+        try {
+          parsed = parseYAML(input);
+        } catch {
+          throw new Error('Input is not valid JSON or YAML');
+        }
+      }
+
+      let schema: any;
+      let name = 'Root';
+      if (isOpenAPISpec(parsed)) {
+        const components = parseOpenAPIComponents(parsed);
+        if (components.length === 0) throw new Error('No components found in OpenAPI spec');
+        schema = components[0].schema;
+        name = components[0].name;
+      } else if (isJSONSchema(parsed)) {
+        const schemas = parseJSONSchema(parsed);
+        if (schemas.length === 0) throw new Error('No schema found in JSON Schema input');
+        schema = schemas[0].schema;
+        name = schemas[0].name || (parsed as any).title || 'Root';
+      } else {
+        schema = inferSchema(parsed);
+      }
 
       setOutput({
         types: tsGen.generate(schema, name),

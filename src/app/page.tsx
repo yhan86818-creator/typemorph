@@ -151,7 +151,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
                   {v === 'landing' ? 'Explore' : 'Workbench'}
                 </button>
               ))}
-              <Link prefetch={false} href="/converters/" className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all flex items-center gap-1.5"><LayoutTemplate size={11}/> 200+ Tools</Link>
+              <Link prefetch={false} href="/converters/" className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all flex items-center gap-1.5"><LayoutTemplate size={11}/> 160+ Tools</Link>
               <Link prefetch={false} href="/blog/" className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-all">Blog</Link>
             </div>
 

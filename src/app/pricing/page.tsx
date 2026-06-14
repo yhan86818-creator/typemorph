@@ -129,7 +129,7 @@ export default function PricingPage() {
               <div className="space-y-6">
                 {[
                   { title: "Physical Data Isolation", desc: "Our payment processor (Gumroad) knows ONLY that you paid. Our app knows ONLY your code. There is no physical wire connecting the two." },
-                  { title: "Client-Side Execution", desc: "290+ parsers and transformation engines run inside your browser. We don't have a server-side engine where your schemas could be logged or stored." },
+                  { title: "Client-Side Execution", desc: "160+ parsers and transformation engines run inside your browser. We don't have a server-side engine where your schemas could be logged or stored." },
                   { title: "No Upload Endpoint", desc: "Check our Network Tab: we don't even have an 'Upload' or 'Save' endpoint. It is technically impossible for us to see what we cannot receive." },
                   { title: "Open Inspection", desc: "Our transformation logic is written in TypeScript and ships directly to your browser. You can inspect, audit, or fork every line of inference and generation code." },
                 ].map((item, i) => (

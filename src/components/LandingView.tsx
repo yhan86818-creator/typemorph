@@ -94,7 +94,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
 
           <p className="text-lg text-slate-500 dark:text-slate-400 font-medium max-w-2xl mx-auto leading-relaxed">
             The premium schema workbench for modern software architects. <br className="hidden md:block" />
-            290+ tools, 100% local-first, including institutional-grade financial & database engineering.
+            160+ tools, 100% local-first, including institutional-grade financial & database engineering.
           </p>
         </motion.div>
 
@@ -139,7 +139,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
                 </div>
                 <textarea 
                   ref={inputRef}
-                  placeholder="Paste raw schema (SQL DDL, JSON, cURL) or search 290+ tools..." 
+                  placeholder="Paste raw schema (SQL DDL, JSON, cURL) or search 160+ tools..."
                   value={search}
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setIsFocused(false)}
@@ -522,10 +522,10 @@ export function LandingView({ onSelect }: LandingViewProps) {
 
               {/* Rows */}
               {[
-                { label: 'Data Privacy', tf: { text: 'Local Engine (Opt-in AI)', good: true }, std: { text: 'Unknown / Cloud', good: false }, ai: { text: 'Stored & Trained on', good: false } },
-                { label: 'Broken Data Handling', tf: { text: 'AI Auto-Repair', good: true }, std: { text: 'Syntax Error (Fails)', good: false }, ai: { text: 'Manual Prompting', good: false } },
+                { label: 'Data Privacy', tf: { text: '100% Local Engine', good: true }, std: { text: 'Unknown / Cloud', good: false }, ai: { text: 'Stored & Trained on', good: false } },
+                { label: 'Broken Data Handling', tf: { text: 'Descriptive Parse Errors', good: true }, std: { text: 'Syntax Error (Fails)', good: false }, ai: { text: 'Manual Prompting', good: false } },
                 { label: 'Speed & Workflow', tf: { text: 'Instant / 1-Click UI', good: true }, std: { text: 'Instant', good: null }, ai: { text: 'Slow typing / Copy-Paste', good: false } },
-                { label: 'Available Tools', tf: { text: '290+ Dedicated UIs', good: true }, std: { text: 'Limited (10–20)', good: false }, ai: { text: 'Infinite (Needs context)', good: null } },
+                { label: 'Available Tools', tf: { text: '160+ Dedicated UIs', good: true }, std: { text: 'Limited (10–20)', good: false }, ai: { text: 'Infinite (Needs context)', good: null } },
                 { label: 'Visual Architecture', tf: { text: 'Automated Interactive SVGs', good: true }, std: { text: 'None', good: false }, ai: { text: 'Raw Code Only', good: false } }
               ].map((row, i) => (
                 <React.Fragment key={i}>
@@ -617,7 +617,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
                   <span className="px-2.5 py-0.5 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white rounded text-[10px] font-mono uppercase tracking-normal font-bold border border-slate-200 dark:border-white/10">User-Controlled</span>
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
-                  Guest sessions are kept exclusively inside your local storage. Conversion history cloud syncing (Supabase) is entirely optional and only active when you explicitly sign up and log in. You can wipe all history or URL state parameters at any moment with one click.
+                  All your conversion data stays exclusively in your browser&apos;s local storage — nothing is synced to a server. You can optionally sign in to manage your account and license. You can clear all local data at any moment with one click.
                 </p>
               </div>
             </div>

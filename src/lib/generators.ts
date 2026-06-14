@@ -942,7 +942,7 @@ export const uiGen = {
     res += `  <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800">\n`;
     res += `    <h3 className="text-lg font-black mb-4 dark:text-white">${name}</h3>\n`;
     res += `    <div className="grid grid-cols-2 gap-4">\n`;
-    keys.slice(0, 8).forEach(k => {
+    keys.forEach(k => {
       res += `      <div>\n        <p className="text-[10px] text-slate-400 uppercase">${k}</p>\n        <p className="text-sm font-bold dark:text-slate-200">{typeof data?.${k} === 'object' ? JSON.stringify(data?.${k}) : String(data?.${k} ?? '-')}</p>\n      </div>\n`;
     });
     res += `    </div>\n  </div>\n);\n`;
@@ -1191,7 +1191,8 @@ export const docGen = {
         
         let desc = 'No description provided.';
         const keyLower = k.toLowerCase();
-        if (keyLower === 'id' || keyLower.endsWith('id')) desc = 'Unique identifier for the record.';
+        if (keyLower.endsWith('_id') && keyLower !== 'id') desc = 'Foreign key reference to an external record.';
+        else if (keyLower === 'id' || keyLower.endsWith('id')) desc = 'Unique identifier for the record.';
         else if (keyLower === 'username') desc = 'User\'s unique display name.';
         else if (keyLower === 'name' || keyLower === 'fullname') desc = 'Full name of the user or entity.';
         else if (keyLower === 'email') desc = 'Primary email address.';
@@ -1204,6 +1205,19 @@ export const docGen = {
         else if (keyLower === 'createdat' || keyLower === 'created_at') desc = 'Timestamp representing record creation time.';
         else if (keyLower === 'updatedat' || keyLower === 'updated_at') desc = 'Timestamp representing the last update time.';
         else if (keyLower === 'lastlogin' || keyLower === 'last_login') desc = 'Timestamp of the user\'s most recent session activity.';
+        else if (keyLower === 'title') desc = 'Human-readable title or heading.';
+        else if (keyLower.includes('description') || keyLower === 'desc') desc = 'Free-text description or summary.';
+        else if (keyLower.includes('phone') || keyLower.includes('mobile')) desc = 'Contact phone number.';
+        else if (keyLower.includes('address')) desc = 'Physical or mailing address.';
+        else if (keyLower.includes('price') || keyLower.includes('amount') || keyLower.includes('cost') || keyLower.includes('fee')) desc = 'Monetary value (non-negative).';
+        else if (keyLower === 'age') desc = 'Age in years (0–150).';
+        else if (keyLower.includes('age') && v.type === 'number') desc = 'Numeric age value.';
+        else if (keyLower === 'type' || keyLower.endsWith('_type') || keyLower.endsWith('type')) desc = 'Discriminator or category type.';
+        else if (keyLower === 'slug' || keyLower.endsWith('_slug')) desc = 'URL-safe identifier slug.';
+        else if (keyLower.endsWith('_count') || keyLower === 'count') desc = 'Integer count or quantity (non-negative).';
+        else if (keyLower.endsWith('_at')) desc = 'ISO 8601 timestamp.';
+        else if (keyLower.endsWith('_url') || keyLower.endsWith('_link')) desc = 'Fully-qualified URL (HTTP/HTTPS).';
+        else if (keyLower.endsWith('_code') || keyLower === 'code') desc = 'Short code or identifier string.';
         else if (v.format === 'uuid') desc = 'Universally Unique Identifier (UUID) format string.';
         else if (v.format === 'email') desc = 'Validated email format string.';
         else if (v.format === 'url') desc = 'Fully-qualified web URL (HTTP/HTTPS).';

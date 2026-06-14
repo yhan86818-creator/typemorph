@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { swiftGen, kotlinGen, zodGen, protoGen, gqlGen, tsGen, goGen, rustGen, jsonSchemaGen, mockGen, prismaGen, javaGen } from './generators';
+import { swiftGen, kotlinGen, zodGen, protoGen, gqlGen, tsGen, goGen, rustGen, jsonSchemaGen, mockGen, prismaGen, javaGen, uiGen, docGen } from './generators';
 import { inferSchema } from './engine';
 import { parseTypeScriptToSchema } from './parsers';
 
@@ -388,6 +388,93 @@ describe('generators', () => {
       const schema = inferSchema(samples);
       const result = javaGen.generate(schema, 'User');
       expect(result).toContain('@Nullable');
+    });
+  });
+
+  describe('uiGen', () => {
+    it('renders all fields without the old 8-field cap', () => {
+      const schema = inferSchema({
+        id: '1', name: 'Alice', email: 'a@b.com', role: 'admin',
+        status: 'active', age: 30, score: 99, phone: '123', address: 'NY', bio: 'hello',
+      });
+      const result = uiGen.generate(schema, 'User');
+      // 10 fields — previously truncated at 8
+      expect((result.match(/<div>/g) || []).length).toBe(10);
+      expect(result).toContain('phone');
+      expect(result).toContain('address');
+      expect(result).toContain('bio');
+    });
+
+    it('renders a single-field schema without issue', () => {
+      const schema = inferSchema({ name: 'Alice' });
+      const result = uiGen.generate(schema, 'User');
+      expect(result).toContain('UserCard');
+      expect(result).toContain('name');
+    });
+  });
+
+  describe('docGen', () => {
+    it('classifies user_id as foreign key (not the generic id catch-all)', () => {
+      const schema = inferSchema({ user_id: '550e8400-e29b-41d4-a716-000000000001' });
+      const result = docGen.generate(schema, 'Post');
+      expect(result).toContain('Foreign key reference to an external record.');
+      expect(result).not.toContain('Unique identifier for the record.');
+    });
+
+    it('classifies bare id as unique identifier', () => {
+      const schema = inferSchema({ id: '550e8400-e29b-41d4-a716-446655440000' });
+      const result = docGen.generate(schema, 'Post');
+      expect(result).toContain('Unique identifier for the record.');
+    });
+
+    it('classifies created_at and updated_at as their specific timestamp descriptions', () => {
+      const schema = inferSchema({ created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-02T00:00:00Z' });
+      const result = docGen.generate(schema, 'Post');
+      expect(result).toContain('Timestamp representing record creation time.');
+      expect(result).toContain('Timestamp representing the last update time.');
+    });
+
+    it('classifies generic _at suffix as ISO 8601 timestamp', () => {
+      const schema = inferSchema({ deleted_at: '2024-06-01T00:00:00Z' });
+      const result = docGen.generate(schema, 'Post');
+      expect(result).toContain('ISO 8601 timestamp.');
+    });
+
+    it('classifies _count suffix as count', () => {
+      const schema = inferSchema({ comment_count: 5 });
+      const result = docGen.generate(schema, 'Post');
+      expect(result).toContain('Integer count or quantity (non-negative).');
+    });
+
+    it('classifies _url suffix as URL', () => {
+      const schema = inferSchema({ avatar_url: 'https://example.com/avatar.png' });
+      if (schema.fields?.avatar_url) schema.fields.avatar_url.format = undefined;
+      const result = docGen.generate(schema, 'User');
+      expect(result).toContain('Fully-qualified URL (HTTP/HTTPS).');
+    });
+
+    it('classifies _code suffix as short code', () => {
+      const schema = inferSchema({ status_code: 'OK' });
+      const result = docGen.generate(schema, 'Response');
+      expect(result).toContain('Short code or identifier string.');
+    });
+
+    it('classifies title as human-readable heading', () => {
+      const schema = inferSchema({ title: 'Hello World' });
+      const result = docGen.generate(schema, 'Post');
+      expect(result).toContain('Human-readable title or heading.');
+    });
+
+    it('classifies price as monetary value', () => {
+      const schema = inferSchema({ price: 99.9 });
+      const result = docGen.generate(schema, 'Product');
+      expect(result).toContain('Monetary value (non-negative).');
+    });
+
+    it('classifies slug as URL-safe identifier', () => {
+      const schema = inferSchema({ slug: 'hello-world' });
+      const result = docGen.generate(schema, 'Post');
+      expect(result).toContain('URL-safe identifier slug.');
     });
   });
 

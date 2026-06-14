@@ -485,6 +485,16 @@ export const mermaidERGen = {
         res += `  ${toPascalCase(name)} ||--o{ ${childName} : "contains"\n`;
       }
     }
+    // FK inference: scalar fields ending in _id or Id (e.g. user_id, authorId)
+    for (const [k, v] of Object.entries(f)) {
+      if (v.type !== 'string' && v.type !== 'number') continue;
+      const isFK = (k.endsWith('_id') || (k.endsWith('Id') && k !== 'Id')) && k.toLowerCase() !== 'id';
+      if (!isFK) continue;
+      const refEntity = toPascalCase(k.replace(/_id$/, '').replace(/Id$/, ''));
+      if (!refEntity || refEntity === toPascalCase(name)) continue;
+      res += `  ${refEntity} {\n    string id\n  }\n`;
+      res += `  ${toPascalCase(name)} }o--|| ${refEntity} : "references"\n`;
+    }
     return res;
   }
 };
@@ -1369,8 +1379,8 @@ export const piniaStoreGen = {
     }
     res += `  }),\n`;
     res += `  actions: {\n`;
-    res += `    update(data: Partial<ReturnType<typeof this.$state>>) {\n`;
-    res += `      Object.assign(this.$state, data);\n`;
+    res += `    update(data: Partial<${storeName}State>) {\n`;
+    res += `      Object.assign(this, data);\n`;
     res += `    },\n`;
     res += `    reset() {\n      this.$reset();\n    }\n`;
     res += `  }\n});\n`;
@@ -1809,6 +1819,31 @@ export const apiRouteGen = {
     const f = getFields(schema);
     const fields = Object.keys(f);
 
+    const fieldToZod = (k: string, v: Schema): string => {
+      const kl = k.toLowerCase();
+      if (v.type === 'number') {
+        let t = 'z.number()';
+        if (kl.includes('age')) t += '.int().min(0).max(150)';
+        else if (kl.includes('year')) t += '.int().min(1900).max(2100)';
+        else if (kl.includes('month') && !kl.includes('monthly')) t += '.int().min(1).max(12)';
+        else if (kl === 'day' || kl.endsWith('_day') || kl.startsWith('day_')) t += '.int().min(1).max(31)';
+        else if (kl.includes('count') || kl.includes('quantity')) t += '.int().min(0)';
+        else if (['price', 'amount', 'cost', 'fee', 'rank'].some(w => kl.includes(w))) t += '.min(0)';
+        return t;
+      }
+      if (v.type === 'boolean') return 'z.boolean()';
+      if (v.type === 'object' || v.type === 'array' || v.type === 'union') return 'z.any()';
+      if (v.format === 'email' || kl.includes('email')) return 'z.string().email()';
+      if (v.format === 'uuid' || kl === 'id' || kl.endsWith('_id') || kl.endsWith('id')) return 'z.string().uuid()';
+      if (v.format === 'url' || kl.includes('url') || kl.includes('link') || kl.includes('website')) return 'z.string().url()';
+      if (v.format === 'datetime') return 'z.string().datetime()';
+      const longText = ['description', 'note', 'bio', 'comment', 'content', 'body', 'text', 'message', 'summary'].some(w => kl.includes(w));
+      const hasTrim = kl.includes('name') || kl.includes('label') || kl.includes('title');
+      if (hasTrim) return v.optional ? 'z.string().trim()' : 'z.string().min(1).trim()';
+      if (!v.optional && !longText) return 'z.string().min(1)';
+      return 'z.string()';
+    };
+
     const sampleBody = JSON.stringify(
       Object.fromEntries(fields.map(k => {
         const v = f[k];
@@ -1828,8 +1863,7 @@ import { z } from 'zod';
 const ${entityName}Schema = z.object({
 ${fields.map(k => {
   const v = f[k];
-  const zodType = v.type === 'number' ? 'z.number()' : v.type === 'boolean' ? 'z.boolean()' : 'z.string()';
-  return `  ${k}: ${zodType}${v.optional ? '.optional()' : ''}`;
+  return `  ${k}: ${fieldToZod(k, v)}${v.optional ? '.optional()' : ''}`;
 }).join(',\n')}
 });
 

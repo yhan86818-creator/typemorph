@@ -39,7 +39,7 @@ export default function FinanceLandingPage() {
             <div className="space-y-6">
               {[
                 { icon: <ServerOff size={20} />, title: "100% Offline Parsing Engine", desc: "Your financial messages are processed completely in the browser's Web Worker. No external API calls are made for standard parsing." },
-                { icon: <Key size={20} />, title: "Bring Your Own Key (BYOK)", desc: "For AI-assisted generation, use your enterprise Google API key. We never proxy requests or store your credentials." },
+                { icon: <Key size={20} />, title: "Zero External Dependencies", desc: "All parsing runs in your browser via a local rule-based engine. No API keys, no cloud calls, no credentials to manage." },
                 { icon: <ShieldCheck size={20} />, title: "GDPR & SOC2 Friendly", desc: "Because we have zero servers receiving your payloads, using TypeMorph inherently meets strict data isolation requirements." }
               ].map((feature, i) => (
                 <div key={i} className="flex items-start gap-4">
@@ -69,10 +69,10 @@ export default function FinanceLandingPage() {
                 </p>
                 <ul className="space-y-4 mb-10">
                   {[
-                    "AI-Powered SWIFT MT to MX Parsing",
-                    "AI-Powered FIX Protocol Decoding",
-                    "ISO 20022 Schema Generation via LLM",
-                    "Full Access to 290+ Standard Converters",
+                    "Local SWIFT MT to MX Parsing (100% offline)",
+                    "Local FIX Protocol Decoding (100% offline)",
+                    "ISO 20022 Schema Generation (rule-based)",
+                    "Full Access to 160+ Standard Converters",
                     "Zero Telemetry or Tracking",
                     "Priority Compliance Support"
                   ].map((f, i) => (

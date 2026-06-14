@@ -5,7 +5,7 @@ import { ArrowRight, Zap, ShieldCheck, Layers } from 'lucide-react';
 
 export const metadata = {
   title: 'All Developer Tools & Converters Directory - TypeMorph',
-  description: 'Browse our complete library of 290+ local-first developer tools, including JSON to TypeScript, SQL to Zod, and more. Secure, fast, and professional.',
+  description: 'Browse our complete library of 160+ local-first developer tools, including JSON to TypeScript, SQL to Zod, and more. Secure, fast, and professional.',
 };
 
 export default function ConvertersDirectory() {
@@ -24,7 +24,7 @@ export default function ConvertersDirectory() {
             Developer <span className="text-blue-600">Directory.</span>
           </h1>
           <p className="text-lg text-slate-500 font-medium max-w-2xl leading-relaxed">
-            A comprehensive index of all 290+ professional tools engineered for the modern full-stack workflow. 100% Local-First. 100% Private.
+            A comprehensive index of all 160+ professional tools engineered for the modern full-stack workflow. 100% Local-First. 100% Private.
           </p>
         </div>
       </div>
@@ -61,15 +61,15 @@ export default function ConvertersDirectory() {
             </div>
             <div>
               <div className="flex items-center gap-2 text-purple-600 font-black text-[10px] uppercase tracking-widest mb-4">
-                <Zap size={14} /> AI Powered
+                <Zap size={14} /> Instant Synthesis
               </div>
               <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                Leverage Gemini 2.5 Flash to refactor, clean, and architect your data structures with unmatched precision.
+                One AST pipeline infers your schema once and compiles to all output targets simultaneously — entirely in your browser, zero round-trips.
               </p>
             </div>
             <div>
               <div className="flex items-center gap-2 text-blue-700 font-black text-[10px] uppercase tracking-widest mb-4">
-                <Layers size={14} /> 290+ Formats
+                <Layers size={14} /> 160+ Formats
               </div>
               <p className="text-xs text-slate-500 leading-relaxed font-medium">
                 From JSON to Rust to SQL. One ecosystem for every engineering transformation you need.
