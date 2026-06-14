@@ -2,7 +2,9 @@
   "name": "typemorph",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "bin": {
     "typemorph": "./dist/cli.js"
   },
@@ -58,6 +60,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "jsdom": "^29.1.1",
+    "playwright": "^1.60.0",
     "tailwindcss": "^4",
     "ts-node": "^10.9.1",
     "typescript": "^5",
