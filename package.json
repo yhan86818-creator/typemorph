@@ -2,6 +2,7 @@
   "name": "typemorph",
   "version": "0.1.0",
   "private": true,
+  "workspaces": ["packages/*"],
   "bin": {
     "typemorph": "./dist/cli.js"
   },
