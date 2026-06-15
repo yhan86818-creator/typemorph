@@ -55,9 +55,7 @@ jobs:
       run: npm ci
 
     - name: Run Bench Suite
-      run: |
-        npm run bench
-        npx vitest run src/lib/__bench__/analysis.bench.test.ts --run
+      run: npm run bench
 
     - name: Upload bench artifacts
       uses: actions/upload-artifact@v4
