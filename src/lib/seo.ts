@@ -95,6 +95,44 @@ export const INDEXED_EN_SLUGS = new Set([
   'json-to-grpc-web',
 
   // Niche Communities (Low Competition, High Rankability)
+
+  // High-Demand Conversions (quality content added)
+  'json-to-csharp-class',
+  'yaml-to-json',
+  'json-to-pydantic',
+  'json-to-graphql-type',
+  'json-to-yup',
+  'json-to-react-props',
+  'json-to-typeorm-entity',
+  'json-to-vue-props',
+  'jsonschema-to-zod',
+  'json-to-flutter-model',
+  'json-to-sequelize-model',
+  'json-to-joi',
+
+  // Batch 2 — Language & Framework Expansions
+  'json-to-redux-slice',
+  'json-to-react-context',
+  'json-to-kotlin-dto',
+  'yaml-to-toml',
+  'json-to-php-dto',
+  'json-to-java-dto',
+  'json-to-go-map',
+  'json-to-rust-enum',
+  'json-to-swift-class',
+  'json-to-gorm-model',
+
+  // Batch 3 — Low-Competition Niche Communities
+  'json-to-pinia-store',
+  'json-to-svelte-props',
+  'json-to-solidity',
+  'json-to-godot-gdscript',
+  'json-to-superstruct',
+  'json-to-arduino',
+  'json-to-r-dataframe',
+  'json-to-solid-props',
+  'json-to-elm-decoder',
+  'json-to-haskell-data',
 ]);
 
 /**
