@@ -122,6 +122,10 @@ export const INDEXED_EN_SLUGS = new Set([
   'json-to-swift-class',
   'json-to-gorm-model',
 
+  // Batch 4 — C / C++ Systems Programming
+  'json-to-c-struct',
+  'json-to-cpp-struct',
+
   // Batch 3 — Low-Competition Niche Communities
   'json-to-pinia-store',
   'json-to-svelte-props',

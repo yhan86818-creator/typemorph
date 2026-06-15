@@ -13,7 +13,7 @@ import {
   reactContextGen, reduxSliceGen, piniaStoreGen, vuePropsGen, sveltePropsGen,
   solidPropsGen, arduinoGen, cobolGen, clojureGen, elixirGen, elmGen,
   godotGen, haskellGen, rGen, scalaGen, solidityGen, djangoGen, railsGen,
-  apiRouteGen, reactHookGen
+  apiRouteGen, reactHookGen, cGen, cppGen
 } from './generators-extended';
 import { Schema, SchemaType } from './types';
 import { createHash } from 'crypto';
@@ -500,6 +500,8 @@ const DEPENDENCY_COMMENTS: Record<string, string> = {
   'svelte-props': '// Svelte 3/4 TypeScript component props scaffold\n\n',
   'solid-props': '// Required dependencies: npm install solid-js\n\n',
   'arduino': '// Required libraries: ArduinoJson (v6 or v7)\n\n',
+  'c': '// C99+ required. cJSON dependency: https://github.com/DaveGamble/cJSON\n\n',
+  'cpp': '// C++17 required. nlohmann/json: https://github.com/nlohmann/json\n\n',
   'clojure': ';; Clojure clojure.spec/alpha definition\n\n',
   'elixir': '# Required dependencies: Ecto (mix ecto)\n\n',
   'elm': '-- Required Elm packages:\n-- elm install elm/json\n-- elm install elm-community/json-extra\n\n',
@@ -1246,12 +1248,14 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     else if (s.includes('r-lang') || s === 'r') { out = rGen.generate(schema, 'Root'); matchedKey = 'r-lang'; }
     else if (s.includes('scala')) out = scalaGen.generate(schema, 'Root');
     else if (s.includes('solidity')) out = solidityGen.generate(schema, 'Root');
+    else if (s.includes('cpp') || s.includes('c++') || s.includes('cpp-struct') || s.includes('cpp-class')) out = cppGen.generate(schema, rootName);
+    else if (s === 'c' || s.includes('c-struct') || s.includes('json-to-c')) out = cGen.generate(schema, rootName);
 
     // Whether the requested target matched a known generator branch above.
     // (Used to avoid mislabelling a *recognised* target that legitimately produced
     //  an empty string — e.g. an empty input — as "unsupported".)
     const KNOWN_TARGETS_EXACT = new Set(['typescript', 'ts', 'zod', 'go', 'golang', 'rust', 'java', 'python', 'php', 'sql', 'prisma', 'proto', 'protobuf', 'graphql', 'gql', 'json', 'r']);
-    const KNOWN_TARGET_SUBSTR = ['csv', 'sql-insert', 'mysql', 'postgres', 'sqlite', 'snowflake', 'mongodb', 'mongoose', 'ruby', 'rails', 'django', 'dart', 'flutter', 'swift', 'kotlin', 'csharp', 'c-sharp', 'openapi', 'jsonschema', 'yup', 'joi', 'valibot', 'react-props', 'vue-props', 'svelte-props', 'solid-props', 'react-context', 'react-query', 'api-route', 'nextjs-api', 'redux-slice', 'pinia', 'sequelize', 'typeorm', 'drizzle', 'kysely', 'superstruct', 'arduino', 'mock', 'ui', 'doc', 'avro', 'toml', 'yaml', 'env-validator', 'env', 'properties', 'markdown', 'asciidoc', 'latex', 'mermaid', 'bigquery', 'dynamodb', 'postman', 'http', 'vscode', 'curl', 'cobol', 'clojure', 'elixir', 'elm', 'godot', 'gdscript', 'haskell', 'r-lang', 'scala', 'solidity'];
+    const KNOWN_TARGET_SUBSTR = ['csv', 'sql-insert', 'mysql', 'postgres', 'sqlite', 'snowflake', 'mongodb', 'mongoose', 'ruby', 'rails', 'django', 'dart', 'flutter', 'swift', 'kotlin', 'csharp', 'c-sharp', 'openapi', 'jsonschema', 'yup', 'joi', 'valibot', 'react-props', 'vue-props', 'svelte-props', 'solid-props', 'react-context', 'react-query', 'api-route', 'nextjs-api', 'redux-slice', 'pinia', 'sequelize', 'typeorm', 'drizzle', 'kysely', 'superstruct', 'arduino', 'mock', 'ui', 'doc', 'avro', 'toml', 'yaml', 'env-validator', 'env', 'properties', 'markdown', 'asciidoc', 'latex', 'mermaid', 'bigquery', 'dynamodb', 'postman', 'http', 'vscode', 'curl', 'cobol', 'clojure', 'elixir', 'elm', 'godot', 'gdscript', 'haskell', 'r-lang', 'scala', 'solidity', 'cpp', 'c++', 'cpp-struct', 'cpp-class', 'c-struct', 'json-to-c'];
     const targetMatched = KNOWN_TARGETS_EXACT.has(s) || KNOWN_TARGET_SUBSTR.some(k => s.includes(k));
 
     // Explicit JSON output when requested, otherwise surface unsupported targets.

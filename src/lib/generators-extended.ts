@@ -2133,3 +2133,175 @@ export const sqlToMermaidERGen = {
     return out.trimEnd();
   }
 };
+
+// ─── C Struct (cJSON) ─────────────────────────────────────────────────────────
+export const cGen = {
+  generate: (schema: Schema, name: string = 'Root'): string => {
+    const f = getFields(schema);
+    if (!Object.keys(f).length) return '';
+
+    const rootName = toPascalCase(name);
+    const nestedDefs: string[] = [];
+
+    const cTypeFor = (v: Schema, key: string, parentName: string): { base: string; ptr: boolean } => {
+      if (v.type === 'number') return { base: v.format === 'int' ? 'int32_t' : 'double', ptr: false };
+      if (v.type === 'boolean') return { base: 'bool', ptr: false };
+      if (v.type === 'object') return { base: toPascalCase(parentName + '_' + key), ptr: false };
+      return { base: 'char', ptr: true };
+    };
+
+    const buildStruct = (fields: Record<string, Schema>, structName: string): string => {
+      let s = `typedef struct {\n`;
+      for (const [k, v] of Object.entries(fields)) {
+        if (v.type === 'object' && v.fields) {
+          const nestedName = toPascalCase(structName + '_' + k);
+          nestedDefs.push(buildStruct(v.fields, nestedName));
+          s += `  ${nestedName} ${k};\n`;
+        } else if (v.type === 'array') {
+          const it = v.itemType;
+          let itemBase = 'char';
+          let itemPtr = true;
+          if (it?.type === 'number') { itemBase = it.format === 'int' ? 'int32_t' : 'double'; itemPtr = false; }
+          else if (it?.type === 'boolean') { itemBase = 'bool'; itemPtr = false; }
+          else if (it?.type === 'object' && it.fields) {
+            const nestedName = toPascalCase(structName + '_' + k + 'Item');
+            nestedDefs.push(buildStruct(it.fields, nestedName));
+            itemBase = nestedName; itemPtr = false;
+          }
+          const stars = itemPtr ? '**' : '*';
+          s += `  ${itemBase} ${stars}${k};\n`;
+          s += `  int ${k}_count;\n`;
+        } else {
+          const { base, ptr } = cTypeFor(v, k, structName);
+          const decl = ptr ? `*${k}` : k;
+          const comment = (v.optional || v.nullable) ? ' /* nullable */' : '';
+          s += `  ${base} ${decl};${comment}\n`;
+        }
+      }
+      s += `} ${structName};`;
+      return s;
+    };
+
+    const mainStruct = buildStruct(f, rootName);
+
+    let res = `#include <stdbool.h>\n#include <stdint.h>\n#include <stdlib.h>\n`;
+    res += `/* cJSON — single-header JSON parser: https://github.com/DaveGamble/cJSON */\n`;
+    res += `#include "cJSON.h"\n\n`;
+    for (const nd of nestedDefs) res += nd + '\n\n';
+    res += mainStruct + '\n\n';
+
+    // Parse function
+    res += `${rootName} ${toSnakeCase(name)}_from_json(const char *json_str) {\n`;
+    res += `  ${rootName} result = {0};\n`;
+    res += `  cJSON *root = cJSON_Parse(json_str);\n`;
+    res += `  if (!root) return result;\n\n`;
+    for (const [k, v] of Object.entries(f)) {
+      res += `  cJSON *_${k} = cJSON_GetObjectItemCaseSensitive(root, "${k}");\n`;
+      if (v.type === 'number') {
+        const cast = v.format === 'int' ? '(int32_t)' : '';
+        res += `  if (cJSON_IsNumber(_${k})) result.${k} = ${cast}_${k}->valuedouble;\n`;
+      } else if (v.type === 'boolean') {
+        res += `  if (cJSON_IsBool(_${k})) result.${k} = cJSON_IsTrue(_${k});\n`;
+      } else if (v.type === 'array') {
+        res += `  if (cJSON_IsArray(_${k})) result.${k}_count = cJSON_GetArraySize(_${k});\n`;
+      } else if (v.type === 'object') {
+        res += `  /* TODO: parse nested ${k} struct */\n`;
+      } else {
+        res += `  if (cJSON_IsString(_${k})) result.${k} = _${k}->valuestring;\n`;
+      }
+    }
+    res += `\n  cJSON_Delete(root);\n  return result;\n}\n`;
+
+    return res;
+  }
+};
+
+// ─── C++ Struct (nlohmann/json) ───────────────────────────────────────────────
+export const cppGen = {
+  generate: (schema: Schema, name: string = 'Root'): string => {
+    const f = getFields(schema);
+    if (!Object.keys(f).length) return '';
+
+    const rootName = toPascalCase(name);
+    const nestedDefs: string[] = [];
+    const hasOptional = Object.values(f).some(v => v.optional || v.nullable);
+    const hasVector = Object.values(f).some(v => v.type === 'array');
+
+    const cppTypeFor = (v: Schema, key: string, parentName: string): string => {
+      if (v.type === 'number') return v.format === 'int' ? 'int64_t' : 'double';
+      if (v.type === 'boolean') return 'bool';
+      if (v.type === 'object') return toPascalCase(parentName + key.charAt(0).toUpperCase() + key.slice(1));
+      if (v.type === 'array') {
+        const it = v.itemType;
+        let inner = 'std::string';
+        if (it?.type === 'number') inner = it.format === 'int' ? 'int64_t' : 'double';
+        else if (it?.type === 'boolean') inner = 'bool';
+        else if (it?.type === 'object') inner = toPascalCase(parentName + key.charAt(0).toUpperCase() + key.slice(1) + 'Item');
+        return `std::vector<${inner}>`;
+      }
+      return 'std::string';
+    };
+
+    const buildStruct = (fields: Record<string, Schema>, structName: string): string => {
+      // Collect nested struct defs before this one
+      for (const [k, v] of Object.entries(fields)) {
+        if (v.type === 'object' && v.fields) {
+          const nestedName = toPascalCase(structName + k.charAt(0).toUpperCase() + k.slice(1));
+          nestedDefs.push(buildStruct(v.fields, nestedName));
+        } else if (v.type === 'array' && v.itemType?.type === 'object' && v.itemType.fields) {
+          const nestedName = toPascalCase(structName + k.charAt(0).toUpperCase() + k.slice(1) + 'Item');
+          nestedDefs.push(buildStruct(v.itemType.fields, nestedName));
+        }
+      }
+
+      let s = `struct ${structName} {\n`;
+      for (const [k, v] of Object.entries(fields)) {
+        let cppType = cppTypeFor(v, k, structName);
+        if (v.optional || v.nullable) cppType = `std::optional<${cppType}>`;
+        s += `  ${cppType} ${k};\n`;
+      }
+      s += `\n`;
+      // from_json
+      s += `  static ${structName} from_json(const nlohmann::json& j) {\n`;
+      s += `    ${structName} obj;\n`;
+      for (const [k, v] of Object.entries(fields)) {
+        const baseCppType = cppTypeFor(v, k, structName);
+        if (v.optional || v.nullable) {
+          s += `    if (j.contains("${k}") && !j["${k}"].is_null())\n`;
+          s += `      obj.${k} = j["${k}"].get<${baseCppType}>();\n`;
+        } else if (v.type === 'object') {
+          s += `    if (j.contains("${k}")) obj.${k} = ${baseCppType}::from_json(j["${k}"]);\n`;
+        } else {
+          s += `    obj.${k} = j.at("${k}").get<${baseCppType}>();\n`;
+        }
+      }
+      s += `    return obj;\n  }\n\n`;
+      // to_json
+      s += `  nlohmann::json to_json() const {\n    return {\n`;
+      for (const [k, v] of Object.entries(fields)) {
+        if (v.optional || v.nullable) {
+          s += `      {"${k}", ${k}.has_value() ? nlohmann::json(*${k}) : nlohmann::json(nullptr)},\n`;
+        } else if (v.type === 'object') {
+          s += `      {"${k}", ${k}.to_json()},\n`;
+        } else {
+          s += `      {"${k}", ${k}},\n`;
+        }
+      }
+      s += `    };\n  }\n};\n`;
+      return s;
+    };
+
+    const mainStruct = buildStruct(f, rootName);
+
+    let res = `#include <string>\n`;
+    if (hasVector) res += `#include <vector>\n`;
+    if (hasOptional) res += `#include <optional>\n`;
+    res += `#include <cstdint>\n`;
+    res += `/* nlohmann/json — header-only JSON: https://github.com/nlohmann/json */\n`;
+    res += `#include <nlohmann/json.hpp>\n\n`;
+    for (const nd of nestedDefs) res += nd + '\n';
+    res += mainStruct;
+
+    return res;
+  }
+};

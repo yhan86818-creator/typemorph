@@ -98,6 +98,8 @@ export const OUTPUT_TARGETS: Record<string, OutputTarget> = {
   scala:           T('scala', 'Scala', 2, 'scala'),
   solidity:        T('solidity', 'Solidity', 2, 'sol'),
   arduino:         T('arduino', 'Arduino', 2, 'cpp'),
+  c:               T('c', 'C Struct', 2, 'c'),
+  cpp:             T('cpp', 'C++ Struct', 2, 'cpp'),
 };
 
 /**
@@ -172,6 +174,8 @@ const ALIASES: [RegExp, string][] = [
   [/scala/, 'scala'],
   [/solidity/, 'solidity'],
   [/arduino/, 'arduino'],
+  [/\bc-struct\b|json-to-c\b/, 'c'],
+  [/cpp-struct|cpp-class|\bcpp\b|c\+\+/, 'cpp'],
   [/pydantic|dataclass|sqlalchemy|marshmallow|pandas|pytorch|tensorflow|python/, 'python'],
   [/golang|gorm|go-fiber|go-struct|go-map|\bgo\b/, 'go'],
   [/rust/, 'rust'],
