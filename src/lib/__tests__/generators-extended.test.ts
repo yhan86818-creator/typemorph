@@ -50,7 +50,8 @@ describe('generators-extended', () => {
     it('Valibot should generate picklist for enums and union for unions', () => {
       const result = valibotGen.generate(schema, 'User');
       expect(result).toContain('v.picklist(["active", "inactive", "pending"])');
-      expect(result).toContain('v.union([v.literal("string"), v.literal("number")])');
+      // union は型名なので型バリデータを使う（v.literal はリテラル値用なので誤り）
+      expect(result).toContain('v.union([v.string(), v.number()])');
       expect(result).toContain('v.nullable');
     });
 
@@ -499,10 +500,20 @@ describe('generators-extended', () => {
     it('generates correct initial state values per type', () => {
       const schema = inferSchema({ id: '1', name: 'Alice', count: 5, active: true });
       const result = piniaStoreGen.generate(schema, 'Counter');
-      expect(result).toContain("id: '' as string");
-      expect(result).toContain("name: '' as string");
-      expect(result).toContain("count: 0 as number");
-      expect(result).toContain("active: false as boolean");
+      expect(result).toContain("id: ''");
+      expect(result).toContain("name: ''");
+      expect(result).toContain("count: 0");
+      expect(result).toContain("active: false");
+    });
+
+    it('emits the State interface that update() references', () => {
+      const schema = inferSchema({ id: '1', name: 'Alice', count: 5, active: true });
+      const result = piniaStoreGen.generate(schema, 'Counter');
+      // Partial<CounterState> が参照する interface が定義されていること
+      expect(result).toContain('export interface CounterState {');
+      expect(result).toContain('id: string;');
+      expect(result).toContain('count: number;');
+      expect(result).toContain('active: boolean;');
     });
   });
 

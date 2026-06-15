@@ -102,9 +102,15 @@ export const tsGen = {
 
     // 0. トップレベルが配列の場合は配列ラッパー型エイリアスを出力（要素型情報の欠落を防止）
     {
-      const itemName = rootArrayItemClassName(schema, name);
-      if (itemName && astClasses.some(c => c.name === itemName)) {
-        res += `export type ${toPascalCase(name)} = ${itemName}[];\n\n`;
+      if (schema.type === 'array' && schema.itemType) {
+        const itemName = rootArrayItemClassName(schema, name);
+        const hasItemClass = itemName ? astClasses.some(c => c.name === itemName) : false;
+        if (hasItemClass) {
+          res += `export type ${toPascalCase(name)} = ${itemName}[];\n\n`;
+        } else {
+          const itemAst = convertToASTType(schema.itemType, name, 'Item');
+          res += `export type ${toPascalCase(name)} = ${printASTType(itemAst)}[];\n\n`;
+        }
       }
     }
 
@@ -428,12 +434,15 @@ export const dartGen = {
 
       res += `class ${cls.name}${inheritance} {\n`;
       for (const field of cls.fields) {
-        const dartType = printDartASTType(field.fieldType);
+        const isNullable = field.isOptional || field.isNullable;
+        let dartType = printDartASTType(field.fieldType);
+        if (isNullable && dartType !== 'dynamic') dartType += '?';
         res += `  final ${dartType} ${field.name};\n`;
       }
       res += `\n  ${cls.name}({\n`;
       for (const field of cls.fields) {
-        res += `    required this.${field.name},\n`;
+        const isNullable = field.isOptional || field.isNullable;
+        res += `    ${isNullable ? '' : 'required '}this.${field.name},\n`;
       }
       res += `  });\n`;
       res += `}\n\n`;
@@ -626,7 +635,7 @@ export const gqlGen = {
         if (baseCls) {
           for (const f of baseCls.fields) {
             const gqlType = printGqlASTType(f.fieldType);
-            const bang = f.isOptional ? '' : '!';
+            const bang = (f.isOptional || f.isNullable) ? '' : '!';
             res += `  ${f.name}: ${gqlType}${bang}\n`;
           }
         }
@@ -634,7 +643,7 @@ export const gqlGen = {
 
       for (const field of cls.fields) {
         const gqlType = printGqlASTType(field.fieldType);
-        const bang = field.isOptional ? '' : '!';
+        const bang = (field.isOptional || field.isNullable) ? '' : '!';
         res += `  ${field.name}: ${gqlType}${bang}\n`;
       }
       res += `}\n\n`;
@@ -850,8 +859,9 @@ export const javaGen = {
       for (const field of cls.fields) {
         const isNullable = field.isOptional || field.isNullable;
         const javaType = printJavaASTType(field.fieldType, isNullable);
-        const capitalizedName = field.name.charAt(0).toUpperCase() + field.name.slice(1);
-        
+        const camel = field.name.replace(/_([a-zA-Z0-9])/g, (_, c) => c.toUpperCase());
+        const capitalizedName = camel.charAt(0).toUpperCase() + camel.slice(1);
+
         res += `  public ${javaType} get${capitalizedName}() { return ${field.name}; }\n`;
         res += `  public void set${capitalizedName}(${javaType} ${field.name}) { this.${field.name} = ${field.name}; }\n`;
       }
@@ -1169,27 +1179,29 @@ export const jsonSchemaGen = {
       if (s.type === 'object' && s.fields) {
         const required = Object.keys(s.fields).filter(k => !s.fields![k].optional);
         const res: any = {
-          type: 'object',
+          // draft-07 では null 許容は type を配列にする（nullable は OpenAPI 拡張で無効）
+          type: s.nullable ? ['object', 'null'] : 'object',
           properties: Object.keys(s.fields).reduce((acc, k) => ({ ...acc, [k]: build(s.fields![k]) }), {})
         };
         if (required.length > 0) res.required = required;
-        if (s.nullable) res.nullable = true;
         return res;
       }
       if (s.type === 'array') {
-        const res: any = { type: 'array', items: build(s.itemType!) };
-        if (s.nullable) res.nullable = true;
+        const res: any = { type: s.nullable ? ['array', 'null'] : 'array', items: build(s.itemType!) };
         return res;
       }
       if (s.type === 'union' && s.unionTypes) {
         const res: any = { anyOf: s.unionTypes.map(t => ({ type: t })) };
-        if (s.nullable) res.nullable = true;
+        if (s.nullable) res.anyOf.push({ type: 'null' });
         return res;
       }
-      const leaf: any = { type: s.type };
+      const leaf: any = {};
+      // 'any' は JSON Schema の有効な type ではない → type を省略（= 任意の型を許可）
+      if (s.type !== 'any') {
+        leaf.type = s.nullable ? [s.type, 'null'] : s.type;
+      }
       if (s.format) leaf.format = s.format;
       if (s.enumValues && s.enumValues.length > 0) leaf.enum = s.enumValues;
-      if (s.nullable) leaf.nullable = true;
       return leaf;
     };
     return JSON.stringify({ 

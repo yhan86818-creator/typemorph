@@ -1,0 +1,3239 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Tier1 generators — BASIC input > csharp 1`] = `
+"// C# (.NET Core 6.0+) standard class model
+
+using System.ComponentModel.DataAnnotations;
+
+public class Root
+{
+    [Required]
+    public string Id { get; set; }
+    [Required]
+    public string Name { get; set; }
+    [Required]
+    public string Email { get; set; }
+    [Required]
+    public long Age { get; set; }
+    [Required]
+    public double Score { get; set; }
+    [Required]
+    public bool Active { get; set; }
+}"
+`;
+
+exports[`Tier1 generators — BASIC input > dart 1`] = `
+"class Root {
+  final String id;
+  final String name;
+  final String email;
+  final int age;
+  final double score;
+  final bool active;
+
+  Root({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.age,
+    required this.score,
+    required this.active,
+  });
+}"
+`;
+
+exports[`Tier1 generators — BASIC input > go 1`] = `
+"// Go version 1.18+ required (supports generics)
+
+package main
+
+type User struct {
+  Id string \`json:"id"\`
+  Name string \`json:"name"\`
+  Email string \`json:"email"\`
+  Age int64 \`json:"age"\`
+  Score float64 \`json:"score"\`
+  Active bool \`json:"active"\`
+}"
+`;
+
+exports[`Tier1 generators — BASIC input > graphql 1`] = `
+"type User {
+  id: String!
+  name: String!
+  email: String!
+  age: Int!
+  score: Float!
+  active: Boolean!
+}"
+`;
+
+exports[`Tier1 generators — BASIC input > java 1`] = `
+"// Java version 8+ required (compatible with Jackson/Gson)
+
+public class User {
+  private String id;
+  private String name;
+  private String email;
+  private int age;
+  private double score;
+  private boolean active;
+
+  public String getId() { return id; }
+  public void setId(String id) { this.id = id; }
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
+  public String getEmail() { return email; }
+  public void setEmail(String email) { this.email = email; }
+  public int getAge() { return age; }
+  public void setAge(int age) { this.age = age; }
+  public double getScore() { return score; }
+  public void setScore(double score) { this.score = score; }
+  public boolean getActive() { return active; }
+  public void setActive(boolean active) { this.active = active; }
+}"
+`;
+
+exports[`Tier1 generators — BASIC input > kotlin 1`] = `
+"// Kotlin standard library data class (compatible with kotlinx.serialization)
+
+data class Root(
+    val id: String,
+    val name: String,
+    val email: String,
+    val age: Int,
+    val score: Double,
+    val active: Boolean
+)"
+`;
+
+exports[`Tier1 generators — BASIC input > php 1`] = `
+"// PHP version 8.1+ required
+
+<?php
+
+class User
+{
+    public function __construct(
+        private string $id,
+        private string $name,
+        private string $email,
+        private int $age,
+        private float $score,
+        private bool $active,
+    ) {}
+
+    public function getId(): string { return $this->id; }
+    public function setId(string $id): void { $this->id = $id; }
+
+    public function getName(): string { return $this->name; }
+    public function setName(string $name): void { $this->name = $name; }
+
+    public function getEmail(): string { return $this->email; }
+    public function setEmail(string $email): void { $this->email = $email; }
+
+    public function getAge(): int { return $this->age; }
+    public function setAge(int $age): void { $this->age = $age; }
+
+    public function getScore(): float { return $this->score; }
+    public function setScore(float $score): void { $this->score = $score; }
+
+    public function getActive(): bool { return $this->active; }
+    public function setActive(bool $active): void { $this->active = $active; }
+}"
+`;
+
+exports[`Tier1 generators — BASIC input > protobuf 1`] = `
+"// Protocol Buffers v3 specification
+
+// Protocol Buffers v3 specification
+
+syntax = "proto3";
+
+message User {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  int32 age = 4;
+  double score = 5;
+  bool active = 6;
+}"
+`;
+
+exports[`Tier1 generators — BASIC input > python 1`] = `
+"# Required dependencies: pip install pydantic
+
+from pydantic import BaseModel
+
+class User(BaseModel):
+    id: str
+    name: str
+    email: str
+    age: int
+    score: float
+    active: bool"
+`;
+
+exports[`Tier1 generators — BASIC input > rust 1`] = `
+"// Required Cargo dependencies:
+// serde = { version = "1.0", features = ["derive"] }
+
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct User {
+  pub id: String,
+  pub name: String,
+  pub email: String,
+  pub age: i64,
+  pub score: f64,
+  pub active: bool,
+}"
+`;
+
+exports[`Tier1 generators — BASIC input > swift 1`] = `
+"// Swift 5.0+ (Codable protocol compliant)
+
+struct Root : Codable {
+    let id: String
+    let name: String
+    let email: String
+    let age: Int
+    let score: Double
+    let active: Bool
+}"
+`;
+
+exports[`Tier1 generators — BASIC input > typescript 1`] = `
+"// Required dependencies: npm install typescript
+
+/**
+ * TypeMorph Generated TypeScript Interface
+ */
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  age: number;
+  score: number;
+  active: boolean;
+}"
+`;
+
+exports[`Tier1 generators — BASIC input > zod 1`] = `
+"// Required dependencies: npm install zod
+
+import { z } from "zod";
+
+export const userSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1).trim(),
+  email: z.string().email(),
+  age: z.number().int().min(0).max(150),
+  score: z.number().min(0).max(100),
+  active: z.boolean(),
+});
+export type User = z.infer<typeof userSchema>;"
+`;
+
+exports[`Tier1 generators — DISCRIMINATED (discriminated union) > csharp 1`] = `
+"// C# (.NET Core 6.0+) standard class model
+
+using System.ComponentModel.DataAnnotations;
+
+public class RootItem
+{
+    [Required]
+    public string Type { get; set; }
+    public string? Content { get; set; }
+    public long? CharCount { get; set; }
+    public string? Url { get; set; }
+    public long? Width { get; set; }
+    public long? Height { get; set; }
+    public long? DurationSec { get; set; }
+}"
+`;
+
+exports[`Tier1 generators — DISCRIMINATED (discriminated union) > dart 1`] = `
+"class RootItem {
+  final String type;
+  final String? content;
+  final int? char_count;
+  final String? url;
+  final int? width;
+  final int? height;
+  final int? duration_sec;
+
+  RootItem({
+    required this.type,
+    this.content,
+    this.char_count,
+    this.url,
+    this.width,
+    this.height,
+    this.duration_sec,
+  });
+}"
+`;
+
+exports[`Tier1 generators — DISCRIMINATED (discriminated union) > go 1`] = `
+"// Go version 1.18+ required (supports generics)
+
+package main
+
+type Post []PostItem
+
+type PostItem struct {
+  Type string \`json:"type"\`
+  Content *string \`json:"content,omitempty"\`
+  CharCount *int64 \`json:"char_count,omitempty"\`
+  Url *string \`json:"url,omitempty"\`
+  Width *int64 \`json:"width,omitempty"\`
+  Height *int64 \`json:"height,omitempty"\`
+  DurationSec *int64 \`json:"duration_sec,omitempty"\`
+}"
+`;
+
+exports[`Tier1 generators — DISCRIMINATED (discriminated union) > graphql 1`] = `
+"type PostItem {
+  type: String!
+  content: String
+  char_count: Int
+  url: String
+  width: Int
+  height: Int
+  duration_sec: Int
+}"
+`;
+
+exports[`Tier1 generators — DISCRIMINATED (discriminated union) > java 1`] = `
+"// Java version 8+ required (compatible with Jackson/Gson)
+
+import javax.annotation.Nullable;
+
+public class PostItem {
+  private String type; // enum: "text" | "image" | "video"
+  @Nullable
+  private String content;
+  @Nullable
+  private Integer char_count;
+  @Nullable
+  private String url;
+  @Nullable
+  private Integer width;
+  @Nullable
+  private Integer height;
+  @Nullable
+  private Integer duration_sec;
+
+  public String getType() { return type; }
+  public void setType(String type) { this.type = type; }
+  public String getContent() { return content; }
+  public void setContent(String content) { this.content = content; }
+  public Integer getCharCount() { return char_count; }
+  public void setCharCount(Integer char_count) { this.char_count = char_count; }
+  public String getUrl() { return url; }
+  public void setUrl(String url) { this.url = url; }
+  public Integer getWidth() { return width; }
+  public void setWidth(Integer width) { this.width = width; }
+  public Integer getHeight() { return height; }
+  public void setHeight(Integer height) { this.height = height; }
+  public Integer getDurationSec() { return duration_sec; }
+  public void setDurationSec(Integer duration_sec) { this.duration_sec = duration_sec; }
+}"
+`;
+
+exports[`Tier1 generators — DISCRIMINATED (discriminated union) > kotlin 1`] = `
+"// Kotlin standard library data class (compatible with kotlinx.serialization)
+
+data class RootItem(
+    val type: String,
+    val content: String?,
+    val char_count: Int?,
+    val url: String?,
+    val width: Int?,
+    val height: Int?,
+    val duration_sec: Int?
+)"
+`;
+
+exports[`Tier1 generators — DISCRIMINATED (discriminated union) > php 1`] = `
+"// PHP version 8.1+ required
+
+<?php
+
+class PostItem
+{
+    public function __construct(
+        private string $type,
+        private ?string $content = null,
+        private ?int $char_count = null,
+        private ?string $url = null,
+        private ?int $width = null,
+        private ?int $height = null,
+        private ?int $duration_sec = null,
+    ) {}
+
+    public function getType(): string { return $this->type; }
+    public function setType(string $type): void { $this->type = $type; }
+
+    public function getContent(): ?string { return $this->content; }
+    public function setContent(?string $content): void { $this->content = $content; }
+
+    public function getChar_count(): ?int { return $this->char_count; }
+    public function setChar_count(?int $char_count): void { $this->char_count = $char_count; }
+
+    public function getUrl(): ?string { return $this->url; }
+    public function setUrl(?string $url): void { $this->url = $url; }
+
+    public function getWidth(): ?int { return $this->width; }
+    public function setWidth(?int $width): void { $this->width = $width; }
+
+    public function getHeight(): ?int { return $this->height; }
+    public function setHeight(?int $height): void { $this->height = $height; }
+
+    public function getDuration_sec(): ?int { return $this->duration_sec; }
+    public function setDuration_sec(?int $duration_sec): void { $this->duration_sec = $duration_sec; }
+}"
+`;
+
+exports[`Tier1 generators — DISCRIMINATED (discriminated union) > protobuf 1`] = `
+"// Protocol Buffers v3 specification
+
+// Protocol Buffers v3 specification
+
+syntax = "proto3";
+
+message PostItem {
+  string type = 1;
+  string content = 2;
+  int32 char_count = 3;
+  string url = 4;
+  int32 width = 5;
+  int32 height = 6;
+  int32 duration_sec = 7;
+}"
+`;
+
+exports[`Tier1 generators — DISCRIMINATED (discriminated union) > python 1`] = `
+"# Required dependencies: pip install pydantic
+
+from pydantic import BaseModel
+from typing import Optional
+
+class PostItem(BaseModel):
+    type: str
+    content: Optional[str] = None
+    char_count: Optional[int] = None
+    url: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    duration_sec: Optional[int] = None"
+`;
+
+exports[`Tier1 generators — DISCRIMINATED (discriminated union) > rust 1`] = `
+"// Required Cargo dependencies:
+// serde = { version = "1.0", features = ["derive"] }
+
+use serde::{Serialize, Deserialize};
+
+pub type Post = Vec<PostItem>;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PostItem {
+  #[serde(rename = "type")]
+  pub r#type: String,
+  pub content: Option<String>,
+  pub char_count: Option<i64>,
+  pub url: Option<String>,
+  pub width: Option<i64>,
+  pub height: Option<i64>,
+  pub duration_sec: Option<i64>,
+}"
+`;
+
+exports[`Tier1 generators — DISCRIMINATED (discriminated union) > swift 1`] = `
+"// Swift 5.0+ (Codable protocol compliant)
+
+struct RootItem : Codable {
+    let type: String
+    let content: String?
+    let char_count: Int?
+    let url: String?
+    let width: Int?
+    let height: Int?
+    let duration_sec: Int?
+}"
+`;
+
+exports[`Tier1 generators — DISCRIMINATED (discriminated union) > typescript 1`] = `
+"// Required dependencies: npm install typescript
+
+/**
+ * TypeMorph Generated TypeScript Interface
+ */
+export type Post = PostItem[];
+
+export interface PostItemText {
+  type: "text";
+  content: string;
+  char_count: number;
+}
+
+export interface PostItemImage {
+  type: "image";
+  url: string;
+  width: number;
+  height: number;
+}
+
+export interface PostItemVideo {
+  type: "video";
+  url: string;
+  duration_sec: number;
+}
+
+export type PostItem = PostItemText | PostItemImage | PostItemVideo;"
+`;
+
+exports[`Tier1 generators — DISCRIMINATED (discriminated union) > zod 1`] = `
+"// Required dependencies: npm install zod
+
+import { z } from "zod";
+
+export const postItemTextSchema = z.object({
+  type: z.literal("text"),
+  content: z.string(),
+  char_count: z.number(),
+});
+export type PostItemText = z.infer<typeof postItemTextSchema>;
+
+export const postItemImageSchema = z.object({
+  type: z.literal("image"),
+  url: z.string().url(),
+  width: z.number(),
+  height: z.number(),
+});
+export type PostItemImage = z.infer<typeof postItemImageSchema>;
+
+export const postItemVideoSchema = z.object({
+  type: z.literal("video"),
+  url: z.string().url(),
+  duration_sec: z.number(),
+});
+export type PostItemVideo = z.infer<typeof postItemVideoSchema>;
+
+export const postItemSchema = z.discriminatedUnion("type", [
+  postItemTextSchema,
+  postItemImageSchema,
+  postItemVideoSchema,
+]);
+export type PostItem = z.infer<typeof postItemSchema>;
+
+export const postSchema = z.array(postItemSchema);
+export type Post = z.infer<typeof postSchema>;"
+`;
+
+exports[`Tier1 generators — NESTED (object + array) > csharp 1`] = `
+"// C# (.NET Core 6.0+) standard class model
+
+using System.ComponentModel.DataAnnotations;
+
+public class Root
+{
+    [Required]
+    public string Project { get; set; }
+    [Required]
+    public SharedOwner Owner { get; set; }
+    [Required]
+    public List<string> Tags { get; set; }
+    [Required]
+    public List<SharedOwner> Collaborators { get; set; }
+}
+
+public class SharedOwner
+{
+    [Required]
+    public string Id { get; set; }
+    [Required]
+    public string Name { get; set; }
+    public SharedOwnerAddress? Address { get; set; }
+    public string? Role { get; set; }
+}
+
+public class SharedOwnerAddress
+{
+    [Required]
+    public string City { get; set; }
+    [Required]
+    public string Zip { get; set; }
+}"
+`;
+
+exports[`Tier1 generators — NESTED (object + array) > dart 1`] = `
+"class Root {
+  final String project;
+  final SharedOwner owner;
+  final List<String> tags;
+  final List<SharedOwner> collaborators;
+
+  Root({
+    required this.project,
+    required this.owner,
+    required this.tags,
+    required this.collaborators,
+  });
+}
+
+class SharedOwner {
+  final String id;
+  final String name;
+  final SharedOwnerAddress? address;
+  final String? role;
+
+  SharedOwner({
+    required this.id,
+    required this.name,
+    this.address,
+    this.role,
+  });
+}
+
+class SharedOwnerAddress {
+  final String city;
+  final String zip;
+
+  SharedOwnerAddress({
+    required this.city,
+    required this.zip,
+  });
+}"
+`;
+
+exports[`Tier1 generators — NESTED (object + array) > go 1`] = `
+"// Go version 1.18+ required (supports generics)
+
+package main
+
+type Project struct {
+  Project string \`json:"project"\`
+  Owner SharedOwner \`json:"owner"\`
+  Tags []string \`json:"tags"\`
+  Collaborators []SharedOwner \`json:"collaborators"\`
+}
+
+type SharedOwner struct {
+  Id string \`json:"id"\`
+  Name string \`json:"name"\`
+  Address *SharedOwnerAddress \`json:"address,omitempty"\`
+  Role *string \`json:"role,omitempty"\`
+}
+
+type SharedOwnerAddress struct {
+  City string \`json:"city"\`
+  Zip string \`json:"zip"\`
+}"
+`;
+
+exports[`Tier1 generators — NESTED (object + array) > graphql 1`] = `
+"type Project {
+  project: String!
+  owner: SharedOwner!
+  tags: [String!]!
+  collaborators: [SharedOwner!]!
+}
+
+type SharedOwner {
+  id: String!
+  name: String!
+  address: SharedOwnerAddress
+  role: String
+}
+
+type SharedOwnerAddress {
+  city: String!
+  zip: String!
+}"
+`;
+
+exports[`Tier1 generators — NESTED (object + array) > java 1`] = `
+"// Java version 8+ required (compatible with Jackson/Gson)
+
+import java.util.List;
+import javax.annotation.Nullable;
+
+public class Project {
+  private String project;
+  private SharedOwner owner;
+  private List<String> tags;
+  private List<SharedOwner> collaborators;
+
+  public String getProject() { return project; }
+  public void setProject(String project) { this.project = project; }
+  public SharedOwner getOwner() { return owner; }
+  public void setOwner(SharedOwner owner) { this.owner = owner; }
+  public List<String> getTags() { return tags; }
+  public void setTags(List<String> tags) { this.tags = tags; }
+  public List<SharedOwner> getCollaborators() { return collaborators; }
+  public void setCollaborators(List<SharedOwner> collaborators) { this.collaborators = collaborators; }
+}
+
+public class SharedOwner {
+  private String id;
+  private String name;
+  @Nullable
+  private SharedOwnerAddress address;
+  @Nullable
+  private String role; // enum: "maintainer" | "contributor"
+
+  public String getId() { return id; }
+  public void setId(String id) { this.id = id; }
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
+  public SharedOwnerAddress getAddress() { return address; }
+  public void setAddress(SharedOwnerAddress address) { this.address = address; }
+  public String getRole() { return role; }
+  public void setRole(String role) { this.role = role; }
+}
+
+public class SharedOwnerAddress {
+  private String city;
+  private String zip;
+
+  public String getCity() { return city; }
+  public void setCity(String city) { this.city = city; }
+  public String getZip() { return zip; }
+  public void setZip(String zip) { this.zip = zip; }
+}"
+`;
+
+exports[`Tier1 generators — NESTED (object + array) > kotlin 1`] = `
+"// Kotlin standard library data class (compatible with kotlinx.serialization)
+
+data class Root(
+    val project: String,
+    val owner: SharedOwner,
+    val tags: List<String>,
+    val collaborators: List<SharedOwner>
+)
+
+data class SharedOwner(
+    val id: String,
+    val name: String,
+    val address: SharedOwnerAddress?,
+    val role: String?
+)
+
+data class SharedOwnerAddress(
+    val city: String,
+    val zip: String
+)"
+`;
+
+exports[`Tier1 generators — NESTED (object + array) > php 1`] = `
+"// PHP version 8.1+ required
+
+<?php
+
+class Project
+{
+    public function __construct(
+        private string $project,
+        private SharedOwner $owner,
+        private array $tags,
+        private array $collaborators,
+    ) {}
+
+    public function getProject(): string { return $this->project; }
+    public function setProject(string $project): void { $this->project = $project; }
+
+    public function getOwner(): SharedOwner { return $this->owner; }
+    public function setOwner(SharedOwner $owner): void { $this->owner = $owner; }
+
+    public function getTags(): array { return $this->tags; }
+    public function setTags(array $tags): void { $this->tags = $tags; }
+
+    public function getCollaborators(): array { return $this->collaborators; }
+    public function setCollaborators(array $collaborators): void { $this->collaborators = $collaborators; }
+}
+
+class SharedOwner
+{
+    public function __construct(
+        private string $id,
+        private string $name,
+        private ?SharedOwnerAddress $address = null,
+        private ?string $role = null,
+    ) {}
+
+    public function getId(): string { return $this->id; }
+    public function setId(string $id): void { $this->id = $id; }
+
+    public function getName(): string { return $this->name; }
+    public function setName(string $name): void { $this->name = $name; }
+
+    public function getAddress(): ?SharedOwnerAddress { return $this->address; }
+    public function setAddress(?SharedOwnerAddress $address): void { $this->address = $address; }
+
+    public function getRole(): ?string { return $this->role; }
+    public function setRole(?string $role): void { $this->role = $role; }
+}
+
+class SharedOwnerAddress
+{
+    public function __construct(
+        private string $city,
+        private string $zip,
+    ) {}
+
+    public function getCity(): string { return $this->city; }
+    public function setCity(string $city): void { $this->city = $city; }
+
+    public function getZip(): string { return $this->zip; }
+    public function setZip(string $zip): void { $this->zip = $zip; }
+}"
+`;
+
+exports[`Tier1 generators — NESTED (object + array) > protobuf 1`] = `
+"// Protocol Buffers v3 specification
+
+// Protocol Buffers v3 specification
+
+syntax = "proto3";
+
+message Project {
+  string project = 1;
+  SharedOwner owner = 2;
+  repeated string tags = 3;
+  repeated SharedOwner collaborators = 4;
+}
+
+message SharedOwner {
+  string id = 1;
+  string name = 2;
+  SharedOwnerAddress address = 3;
+  string role = 4;
+}
+
+message SharedOwnerAddress {
+  string city = 1;
+  string zip = 2;
+}"
+`;
+
+exports[`Tier1 generators — NESTED (object + array) > python 1`] = `
+"# Required dependencies: pip install pydantic
+
+from pydantic import BaseModel
+from typing import Optional, List
+
+class Project(BaseModel):
+    project: str
+    owner: SharedOwner
+    tags: List[str]
+    collaborators: List[SharedOwner]
+
+class SharedOwner(BaseModel):
+    id: str
+    name: str
+    address: Optional[SharedOwnerAddress] = None
+    role: Optional[str] = None
+
+class SharedOwnerAddress(BaseModel):
+    city: str
+    zip: str"
+`;
+
+exports[`Tier1 generators — NESTED (object + array) > rust 1`] = `
+"// Required Cargo dependencies:
+// serde = { version = "1.0", features = ["derive"] }
+
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Project {
+  pub project: String,
+  pub owner: SharedOwner,
+  pub tags: Vec<String>,
+  pub collaborators: Vec<SharedOwner>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SharedOwner {
+  pub id: String,
+  pub name: String,
+  pub address: Option<SharedOwnerAddress>,
+  pub role: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SharedOwnerAddress {
+  pub city: String,
+  pub zip: String,
+}"
+`;
+
+exports[`Tier1 generators — NESTED (object + array) > swift 1`] = `
+"// Swift 5.0+ (Codable protocol compliant)
+
+struct Root : Codable {
+    let project: String
+    let owner: SharedOwner
+    let tags: [String]
+    let collaborators: [SharedOwner]
+}
+
+struct SharedOwner : Codable {
+    let id: String
+    let name: String
+    let address: SharedOwnerAddress?
+    let role: String?
+}
+
+struct SharedOwnerAddress : Codable {
+    let city: String
+    let zip: String
+}"
+`;
+
+exports[`Tier1 generators — NESTED (object + array) > typescript 1`] = `
+"// Required dependencies: npm install typescript
+
+/**
+ * TypeMorph Generated TypeScript Interface
+ */
+export interface Project {
+  project: string;
+  owner: SharedOwner;
+  tags: string[];
+  collaborators: SharedOwner[];
+}
+
+export interface SharedOwner {
+  id: string;
+  name: string;
+  address?: SharedOwnerAddress;
+  role?: "maintainer" | "contributor";
+}
+
+export interface SharedOwnerAddress {
+  city: string;
+  zip: string;
+}"
+`;
+
+exports[`Tier1 generators — NESTED (object + array) > zod 1`] = `
+"// Required dependencies: npm install zod
+
+import { z } from "zod";
+
+export const sharedOwnerAddressSchema = z.object({
+  city: z.string().min(1),
+  zip: z.string().min(1),
+});
+export type SharedOwnerAddress = z.infer<typeof sharedOwnerAddressSchema>;
+
+export const sharedOwnerSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1).trim(),
+  address: sharedOwnerAddressSchema.optional(),
+  role: z.enum(["maintainer", "contributor"]).optional(),
+});
+export type SharedOwner = z.infer<typeof sharedOwnerSchema>;
+
+export const projectSchema = z.object({
+  project: z.string().min(1),
+  owner: sharedOwnerSchema,
+  tags: z.array(z.string()),
+  collaborators: z.array(sharedOwnerSchema),
+});
+export type Project = z.infer<typeof projectSchema>;"
+`;
+
+exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > csharp 1`] = `
+"// C# (.NET Core 6.0+) standard class model
+
+using System.ComponentModel.DataAnnotations;
+
+public class RootItem
+{
+    [Required]
+    public string OrderId { get; set; }
+    [Required]
+    public string Status { get; set; }
+    [Required]
+    public double Amount { get; set; }
+    [Required]
+    public string Currency { get; set; }
+}"
+`;
+
+exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > dart 1`] = `
+"class RootItem {
+  final String order_id;
+  final String status;
+  final double amount;
+  final String currency;
+
+  RootItem({
+    required this.order_id,
+    required this.status,
+    required this.amount,
+    required this.currency,
+  });
+}"
+`;
+
+exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > go 1`] = `
+"// Go version 1.18+ required (supports generics)
+
+package main
+
+type Order []OrderItem
+
+type OrderItem struct {
+  OrderId string \`json:"order_id"\`
+  Status string \`json:"status"\`
+  Amount float64 \`json:"amount"\`
+  Currency string \`json:"currency"\`
+}"
+`;
+
+exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > graphql 1`] = `
+"type OrderItem {
+  order_id: String!
+  status: String!
+  amount: Float!
+  currency: String!
+}"
+`;
+
+exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > java 1`] = `
+"// Java version 8+ required (compatible with Jackson/Gson)
+
+public class OrderItem {
+  private String order_id;
+  private String status; // enum: "pending" | "shipped" | "delivered"
+  private double amount;
+  private String currency; // enum: "USD" | "JPY" | "EUR"
+
+  public String getOrderId() { return order_id; }
+  public void setOrderId(String order_id) { this.order_id = order_id; }
+  public String getStatus() { return status; }
+  public void setStatus(String status) { this.status = status; }
+  public double getAmount() { return amount; }
+  public void setAmount(double amount) { this.amount = amount; }
+  public String getCurrency() { return currency; }
+  public void setCurrency(String currency) { this.currency = currency; }
+}"
+`;
+
+exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > kotlin 1`] = `
+"// Kotlin standard library data class (compatible with kotlinx.serialization)
+
+data class RootItem(
+    val order_id: String,
+    val status: String,
+    val amount: Double,
+    val currency: String
+)"
+`;
+
+exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > php 1`] = `
+"// PHP version 8.1+ required
+
+<?php
+
+class OrderItem
+{
+    public function __construct(
+        private string $order_id,
+        private string $status,
+        private float $amount,
+        private string $currency,
+    ) {}
+
+    public function getOrder_id(): string { return $this->order_id; }
+    public function setOrder_id(string $order_id): void { $this->order_id = $order_id; }
+
+    public function getStatus(): string { return $this->status; }
+    public function setStatus(string $status): void { $this->status = $status; }
+
+    public function getAmount(): float { return $this->amount; }
+    public function setAmount(float $amount): void { $this->amount = $amount; }
+
+    public function getCurrency(): string { return $this->currency; }
+    public function setCurrency(string $currency): void { $this->currency = $currency; }
+}"
+`;
+
+exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > protobuf 1`] = `
+"// Protocol Buffers v3 specification
+
+// Protocol Buffers v3 specification
+
+syntax = "proto3";
+
+message OrderItem {
+  string order_id = 1;
+  string status = 2;
+  double amount = 3;
+  string currency = 4;
+}"
+`;
+
+exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > python 1`] = `
+"# Required dependencies: pip install pydantic
+
+from pydantic import BaseModel
+
+class OrderItem(BaseModel):
+    order_id: str
+    status: str
+    amount: float
+    currency: str"
+`;
+
+exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > rust 1`] = `
+"// Required Cargo dependencies:
+// serde = { version = "1.0", features = ["derive"] }
+
+use serde::{Serialize, Deserialize};
+
+pub type Order = Vec<OrderItem>;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OrderItem {
+  pub order_id: String,
+  pub status: String,
+  pub amount: f64,
+  pub currency: String,
+}"
+`;
+
+exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > swift 1`] = `
+"// Swift 5.0+ (Codable protocol compliant)
+
+struct RootItem : Codable {
+    let order_id: String
+    let status: String
+    let amount: Double
+    let currency: String
+}"
+`;
+
+exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > typescript 1`] = `
+"// Required dependencies: npm install typescript
+
+/**
+ * TypeMorph Generated TypeScript Interface
+ */
+export type Order = OrderItem[];
+
+export interface OrderItem {
+  order_id: string;
+  status: "pending" | "shipped" | "delivered";
+  amount: number;
+  currency: "USD" | "JPY" | "EUR";
+}"
+`;
+
+exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > zod 1`] = `
+"// Required dependencies: npm install zod
+
+import { z } from "zod";
+
+export const orderItemSchema = z.object({
+  order_id: z.string().uuid(),
+  status: z.enum(["pending", "shipped", "delivered"]),
+  amount: z.number().min(0),
+  currency: z.enum(["USD", "JPY", "EUR"]),
+});
+export type OrderItem = z.infer<typeof orderItemSchema>;
+
+export const orderSchema = z.array(orderItemSchema);
+export type Order = z.infer<typeof orderSchema>;"
+`;
+
+exports[`Tier1 generators — WITH_NULLS (null/optional fields) > csharp 1`] = `
+"// C# (.NET Core 6.0+) standard class model
+
+using System.ComponentModel.DataAnnotations;
+
+public class Root
+{
+    [Required]
+    public string UserId { get; set; }
+    [Required]
+    public string DisplayName { get; set; }
+    public object? Bio { get; set; }
+    public object? Website { get; set; }
+    [Required]
+    public long FollowerCount { get; set; }
+    [Required]
+    public bool IsVerified { get; set; }
+}"
+`;
+
+exports[`Tier1 generators — WITH_NULLS (null/optional fields) > dart 1`] = `
+"class Root {
+  final String user_id;
+  final String display_name;
+  final dynamic bio;
+  final dynamic website;
+  final int follower_count;
+  final bool is_verified;
+
+  Root({
+    required this.user_id,
+    required this.display_name,
+    this.bio,
+    this.website,
+    required this.follower_count,
+    required this.is_verified,
+  });
+}"
+`;
+
+exports[`Tier1 generators — WITH_NULLS (null/optional fields) > go 1`] = `
+"// Go version 1.18+ required (supports generics)
+
+package main
+
+type Profile struct {
+  UserId string \`json:"user_id"\`
+  DisplayName string \`json:"display_name"\`
+  Bio *interface{} \`json:"bio"\`
+  Website *interface{} \`json:"website"\`
+  FollowerCount int64 \`json:"follower_count"\`
+  IsVerified bool \`json:"is_verified"\`
+}"
+`;
+
+exports[`Tier1 generators — WITH_NULLS (null/optional fields) > graphql 1`] = `
+"type Profile {
+  user_id: String!
+  display_name: String!
+  bio: String
+  website: String
+  follower_count: Int!
+  is_verified: Boolean!
+}"
+`;
+
+exports[`Tier1 generators — WITH_NULLS (null/optional fields) > java 1`] = `
+"// Java version 8+ required (compatible with Jackson/Gson)
+
+public class Profile {
+  private String user_id;
+  private String display_name;
+  private Object bio;
+  private Object website;
+  private int follower_count;
+  private boolean is_verified;
+
+  public String getUserId() { return user_id; }
+  public void setUserId(String user_id) { this.user_id = user_id; }
+  public String getDisplayName() { return display_name; }
+  public void setDisplayName(String display_name) { this.display_name = display_name; }
+  public Object getBio() { return bio; }
+  public void setBio(Object bio) { this.bio = bio; }
+  public Object getWebsite() { return website; }
+  public void setWebsite(Object website) { this.website = website; }
+  public int getFollowerCount() { return follower_count; }
+  public void setFollowerCount(int follower_count) { this.follower_count = follower_count; }
+  public boolean getIsVerified() { return is_verified; }
+  public void setIsVerified(boolean is_verified) { this.is_verified = is_verified; }
+}"
+`;
+
+exports[`Tier1 generators — WITH_NULLS (null/optional fields) > kotlin 1`] = `
+"// Kotlin standard library data class (compatible with kotlinx.serialization)
+
+data class Root(
+    val user_id: String,
+    val display_name: String,
+    val bio: Any?,
+    val website: Any?,
+    val follower_count: Int,
+    val is_verified: Boolean
+)"
+`;
+
+exports[`Tier1 generators — WITH_NULLS (null/optional fields) > php 1`] = `
+"// PHP version 8.1+ required
+
+<?php
+
+class Profile
+{
+    public function __construct(
+        private string $user_id,
+        private string $display_name,
+        private ?mixed $bio = null,
+        private ?mixed $website = null,
+        private int $follower_count,
+        private bool $is_verified,
+    ) {}
+
+    public function getUser_id(): string { return $this->user_id; }
+    public function setUser_id(string $user_id): void { $this->user_id = $user_id; }
+
+    public function getDisplay_name(): string { return $this->display_name; }
+    public function setDisplay_name(string $display_name): void { $this->display_name = $display_name; }
+
+    public function getBio(): ?mixed { return $this->bio; }
+    public function setBio(?mixed $bio): void { $this->bio = $bio; }
+
+    public function getWebsite(): ?mixed { return $this->website; }
+    public function setWebsite(?mixed $website): void { $this->website = $website; }
+
+    public function getFollower_count(): int { return $this->follower_count; }
+    public function setFollower_count(int $follower_count): void { $this->follower_count = $follower_count; }
+
+    public function getIs_verified(): bool { return $this->is_verified; }
+    public function setIs_verified(bool $is_verified): void { $this->is_verified = $is_verified; }
+}"
+`;
+
+exports[`Tier1 generators — WITH_NULLS (null/optional fields) > protobuf 1`] = `
+"// Protocol Buffers v3 specification
+
+// Protocol Buffers v3 specification
+
+syntax = "proto3";
+
+message Profile {
+  string user_id = 1;
+  string display_name = 2;
+  string bio = 3;
+  string website = 4;
+  int32 follower_count = 5;
+  bool is_verified = 6;
+}"
+`;
+
+exports[`Tier1 generators — WITH_NULLS (null/optional fields) > python 1`] = `
+"# Required dependencies: pip install pydantic
+
+from pydantic import BaseModel
+from typing import Optional, Any
+
+class Profile(BaseModel):
+    user_id: str
+    display_name: str
+    bio: Optional[Any] = None
+    website: Optional[Any] = None
+    follower_count: int
+    is_verified: bool"
+`;
+
+exports[`Tier1 generators — WITH_NULLS (null/optional fields) > rust 1`] = `
+"// Required Cargo dependencies:
+// serde = { version = "1.0", features = ["derive"] }
+
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Profile {
+  pub user_id: String,
+  pub display_name: String,
+  pub bio: Option<serde_json::Value>,
+  pub website: Option<serde_json::Value>,
+  pub follower_count: i64,
+  pub is_verified: bool,
+}"
+`;
+
+exports[`Tier1 generators — WITH_NULLS (null/optional fields) > swift 1`] = `
+"// Swift 5.0+ (Codable protocol compliant)
+
+struct Root : Codable {
+    let user_id: String
+    let display_name: String
+    let bio: AnyCodable?
+    let website: AnyCodable?
+    let follower_count: Int
+    let is_verified: Bool
+}"
+`;
+
+exports[`Tier1 generators — WITH_NULLS (null/optional fields) > typescript 1`] = `
+"// Required dependencies: npm install typescript
+
+/**
+ * TypeMorph Generated TypeScript Interface
+ */
+export interface Profile {
+  user_id: string;
+  display_name: string;
+  bio: (any) | null;
+  website: (any) | null;
+  follower_count: number;
+  is_verified: boolean;
+}"
+`;
+
+exports[`Tier1 generators — WITH_NULLS (null/optional fields) > zod 1`] = `
+"// Required dependencies: npm install zod
+
+import { z } from "zod";
+
+export const profileSchema = z.object({
+  user_id: z.string().uuid(),
+  display_name: z.string().min(1).trim(),
+  bio: z.any().nullable(),
+  website: z.any().nullable(),
+  follower_count: z.number().int().min(0),
+  is_verified: z.boolean(),
+});
+export type Profile = z.infer<typeof profileSchema>;"
+`;
+
+exports[`Tier2 generators — BASIC input > arduino 1`] = `
+"// Required libraries: ArduinoJson (v6 or v7)
+
+// Generated by TypeMorph (requires ArduinoJson library)
+#include <ArduinoJson.h>
+
+struct Data {
+  String id;
+  String name;
+  String email;
+  double age;
+  double score;
+  bool active;
+};
+
+void deserializeData(Stream& stream, Data& data) {
+  StaticJsonDocument<1024> doc;
+  deserializeJson(doc, stream);
+
+  data.id = doc["id"];
+  data.name = doc["name"];
+  data.email = doc["email"];
+  data.age = doc["age"];
+  data.score = doc["score"];
+  data.active = doc["active"];
+}"
+`;
+
+exports[`Tier2 generators — BASIC input > avro 1`] = `
+"{
+  "type": "record",
+  "name": "Root",
+  "namespace": "com.example",
+  "fields": [
+    {
+      "name": "id",
+      "type": "string"
+    },
+    {
+      "name": "name",
+      "type": "string"
+    },
+    {
+      "name": "email",
+      "type": "string"
+    },
+    {
+      "name": "age",
+      "type": "double"
+    },
+    {
+      "name": "score",
+      "type": "double"
+    },
+    {
+      "name": "active",
+      "type": "boolean"
+    }
+  ]
+}"
+`;
+
+exports[`Tier2 generators — BASIC input > c 1`] = `
+"// C99+ required. cJSON dependency: https://github.com/DaveGamble/cJSON
+
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+/* cJSON — single-header JSON parser: https://github.com/DaveGamble/cJSON */
+#include "cJSON.h"
+
+typedef struct {
+  char *id;
+  char *name;
+  char *email;
+  int32_t age;
+  double score;
+  bool active;
+} User;
+
+User user_from_json(const char *json_str) {
+  User result = {0};
+  cJSON *root = cJSON_Parse(json_str);
+  if (!root) return result;
+
+  cJSON *_id = cJSON_GetObjectItemCaseSensitive(root, "id");
+  if (cJSON_IsString(_id)) result.id = _id->valuestring;
+  cJSON *_name = cJSON_GetObjectItemCaseSensitive(root, "name");
+  if (cJSON_IsString(_name)) result.name = _name->valuestring;
+  cJSON *_email = cJSON_GetObjectItemCaseSensitive(root, "email");
+  if (cJSON_IsString(_email)) result.email = _email->valuestring;
+  cJSON *_age = cJSON_GetObjectItemCaseSensitive(root, "age");
+  if (cJSON_IsNumber(_age)) result.age = (int32_t)_age->valuedouble;
+  cJSON *_score = cJSON_GetObjectItemCaseSensitive(root, "score");
+  if (cJSON_IsNumber(_score)) result.score = _score->valuedouble;
+  cJSON *_active = cJSON_GetObjectItemCaseSensitive(root, "active");
+  if (cJSON_IsBool(_active)) result.active = cJSON_IsTrue(_active);
+
+  cJSON_Delete(root);
+  return result;
+}"
+`;
+
+exports[`Tier2 generators — BASIC input > cpp 1`] = `
+"// C++17 required. nlohmann/json: https://github.com/nlohmann/json
+
+#include <string>
+#include <cstdint>
+/* nlohmann/json — header-only JSON: https://github.com/nlohmann/json */
+#include <nlohmann/json.hpp>
+
+struct User {
+  std::string id;
+  std::string name;
+  std::string email;
+  int64_t age;
+  double score;
+  bool active;
+
+  static User from_json(const nlohmann::json& j) {
+    User obj;
+    obj.id = j.at("id").get<std::string>();
+    obj.name = j.at("name").get<std::string>();
+    obj.email = j.at("email").get<std::string>();
+    obj.age = j.at("age").get<int64_t>();
+    obj.score = j.at("score").get<double>();
+    obj.active = j.at("active").get<bool>();
+    return obj;
+  }
+
+  nlohmann::json to_json() const {
+    return {
+      {"id", id},
+      {"name", name},
+      {"email", email},
+      {"age", age},
+      {"score", score},
+      {"active", active},
+    };
+  }
+};"
+`;
+
+exports[`Tier2 generators — BASIC input > csv 1`] = `
+"// CSV Data Format (Excel compatible)
+
+id,name,email,age,score,active
+uuid-xxxx-xxxx,"sample_value",user@example.com,0,0,true"
+`;
+
+exports[`Tier2 generators — BASIC input > drizzle 1`] = `
+"// Required dependencies: npm install drizzle-orm drizzle-kit
+
+import { pgTable, uuid, varchar, doublePrecision, boolean, jsonb, timestamp } from 'drizzle-orm/pg-core';
+
+export const root = pgTable('roots', {
+  id: varchar('id', { length: 255 }).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull(),
+  age: doublePrecision('age').notNull(),
+  score: doublePrecision('score').notNull(),
+  active: boolean('active').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+});"
+`;
+
+exports[`Tier2 generators — BASIC input > elixir 1`] = `
+"# Required dependencies: Ecto (mix ecto)
+
+defmodule MyApp.Root do
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  schema "roots" do
+    field :id, :string
+    field :name, :string
+    field :email, :string
+    field :age, :float
+    field :score, :float
+    field :active, :boolean
+    timestamps()
+  end
+
+  def changeset(struct, params \\\\ %{}) do
+    struct
+    |> cast(params, [:id, :name, :email, :age, :score, :active])
+    |> validate_required([:id, :name, :email, :age, :score, :active])
+  end
+end"
+`;
+
+exports[`Tier2 generators — BASIC input > elm 1`] = `
+"-- Required Elm packages:
+-- elm install elm/json
+-- elm install elm-community/json-extra
+
+module MyApp.Root exposing (..)
+
+import Json.Decode as Decode exposing (Decoder)
+import Json.Decode.Pipeline exposing (required, optional)
+
+type alias Root =
+    {
+    id : String
+    ,     name : String
+    ,     email : String
+    ,     age : Float
+    ,     score : Float
+    ,     active : Bool
+    }
+
+decoder : Decoder Root
+decoder =
+    Decode.succeed Root
+        |> required "id" Decode.string
+        |> required "name" Decode.string
+        |> required "email" Decode.string
+        |> required "age" Decode.float
+        |> required "score" Decode.float
+        |> required "active" Decode.bool"
+`;
+
+exports[`Tier2 generators — BASIC input > env 1`] = `
+"# Environment variables (.env template)
+
+# Generated by TypeMorph
+ID=uuid-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+NAME=your_value_here
+EMAIL=user@example.com
+AGE=0
+SCORE=0
+ACTIVE=false"
+`;
+
+exports[`Tier2 generators — BASIC input > go 1`] = `
+"// Go version 1.18+ required (supports generics)
+
+package main
+
+type User struct {
+  Id string \`json:"id"\`
+  Name string \`json:"name"\`
+  Email string \`json:"email"\`
+  Age int64 \`json:"age"\`
+  Score float64 \`json:"score"\`
+  Active bool \`json:"active"\`
+}"
+`;
+
+exports[`Tier2 generators — BASIC input > haskell 1`] = `
+"-- Required GHC extensions and packages: aeson
+
+{-# LANGUAGE DeriveGeneric #-}
+module MyApp.Root where
+
+import GHC.Generics (Generic)
+import Data.Aeson (FromJSON, ToJSON)
+
+data Root = Root
+  { id :: String
+  , name :: String
+  , email :: String
+  , age :: Int
+  , score :: Double
+  , active :: Bool
+  } deriving (Show, Generic)
+
+instance FromJSON Root
+instance ToJSON Root"
+`;
+
+exports[`Tier2 generators — BASIC input > joi 1`] = `
+"import Joi from 'joi';
+
+export const rootJoiSchema = Joi.object({
+  id: Joi.string().guid().required(),
+  name: Joi.string().required(),
+  email: Joi.string().email().required(),
+  age: Joi.number().required(),
+  score: Joi.number().required(),
+  active: Joi.boolean().required(),
+});"
+`;
+
+exports[`Tier2 generators — BASIC input > kysely 1`] = `
+"// Required dependencies: npm install kysely
+
+import { Generated, ColumnType } from 'kysely';
+
+export interface RootTable {
+  id: string;
+  name: string;
+  email: string;
+  age: number;
+  score: number;
+  active: boolean;
+  createdAt: Generated<string>;
+  updatedAt: ColumnType<string, string | undefined, string>;
+}
+
+export interface Database {
+  roots: RootTable;
+}"
+`;
+
+exports[`Tier2 generators — BASIC input > markdown 1`] = `
+"| id | name | email | age | score | active |
+| --- | --- | --- | --- | --- | --- |
+| sample | sample | user@example.com | 0 | 0 | true |"
+`;
+
+exports[`Tier2 generators — BASIC input > mermaid 1`] = `
+"%% Mermaid ER Diagram — paste into https://mermaid.live
+
+erDiagram
+  Root {
+    string id
+    string name
+    string email
+    float age
+    float score
+    boolean active
+  }"
+`;
+
+exports[`Tier2 generators — BASIC input > mongoose 1`] = `
+"// Required dependencies: npm install mongoose
+
+import mongoose, { Schema, Document } from 'mongoose';
+
+const RootSchema = new Schema({
+    id: { type: String, required: true },
+    name: { type: String, required: true },
+    email: { type: String, required: true },
+    age: { type: Number, required: true },
+    score: { type: Number, required: true },
+    active: { type: Boolean, required: true },
+  }, { timestamps: true });
+
+export interface IRoot extends Document {}
+export const Root = mongoose.models.Root || mongoose.model<IRoot>('Root', RootSchema);"
+`;
+
+exports[`Tier2 generators — BASIC input > mysql 1`] = `
+"-- MySQL / MariaDB compatible DDL (Requires MySQL 5.7+)
+
+CREATE TABLE \`root\` (
+  \`id\` CHAR(36) NOT NULL PRIMARY KEY,
+  \`name\` VARCHAR(255) NOT NULL,
+  \`email\` VARCHAR(255) NOT NULL,
+  \`age\` BIGINT NOT NULL,
+  \`score\` DOUBLE NOT NULL,
+  \`active\` TINYINT(1) NOT NULL,
+  \`created_at\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  \`updated_at\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
+`;
+
+exports[`Tier2 generators — BASIC input > openapi 1`] = `
+"# OpenAPI 3.0 specification (YAML format)
+
+openapi: 3.0.3
+info:
+  title: Root API
+  version: 1.0.0
+paths:
+  /roots:
+    get:
+      summary: List Roots
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Root'
+    post:
+      summary: Create Root
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Root'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    Root:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - age
+        - score
+        - active
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        age:
+          type: number
+          format: double
+        score:
+          type: number
+          format: double
+        active:
+          type: boolean"
+`;
+
+exports[`Tier2 generators — BASIC input > pinia 1`] = `
+"import { defineStore } from 'pinia';
+
+export interface RootState {
+  id: string;
+  name: string;
+  email: string;
+  age: number;
+  score: number;
+  active: boolean;
+}
+
+export const useRootStore = defineStore('root', {
+  state: (): RootState => ({
+    id: '',
+    name: '',
+    email: '',
+    age: 0,
+    score: 0,
+    active: false,
+  }),
+  actions: {
+    update(data: Partial<RootState>) {
+      Object.assign(this, data);
+    },
+    reset() {
+      this.$reset();
+    }
+  }
+});"
+`;
+
+exports[`Tier2 generators — BASIC input > postgres 1`] = `
+"-- PostgreSQL compatible DDL (Requires PostgreSQL 10+)
+
+CREATE TABLE "root" (
+  "id" UUID NOT NULL PRIMARY KEY,
+  "name" VARCHAR(255) NOT NULL,
+  "email" VARCHAR(255) NOT NULL,
+  "age" BIGINT NOT NULL,
+  "score" DOUBLE PRECISION NOT NULL,
+  "active" BOOLEAN NOT NULL,
+  "created_at" TIMESTAMP NOT NULL DEFAULT NOW(),
+  "updated_at" TIMESTAMP NOT NULL DEFAULT NOW()
+);"
+`;
+
+exports[`Tier2 generators — BASIC input > prisma 1`] = `
+"model User {
+  id String @id
+  name String
+  email String
+  age Int
+  score Float
+  active Boolean
+}"
+`;
+
+exports[`Tier2 generators — BASIC input > react-context 1`] = `
+"// Required dependencies: npm install react
+
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+
+export interface RootState {
+  id: string;
+  name: string;
+  email: string;
+  age: number;
+  score: number;
+  active: boolean;
+}
+
+interface RootContextType {
+  state: RootState;
+  updateState: (updates: Partial<RootState>) => void;
+}
+
+const RootContext = createContext<RootContextType | undefined>(undefined);
+
+export const RootProvider = ({ children, initial }: { children: ReactNode; initial: RootState }) => {
+  const [state, setState] = useState<RootState>(initial);
+  const updateState = (updates: Partial<RootState>) => setState(prev => ({ ...prev, ...updates }));
+
+  return (
+    <RootContext.Provider value={{ state, updateState }}>
+      {children}
+    </RootContext.Provider>
+  );
+};
+
+export const useRootContext = () => {
+  const context = useContext(RootContext);
+  if (!context) throw new Error('useRootContext must be used within RootProvider');
+  return context;
+};"
+`;
+
+exports[`Tier2 generators — BASIC input > react-props 1`] = `
+"// Required dependencies: npm install react
+
+import React from 'react';
+
+export interface ComponentProps {
+  id: string;
+  name: string;
+  email: string;
+  age: number;
+  score: number;
+  active: boolean;
+}
+
+export const Component: React.FC<ComponentProps> = (props) => {
+  return (
+    <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+      <h2 className="text-xl font-bold mb-2">Component</h2>
+      <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-400">
+        <li><strong>id:</strong> {String(props.id ?? '')}</li>
+        <li><strong>name:</strong> {String(props.name ?? '')}</li>
+        <li><strong>email:</strong> {String(props.email ?? '')}</li>
+        <li><strong>age:</strong> {String(props.age ?? '')}</li>
+        <li><strong>score:</strong> {String(props.score ?? '')}</li>
+        <li><strong>active:</strong> {String(props.active ?? '')}</li>
+      </ul>
+    </div>
+  );
+};"
+`;
+
+exports[`Tier2 generators — BASIC input > redux-slice 1`] = `
+"// Required dependencies: npm install @reduxjs/toolkit react-redux
+
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+
+export interface RootState {
+  id: string;
+  name: string;
+  email: string;
+  age: number;
+  score: number;
+  active: boolean;
+}
+
+const initialState: RootState = {
+  id: '',
+  name: '',
+  email: '',
+  age: 0,
+  score: 0,
+  active: false,
+};
+
+export const rootSlice = createSlice({
+  name: 'root',
+  initialState,
+  reducers: {
+    setRoot: (state, action: PayloadAction<Partial<RootState>>) => {
+      return { ...state, ...action.payload };
+    },
+    resetRoot: () => initialState,
+  },
+});
+
+export const { setRoot, resetRoot } = rootSlice.actions;
+export default rootSlice.reducer;"
+`;
+
+exports[`Tier2 generators — BASIC input > scala 1`] = `
+"// Scala case class
+
+// Generated by TypeMorph
+case class Root(
+  id: String,
+  name: String,
+  email: String,
+  age: Double,
+  score: Double,
+  active: Boolean
+)"
+`;
+
+exports[`Tier2 generators — BASIC input > sequelize 1`] = `
+"// Required dependencies: npm install sequelize pg pg-hstore (or mysql2/sqlite3)
+
+import { DataTypes, Model } from 'sequelize';
+import sequelize from '../config/database';
+
+export class Root extends Model {}
+
+Root.init({
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
+  },
+  id: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  name: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  email: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  age: {
+    type: DataTypes.DOUBLE,
+    allowNull: false
+  },
+  score: {
+    type: DataTypes.DOUBLE,
+    allowNull: false
+  },
+  active: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false
+  },
+}, {
+  sequelize,
+  modelName: 'Root',
+  tableName: 'roots',
+  timestamps: true
+});"
+`;
+
+exports[`Tier2 generators — BASIC input > solid-props 1`] = `
+"// Required dependencies: npm install solid-js
+
+import { Component } from 'solid-js';
+
+export interface ComponentProps {
+  id: string;
+  name: string;
+  email: string;
+  age: number;
+  score: number;
+  active: boolean;
+}
+
+export const Component: Component<ComponentProps> = (props) => {
+  return (
+    <div class="solid-card p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+      <h2 class="text-xl font-bold mb-2">Component</h2>
+      <ul class="text-sm space-y-1">
+        <li><strong>id:</strong> {String(props.id ?? '')}</li>
+        <li><strong>name:</strong> {String(props.name ?? '')}</li>
+        <li><strong>email:</strong> {String(props.email ?? '')}</li>
+        <li><strong>age:</strong> {String(props.age ?? '')}</li>
+        <li><strong>score:</strong> {String(props.score ?? '')}</li>
+        <li><strong>active:</strong> {String(props.active ?? '')}</li>
+      </ul>
+    </div>
+  );
+};"
+`;
+
+exports[`Tier2 generators — BASIC input > sqlite 1`] = `
+"-- SQLite compatible DDL schema
+
+CREATE TABLE IF NOT EXISTS "root" (
+  "id" UUID NOT NULL PRIMARY KEY,
+  "name" VARCHAR(255) NOT NULL,
+  "email" VARCHAR(255) NOT NULL,
+  "age" INTEGER NOT NULL,
+  "score" REAL NOT NULL,
+  "active" BOOLEAN NOT NULL,
+  "created_at" TEXT NOT NULL DEFAULT (datetime('now')),
+  "updated_at" TEXT NOT NULL DEFAULT (datetime('now'))
+);"
+`;
+
+exports[`Tier2 generators — BASIC input > superstruct 1`] = `
+"import * as s from 'superstruct';
+
+export const rootStruct = s.type({
+  id: s.string(),
+  name: s.string(),
+  email: s.string(),
+  age: s.number(),
+  score: s.number(),
+  active: s.boolean(),
+});"
+`;
+
+exports[`Tier2 generators — BASIC input > svelte-props 1`] = `
+"// Svelte 3/4 TypeScript component props scaffold
+
+<script lang="ts">
+  export let id: string = '';
+  export let name: string = '';
+  export let email: string = '';
+  export let age: number = 0;
+  export let score: number = 0;
+  export let active: boolean = false;
+</script>
+
+<div class="svelte-card p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+  <h2 class="text-xl font-bold mb-2">Component</h2>
+  <ul class="text-sm space-y-1">
+    <li><strong>id:</strong> {id}</li>
+    <li><strong>name:</strong> {name}</li>
+    <li><strong>email:</strong> {email}</li>
+    <li><strong>age:</strong> {age}</li>
+    <li><strong>score:</strong> {score}</li>
+    <li><strong>active:</strong> {active}</li>
+  </ul>
+</div>"
+`;
+
+exports[`Tier2 generators — BASIC input > toml 1`] = `
+"# TOML configuration format
+
+[config]
+id = "sample_value"
+name = "sample_value"
+email = "sample_value"
+age = 0
+score = 0
+active = false"
+`;
+
+exports[`Tier2 generators — BASIC input > typeorm 1`] = `
+"// Required dependencies: npm install typeorm reflect-metadata
+// Note: Enable emitDecoratorMetadata and experimentalDecorators in tsconfig.json
+
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+
+@Entity('roots')
+export class Root {
+  @Column()
+  id!: string;
+
+  @Column()
+  name!: string;
+
+  @Column()
+  email!: string;
+
+  @Column('double')
+  age!: number;
+
+  @Column('double')
+  score!: number;
+
+  @Column('boolean')
+  active!: boolean;
+
+  @CreateDateColumn()
+  createdAt!: Date;
+
+  @UpdateDateColumn()
+  updatedAt!: Date;
+}"
+`;
+
+exports[`Tier2 generators — BASIC input > valibot 1`] = `
+"import * as v from 'valibot';
+
+export const rootValiSchema = v.object({
+  id: v.pipe(v.string(), v.uuid()),
+  name: v.string(),
+  email: v.pipe(v.string(), v.email()),
+  age: v.number(),
+  score: v.number(),
+  active: v.boolean(),
+});"
+`;
+
+exports[`Tier2 generators — BASIC input > vue-props 1`] = `
+"// Vue 3 <script setup lang="ts"> standard format
+
+<script setup lang="ts">
+defineProps<{
+  id: string;
+  name: string;
+  email: string;
+  age: number;
+  score: number;
+  active: boolean;
+}>();
+</script>
+
+<template>
+  <div class="vue-card p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+    <h2 class="text-xl font-bold mb-2">Component</h2>
+    <ul class="text-sm space-y-1">
+      <li><strong>id:</strong> {{ id }}</li>
+      <li><strong>name:</strong> {{ name }}</li>
+      <li><strong>email:</strong> {{ email }}</li>
+      <li><strong>age:</strong> {{ age }}</li>
+      <li><strong>score:</strong> {{ score }}</li>
+      <li><strong>active:</strong> {{ active }}</li>
+    </ul>
+  </div>
+</template>"
+`;
+
+exports[`Tier2 generators — BASIC input > yaml 1`] = `
+"# YAML standard data format
+
+id: uuid-xxxx-xxxx
+name: sample_value
+email: user@example.com
+age: 0
+score: 0
+active: false"
+`;
+
+exports[`Tier2 generators — BASIC input > yup 1`] = `
+"import * as yup from 'yup';
+
+export const rootYupSchema = yup.object({
+  id: yup.string().uuid().required(),
+  name: yup.string().required(),
+  email: yup.string().email().required(),
+  age: yup.number().required(),
+  score: yup.number().required(),
+  active: yup.boolean().required(),
+});"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > arduino 1`] = `
+"// Required libraries: ArduinoJson (v6 or v7)
+
+// Generated by TypeMorph (requires ArduinoJson library)
+#include <ArduinoJson.h>
+
+struct Data {
+  String user_id;
+  String display_name;
+  String bio;
+  String website;
+  double follower_count;
+  bool is_verified;
+};
+
+void deserializeData(Stream& stream, Data& data) {
+  StaticJsonDocument<1024> doc;
+  deserializeJson(doc, stream);
+
+  data.user_id = doc["user_id"];
+  data.display_name = doc["display_name"];
+  data.bio = doc["bio"];
+  data.website = doc["website"];
+  data.follower_count = doc["follower_count"];
+  data.is_verified = doc["is_verified"];
+}"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > avro 1`] = `
+"{
+  "type": "record",
+  "name": "Root",
+  "namespace": "com.example",
+  "fields": [
+    {
+      "name": "user_id",
+      "type": "string"
+    },
+    {
+      "name": "display_name",
+      "type": "string"
+    },
+    {
+      "name": "bio",
+      "type": "string"
+    },
+    {
+      "name": "website",
+      "type": "string"
+    },
+    {
+      "name": "follower_count",
+      "type": "double"
+    },
+    {
+      "name": "is_verified",
+      "type": "boolean"
+    }
+  ]
+}"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > c 1`] = `
+"// C99+ required. cJSON dependency: https://github.com/DaveGamble/cJSON
+
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+/* cJSON — single-header JSON parser: https://github.com/DaveGamble/cJSON */
+#include "cJSON.h"
+
+typedef struct {
+  char *user_id;
+  char *display_name;
+  char *bio; /* nullable */
+  char *website; /* nullable */
+  int32_t follower_count;
+  bool is_verified;
+} Profile;
+
+Profile profile_from_json(const char *json_str) {
+  Profile result = {0};
+  cJSON *root = cJSON_Parse(json_str);
+  if (!root) return result;
+
+  cJSON *_user_id = cJSON_GetObjectItemCaseSensitive(root, "user_id");
+  if (cJSON_IsString(_user_id)) result.user_id = _user_id->valuestring;
+  cJSON *_display_name = cJSON_GetObjectItemCaseSensitive(root, "display_name");
+  if (cJSON_IsString(_display_name)) result.display_name = _display_name->valuestring;
+  cJSON *_bio = cJSON_GetObjectItemCaseSensitive(root, "bio");
+  if (cJSON_IsString(_bio)) result.bio = _bio->valuestring;
+  cJSON *_website = cJSON_GetObjectItemCaseSensitive(root, "website");
+  if (cJSON_IsString(_website)) result.website = _website->valuestring;
+  cJSON *_follower_count = cJSON_GetObjectItemCaseSensitive(root, "follower_count");
+  if (cJSON_IsNumber(_follower_count)) result.follower_count = (int32_t)_follower_count->valuedouble;
+  cJSON *_is_verified = cJSON_GetObjectItemCaseSensitive(root, "is_verified");
+  if (cJSON_IsBool(_is_verified)) result.is_verified = cJSON_IsTrue(_is_verified);
+
+  cJSON_Delete(root);
+  return result;
+}"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > cpp 1`] = `
+"// C++17 required. nlohmann/json: https://github.com/nlohmann/json
+
+#include <string>
+#include <optional>
+#include <cstdint>
+/* nlohmann/json — header-only JSON: https://github.com/nlohmann/json */
+#include <nlohmann/json.hpp>
+
+struct Profile {
+  std::string user_id;
+  std::string display_name;
+  std::optional<std::string> bio;
+  std::optional<std::string> website;
+  int64_t follower_count;
+  bool is_verified;
+
+  static Profile from_json(const nlohmann::json& j) {
+    Profile obj;
+    obj.user_id = j.at("user_id").get<std::string>();
+    obj.display_name = j.at("display_name").get<std::string>();
+    if (j.contains("bio") && !j["bio"].is_null())
+      obj.bio = j["bio"].get<std::string>();
+    if (j.contains("website") && !j["website"].is_null())
+      obj.website = j["website"].get<std::string>();
+    obj.follower_count = j.at("follower_count").get<int64_t>();
+    obj.is_verified = j.at("is_verified").get<bool>();
+    return obj;
+  }
+
+  nlohmann::json to_json() const {
+    return {
+      {"user_id", user_id},
+      {"display_name", display_name},
+      {"bio", bio.has_value() ? nlohmann::json(*bio) : nlohmann::json(nullptr)},
+      {"website", website.has_value() ? nlohmann::json(*website) : nlohmann::json(nullptr)},
+      {"follower_count", follower_count},
+      {"is_verified", is_verified},
+    };
+  }
+};"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > csv 1`] = `
+"// CSV Data Format (Excel compatible)
+
+user_id,display_name,bio,website,follower_count,is_verified
+uuid-xxxx-xxxx,"sample_value","sample_value","sample_value",0,true"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > drizzle 1`] = `
+"// Required dependencies: npm install drizzle-orm drizzle-kit
+
+import { pgTable, uuid, varchar, doublePrecision, boolean, jsonb, timestamp } from 'drizzle-orm/pg-core';
+
+export const root = pgTable('roots', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  user_id: varchar('user_id', { length: 255 }).notNull(),
+  display_name: varchar('display_name', { length: 255 }).notNull(),
+  bio: varchar('bio', { length: 255 }),
+  website: varchar('website', { length: 255 }),
+  follower_count: doublePrecision('follower_count').notNull(),
+  is_verified: boolean('is_verified').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+});"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > elixir 1`] = `
+"# Required dependencies: Ecto (mix ecto)
+
+defmodule MyApp.Root do
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  schema "roots" do
+    field :user_id, :string
+    field :display_name, :string
+    field :bio, :string
+    field :website, :string
+    field :follower_count, :float
+    field :is_verified, :boolean
+    timestamps()
+  end
+
+  def changeset(struct, params \\\\ %{}) do
+    struct
+    |> cast(params, [:user_id, :display_name, :bio, :website, :follower_count, :is_verified])
+    |> validate_required([:user_id, :display_name, :bio, :website, :follower_count, :is_verified])
+  end
+end"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > elm 1`] = `
+"-- Required Elm packages:
+-- elm install elm/json
+-- elm install elm-community/json-extra
+
+module MyApp.Root exposing (..)
+
+import Json.Decode as Decode exposing (Decoder)
+import Json.Decode.Pipeline exposing (required, optional)
+
+type alias Root =
+    {
+    user_id : String
+    ,     display_name : String
+    ,     bio : String
+    ,     website : String
+    ,     follower_count : Float
+    ,     is_verified : Bool
+    }
+
+decoder : Decoder Root
+decoder =
+    Decode.succeed Root
+        |> required "user_id" Decode.string
+        |> required "display_name" Decode.string
+        |> required "bio" Decode.string
+        |> required "website" Decode.string
+        |> required "follower_count" Decode.float
+        |> required "is_verified" Decode.bool"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > env 1`] = `
+"# Environment variables (.env template)
+
+# Generated by TypeMorph
+USER_ID=uuid-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+DISPLAY_NAME=your_value_here
+BIO=your_value_here
+WEBSITE=your_value_here
+FOLLOWER_COUNT=0
+IS_VERIFIED=false"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > go 1`] = `
+"// Go version 1.18+ required (supports generics)
+
+package main
+
+type Profile struct {
+  UserId string \`json:"user_id"\`
+  DisplayName string \`json:"display_name"\`
+  Bio *interface{} \`json:"bio"\`
+  Website *interface{} \`json:"website"\`
+  FollowerCount int64 \`json:"follower_count"\`
+  IsVerified bool \`json:"is_verified"\`
+}"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > haskell 1`] = `
+"-- Required GHC extensions and packages: aeson
+
+{-# LANGUAGE DeriveGeneric #-}
+module MyApp.Root where
+
+import GHC.Generics (Generic)
+import Data.Aeson (FromJSON, ToJSON)
+
+data Root = Root
+  { userId :: String
+  , displayName :: String
+  , bio :: Maybe String
+  , website :: Maybe String
+  , followerCount :: Int
+  , isVerified :: Bool
+  } deriving (Show, Generic)
+
+instance FromJSON Root
+instance ToJSON Root"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > joi 1`] = `
+"import Joi from 'joi';
+
+export const rootJoiSchema = Joi.object({
+  user_id: Joi.string().guid().required(),
+  display_name: Joi.string().required(),
+  bio: Joi.any().allow(null).required(),
+  website: Joi.any().allow(null).required(),
+  follower_count: Joi.number().required(),
+  is_verified: Joi.boolean().required(),
+});"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > kysely 1`] = `
+"// Required dependencies: npm install kysely
+
+import { Generated, ColumnType } from 'kysely';
+
+export interface RootTable {
+  id: Generated<string>;
+  user_id: string;
+  display_name: string;
+  bio: string;
+  website: string;
+  follower_count: number;
+  is_verified: boolean;
+  createdAt: Generated<string>;
+  updatedAt: ColumnType<string, string | undefined, string>;
+}
+
+export interface Database {
+  roots: RootTable;
+}"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > markdown 1`] = `
+"| user_id | display_name | bio | website | follower_count | is_verified |
+| --- | --- | --- | --- | --- | --- |
+| sample | sample | sample | sample | 0 | true |"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > mermaid 1`] = `
+"%% Mermaid ER Diagram — paste into https://mermaid.live
+
+erDiagram
+  Root {
+    string user_id
+    string display_name
+    string bio
+    string website
+    float follower_count
+    boolean is_verified
+  }
+  User {
+    string id
+  }
+  Root }o--|| User : "references""
+`;
+
+exports[`Tier2 generators — WITH_NULLS > mongoose 1`] = `
+"// Required dependencies: npm install mongoose
+
+import mongoose, { Schema, Document } from 'mongoose';
+
+const RootSchema = new Schema({
+    user_id: { type: String, required: true },
+    display_name: { type: String, required: true },
+    bio: { type: String, required: true },
+    website: { type: String, required: true },
+    follower_count: { type: Number, required: true },
+    is_verified: { type: Boolean, required: true },
+  }, { timestamps: true });
+
+export interface IRoot extends Document {}
+export const Root = mongoose.models.Root || mongoose.model<IRoot>('Root', RootSchema);"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > mysql 1`] = `
+"-- MySQL / MariaDB compatible DDL (Requires MySQL 5.7+)
+
+CREATE TABLE \`root\` (
+  \`id\` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  \`user_id\` CHAR(36) NOT NULL,
+  \`display_name\` VARCHAR(255) NOT NULL,
+  \`bio\` VARCHAR(255) NOT NULL,
+  \`website\` VARCHAR(255) NOT NULL,
+  \`follower_count\` BIGINT NOT NULL,
+  \`is_verified\` TINYINT(1) NOT NULL,
+  \`created_at\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  \`updated_at\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > openapi 1`] = `
+"# OpenAPI 3.0 specification (YAML format)
+
+openapi: 3.0.3
+info:
+  title: Root API
+  version: 1.0.0
+paths:
+  /roots:
+    get:
+      summary: List Roots
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Root'
+    post:
+      summary: Create Root
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Root'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    Root:
+      type: object
+      required:
+        - user_id
+        - display_name
+        - bio
+        - website
+        - follower_count
+        - is_verified
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        bio:
+          type: string
+          nullable: true
+        website:
+          type: string
+          nullable: true
+        follower_count:
+          type: number
+          format: double
+        is_verified:
+          type: boolean"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > pinia 1`] = `
+"import { defineStore } from 'pinia';
+
+export interface RootState {
+  user_id: string;
+  display_name: string;
+  bio: string;
+  website: string;
+  follower_count: number;
+  is_verified: boolean;
+}
+
+export const useRootStore = defineStore('root', {
+  state: (): RootState => ({
+    user_id: '',
+    display_name: '',
+    bio: '',
+    website: '',
+    follower_count: 0,
+    is_verified: false,
+  }),
+  actions: {
+    update(data: Partial<RootState>) {
+      Object.assign(this, data);
+    },
+    reset() {
+      this.$reset();
+    }
+  }
+});"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > postgres 1`] = `
+"-- PostgreSQL compatible DDL (Requires PostgreSQL 10+)
+
+CREATE TABLE "root" (
+  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  "user_id" UUID NOT NULL,
+  "display_name" VARCHAR(255) NOT NULL,
+  "bio" VARCHAR(255) NOT NULL,
+  "website" VARCHAR(255) NOT NULL,
+  "follower_count" BIGINT NOT NULL,
+  "is_verified" BOOLEAN NOT NULL,
+  "created_at" TIMESTAMP NOT NULL DEFAULT NOW(),
+  "updated_at" TIMESTAMP NOT NULL DEFAULT NOW()
+);"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > prisma 1`] = `
+"model Profile {
+  id String @id @default(uuid())
+  user_id String
+  display_name String
+  bio String
+  website String
+  follower_count Int
+  is_verified Boolean
+}"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > react-context 1`] = `
+"// Required dependencies: npm install react
+
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+
+export interface RootState {
+  user_id: string;
+  display_name: string;
+  bio: string;
+  website: string;
+  follower_count: number;
+  is_verified: boolean;
+}
+
+interface RootContextType {
+  state: RootState;
+  updateState: (updates: Partial<RootState>) => void;
+}
+
+const RootContext = createContext<RootContextType | undefined>(undefined);
+
+export const RootProvider = ({ children, initial }: { children: ReactNode; initial: RootState }) => {
+  const [state, setState] = useState<RootState>(initial);
+  const updateState = (updates: Partial<RootState>) => setState(prev => ({ ...prev, ...updates }));
+
+  return (
+    <RootContext.Provider value={{ state, updateState }}>
+      {children}
+    </RootContext.Provider>
+  );
+};
+
+export const useRootContext = () => {
+  const context = useContext(RootContext);
+  if (!context) throw new Error('useRootContext must be used within RootProvider');
+  return context;
+};"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > react-props 1`] = `
+"// Required dependencies: npm install react
+
+import React from 'react';
+
+export interface ComponentProps {
+  user_id: string;
+  display_name: string;
+  bio: string;
+  website: string;
+  follower_count: number;
+  is_verified: boolean;
+}
+
+export const Component: React.FC<ComponentProps> = (props) => {
+  return (
+    <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+      <h2 className="text-xl font-bold mb-2">Component</h2>
+      <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-400">
+        <li><strong>user_id:</strong> {String(props.user_id ?? '')}</li>
+        <li><strong>display_name:</strong> {String(props.display_name ?? '')}</li>
+        <li><strong>bio:</strong> {String(props.bio ?? '')}</li>
+        <li><strong>website:</strong> {String(props.website ?? '')}</li>
+        <li><strong>follower_count:</strong> {String(props.follower_count ?? '')}</li>
+        <li><strong>is_verified:</strong> {String(props.is_verified ?? '')}</li>
+      </ul>
+    </div>
+  );
+};"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > redux-slice 1`] = `
+"// Required dependencies: npm install @reduxjs/toolkit react-redux
+
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+
+export interface RootState {
+  user_id: string;
+  display_name: string;
+  bio: string;
+  website: string;
+  follower_count: number;
+  is_verified: boolean;
+}
+
+const initialState: RootState = {
+  user_id: '',
+  display_name: '',
+  bio: '',
+  website: '',
+  follower_count: 0,
+  is_verified: false,
+};
+
+export const rootSlice = createSlice({
+  name: 'root',
+  initialState,
+  reducers: {
+    setRoot: (state, action: PayloadAction<Partial<RootState>>) => {
+      return { ...state, ...action.payload };
+    },
+    resetRoot: () => initialState,
+  },
+});
+
+export const { setRoot, resetRoot } = rootSlice.actions;
+export default rootSlice.reducer;"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > scala 1`] = `
+"// Scala case class
+
+// Generated by TypeMorph
+case class Root(
+  user_id: String,
+  display_name: String,
+  bio: String,
+  website: String,
+  follower_count: Double,
+  is_verified: Boolean
+)"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > sequelize 1`] = `
+"// Required dependencies: npm install sequelize pg pg-hstore (or mysql2/sqlite3)
+
+import { DataTypes, Model } from 'sequelize';
+import sequelize from '../config/database';
+
+export class Root extends Model {}
+
+Root.init({
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
+  },
+  user_id: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  display_name: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  bio: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  website: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  follower_count: {
+    type: DataTypes.DOUBLE,
+    allowNull: false
+  },
+  is_verified: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false
+  },
+}, {
+  sequelize,
+  modelName: 'Root',
+  tableName: 'roots',
+  timestamps: true
+});"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > solid-props 1`] = `
+"// Required dependencies: npm install solid-js
+
+import { Component } from 'solid-js';
+
+export interface ComponentProps {
+  user_id: string;
+  display_name: string;
+  bio: string;
+  website: string;
+  follower_count: number;
+  is_verified: boolean;
+}
+
+export const Component: Component<ComponentProps> = (props) => {
+  return (
+    <div class="solid-card p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+      <h2 class="text-xl font-bold mb-2">Component</h2>
+      <ul class="text-sm space-y-1">
+        <li><strong>user_id:</strong> {String(props.user_id ?? '')}</li>
+        <li><strong>display_name:</strong> {String(props.display_name ?? '')}</li>
+        <li><strong>bio:</strong> {String(props.bio ?? '')}</li>
+        <li><strong>website:</strong> {String(props.website ?? '')}</li>
+        <li><strong>follower_count:</strong> {String(props.follower_count ?? '')}</li>
+        <li><strong>is_verified:</strong> {String(props.is_verified ?? '')}</li>
+      </ul>
+    </div>
+  );
+};"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > sqlite 1`] = `
+"-- SQLite compatible DDL schema
+
+CREATE TABLE IF NOT EXISTS "root" (
+  "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+  "user_id" UUID NOT NULL,
+  "display_name" VARCHAR(255) NOT NULL,
+  "bio" VARCHAR(255) NOT NULL,
+  "website" VARCHAR(255) NOT NULL,
+  "follower_count" INTEGER NOT NULL,
+  "is_verified" BOOLEAN NOT NULL,
+  "created_at" TEXT NOT NULL DEFAULT (datetime('now')),
+  "updated_at" TEXT NOT NULL DEFAULT (datetime('now'))
+);"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > superstruct 1`] = `
+"import * as s from 'superstruct';
+
+export const rootStruct = s.type({
+  user_id: s.string(),
+  display_name: s.string(),
+  bio: s.nullable(s.any()),
+  website: s.nullable(s.any()),
+  follower_count: s.number(),
+  is_verified: s.boolean(),
+});"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > svelte-props 1`] = `
+"// Svelte 3/4 TypeScript component props scaffold
+
+<script lang="ts">
+  export let user_id: string = '';
+  export let display_name: string = '';
+  export let bio: string = '';
+  export let website: string = '';
+  export let follower_count: number = 0;
+  export let is_verified: boolean = false;
+</script>
+
+<div class="svelte-card p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+  <h2 class="text-xl font-bold mb-2">Component</h2>
+  <ul class="text-sm space-y-1">
+    <li><strong>user_id:</strong> {user_id}</li>
+    <li><strong>display_name:</strong> {display_name}</li>
+    <li><strong>bio:</strong> {bio}</li>
+    <li><strong>website:</strong> {website}</li>
+    <li><strong>follower_count:</strong> {follower_count}</li>
+    <li><strong>is_verified:</strong> {is_verified}</li>
+  </ul>
+</div>"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > toml 1`] = `
+"# TOML configuration format
+
+[config]
+user_id = "sample_value"
+display_name = "sample_value"
+bio = "sample_value"
+website = "sample_value"
+follower_count = 0
+is_verified = false"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > typeorm 1`] = `
+"// Required dependencies: npm install typeorm reflect-metadata
+// Note: Enable emitDecoratorMetadata and experimentalDecorators in tsconfig.json
+
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+
+@Entity('roots')
+export class Root {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column()
+  user_id!: string;
+
+  @Column()
+  display_name!: string;
+
+  @Column({ nullable: true })
+  bio!: string | null;
+
+  @Column({ nullable: true })
+  website!: string | null;
+
+  @Column('double')
+  follower_count!: number;
+
+  @Column('boolean')
+  is_verified!: boolean;
+
+  @CreateDateColumn()
+  createdAt!: Date;
+
+  @UpdateDateColumn()
+  updatedAt!: Date;
+}"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > valibot 1`] = `
+"import * as v from 'valibot';
+
+export const rootValiSchema = v.object({
+  user_id: v.pipe(v.string(), v.uuid()),
+  display_name: v.string(),
+  bio: v.nullable(v.any()),
+  website: v.nullable(v.any()),
+  follower_count: v.number(),
+  is_verified: v.boolean(),
+});"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > vue-props 1`] = `
+"// Vue 3 <script setup lang="ts"> standard format
+
+<script setup lang="ts">
+defineProps<{
+  user_id: string;
+  display_name: string;
+  bio: string;
+  website: string;
+  follower_count: number;
+  is_verified: boolean;
+}>();
+</script>
+
+<template>
+  <div class="vue-card p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+    <h2 class="text-xl font-bold mb-2">Component</h2>
+    <ul class="text-sm space-y-1">
+      <li><strong>user_id:</strong> {{ user_id }}</li>
+      <li><strong>display_name:</strong> {{ display_name }}</li>
+      <li><strong>bio:</strong> {{ bio }}</li>
+      <li><strong>website:</strong> {{ website }}</li>
+      <li><strong>follower_count:</strong> {{ follower_count }}</li>
+      <li><strong>is_verified:</strong> {{ is_verified }}</li>
+    </ul>
+  </div>
+</template>"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > yaml 1`] = `
+"# YAML standard data format
+
+user_id: uuid-xxxx-xxxx
+display_name: sample_value
+bio: sample_value
+website: sample_value
+follower_count: 0
+is_verified: false"
+`;
+
+exports[`Tier2 generators — WITH_NULLS > yup 1`] = `
+"import * as yup from 'yup';
+
+export const rootYupSchema = yup.object({
+  user_id: yup.string().uuid().required(),
+  display_name: yup.string().required(),
+  bio: yup.mixed().nullable().required(),
+  website: yup.mixed().nullable().required(),
+  follower_count: yup.number().required(),
+  is_verified: yup.boolean().required(),
+});"
+`;
+
+exports[`edge cases > UUID/email/url フォーマット → Zodで .uuid() .email() .url() が出る 1`] = `
+"// Required dependencies: npm install zod
+
+import { z } from "zod";
+
+export const contactSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  website: z.string().url(),
+});
+export type Contact = z.infer<typeof contactSchema>;"
+`;
+
+exports[`edge cases > amount+currency の隣接コンテキスト補正 → amount が float になる 1`] = `
+"// Required dependencies: npm install typescript
+
+/**
+ * TypeMorph Generated TypeScript Interface
+ */
+export interface Payment {
+  amount: number;
+  currency: "USD";
+  note: string;
+}"
+`;
+
+exports[`edge cases > very large enum (7値以上) → enumにならずstringになる 1`] = `
+"// Required dependencies: npm install typescript
+
+/**
+ * TypeMorph Generated TypeScript Interface
+ */
+export type Item = ItemItem[];
+
+export interface ItemItem {
+  color: string;
+}"
+`;
+
+exports[`edge cases > プリミティブ値 (string) をルートに渡す 1`] = `
+"// Required dependencies: npm install typescript
+
+/**
+ * TypeMorph Generated TypeScript Interface
+ */"
+`;
+
+exports[`edge cases > 全フィールドnull 1`] = `
+"// Required dependencies: npm install typescript
+
+/**
+ * TypeMorph Generated TypeScript Interface
+ */
+export interface Root {
+  name: (any) | null;
+  age: (any) | null;
+  active: (any) | null;
+}"
+`;
+
+exports[`edge cases > 同じキーが異なる型を持つ配列 (union) 1`] = `
+"// Required dependencies: npm install typescript
+
+/**
+ * TypeMorph Generated TypeScript Interface
+ */
+export type Mixed = MixedItem[];
+
+export interface MixedItem {
+  id: number | string;
+  value: string | number;
+}"
+`;
+
+exports[`edge cases > 数値だけのフラット配列 1`] = `
+"// Required dependencies: npm install typescript
+
+/**
+ * TypeMorph Generated TypeScript Interface
+ */
+export type Root = number[];"
+`;
+
+exports[`edge cases > 深いネスト (5階層) 1`] = `
+"// Required dependencies: npm install typescript
+
+/**
+ * TypeMorph Generated TypeScript Interface
+ */
+export interface Deep {
+  a: DeepA;
+}
+
+export interface DeepA {
+  b: DeepAB;
+}
+
+export interface DeepAB {
+  c: DeepABC;
+}
+
+export interface DeepABC {
+  d: DeepABCD;
+}
+
+export interface DeepABCD {
+  e: DeepABCDE;
+}
+
+export interface DeepABCDE {
+  value: number;
+}"
+`;
+
+exports[`edge cases > 空オブジェクト → 全ターゲットでエラーにならない 1`] = `
+"// Required dependencies: npm install typescript
+
+/**
+ * TypeMorph Generated TypeScript Interface
+ */
+export interface Root {
+}"
+`;
+
+exports[`edge cases > 空配列 → 全ターゲットでエラーにならない 1`] = `
+"// Required dependencies: npm install typescript
+
+/**
+ * TypeMorph Generated TypeScript Interface
+ */
+export type Root = any[];"
+`;
+
+exports[`edge cases > 配列の中にnullが混じる 1`] = `
+"// Required dependencies: npm install typescript
+
+/**
+ * TypeMorph Generated TypeScript Interface
+ */
+export type Item = ItemItem[];
+
+export interface ItemItem {
+  id: number;
+  name: string;
+  extra?: (string) | null;
+}"
+`;

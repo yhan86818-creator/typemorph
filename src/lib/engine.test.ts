@@ -453,13 +453,10 @@ describe('TypeMorph Engine', () => {
       const mongoResult = runEngine(json, 'mongodb');
       expect(mongoResult).toContain('npm install mongoose');
 
-      // dynamodb → now has DEPENDENCY_COMMENTS entry
-      const dynamoResult = runEngine(json, 'dynamodb');
-      expect(dynamoResult).toContain('@aws-sdk/client-dynamodb');
-
-      // bigquery → now has DEPENDENCY_COMMENTS entry
-      const bqResult = runEngine(json, 'bigquery');
-      expect(bqResult).toContain('@google-cloud/bigquery');
+      // dynamodb / bigquery は純 JSON 出力 → コメントは付けない（付けると JSON.parse が壊れる）。
+      // 以前はコメントを出していたが、それが JSON を不正にするバグだった。
+      expect(() => JSON.parse(runEngine(json, 'dynamodb'))).not.toThrow();
+      expect(() => JSON.parse(runEngine(json, 'bigquery'))).not.toThrow();
 
       // r-lang → matchedKey normalized to 'r-lang', now has DEPENDENCY_COMMENTS entry
       const rResult = runEngine(json, 'r');

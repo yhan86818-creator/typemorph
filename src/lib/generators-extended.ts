@@ -118,7 +118,7 @@ export const mysqlGen = {
     for (const [k, v] of Object.entries(f)) {
       const nullable = v.optional ? ' NULL' : ' NOT NULL';
       const isId = k.toLowerCase() === 'id';
-      const autoInc = isId ? ' AUTO_INCREMENT' : '';
+      const autoInc = (isId && v.type === 'number') ? ' AUTO_INCREMENT' : '';
       const pk = isId ? ' PRIMARY KEY' : '';
       res += `  \`${toSnakeCase(k)}\` ${sqlType(v, 'mysql')}${nullable}${autoInc}${pk},\n`;
     }
@@ -927,7 +927,8 @@ export const typeormGen = {
       if (v.enumValues && v.enumValues.length) {
         const enumTypeStr = v.enumValues.map(e => `'${e}'`).join(' | ');
         typeStr = enumTypeStr;
-        const enumOpts: string[] = [`type: 'enum'`, `enum: [${enumTypeStr}]`];
+        const enumArrayStr = v.enumValues.map(e => `'${e}'`).join(', ');
+        const enumOpts: string[] = [`type: 'enum'`, `enum: [${enumArrayStr}]`];
         if (v.nullable) enumOpts.push('nullable: true');
         colDecorator = `@Column({\n    ${enumOpts.join(',\n    ')}\n  })`;
       } else if (v.nullable) {
@@ -1138,7 +1139,7 @@ export const joiGen = {
           }
           joiType = `Joi.array().items(${innerJoi})`;
         } else if (v.type === 'union' && v.unionTypes) {
-          joiType = `Joi.alternatives().try(${v.unionTypes.map(ut => `Joi.valid(${typeof ut === 'string' ? `"${ut}"` : ut})`).join(', ')})`;
+          joiType = `Joi.alternatives().try(${v.unionTypes.map(ut => `Joi.${ut}()`).join(', ')})`;
         } else if (v.type === 'string' && v.enumValues) {
           joiType = `Joi.string().valid(${v.enumValues.map(ev => `"${ev}"`).join(', ')})`;
         } else if (v.type === 'string') {
@@ -1192,7 +1193,7 @@ export const valibotGen = {
           }
           valiType = `v.array(${innerVali})`;
         } else if (v.type === 'union' && v.unionTypes) {
-          valiType = `v.union([${v.unionTypes.map(ut => typeof ut === 'string' ? `v.literal("${ut}")` : `v.literal(${ut})`).join(', ')}])`;
+          valiType = `v.union([${v.unionTypes.map(ut => `v.${ut}()`).join(', ')}])`;
         } else if (v.type === 'string' && v.enumValues) {
           valiType = `v.picklist([${v.enumValues.map(ev => `"${ev}"`).join(', ')}])`;
         } else if (v.type === 'string') {
@@ -1252,7 +1253,7 @@ export const superstructGen = {
           }
           structType = `s.array(${innerStruct})`;
         } else if (v.type === 'union' && v.unionTypes) {
-          structType = `s.union([${v.unionTypes.map(ut => typeof ut === 'string' ? `s.literal("${ut}")` : `s.literal(${ut})`).join(', ')}])`;
+          structType = `s.union([${v.unionTypes.map(ut => `s.${ut}()`).join(', ')}])`;
         } else if (v.type === 'string' && v.enumValues) {
           structType = `s.enums([${v.enumValues.map(ev => `"${ev}"`).join(', ')}])`;
         } else {
@@ -1384,16 +1385,27 @@ export const piniaStoreGen = {
     if (!Object.keys(f).length) return '';
     const storeName = toPascalCase(name);
     const snakeStore = toSnakeCase(name);
+    const tsType = (v: any) =>
+      v.type === 'number' ? 'number'
+      : v.type === 'boolean' ? 'boolean'
+      : v.type === 'array' ? 'any[]'
+      : v.type === 'object' ? 'Record<string, any>'
+      : 'string';
     let res = `import { defineStore } from 'pinia';\n\n`;
+    res += `export interface ${storeName}State {\n`;
+    for (const [k, v] of Object.entries(f)) {
+      res += `  ${k}: ${tsType(v)};\n`;
+    }
+    res += `}\n\n`;
     res += `export const use${storeName}Store = defineStore('${snakeStore}', {\n`;
-    res += `  state: () => ({\n`;
+    res += `  state: (): ${storeName}State => ({\n`;
     for (const [k, v] of Object.entries(f)) {
       let dVal = `''`;
       if (v.type === 'number') dVal = '0';
       else if (v.type === 'boolean') dVal = 'false';
       else if (v.type === 'object') dVal = '{}';
       else if (v.type === 'array') dVal = '[]';
-      res += `    ${k}: ${dVal} as ${v.type === 'number' ? 'number' : v.type === 'boolean' ? 'boolean' : v.type === 'array' ? 'any[]' : v.type === 'object' ? 'Record<string, any>' : 'string'},\n`;
+      res += `    ${k}: ${dVal},\n`;
     }
     res += `  }),\n`;
     res += `  actions: {\n`;

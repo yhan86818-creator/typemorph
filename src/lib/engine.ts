@@ -512,15 +512,16 @@ const DEPENDENCY_COMMENTS: Record<string, string> = {
 
   // Extended targets — previously missing entries
   'mongodb': '// Required dependencies: npm install mongoose\n\n',
-  'dynamodb': '// AWS SDK required: npm install @aws-sdk/client-dynamodb\n\n',
-  'bigquery': '// Required dependencies: npm install @google-cloud/bigquery\n\n',
-  'openapi': '// OpenAPI 3.0 specification (YAML format)\n\n',
-  'avro': '// Apache Avro schema format\n\n',
-  'mermaid': '// Mermaid ER Diagram — paste into https://mermaid.live\n\n',
-  'postman': '// Postman Collection v2.1 format\n\n',
+  // JSON 出力にはコメントを付けられないため prefix なし（//で始めると JSON.parse が失敗する）
+  'dynamodb': '',
+  'bigquery': '',
+  'openapi': '# OpenAPI 3.0 specification (YAML format)\n\n',
+  'avro': '',
+  'mermaid': '%% Mermaid ER Diagram — paste into https://mermaid.live\n\n',
+  'postman': '',
   'http': '// HTTP file format (JetBrains IDE / VS Code REST Client compatible)\n\n',
   'vscode': '// VS Code snippet format — paste into .vscode/snippets.json\n\n',
-  'curl': '// cURL command\n\n',
+  'curl': '# cURL command\n\n',
   'cobol': '* COBOL Copybook format\n\n',
   'scala': '// Scala case class\n\n',
   'solidity': '// SPDX-License-Identifier: MIT\n\n',
@@ -1173,8 +1174,16 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     } else if (s === 'java') {
       out = javaGen.generate(schema, rootName, options);
     } else if (s === 'python') {
-      const pfx = isOAComp ? '' : `from pydantic import BaseModel\n\n`;
-      out = pfx + pythonGen.generate(schema, rootName, options);
+      const body = pythonGen.generate(schema, rootName, options);
+      const typingNeeded: string[] = [];
+      if (/\bOptional\[/.test(body)) typingNeeded.push('Optional');
+      if (/\bList\[/.test(body)) typingNeeded.push('List');
+      if (/\bAny\b/.test(body)) typingNeeded.push('Any');
+      let imports = `from pydantic import BaseModel\n`;
+      if (typingNeeded.length) imports += `from typing import ${typingNeeded.join(', ')}\n`;
+      if (/:\s*datetime\b/.test(body)) imports += `from datetime import datetime\n`;
+      const pfx = isOAComp ? '' : `${imports}\n`;
+      out = pfx + body;
     } else if (s === 'php') {
       const pfx = isOAComp ? '' : `<?php\n\n`;
       out = pfx + phpGen.generate(schema, rootName, options);
