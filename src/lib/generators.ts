@@ -466,11 +466,27 @@ export const phpGen = {
       const baseClass = getBaseClass(cls);
       const inheritance = baseClass ? ` extends ${baseClass}` : '';
 
-      res += `class ${cls.name}${inheritance} {\n`;
+      res += `class ${cls.name}${inheritance}\n{\n`;
+
+      // Constructor with promoted properties
+      res += `    public function __construct(\n`;
       for (const field of cls.fields) {
         const phpType = printPhpASTType(field.fieldType);
-        res += `    public ${phpType} $${field.name};\n`;
+        const nullable = (field.isOptional || field.isNullable) ? '?' : '';
+        const defaultVal = (field.isOptional || field.isNullable) ? ' = null' : '';
+        res += `        private ${nullable}${phpType} $${field.name}${defaultVal},\n`;
       }
+      res += `    ) {}\n`;
+
+      // Getters and setters
+      for (const field of cls.fields) {
+        const phpType = printPhpASTType(field.fieldType);
+        const nullable = (field.isOptional || field.isNullable) ? '?' : '';
+        const cap = field.name.charAt(0).toUpperCase() + field.name.slice(1);
+        res += `\n    public function get${cap}(): ${nullable}${phpType} { return $this->${field.name}; }\n`;
+        res += `    public function set${cap}(${nullable}${phpType} $${field.name}): void { $this->${field.name} = $${field.name}; }\n`;
+      }
+
       res += `}\n\n`;
     }
     return res;
@@ -583,7 +599,7 @@ const printGqlASTType = (type: any): string => {
     case 'classRef': return type.classRefName ?? 'String';
     case 'array':
       if (type.itemType) {
-        return `[${printGqlASTType(type.itemType)}]`;
+        return `[${printGqlASTType(type.itemType)}!]`;
       }
       return '[String]';
     case 'string': return 'String';
@@ -610,14 +626,16 @@ export const gqlGen = {
         if (baseCls) {
           for (const f of baseCls.fields) {
             const gqlType = printGqlASTType(f.fieldType);
-            res += `  ${f.name}: ${gqlType}\n`;
+            const bang = f.isOptional ? '' : '!';
+            res += `  ${f.name}: ${gqlType}${bang}\n`;
           }
         }
       }
 
       for (const field of cls.fields) {
         const gqlType = printGqlASTType(field.fieldType);
-        res += `  ${field.name}: ${gqlType}\n`;
+        const bang = field.isOptional ? '' : '!';
+        res += `  ${field.name}: ${gqlType}${bang}\n`;
       }
       res += `}\n\n`;
     }
@@ -1048,20 +1066,27 @@ const printCsharpASTType = (type: ASTType): string => {
 export const csharpGen = {
   generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
     const astClasses = schemaToAST(schema, toPascalCase(name), options);
-    let res = "";
+    let body = "";
+    let hasRequired = false;
 
     for (const cls of astClasses) {
       const baseClass = getBaseClass(cls);
       const inheritance = baseClass ? ` : ${baseClass}` : '';
-      res += `public class ${cls.name}${inheritance}\n{\n`;
+      body += `public class ${cls.name}${inheritance}\n{\n`;
       for (const field of cls.fields) {
         const csType = printCsharpASTType(field.fieldType);
-        const nullable = (field.isOptional || field.isNullable) ? '?' : '';
-        res += `    public ${csType}${nullable} ${toPascalCase(field.name)} { get; set; }\n`;
+        const isRequired = !field.isOptional && !field.isNullable;
+        const nullable = isRequired ? '' : '?';
+        if (isRequired) {
+          hasRequired = true;
+          body += `    [Required]\n`;
+        }
+        body += `    public ${csType}${nullable} ${toPascalCase(field.name)} { get; set; }\n`;
       }
-      res += `}\n\n`;
+      body += `}\n\n`;
     }
-    return res;
+    const header = hasRequired ? 'using System.ComponentModel.DataAnnotations;\n\n' : '';
+    return header + body;
   }
 };
 
@@ -1106,7 +1131,7 @@ const printKotlinASTType = (type: ASTType): string => {
     case 'union': return 'Any';
     case 'enum': return 'String';
     case 'date':
-    case 'datetime': return 'String // ISO 8601';
+    case 'datetime': return 'String';
     case 'classRef': return type.classRefName ?? 'Any';
     case 'array':
       return type.itemType ? `List<${printKotlinASTType(type.itemType)}>` : 'List<Any>';

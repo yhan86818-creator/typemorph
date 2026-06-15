@@ -2219,7 +2219,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
 
               {/* Schema Migration Impact Analyzer */}
               {!['json', 'ui', 'mock', 'doc', 'graph'].includes(outputTab) && schemaDiffs.length > 0 && (
-                <div className="bg-amber-50/60 dark:bg-amber-950/20 border-b border-amber-200 dark:border-amber-900/40 p-4 transition-all">
+                <div className="bg-[#0A0A0A] border-b border-[#1A1A1A] p-4 transition-all">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="flex items-center justify-center w-5 h-5 rounded-lg bg-amber-500/10 text-amber-500">
@@ -2241,9 +2241,9 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-3 max-h-36 overflow-y-auto no-scrollbar pb-1">
                     {schemaDiffs.map((diff, index) => {
                       const severityColors = {
-                        error: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-400',
-                        warning: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/50 text-amber-700 dark:text-amber-400',
-                        info: 'bg-slate-50 dark:bg-white/[0.04] border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300'
+                        error:   'bg-[#0F0A0A] border border-[#1E1E1E] border-t-[3px] border-t-red-500/80 text-red-400',
+                        warning: 'bg-[#0F0D08] border border-[#1E1E1E] border-t-[3px] border-t-amber-500/80 text-amber-400',
+                        info:    'bg-[#0F0F0F] border border-[#1E1E1E] border-t-[3px] border-t-blue-500/60 text-slate-300',
                       };
 
                       const severityBadges = {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { swiftGen, kotlinGen, zodGen, protoGen, gqlGen, tsGen, goGen, rustGen, jsonSchemaGen, mockGen, prismaGen, javaGen, uiGen, docGen } from './generators';
+import { swiftGen, kotlinGen, zodGen, protoGen, gqlGen, tsGen, goGen, rustGen, jsonSchemaGen, mockGen, prismaGen, javaGen, uiGen, docGen, csharpGen, phpGen } from './generators';
 import { inferSchema } from './engine';
 import { parseTypeScriptToSchema } from './parsers';
 
@@ -23,6 +23,17 @@ describe('generators', () => {
       expect(result).toContain('val id: Int');
       expect(result).toContain('val total: Double');
       expect(result).toContain('val updatedAt: Any?');
+    });
+
+    it('[regression] datetime fields should not embed comments that break comma-separated params', () => {
+      const json = { createdAt: '2024-01-01T00:00:00Z', name: 'Alice' };
+      const schema = inferSchema(json);
+      const result = kotlinGen.generate(schema, 'Root');
+      expect(result).not.toContain('//');
+      expect(result).toContain('val createdAt: String');
+      expect(result).toContain('val name: String');
+      const body = result.match(/data class Root\(([\s\S]*?)\)/)?.[1] ?? '';
+      expect(body).toMatch(/createdAt: String,/);
     });
   });
 
@@ -54,12 +65,27 @@ describe('generators', () => {
   });
 
   describe('gqlGen', () => {
-    it('should format types correctly (Int, Float)', () => {
+    it('should add ! to required fields (Int, Float)', () => {
       const json = { id: 42, total: 129.99 };
       const schema = inferSchema(json);
       const result = gqlGen.generate(schema, 'Root');
-      expect(result).toContain('id: Int');
-      expect(result).toContain('total: Float');
+      expect(result).toContain('id: Int!');
+      expect(result).toContain('total: Float!');
+    });
+
+    it('should not add ! to optional fields', () => {
+      const rows = [{ id: 1, nickname: 'Alice' }, { id: 2 }];
+      const schema = inferSchema(rows);
+      const result = gqlGen.generate(schema, 'Root');
+      expect(result).toContain('id: Int!');
+      expect(result).toMatch(/nickname: String[^!]/);
+    });
+
+    it('should add ! to array item types', () => {
+      const json = { tags: ['a', 'b'] };
+      const schema = inferSchema(json);
+      const result = gqlGen.generate(schema, 'Root');
+      expect(result).toContain('[String!]');
     });
   });
 
@@ -388,6 +414,43 @@ describe('generators', () => {
       const schema = inferSchema(samples);
       const result = javaGen.generate(schema, 'User');
       expect(result).toContain('@Nullable');
+    });
+  });
+
+  describe('phpGen', () => {
+    it('generates constructor with promoted properties and getters/setters', () => {
+      const out = phpGen.generate(inferSchema({ id: 1, name: 'Alice' }), 'User');
+      expect(out).toContain('public function __construct(');
+      expect(out).toContain('        private int $id,');
+      expect(out).toContain('        private string $name,');
+      expect(out).toContain('public function getId(): int');
+      expect(out).toContain('public function setId(int $id): void');
+      expect(out).toContain('public function getName(): string');
+    });
+
+    it('optional fields have ? and = null default', () => {
+      const rows = [{ id: 1, nickname: 'Alice' }, { id: 2 }];
+      const out = phpGen.generate(inferSchema(rows), 'User');
+      expect(out).toContain('        private ?string $nickname = null,');
+      expect(out).toContain('public function getNickname(): ?string');
+    });
+  });
+
+  describe('csharpGen', () => {
+    it('required fields get [Required] attribute and using statement', () => {
+      const schema = inferSchema({ id: 1, name: 'Alice' });
+      const out = csharpGen.generate(schema, 'User');
+      expect(out).toContain('using System.ComponentModel.DataAnnotations;');
+      expect(out).toContain('    [Required]');
+      expect(out).toContain('    public long Id { get; set; }');
+      expect(out).toContain('    public string Name { get; set; }');
+    });
+
+    it('optional fields have ? and no [Required]', () => {
+      const rows = [{ id: 1, nickname: 'Alice' }, { id: 2 }];
+      const out = csharpGen.generate(inferSchema(rows), 'User');
+      expect(out).toContain('    public string? Nickname { get; set; }');
+      expect(out.match(/\[Required\]/g)?.length ?? 0).toBe(1);
     });
   });
 

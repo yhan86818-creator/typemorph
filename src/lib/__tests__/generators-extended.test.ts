@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { avroGen, mongooseGen, openApiGen, valibotGen, yupGen, typeormGen, drizzleGen, bigQueryGen, dynamoDBGen, sqlToMermaidERGen, apiRouteGen, reactHookGen, envValidatorGen, haskellGen, mermaidERGen, piniaStoreGen } from '../generators-extended';
+import { avroGen, mongooseGen, openApiGen, valibotGen, yupGen, typeormGen, drizzleGen, kyselyGen, bigQueryGen, dynamoDBGen, sqlToMermaidERGen, apiRouteGen, reactHookGen, envValidatorGen, haskellGen, mermaidERGen, piniaStoreGen, sveltePropsGen, djangoGen } from '../generators-extended';
 import { mockGen } from '../generators';
 import { inferSchema } from '../engine';
 import { Schema } from '../types';
@@ -181,6 +181,39 @@ describe('generators-extended', () => {
       // Should not have multiple 'id' or 'createdAt' declarations
       expect((drizzleOut.match(/id:/g) || []).length).toBe(1);
       expect((drizzleOut.match(/createdAt:/g) || []).length).toBe(1);
+    });
+
+    it('[regression] nullable non-enum field uses @Column({ type, nullable: true }) not replace hack', () => {
+      const schema: Schema = {
+        type: 'object',
+        fields: { score: { type: 'number', nullable: true } },
+      };
+      const out = typeormGen.generate(schema, 'Result');
+      expect(out).toContain("@Column({ type: 'double', nullable: true })");
+      expect(out).not.toMatch(/@Column\('[^']+',\s*nullable/);
+    });
+
+    it('kyselyGen should generate sub-interfaces for nested objects and list them in Database', () => {
+      const json = { id: 1, name: 'Alice', address: { city: 'Tokyo', zip: '150' } };
+      const out = kyselyGen.generate(inferSchema(json), 'User');
+      expect(out).toContain('export interface Address');
+      expect(out).toContain('city: string');
+      expect(out).toContain('address: Address');
+      expect(out).toContain('address: Address');
+    });
+
+    it('[regression] drizzleGen should never produce a trailing comma before })', () => {
+      const cases = [
+        { id: 1, name: 'Alice' },
+        { id: 1, name: 'Alice', createdAt: '2024-01-01T00:00:00Z' },
+        { id: 1, name: 'Alice', updatedAt: '2024-01-01T00:00:00Z' },
+        { id: 1, name: 'Alice', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
+        { name: 'Alice' },
+      ];
+      for (const json of cases) {
+        const out = drizzleGen.generate(inferSchema(json), 'Root');
+        expect(out).not.toMatch(/,\s*\n\s*\}\)/);
+      }
     });
   });
 
@@ -431,6 +464,23 @@ describe('generators-extended', () => {
     });
   });
 
+  describe('sveltePropsGen', () => {
+    it('required fields have type-based defaults (no bare declarations)', () => {
+      const json = { name: 'Alice', age: 30, active: true };
+      const out = sveltePropsGen.generate(inferSchema(json), 'Card');
+      expect(out).toContain("export let name: string = '';");
+      expect(out).toContain('export let age: number = 0;');
+      expect(out).toContain('export let active: boolean = false;');
+    });
+
+    it('optional fields use undefined default', () => {
+      const rows = [{ id: 1, nickname: 'Alice' }, { id: 2 }];
+      const out = sveltePropsGen.generate(inferSchema(rows), 'Card');
+      expect(out).toContain('export let id: number = 0;');
+      expect(out).toContain('export let nickname: string | undefined = undefined;');
+    });
+  });
+
   describe('piniaStoreGen', () => {
     it('update action uses Partial<XxxState> — not ReturnType<typeof this.$state>', () => {
       const schema = inferSchema({ id: '1', name: 'Alice', email: 'a@b.com' });
@@ -552,6 +602,30 @@ describe('generators-extended', () => {
       expect(result).toContain('DeriveGeneric');
       expect(result).toContain('instance FromJSON');
       expect(result).toContain('instance ToJSON');
+    });
+  });
+
+  describe('djangoGen', () => {
+    it('[regression] optional number/json fields must not produce leading comma', () => {
+      const rows = [{ id: 1, score: 9.5, meta: {} }, { id: 2 }];
+      const out = djangoGen.generate(inferSchema(rows), 'Result');
+      expect(out).not.toMatch(/FloatField\(,/);
+      expect(out).not.toMatch(/JSONField\(,/);
+      expect(out).toContain('models.FloatField(null=True, blank=True)');
+      expect(out).toContain('models.JSONField(null=True, blank=True)');
+    });
+
+    it('optional boolean uses BooleanField(null=True, blank=True)', () => {
+      const rows = [{ active: true }, {}];
+      const out = djangoGen.generate(inferSchema(rows), 'Flag');
+      expect(out).toContain('models.BooleanField(null=True, blank=True)');
+    });
+
+    it('required fields have no null=True', () => {
+      const out = djangoGen.generate(inferSchema({ name: 'Alice', age: 30 }), 'User');
+      expect(out).toContain('models.CharField(max_length=255)');
+      expect(out).toContain('models.FloatField()');
+      expect(out).not.toContain('null=True');
     });
   });
 });

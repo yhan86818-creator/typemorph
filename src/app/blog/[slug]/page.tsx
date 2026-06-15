@@ -38,7 +38,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
   if (!post) return <div>Post not found</div>;
 
   return (
-    <main className="min-h-screen bg-[#F8FAFC] pt-32 pb-20">
+    <main className="min-h-screen bg-[#0A0A0A] pt-32 pb-20">
       <article className="max-w-3xl mx-auto px-6">
         <Link prefetch={false} href="/blog" className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 mb-12 hover:underline">
           <ArrowLeft size={16} /> Back to Blog
@@ -54,20 +54,21 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
         </nav>
         
         <header className="mb-12">
-          <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-slate-900 mb-6 leading-tight">
+          <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-white mb-6 leading-tight">
             {post.title}
           </h1>
           <div className="flex items-center gap-6 text-sm text-slate-500 font-bold uppercase tracking-wider">
-            <span className="flex items-center gap-2"><Calendar size={16} /> {post.date}</span>
-            <span className="flex items-center gap-2"><User size={16} /> {post.author}</span>
+            <span className="flex items-center gap-2 text-slate-400"><Calendar size={16} /> {post.date}</span>
+            <span className="flex items-center gap-2 text-slate-400"><User size={16} /> {post.author}</span>
           </div>
         </header>
 
-        <div 
-          className="prose prose-slate lg:prose-xl max-w-none 
-          prose-headings:font-black prose-headings:tracking-tight prose-headings:text-slate-900
-          prose-p:text-slate-600 prose-p:leading-relaxed
-          prose-strong:text-slate-900"
+        <div
+          className="prose prose-invert lg:prose-xl max-w-none
+          prose-headings:font-black prose-headings:tracking-tight prose-headings:text-white
+          prose-p:text-slate-300 prose-p:leading-relaxed
+          prose-strong:text-white prose-a:text-blue-400 prose-code:text-blue-300
+          prose-pre:bg-[#111111] prose-pre:border prose-pre:border-slate-800"
           dangerouslySetInnerHTML={{ __html: post.content || '' }}
         />
         

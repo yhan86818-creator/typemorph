@@ -57,6 +57,11 @@ export default function GlobalFooter() {
               <li><Link prefetch={false} href="/terms/" className="hover:text-slate-900 dark:hover:text-white transition-colors">Terms of Service</Link></li>
               <li><Link prefetch={false} href="/converters" className="hover:text-slate-900 dark:hover:text-white transition-colors">All Converters Directory</Link></li>
             </ul>
+            <h4 className="font-black text-xs uppercase tracking-[0.2em] text-slate-400 mt-8 mb-4">Compare</h4>
+            <ul className="space-y-3 text-sm font-bold text-slate-600 dark:text-slate-400">
+              <li><Link prefetch={false} href="/alternatives/transform-tools" className="hover:text-slate-900 dark:hover:text-white transition-colors">vs transform.tools</Link></li>
+              <li><Link prefetch={false} href="/alternatives/quicktype" className="hover:text-slate-900 dark:hover:text-white transition-colors">vs quicktype</Link></li>
+            </ul>
           </div>
         </div>
         <div className="pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">

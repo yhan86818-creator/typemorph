@@ -207,9 +207,9 @@ export function SmartDiffView({ isDark, initialContent }: { isDark: boolean; ini
   };
 
   const severityBg = (s: SchemaDiff['severity']) => {
-    if (s === 'error') return 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800/50';
-    if (s === 'warning') return 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/50';
-    return 'bg-slate-50 dark:bg-white/[0.04] border-slate-200 dark:border-white/[0.08]';
+    if (s === 'error') return 'bg-[#0F0A0A] border-[#1E1E1E] border-l-[3px] border-l-red-500/80';
+    if (s === 'warning') return 'bg-[#0F0D08] border-[#1E1E1E] border-l-[3px] border-l-amber-500/80';
+    return 'bg-[#0F0F0F] border-[#1E1E1E] border-l-[3px] border-l-slate-600/60';
   };
 
   const typeBadge = (t: SchemaDiff['type']) => {
@@ -373,31 +373,44 @@ export function SmartDiffView({ isDark, initialContent }: { isDark: boolean; ini
             </div>
 
             {/* 差分リスト */}
-            <div className="flex flex-col gap-1.5">
-              {[...breaking, ...warnings, ...infos].map((d, i) => (
-                <div
-                  key={i}
-                  className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border text-xs ${severityBg(d.severity)}`}
-                >
-                  {severityIcon(d.severity)}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                      <code className="font-mono text-[11px] text-slate-700 dark:text-[#D8D8D8]">
-                        {d.path || 'root'}
-                      </code>
-                      {typeBadge(d.type)}
-                      {d.oldType && d.newType && (
-                        <span className="font-mono text-[10px] text-slate-400">
-                          {d.oldType} → {d.newType}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-slate-500 dark:text-[#686868] leading-relaxed">
-                      {d.description}
+            <div className="flex flex-col gap-1">
+              {([
+                { items: breaking, label: 'Breaking Changes', labelCls: 'text-red-500/60' },
+                { items: warnings, label: 'Warnings',         labelCls: 'text-amber-500/60' },
+                { items: infos,    label: 'Info',             labelCls: 'text-slate-500/60' },
+              ] as const).map(({ items, label, labelCls }) =>
+                items.length > 0 && (
+                  <div key={label} className="flex flex-col gap-1">
+                    <p className={`text-[9px] font-mono uppercase tracking-widest px-1 pt-2 pb-0.5 ${labelCls}`}>
+                      {label}
                     </p>
+                    {items.map((d, i) => (
+                      <div
+                        key={i}
+                        className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border text-xs ${severityBg(d.severity)}`}
+                      >
+                        {severityIcon(d.severity)}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                            <code className="font-mono text-[11px] text-slate-700 dark:text-[#D8D8D8]">
+                              {d.path || 'root'}
+                            </code>
+                            {typeBadge(d.type)}
+                            {d.oldType && d.newType && (
+                              <span className="font-mono text-[10px] text-slate-400">
+                                {d.oldType} → {d.newType}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-slate-500 dark:text-[#686868] leading-relaxed">
+                            {d.description}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              ))}
+                )
+              )}
             </div>
           </>
         )}

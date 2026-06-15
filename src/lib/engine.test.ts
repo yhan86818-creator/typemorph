@@ -266,8 +266,8 @@ describe('TypeMorph Engine', () => {
 
       // 2. PHP Extends Styles
       const phpResult = runEngine(json, 'php');
-      expect(phpResult).toContain('class RootUser extends TimestampModel {');
-      expect(phpResult).toContain('public string $userName;');
+      expect(phpResult).toContain('class RootUser extends TimestampModel');
+      expect(phpResult).toContain('private string $userName,');
 
       // 3. Python BaseModel / Extends Styles
       const pyResult = runEngine(json, 'python');

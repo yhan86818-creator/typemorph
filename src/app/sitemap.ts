@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
 import { converters } from '@/data/converters';
+import { alternatives } from '@/data/alternatives';
 import { BASE_URL, INDEXED_EN_SLUGS, INDEXED_JP_SLUGS, resolveCanonicalSlug } from '@/lib/seo';
 
 export const dynamic = 'force-static';
@@ -81,5 +82,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...blogEntries,
     ...toolEntries,
     ...toolEntriesJP,
+    ...alternatives.map((a) => ({
+      url: `${baseUrl}/alternatives/${a.slug}`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.8,
+    })),
   ];
 }

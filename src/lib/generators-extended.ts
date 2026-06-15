@@ -826,17 +826,18 @@ export const mongooseGen = {
     const modelName = toPascalCase(name);
     const schemaName = `${modelName}Schema`;
 
-    const buildSchemaFields = (s: Schema, indent: string = '  '): string => {
+    const buildSchemaFields = (s: Schema, indent: string = '  ', depth = 0): string => {
+      if (depth > 4) return 'Schema.Types.Mixed';
       const f = getFields(s);
       let res = '{\n';
       for (const [k, v] of Object.entries(f)) {
         res += `${indent}  ${k}: `;
         if (v.type === 'object') {
-          res += buildSchemaFields(v, indent + '  ') + ',\n';
+          res += buildSchemaFields(v, indent + '  ', depth + 1) + ',\n';
         } else if (v.type === 'array') {
           const item = v.itemType;
           if (item?.type === 'object') {
-            res += `[${buildSchemaFields(item, indent + '  ')}],\n`;
+            res += `[${buildSchemaFields(item, indent + '  ', depth + 1)}],\n`;
           } else {
             let typeStr = 'String';
             if (item?.type === 'number') typeStr = 'Number';
@@ -916,34 +917,28 @@ export const typeormGen = {
     }
     for (const [k, v] of Object.entries(f)) {
       let typeStr = 'string';
-      let colDecorator = `@Column()`;
-      if (v.type === 'number') {
-        typeStr = 'number';
-        colDecorator = `@Column('double')`;
-      } else if (v.type === 'boolean') {
-        typeStr = 'boolean';
-        colDecorator = `@Column('boolean')`;
-      } else if (v.type === 'object' || v.type === 'array' || v.type === 'union') {
-        typeStr = 'any';
-        colDecorator = `@Column('jsonb')`;
-      } else if (v.format === 'datetime') {
-        typeStr = 'Date';
-        colDecorator = `@Column('timestamp')`;
-      }
-      
+      let colType: string | null = null;
+      if (v.type === 'number') { typeStr = 'number'; colType = 'double'; }
+      else if (v.type === 'boolean') { typeStr = 'boolean'; colType = 'boolean'; }
+      else if (v.type === 'object' || v.type === 'array' || v.type === 'union') { typeStr = 'any'; colType = 'jsonb'; }
+      else if (v.format === 'datetime') { typeStr = 'Date'; colType = 'timestamp'; }
+
+      let colDecorator: string;
       if (v.enumValues && v.enumValues.length) {
         const enumTypeStr = v.enumValues.map(e => `'${e}'`).join(' | ');
         typeStr = enumTypeStr;
-        // Build enum decorator options, include nullable if needed
-        const enumOpts = [`type: 'enum'`, `enum: [${enumTypeStr}]`];
+        const enumOpts: string[] = [`type: 'enum'`, `enum: [${enumTypeStr}]`];
         if (v.nullable) enumOpts.push('nullable: true');
         colDecorator = `@Column({\n    ${enumOpts.join(',\n    ')}\n  })`;
+      } else if (v.nullable) {
+        const opts: string[] = [];
+        if (colType) opts.push(`type: '${colType}'`);
+        opts.push('nullable: true');
+        colDecorator = `@Column({ ${opts.join(', ')} })`;
+      } else {
+        colDecorator = colType ? `@Column('${colType}')` : `@Column()`;
       }
-      
-      // For non-enum decorators, inject nullable option if needed
-      if (v.nullable && !(v.enumValues && v.enumValues.length)) {
-        colDecorator = colDecorator.replace(/\)$/, `, nullable: true)`);
-      }
+
       res += `  ${colDecorator}\n  ${k}${v.optional ? '?' : '!'}: ${typeStr}${v.nullable ? ' | null' : ''};\n\n`;
     }
     if (!f.createdAt && !f.created_at) {
@@ -965,8 +960,10 @@ export const drizzleGen = {
     const tableName = `${toSnakeCase(name)}s`;
     let res = `import { pgTable, uuid, varchar, doublePrecision, boolean, jsonb, timestamp } from 'drizzle-orm/pg-core';\n\n`;
     res += `export const ${toSnakeCase(name)} = pgTable('${tableName}', {\n`;
+
+    const lines: string[] = [];
     if (!f.id) {
-      res += `  id: uuid('id').defaultRandom().primaryKey(),\n`;
+      lines.push(`  id: uuid('id').defaultRandom().primaryKey()`);
     }
     for (const [k, v] of Object.entries(f)) {
       const dbCol = toSnakeCase(k);
@@ -976,21 +973,20 @@ export const drizzleGen = {
       else if (v.type === 'object' || v.type === 'array' || v.type === 'union') colBuilder = `jsonb('${dbCol}')`;
       else if (v.format === 'datetime') colBuilder = `timestamp('${dbCol}')`;
 
-      // Simplified Drizzle enum: normally declared outside, but inline string enums mapped here for simplicity
       if (v.enumValues && v.enumValues.length) {
         colBuilder = `varchar('${dbCol}', { enum: [${v.enumValues.map(e => `'${e}'`).join(', ')}] })`;
       }
 
       const notNull = (v.optional || v.nullable) ? '' : '.notNull()';
-      res += `  ${k}: ${colBuilder}${notNull},\n`;
+      lines.push(`  ${k}: ${colBuilder}${notNull}`);
     }
     if (!f.createdAt && !f.created_at) {
-      res += `  createdAt: timestamp('created_at').defaultNow().notNull(),\n`;
+      lines.push(`  createdAt: timestamp('created_at').defaultNow().notNull()`);
     }
     if (!f.updatedAt && !f.updated_at) {
-      res += `  updatedAt: timestamp('updated_at').defaultNow().notNull()\n`;
+      lines.push(`  updatedAt: timestamp('updated_at').defaultNow().notNull()`);
     }
-    res = res.replace(/,\n$/, '\n'); // Remove trailing comma if last element
+    res += lines.join(',\n') + '\n';
     res += `});\n`;
     return res;
   }
@@ -1002,30 +998,52 @@ export const kyselyGen = {
     const f = getFields(schema);
     if (!Object.keys(f).length) return '';
     const interfaceName = toPascalCase(name);
-    let res = `import { Generated, ColumnType } from 'kysely';\n\n`;
-    res += `export interface ${interfaceName}Table {\n`;
-    if (!f.id) {
-      res += `  id: Generated<string>;\n`;
-    }
-    for (const [k, v] of Object.entries(f)) {
-      let typeStr = 'string';
-      if (v.type === 'number') typeStr = 'number';
-      else if (v.type === 'boolean') typeStr = 'boolean';
-      else if (v.type === 'object' || v.type === 'array') typeStr = 'unknown';
-      else if (v.format === 'datetime') typeStr = 'Date | string';
 
+    const subInterfaces: string[] = [];
+    const dbEntries: string[] = [];
+
+    const kyselyType = (k: string, v: Schema): string => {
+      if (v.type === 'number') return 'number';
+      if (v.type === 'boolean') return 'boolean';
+      if (v.format === 'datetime') return 'Date | string';
+      if (v.type === 'object' && v.fields && Object.keys(v.fields).length) {
+        const subName = toPascalCase(k);
+        const subFields = Object.entries(v.fields)
+          .map(([sk, sv]) => `  ${sk}: ${kyselyType(sk, sv)};`)
+          .join('\n');
+        subInterfaces.push(`export interface ${subName} {\n${subFields}\n}`);
+        const pluralKey = toSnakeCase(k).endsWith('s') ? toSnakeCase(k) : `${toSnakeCase(k)}s`;
+        dbEntries.push(`  ${pluralKey}: ${subName};`);
+        return subName;
+      }
+      if (v.type === 'array' && v.itemType?.type === 'object' && v.itemType.fields) {
+        const subName = toPascalCase(k.replace(/s$/, ''));
+        const subFields = Object.entries(v.itemType.fields)
+          .map(([sk, sv]) => `  ${sk}: ${kyselyType(sk, sv)};`)
+          .join('\n');
+        subInterfaces.push(`export interface ${subName} {\n${subFields}\n}`);
+        dbEntries.push(`  ${toSnakeCase(k)}: ${subName};`);
+        return `${subName}[]`;
+      }
+      return 'string';
+    };
+
+    let res = `import { Generated, ColumnType } from 'kysely';\n\n`;
+    let tableBody = '';
+    if (!f.id) tableBody += `  id: Generated<string>;\n`;
+    for (const [k, v] of Object.entries(f)) {
+      const typeStr = kyselyType(k, v);
       const typeWithNull = v.optional ? `${typeStr} | null` : typeStr;
-      res += `  ${k}: ${typeWithNull};\n`;
+      tableBody += `  ${k}: ${typeWithNull};\n`;
     }
-    if (!f.createdAt && !f.created_at) {
-      res += `  createdAt: Generated<string>;\n`;
-    }
-    if (!f.updatedAt && !f.updated_at) {
-      res += `  updatedAt: ColumnType<string, string | undefined, string>;\n`;
-    }
-    res += `}\n\n`;
+    if (!f.createdAt && !f.created_at) tableBody += `  createdAt: Generated<string>;\n`;
+    if (!f.updatedAt && !f.updated_at) tableBody += `  updatedAt: ColumnType<string, string | undefined, string>;\n`;
+
+    if (subInterfaces.length) res += subInterfaces.join('\n\n') + '\n\n';
+    res += `export interface ${interfaceName}Table {\n${tableBody}}\n\n`;
     res += `export interface Database {\n`;
     res += `  ${toSnakeCase(name)}s: ${interfaceName}Table;\n`;
+    if (dbEntries.length) res += dbEntries.join('\n') + '\n';
     res += `}\n`;
     return res;
   }
@@ -1421,6 +1439,13 @@ export const sveltePropsGen = {
   generate: (schema: Schema, name: string = 'Component'): string => {
     const f = getFields(schema);
     if (!Object.keys(f).length) return '';
+    const defaultFor = (typeStr: string): string => {
+      if (typeStr === 'number') return '0';
+      if (typeStr === 'boolean') return 'false';
+      if (typeStr === 'Record<string, any>') return '{}';
+      if (typeStr === 'any[]') return '[]';
+      return "''";
+    };
     let res = `<script lang="ts">\n`;
     for (const [k, v] of Object.entries(f)) {
       let typeStr = 'string';
@@ -1428,7 +1453,10 @@ export const sveltePropsGen = {
       else if (v.type === 'boolean') typeStr = 'boolean';
       else if (v.type === 'object') typeStr = 'Record<string, any>';
       else if (v.type === 'array') typeStr = 'any[]';
-      res += `  export let ${k}: ${typeStr}${v.optional ? ' | undefined = undefined' : ''};\n`;
+      const decl = v.optional
+        ? `${typeStr} | undefined = undefined`
+        : `${typeStr} = ${defaultFor(typeStr)}`;
+      res += `  export let ${k}: ${decl};\n`;
     }
     res += `</script>\n\n`;
     res += `<div class="svelte-card p-4 rounded-xl border border-slate-200 dark:border-slate-800">\n`;
@@ -1770,12 +1798,19 @@ export const djangoGen = {
     res += `class ${className}(models.Model):\n`;
     for (const [k, v] of Object.entries(f)) {
       const snake = toSnakeCase(k);
-      const nullOpt = v.optional ? ', null=True, blank=True' : '';
-      let fieldStr = `models.CharField(max_length=255${nullOpt})`;
-      if (v.type === 'number') fieldStr = `models.FloatField(${nullOpt})`;
-      else if (v.type === 'boolean') fieldStr = `models.BooleanField(default=False)`;
-      else if (v.type === 'object' || v.type === 'array') fieldStr = `models.JSONField(${nullOpt})`;
-      else if (v.format === 'datetime') fieldStr = `models.DateTimeField(auto_now_add=True)`;
+      const nullKw = v.optional ? 'null=True, blank=True' : '';
+      let fieldStr: string;
+      if (v.type === 'number') {
+        fieldStr = v.optional ? `models.FloatField(null=True, blank=True)` : `models.FloatField()`;
+      } else if (v.type === 'boolean') {
+        fieldStr = v.optional ? `models.BooleanField(null=True, blank=True)` : `models.BooleanField(default=False)`;
+      } else if (v.type === 'object' || v.type === 'array') {
+        fieldStr = v.optional ? `models.JSONField(null=True, blank=True)` : `models.JSONField()`;
+      } else if (v.format === 'datetime') {
+        fieldStr = v.optional ? `models.DateTimeField(null=True, blank=True)` : `models.DateTimeField()`;
+      } else {
+        fieldStr = `models.CharField(max_length=255${nullKw ? `, ${nullKw}` : ''})`;
+      }
 
       res += `    ${snake} = ${fieldStr}\n`;
     }
