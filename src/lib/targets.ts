@@ -100,6 +100,9 @@ export const OUTPUT_TARGETS: Record<string, OutputTarget> = {
   arduino:         T('arduino', 'Arduino', 2, 'cpp'),
   c:               T('c', 'C Struct', 2, 'c'),
   cpp:             T('cpp', 'C++ Struct', 2, 'cpp'),
+  'mcp-tool':      T('mcp-tool', 'MCP Tool', 2, 'typescript'),
+  'openai-function': T('openai-function', 'OpenAI Function', 2, 'json'),
+  'vercel-ai-tool': T('vercel-ai-tool', 'Vercel AI Tool', 2, 'typescript'),
 };
 
 /**
@@ -184,6 +187,10 @@ const ALIASES: [RegExp, string][] = [
   [/swiftui|swift/, 'swift'],
   [/unity|csharp|c-sharp|\bcs\b/, 'csharp'],
   [/typescript|\bts\b/, 'typescript'],
+  // --- AI & LLM Tools ---
+  [/mcp-tool|\bmcp\b/, 'mcp-tool'],
+  [/openai-function|openai-func/, 'openai-function'],
+  [/vercel-ai-tool|vercel-ai/, 'vercel-ai-tool'],
 ];
 
 export function resolveSlugTarget(slug: string): OutputTarget | null {

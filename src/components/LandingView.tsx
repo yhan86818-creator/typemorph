@@ -440,7 +440,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
                 <span>Semantic Schema Diff</span>
               </h3>
               <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                Paste two versions of a schema side-by-side and get a compatibility score instantly. TypeMorph detects breaking changes (type changes, required-field additions), warnings (optional→required, format changes), and safe additions — across JSON, YAML, OpenAPI, and JSON Schema.
+                Paste two versions of a schema side-by-side and get a compatibility score instantly. TypeMorph detects breaking changes (type changes, optional→required, field removals), warnings (required→optional, format changes), and safe additions — across JSON, YAML, OpenAPI, and JSON Schema.
               </p>
               <ul className="space-y-3 font-semibold text-slate-600 dark:text-slate-300">
                 <li className="flex items-center gap-3 text-sm">

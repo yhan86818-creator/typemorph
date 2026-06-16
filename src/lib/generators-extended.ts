@@ -336,8 +336,8 @@ export const envValidatorGen = {
         const intPart = v.format === 'int' ? '.int()' : '';
         return `  ${k}: z.coerce.number()${intPart}`;
       }
-      if (v.format === 'url') return `  ${k}: z.string().url()`;
-      if (v.format === 'email') return `  ${k}: z.string().email()`;
+      if (v.format === 'url') return `  ${k}: z.url()`;
+      if (v.format === 'email') return `  ${k}: z.email()`;
       const optPart = v.optional ? '.optional()' : '';
       return `  ${k}: z.string()${optPart}`;
     };
@@ -1880,10 +1880,13 @@ export const apiRouteGen = {
       }
       if (v.type === 'boolean') return 'z.boolean()';
       if (v.type === 'object' || v.type === 'array' || v.type === 'union') return 'z.any()';
-      if (v.format === 'email' || kl.includes('email')) return 'z.string().email()';
-      if (v.format === 'uuid' || kl === 'id' || kl.endsWith('_id') || kl.endsWith('id')) return 'z.string().uuid()';
-      if (v.format === 'url' || kl.includes('url') || kl.includes('link') || kl.includes('website')) return 'z.string().url()';
+      if (v.format === 'email' || kl.includes('email')) return 'z.email()';
+      if (v.format === 'uuid' || k.endsWith('_id') || /Id$/.test(k) || /ID$/.test(k)) return 'z.uuid()';
+      if (v.format === 'url' || kl.includes('url') || kl.includes('link') || kl.includes('website')) return 'z.url()';
       if (v.format === 'datetime') return 'z.string().datetime()';
+      if (kl.includes('password') || kl.includes('passwd')) return 'z.string().min(8)';
+      if (kl.includes('slug')) return 'z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)';
+      if (kl.includes('phone') || kl.includes('tel')) return 'z.string().regex(/^\\+?[\\d\\s\\-\\.\\(\\)]{7,15}$/)';
       const longText = ['description', 'note', 'bio', 'comment', 'content', 'body', 'text', 'message', 'summary'].some(w => kl.includes(w));
       const hasTrim = kl.includes('name') || kl.includes('label') || kl.includes('title');
       if (hasTrim) return v.optional ? 'z.string().trim()' : 'z.string().min(1).trim()';
@@ -2315,5 +2318,128 @@ export const cppGen = {
     res += mainStruct;
 
     return res;
+  }
+};
+
+// ─── MCP Tool ─────────────────────────────────────────────────────────────────
+export const mcpToolGen = {
+  generate: (schema: Schema, name: string = 'Root'): string => {
+    const toolName = toCamelCase(name);
+    const f = getFields(schema);
+    const fields = Object.keys(f);
+
+    const fieldToZod = (k: string, v: Schema): string => {
+      const kl = k.toLowerCase();
+      if (v.type === 'number') return 'z.number()';
+      if (v.type === 'boolean') return 'z.boolean()';
+      if (v.type === 'object' || v.type === 'array' || v.type === 'union') return 'z.any()';
+      if (v.format === 'email' || kl.includes('email')) return 'z.email()';
+      if (v.format === 'uuid' || k.endsWith('_id') || /Id$/.test(k) || /ID$/.test(k)) return 'z.uuid()';
+      if (v.format === 'url' || kl.includes('url') || kl.includes('link') || kl.includes('website')) return 'z.url()';
+      if (v.format === 'datetime') return 'z.string().datetime()';
+      if (kl.includes('password') || kl.includes('passwd')) return 'z.string().min(8)';
+      return 'z.string()';
+    };
+
+    const params = fields.map(k =>
+      `    ${k}: ${fieldToZod(k, f[k])}.describe('${k}'),`
+    ).join('\n');
+    const destructure = fields.join(', ');
+
+    return `import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+
+const server = new McpServer({ name: "my-server", version: "1.0.0" });
+
+server.tool(
+  "${toolName}",
+  "Auto-generated MCP tool — replace with a meaningful description",
+  {
+${params}
+  },
+  async ({ ${destructure} }) => ({
+    content: [{ type: "text", text: JSON.stringify({ ${destructure} }) }]
+  })
+);
+
+export { server };`;
+  }
+};
+
+// ─── OpenAI Function Calling ──────────────────────────────────────────────────
+export const openAiFunctionGen = {
+  generate: (schema: Schema, name: string = 'Root'): string => {
+    const f = getFields(schema);
+    const fields = Object.keys(f);
+
+    const fieldToJsonSchema = (k: string, v: Schema): Record<string, unknown> => {
+      const kl = k.toLowerCase();
+      if (v.type === 'boolean') return { type: 'boolean' };
+      if (v.type === 'number') return v.format === 'int' ? { type: 'integer' } : { type: 'number' };
+      if (v.type === 'array') return { type: 'array', items: { type: 'string' } };
+      if (v.format === 'email' || kl.includes('email')) return { type: 'string', format: 'email' };
+      if (v.format === 'uuid' || k.endsWith('_id') || /Id$/.test(k) || /ID$/.test(k)) return { type: 'string', format: 'uuid' };
+      if (v.format === 'url' || kl.includes('url') || kl.includes('link')) return { type: 'string', format: 'uri' };
+      if (v.format === 'datetime') return { type: 'string', format: 'date-time' };
+      return { type: 'string' };
+    };
+
+    const properties: Record<string, unknown> = {};
+    const required: string[] = [];
+    for (const k of fields) {
+      properties[k] = fieldToJsonSchema(k, f[k]);
+      if (!f[k].optional && !f[k].nullable) required.push(k);
+    }
+
+    const fnName = toSnakeCase(name);
+    return JSON.stringify({
+      type: 'function',
+      function: {
+        name: fnName,
+        description: 'Auto-generated from JSON sample',
+        parameters: { type: 'object', properties, required },
+      },
+    }, null, 2);
+  }
+};
+
+// ─── Vercel AI SDK Tool ───────────────────────────────────────────────────────
+export const vercelAiToolGen = {
+  generate: (schema: Schema, name: string = 'Root'): string => {
+    const toolName = toCamelCase(name);
+    const f = getFields(schema);
+    const fields = Object.keys(f);
+
+    const fieldToZod = (k: string, v: Schema): string => {
+      const kl = k.toLowerCase();
+      if (v.type === 'number') return 'z.number()';
+      if (v.type === 'boolean') return 'z.boolean()';
+      if (v.type === 'object' || v.type === 'array' || v.type === 'union') return 'z.any()';
+      if (v.format === 'email' || kl.includes('email')) return 'z.email()';
+      if (v.format === 'uuid' || k.endsWith('_id') || /Id$/.test(k) || /ID$/.test(k)) return 'z.uuid()';
+      if (v.format === 'url' || kl.includes('url') || kl.includes('link') || kl.includes('website')) return 'z.url()';
+      if (v.format === 'datetime') return 'z.string().datetime()';
+      if (kl.includes('password') || kl.includes('passwd')) return 'z.string().min(8)';
+      return 'z.string()';
+    };
+
+    const optSuffix = (v: Schema) => (v.optional || v.nullable ? '.optional()' : '');
+    const params = fields.map(k =>
+      `    ${k}: ${fieldToZod(k, f[k])}${optSuffix(f[k])},`
+    ).join('\n');
+
+    return `import { tool } from "ai";
+import { z } from "zod";
+
+export const ${toolName}Tool = tool({
+  description: "Auto-generated from JSON sample",
+  parameters: z.object({
+${params}
+  }),
+  execute: async (params) => {
+    // implement your logic here
+    return params;
+  },
+});`;
   }
 };

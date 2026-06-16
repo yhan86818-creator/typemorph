@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { avroGen, mongooseGen, openApiGen, valibotGen, yupGen, typeormGen, drizzleGen, kyselyGen, bigQueryGen, dynamoDBGen, sqlToMermaidERGen, apiRouteGen, reactHookGen, envValidatorGen, haskellGen, mermaidERGen, piniaStoreGen, sveltePropsGen, djangoGen } from '../generators-extended';
+import { avroGen, mongooseGen, openApiGen, valibotGen, yupGen, typeormGen, drizzleGen, kyselyGen, bigQueryGen, dynamoDBGen, sqlToMermaidERGen, apiRouteGen, reactHookGen, envValidatorGen, haskellGen, mermaidERGen, piniaStoreGen, sveltePropsGen, djangoGen, mcpToolGen, openAiFunctionGen, vercelAiToolGen } from '../generators-extended';
 import { mockGen } from '../generators';
 import { inferSchema } from '../engine';
 import { Schema } from '../types';
@@ -376,14 +376,14 @@ describe('generators-extended', () => {
         user_id: '550e8400-e29b-41d4-a716-000000000001',
       });
       const result = apiRouteGen.generate(schema, 'Post');
-      expect(result).toContain('id: z.string().uuid()');
-      expect(result).toContain('user_id: z.string().uuid()');
+      expect(result).toContain('id: z.uuid()');
+      expect(result).toContain('user_id: z.uuid()');
     });
 
     it('applies .email() to email field', () => {
       const schema = inferSchema({ email: 'test@example.com' });
       const result = apiRouteGen.generate(schema, 'User');
-      expect(result).toContain('email: z.string().email()');
+      expect(result).toContain('email: z.email()');
     });
 
     it('applies .url() to url/link/website fields', () => {
@@ -391,8 +391,8 @@ describe('generators-extended', () => {
       if (schema.fields?.profile_url) schema.fields.profile_url.format = undefined;
       if (schema.fields?.website) schema.fields.website.format = undefined;
       const result = apiRouteGen.generate(schema, 'User');
-      expect(result).toContain('profile_url: z.string().url()');
-      expect(result).toContain('website: z.string().url()');
+      expect(result).toContain('profile_url: z.url()');
+      expect(result).toContain('website: z.url()');
     });
 
     it('applies .int().min(0).max(150) to age field', () => {
@@ -552,14 +552,14 @@ describe('generators-extended', () => {
       expect(result).toContain('DEBUG: z.enum(["true", "false"]).transform');
     });
 
-    it('generates z.string().url() for url fields', () => {
+    it('generates z.url() for url fields', () => {
       const result = envValidatorGen.generate(envSchema);
-      expect(result).toContain('DATABASE_URL: z.string().url()');
+      expect(result).toContain('DATABASE_URL: z.url()');
     });
 
-    it('generates z.string().email() for email fields', () => {
+    it('generates z.email() for email fields', () => {
       const result = envValidatorGen.generate(envSchema);
-      expect(result).toContain('ADMIN_EMAIL: z.string().email()');
+      expect(result).toContain('ADMIN_EMAIL: z.email()');
     });
 
     it('generates .optional() for optional fields', () => {
@@ -637,6 +637,101 @@ describe('generators-extended', () => {
       expect(out).toContain('models.CharField(max_length=255)');
       expect(out).toContain('models.FloatField()');
       expect(out).not.toContain('null=True');
+    });
+  });
+
+  describe('mcpToolGen', () => {
+    const schema = inferSchema({ name: 'Alice', age: 30, email: 'alice@example.com' });
+
+    it('wraps in server.tool()', () => {
+      const out = mcpToolGen.generate(schema, 'User');
+      expect(out).toContain('server.tool(');
+      expect(out).toContain('"user"');
+    });
+
+    it('adds .describe() to each field', () => {
+      const out = mcpToolGen.generate(schema, 'User');
+      expect(out).toContain('.describe(');
+    });
+
+    it('uses z.string() for string fields', () => {
+      const out = mcpToolGen.generate(schema, 'User');
+      expect(out).toContain('z.string()');
+    });
+
+    it('uses z.number() for number fields', () => {
+      const out = mcpToolGen.generate(schema, 'User');
+      expect(out).toContain('z.number()');
+    });
+
+    it('includes handler placeholder', () => {
+      const out = mcpToolGen.generate(schema, 'User');
+      expect(out).toContain('async ({');
+    });
+  });
+
+  describe('openAiFunctionGen', () => {
+    const schema = inferSchema({ title: 'Hello', count: 5.5, active: true });
+
+    it('produces valid JSON output', () => {
+      const out = openAiFunctionGen.generate(schema, 'Task');
+      expect(() => JSON.parse(out)).not.toThrow();
+    });
+
+    it('sets type to function', () => {
+      const out = openAiFunctionGen.generate(schema, 'Task');
+      const parsed = JSON.parse(out);
+      expect(parsed.type).toBe('function');
+    });
+
+    it('includes function name in snake_case', () => {
+      const out = openAiFunctionGen.generate(schema, 'MyTask');
+      const parsed = JSON.parse(out);
+      expect(parsed.function.name).toBe('my_task');
+    });
+
+    it('has properties for each field', () => {
+      const out = openAiFunctionGen.generate(schema, 'Task');
+      const parsed = JSON.parse(out);
+      const props = parsed.function.parameters.properties;
+      expect(props).toHaveProperty('title');
+      expect(props).toHaveProperty('count');
+      expect(props).toHaveProperty('active');
+    });
+
+    it('maps string/number/boolean to correct JSON Schema types', () => {
+      const out = openAiFunctionGen.generate(schema, 'Task');
+      const parsed = JSON.parse(out);
+      const props = parsed.function.parameters.properties;
+      expect(props.title.type).toBe('string');
+      expect(props.count.type).toBe('number');
+      expect(props.active.type).toBe('boolean');
+    });
+  });
+
+  describe('vercelAiToolGen', () => {
+    const schema = inferSchema({ query: 'search term', limit: 10 });
+
+    it('wraps in tool()', () => {
+      const out = vercelAiToolGen.generate(schema, 'Search');
+      expect(out).toContain('tool({');
+    });
+
+    it('includes z.object() parameters', () => {
+      const out = vercelAiToolGen.generate(schema, 'Search');
+      expect(out).toContain('z.object(');
+    });
+
+    it('has execute placeholder', () => {
+      const out = vercelAiToolGen.generate(schema, 'Search');
+      expect(out).toContain('execute:');
+      expect(out).toContain('async (params)');
+    });
+
+    it('includes string and number fields', () => {
+      const out = vercelAiToolGen.generate(schema, 'Search');
+      expect(out).toContain('z.string()');
+      expect(out).toContain('z.number()');
     });
   });
 });

@@ -268,7 +268,7 @@ export const parseSQLToZod = (sql: string) => {
     if (['BOOLEAN', 'BOOL', 'BIT'].includes(type)) zodType = 'z.boolean()';
     if (['DATE', 'DATETIME', 'TIMESTAMP', 'TIME'].includes(type)) zodType = 'z.string() /* datetime */';
     if (['JSON', 'JSONB'].includes(type)) zodType = 'z.any() /* json */';
-    if (type === 'UUID') zodType = 'z.string().uuid()';
+    if (type === 'UUID') zodType = 'z.uuid()';
 
     if (type === 'ENUM') {
       const enumMatch = trimmedLine.match(/ENUM\s*\(([^)]+)\)/i);

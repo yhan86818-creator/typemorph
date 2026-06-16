@@ -13,7 +13,8 @@ import {
   reactContextGen, reduxSliceGen, piniaStoreGen, vuePropsGen, sveltePropsGen,
   solidPropsGen, arduinoGen, cobolGen, clojureGen, elixirGen, elmGen,
   godotGen, haskellGen, rGen, scalaGen, solidityGen, djangoGen, railsGen,
-  apiRouteGen, reactHookGen, cGen, cppGen
+  apiRouteGen, reactHookGen, cGen, cppGen,
+  mcpToolGen, openAiFunctionGen, vercelAiToolGen
 } from './generators-extended';
 import { Schema, SchemaType } from './types';
 import { createHash } from 'crypto';
@@ -355,7 +356,7 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
 
       // キー名に基づいた format 推論辞書（値パターンマッチの前に適用）
       const floatKeyPattern = /price|amount|cost|fee|tax|rate|ratio|percent|score|weight|height|width|balance|salary|revenue/i;
-      const uuidKeyPattern = /^id$|_id$|^uuid$|^guid$|^token$/i;
+      const uuidKeyPattern = /_id$|^uuid$|^guid$/i;
       const urlKeyPattern = /url|uri|href|link|src|endpoint|avatar|thumbnail|image|photo/i;
       const emailKeyPattern = /email|mail/i;
 
@@ -529,6 +530,9 @@ const DEPENDENCY_COMMENTS: Record<string, string> = {
   'react-query': '// Required dependencies: npm install @tanstack/react-query\n\n',
   'api-route': '// Generated Next.js App Router API Route\n// Required: Next.js 13+ with App Router enabled\n\n',
   'nextjs-api': '// Generated Next.js App Router API Route\n// Required: Next.js 13+ with App Router enabled\n\n',
+  'mcp-tool': '// Required: npm install @modelcontextprotocol/sdk zod\n\n',
+  'openai-function': '',
+  'vercel-ai-tool': '// Required: npm install ai zod\n\n',
 };
 
 const cleanAndFormatCode = (code: string): string => {
@@ -1259,12 +1263,15 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     else if (s.includes('solidity')) out = solidityGen.generate(schema, 'Root');
     else if (s.includes('cpp') || s.includes('c++') || s.includes('cpp-struct') || s.includes('cpp-class')) out = cppGen.generate(schema, rootName);
     else if (s === 'c' || s.includes('c-struct') || s.includes('json-to-c')) out = cGen.generate(schema, rootName);
+    else if (s.includes('mcp-tool') || s.includes('mcp')) out = mcpToolGen.generate(schema, rootName);
+    else if (s.includes('openai-function') || s.includes('openai-func')) out = openAiFunctionGen.generate(schema, rootName);
+    else if (s.includes('vercel-ai-tool') || s.includes('vercel-ai')) out = vercelAiToolGen.generate(schema, rootName);
 
     // Whether the requested target matched a known generator branch above.
     // (Used to avoid mislabelling a *recognised* target that legitimately produced
     //  an empty string — e.g. an empty input — as "unsupported".)
     const KNOWN_TARGETS_EXACT = new Set(['typescript', 'ts', 'zod', 'go', 'golang', 'rust', 'java', 'python', 'php', 'sql', 'prisma', 'proto', 'protobuf', 'graphql', 'gql', 'json', 'r']);
-    const KNOWN_TARGET_SUBSTR = ['csv', 'sql-insert', 'mysql', 'postgres', 'sqlite', 'snowflake', 'mongodb', 'mongoose', 'ruby', 'rails', 'django', 'dart', 'flutter', 'swift', 'kotlin', 'csharp', 'c-sharp', 'openapi', 'jsonschema', 'yup', 'joi', 'valibot', 'react-props', 'vue-props', 'svelte-props', 'solid-props', 'react-context', 'react-query', 'api-route', 'nextjs-api', 'redux-slice', 'pinia', 'sequelize', 'typeorm', 'drizzle', 'kysely', 'superstruct', 'arduino', 'mock', 'ui', 'doc', 'avro', 'toml', 'yaml', 'env-validator', 'env', 'properties', 'markdown', 'asciidoc', 'latex', 'mermaid', 'bigquery', 'dynamodb', 'postman', 'http', 'vscode', 'curl', 'cobol', 'clojure', 'elixir', 'elm', 'godot', 'gdscript', 'haskell', 'r-lang', 'scala', 'solidity', 'cpp', 'c++', 'cpp-struct', 'cpp-class', 'c-struct', 'json-to-c'];
+    const KNOWN_TARGET_SUBSTR = ['csv', 'sql-insert', 'mysql', 'postgres', 'sqlite', 'snowflake', 'mongodb', 'mongoose', 'ruby', 'rails', 'django', 'dart', 'flutter', 'swift', 'kotlin', 'csharp', 'c-sharp', 'openapi', 'jsonschema', 'yup', 'joi', 'valibot', 'react-props', 'vue-props', 'svelte-props', 'solid-props', 'react-context', 'react-query', 'api-route', 'nextjs-api', 'redux-slice', 'pinia', 'sequelize', 'typeorm', 'drizzle', 'kysely', 'superstruct', 'arduino', 'mock', 'ui', 'doc', 'avro', 'toml', 'yaml', 'env-validator', 'env', 'properties', 'markdown', 'asciidoc', 'latex', 'mermaid', 'bigquery', 'dynamodb', 'postman', 'http', 'vscode', 'curl', 'cobol', 'clojure', 'elixir', 'elm', 'godot', 'gdscript', 'haskell', 'r-lang', 'scala', 'solidity', 'cpp', 'c++', 'cpp-struct', 'cpp-class', 'c-struct', 'json-to-c', 'mcp-tool', 'mcp', 'openai-function', 'openai-func', 'vercel-ai-tool', 'vercel-ai'];
     const targetMatched = KNOWN_TARGETS_EXACT.has(s) || KNOWN_TARGET_SUBSTR.some(k => s.includes(k));
 
     // Explicit JSON output when requested, otherwise surface unsupported targets.

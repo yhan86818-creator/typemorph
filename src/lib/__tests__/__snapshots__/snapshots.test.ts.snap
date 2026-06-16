@@ -226,9 +226,9 @@ exports[`Tier1 generators — BASIC input > zod 1`] = `
 import { z } from "zod";
 
 export const userSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   name: z.string().min(1).trim(),
-  email: z.string().email(),
+  email: z.email(),
   age: z.number().int().min(0).max(150),
   score: z.number().min(0).max(100),
   active: z.boolean(),
@@ -510,7 +510,7 @@ export type PostItemText = z.infer<typeof postItemTextSchema>;
 
 export const postItemImageSchema = z.object({
   type: z.literal("image"),
-  url: z.string().url(),
+  url: z.url(),
   width: z.number(),
   height: z.number(),
 });
@@ -518,7 +518,7 @@ export type PostItemImage = z.infer<typeof postItemImageSchema>;
 
 export const postItemVideoSchema = z.object({
   type: z.literal("video"),
-  url: z.string().url(),
+  url: z.url(),
   duration_sec: z.number(),
 });
 export type PostItemVideo = z.infer<typeof postItemVideoSchema>;
@@ -934,7 +934,7 @@ export const sharedOwnerAddressSchema = z.object({
 export type SharedOwnerAddress = z.infer<typeof sharedOwnerAddressSchema>;
 
 export const sharedOwnerSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().min(1),
   name: z.string().min(1).trim(),
   address: sharedOwnerAddressSchema.optional(),
   role: z.enum(["maintainer", "contributor"]).optional(),
@@ -1144,7 +1144,7 @@ exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > zod 1`] =
 import { z } from "zod";
 
 export const orderItemSchema = z.object({
-  order_id: z.string().uuid(),
+  order_id: z.uuid(),
   status: z.enum(["pending", "shipped", "delivered"]),
   amount: z.number().min(0),
   currency: z.enum(["USD", "JPY", "EUR"]),
@@ -1380,7 +1380,7 @@ exports[`Tier1 generators — WITH_NULLS (null/optional fields) > zod 1`] = `
 import { z } from "zod";
 
 export const profileSchema = z.object({
-  user_id: z.string().uuid(),
+  user_id: z.uuid(),
   display_name: z.string().min(1).trim(),
   bio: z.any().nullable(),
   website: z.any().nullable(),
@@ -3096,9 +3096,9 @@ exports[`edge cases > UUID/email/url フォーマット → Zodで .uuid() .emai
 import { z } from "zod";
 
 export const contactSchema = z.object({
-  id: z.string().uuid(),
-  email: z.string().email(),
-  website: z.string().url(),
+  id: z.uuid(),
+  email: z.email(),
+  website: z.url(),
 });
 export type Contact = z.infer<typeof contactSchema>;"
 `;

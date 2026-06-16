@@ -9,7 +9,150 @@ import { inferSchema, parseYAML } from '@/lib/engine';
 import { isOpenAPISpec, parseOpenAPIComponents } from '@/lib/openapi-parser';
 import { isJSONSchema, parseJSONSchema } from '@/lib/jsonschema-parser';
 import { tsGen, zodGen, prismaGen } from '@/lib/generators';
-import { apiRouteGen, reactHookGen } from '@/lib/generators-extended';
+
+const toCamel = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+const toPlural = (s: string) => s.toLowerCase() + 's';
+
+function buildApiRoute(name: string, zodOutput: string): string {
+  const schemaName = `${toCamel(name)}Schema`;
+  const plural = toPlural(name);
+  const schemaBlock = zodOutput
+    .split('\n')
+    .filter(line => !line.startsWith('export type '))
+    .join('\n')
+    .trim();
+
+  return `import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+
+// Route: /api/${plural}
+
+${schemaBlock}
+
+export async function GET(_request: NextRequest) {
+  try {
+    const items: z.infer<typeof ${schemaName}>[] = [];
+    // TODO: replace with your database query
+    return NextResponse.json(items);
+  } catch {
+    return NextResponse.json({ error: 'Failed to fetch ${plural}' }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const validated = ${schemaName}.parse(body);
+    // TODO: replace with your database insert
+    return NextResponse.json(validated, { status: 201 });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Failed to create ${name.toLowerCase()}' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const validated = ${schemaName}.parse(body);
+    // TODO: replace with your database update
+    return NextResponse.json(validated);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Failed to update ${name.toLowerCase()}' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+    // TODO: replace with your database delete
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json({ error: 'Failed to delete ${name.toLowerCase()}' }, { status: 500 });
+  }
+}`;
+}
+
+function buildReactHook(name: string, tsOutput: string): string {
+  const plural = toPlural(name);
+
+  return `import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+${tsOutput.trim()}
+
+const API_BASE = '/api/${plural}';
+
+export const use${name}List = () =>
+  useQuery<${name}[]>({
+    queryKey: ['${plural}'],
+    queryFn: async () => {
+      const res = await fetch(API_BASE);
+      if (!res.ok) throw new Error('Failed to fetch ${plural}');
+      return res.json();
+    },
+  });
+
+export const use${name}ById = (id: string) =>
+  useQuery<${name}>({
+    queryKey: ['${plural}', id],
+    queryFn: async () => {
+      const res = await fetch(\`\${API_BASE}/\${id}\`);
+      if (!res.ok) throw new Error('Failed to fetch ${name.toLowerCase()}');
+      return res.json();
+    },
+    enabled: !!id,
+  });
+
+export const use${name}Create = () => {
+  const queryClient = useQueryClient();
+  return useMutation<${name}, Error, Partial<${name}>>({
+    mutationFn: async (data) => {
+      const res = await fetch(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to create ${name.toLowerCase()}');
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['${plural}'] }),
+  });
+};
+
+export const use${name}Update = () => {
+  const queryClient = useQueryClient();
+  return useMutation<${name}, Error, { id: string } & Partial<${name}>>({
+    mutationFn: async ({ id, ...data }) => {
+      const res = await fetch(\`\${API_BASE}/\${id}\`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to update ${name.toLowerCase()}');
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['${plural}'] }),
+  });
+};
+
+export const use${name}Delete = () => {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: async (id) => {
+      const res = await fetch(\`\${API_BASE}/\${id}\`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete ${name.toLowerCase()}');
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['${plural}'] }),
+  });
+};`;
+}
 
 const TABS = [
   { id: 'types', label: 'Types', icon: <Type size={13} />, language: 'typescript' },
@@ -69,12 +212,14 @@ export function FullStackArchitectView({ isDark }: Props) {
         schema = inferSchema(parsed);
       }
 
+      const tsOutput = tsGen.generate(schema, name);
+      const zodOutput = zodGen.generate(schema, name, {});
       setOutput({
-        types: tsGen.generate(schema, name),
-        validation: zodGen.generate(schema, name),
+        types: tsOutput,
+        validation: zodOutput,
         db: prismaGen.generate(schema, name),
-        backend: apiRouteGen.generate(schema, name),
-        frontend: reactHookGen.generate(schema, name),
+        backend: buildApiRoute(name, zodOutput),
+        frontend: buildReactHook(name, tsOutput),
       });
     } catch (err: any) {
       setError('Invalid JSON: ' + (err?.message ?? 'Parse error'));

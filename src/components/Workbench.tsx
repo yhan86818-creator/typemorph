@@ -582,6 +582,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     exportDefault: false,
     optionalFields: false,
     useUUID: true,
+    zodMode: 'strict' as 'loose' | 'strict' | 'enterprise',
     sharedPrefix: 'Shared',
     disabledUnifications: [] as string[],
     customTypeNames: {} as Record<string, string>,
@@ -2065,10 +2066,26 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                     <input type="checkbox" checked={genSettings.optionalFields} onChange={e => setGenSettings(s => ({...s, optionalFields: e.target.checked}))} className="rounded text-slate-900 dark:text-white focus:ring-slate-900/20 dark:focus:ring-white/20" />
                     Make all fields optional
                   </label>
-                  <label className="flex items-center gap-2 text-xs font-bold dark:text-[#E8E8E8] cursor-pointer">
-                    <input type="checkbox" checked={genSettings.useUUID} onChange={e => setGenSettings(s => ({...s, useUUID: e.target.checked}))} className="rounded text-slate-900 dark:text-white focus:ring-slate-900/20 dark:focus:ring-white/20" />
-                    Infer UUIDs for `*id` (Zod)
-                  </label>
+                  {outputTab === 'zod' && (
+                    <div className="flex flex-col gap-1.5 mt-1">
+                      <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 tracking-wider">Zod Mode</span>
+                      <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 text-[10px] font-bold">
+                        {(['loose', 'strict', 'enterprise'] as const).map(m => (
+                          <button
+                            key={m}
+                            onClick={() => setGenSettings(s => ({...s, zodMode: m}))}
+                            className={`flex-1 py-1.5 capitalize transition-colors ${
+                              genSettings.zodMode === m
+                                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                            }`}
+                          >
+                            {m}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex flex-col gap-1 mt-2">
                     <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400">Shared Type Prefix</span>
@@ -2108,21 +2125,6 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                           {isVerifying ? <Loader2 size={12} className="animate-spin" /> : <Crown size={12} />}
                           <span>Activate Pro</span>
                         </button>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="border-t border-slate-200 dark:border-slate-800 my-3 pt-3">
-                    <h5 className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 mb-2 tracking-wider flex items-center gap-1.5">
-                      {IS_BETA ? "Beta Access Status" : "Subscription Status"}
-                    </h5>
-                    {IS_BETA ? (
-                      <div className="text-[10px] text-slate-700 dark:text-white font-bold px-2 py-1.5 bg-slate-100 dark:bg-white/10 rounded-lg border border-slate-200 dark:border-white/10">
-                        Full Access Unlocked for Beta
-                      </div>
-                    ) : (
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400">
-                        {isProLicensed ? "Your lifetime license is active." : "Free version with limited features."}
                       </div>
                     )}
                   </div>

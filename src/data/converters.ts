@@ -2108,5 +2108,26 @@ export const converters: Converter[] = [
   "title": "Convert SQL to Typescript Interface",
   "description": "Quickly transform SQL data into Typescript Interface format.",
   "h1": "SQL to Typescript Interface Converter"
-}
+},
+  {
+    category: "AI & LLM Tools",
+    slug: "json-to-mcp-tool",
+    title: "Convert JSON to MCP Tool Definition - Claude & Cursor Integration Guide",
+    description: "Transform JSON data structures into Model Context Protocol (MCP) server tool definitions. The definitive guide to building type-safe MCP tools for Claude, Cursor, and AI agents.",
+    h1: "JSON to MCP Tool: Build Type-Safe AI Agent Tools Instantly"
+  },
+  {
+    category: "AI & LLM Tools",
+    slug: "json-to-openai-function",
+    title: "Convert JSON to OpenAI Function Calling Schema - GPT Integration Guide",
+    description: "Transform JSON data into OpenAI function calling JSON Schema definitions. The definitive guide to structured outputs and reliable GPT-4 function integration.",
+    h1: "JSON to OpenAI Function: Generate Function Calling Schemas Instantly"
+  },
+  {
+    category: "AI & LLM Tools",
+    slug: "json-to-vercel-ai-tool",
+    title: "Convert JSON to Vercel AI SDK Tool Definition - Next.js AI Integration Guide",
+    description: "Transform JSON data structures into Vercel AI SDK tool() definitions with Zod validation. The definitive guide to building type-safe AI tools for Next.js applications.",
+    h1: "JSON to Vercel AI Tool: Generate Type-Safe AI SDK Tools Instantly"
+  }
 ];

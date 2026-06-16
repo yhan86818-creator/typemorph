@@ -212,16 +212,19 @@ export function SmartDiffView({ isDark, initialContent }: { isDark: boolean; ini
     return 'bg-[#0F0F0F] border-[#1E1E1E] border-l-[3px] border-l-slate-600/60';
   };
 
-  const typeBadge = (t: SchemaDiff['type']) => {
-    // 3 tiers by impact: breaking=red, caution=amber, neutral=slate
+  const typeBadge = (t: SchemaDiff['type'], severity: SchemaDiff['severity']) => {
+    const redCls   = 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400';
+    const amberCls = 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400';
+    const slateCls = 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300';
+    const severityCls = severity === 'error' ? redCls : severity === 'warning' ? amberCls : slateCls;
     const cls: Record<SchemaDiff['type'], string> = {
-      removed:          'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400',
-      type_changed:     'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400',
-      required_changed: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400',
-      enum_changed:     'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400',
-      nullable_changed: 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300',
-      format_changed:   'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300',
-      added:            'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300',
+      removed:          redCls,
+      type_changed:     redCls,
+      required_changed: severityCls,
+      enum_changed:     severityCls,
+      nullable_changed: slateCls,
+      format_changed:   slateCls,
+      added:            slateCls,
     };
     const label: Record<SchemaDiff['type'], string> = {
       removed: 'removed', added: 'added', type_changed: 'type',
@@ -395,7 +398,7 @@ export function SmartDiffView({ isDark, initialContent }: { isDark: boolean; ini
                             <code className="font-mono text-[11px] text-slate-700 dark:text-[#D8D8D8]">
                               {d.path || 'root'}
                             </code>
-                            {typeBadge(d.type)}
+                            {typeBadge(d.type, d.severity)}
                             {d.oldType && d.newType && (
                               <span className="font-mono text-[10px] text-slate-400">
                                 {d.oldType} → {d.newType}

@@ -42,8 +42,8 @@ describe('generators', () => {
       const json = { email: 'test@example.com', url: 'https://example.com' };
       const schema = inferSchema(json);
       const result = zodGen.generate(schema, 'Root');
-      expect(result).toContain('z.string().email()');
-      expect(result).toContain('z.string().url()');
+      expect(result).toContain('z.email()');
+      expect(result).toContain('z.url()');
     });
 
     it('should include type export', () => {
@@ -237,7 +237,7 @@ describe('generators', () => {
       const schema = inferSchema(json);
       if (schema.fields?.email) schema.fields.email.format = undefined;
       const result = zodGen.generate(schema, 'Root');
-      expect(result).toContain('z.string().email()');
+      expect(result).toContain('z.email()');
     });
 
     it('should add .url() for url field', () => {
@@ -245,7 +245,7 @@ describe('generators', () => {
       const schema = inferSchema(json);
       if (schema.fields?.website) schema.fields.website.format = undefined;
       const result = zodGen.generate(schema, 'Root');
-      expect(result).toContain('z.string().url()');
+      expect(result).toContain('z.url()');
     });
 
     it('should add .min(0).max(5) for rating field', () => {
@@ -322,11 +322,27 @@ describe('generators', () => {
     });
 
     it('should add .min(1) for required non-semantic string field', () => {
+      const json = { reference: 'REF-001' };
+      const schema = inferSchema(json);
+      if (schema.fields?.reference) schema.fields.reference.format = undefined;
+      const result = zodGen.generate(schema, 'Root');
+      expect(result).toContain('z.string().min(1)');
+    });
+
+    it('should add slug regex for slug field', () => {
       const json = { slug: 'my-post' };
       const schema = inferSchema(json);
       if (schema.fields?.slug) schema.fields.slug.format = undefined;
       const result = zodGen.generate(schema, 'Root');
-      expect(result).toContain('z.string().min(1)');
+      expect(result).toContain("z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)");
+    });
+
+    it('should add .min(8) for password field', () => {
+      const json = { password: 'secret123' };
+      const schema = inferSchema(json);
+      if (schema.fields?.password) schema.fields.password.format = undefined;
+      const result = zodGen.generate(schema, 'Root');
+      expect(result).toContain('z.string().min(8)');
     });
 
     it('should NOT add .min(1) for long-text fields like description', () => {
@@ -345,25 +361,25 @@ describe('generators', () => {
       // Required strings now also get .min(1) — assert no .uuid(), not exact z.string()
       const schema = inferSchema({ valid: 'some-label', grid: 'layout-3x3', bid: 'auction-item' });
       const result = zodGen.generate(schema, 'Root');
-      expect(result).not.toContain('valid: z.string().uuid()');
-      expect(result).not.toContain('grid: z.string().uuid()');
-      expect(result).not.toContain('bid: z.string().uuid()');
+      expect(result).not.toContain('valid: z.uuid()');
+      expect(result).not.toContain('grid: z.uuid()');
+      expect(result).not.toContain('bid: z.uuid()');
     });
 
     it('[bugfix] should still apply .uuid() to legitimate camelCase ID fields (userId, orderId, userID)', () => {
       // These are genuine ID fields and must keep .uuid() validation after the fix.
       const schema = inferSchema({ userId: 'not-a-uuid', orderId: 'not-a-uuid', userID: 'not-a-uuid' });
       const result = zodGen.generate(schema, 'Root');
-      expect(result).toContain('userId: z.string().uuid()');
-      expect(result).toContain('orderId: z.string().uuid()');
-      expect(result).toContain('userID: z.string().uuid()');
+      expect(result).toContain('userId: z.uuid()');
+      expect(result).toContain('orderId: z.uuid()');
+      expect(result).toContain('userID: z.uuid()');
     });
 
     it('[bugfix] should still apply .uuid() to snake_case _id fields (user_id, order_id)', () => {
       const schema = inferSchema({ user_id: 'not-a-uuid', order_id: 'not-a-uuid' });
       const result = zodGen.generate(schema, 'Root');
-      expect(result).toContain('user_id: z.string().uuid()');
-      expect(result).toContain('order_id: z.string().uuid()');
+      expect(result).toContain('user_id: z.uuid()');
+      expect(result).toContain('order_id: z.uuid()');
     });
   });
 

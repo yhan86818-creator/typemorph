@@ -171,8 +171,10 @@ export const optimizeAST = (
             if (targetClassName === cls.name || flattenedNames.has(targetClassName)) continue;
             
             const targetClass = optimized.find(c => c.name === targetClassName);
-            
-            if (targetClass) {
+
+            // Only flatten when the target has multiple fields OR has annotations (e.g. extends TimestampModel).
+            // This prevents cascading collapse of deeply-nested single-field objects.
+            if (targetClass && (targetClass.fields.length > 1 || (targetClass.annotations?.length ?? 0) > 0)) {
               // 親クラスのフィールドをターゲットクラスの内容で展開
               cls.fields = targetClass.fields.map(f => ({
                 ...f,

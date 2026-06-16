@@ -23,7 +23,7 @@ export interface QualityResult {
 
 // Fields that SHOULD have a format constraint when typed as string
 const SEMANTIC_STRING: RegExp =
-  /email|url|link|href|website|endpoint|uuid|guid|^id$|_id$|Id$|ID$|date|_at$|At$|time|timestamp|phone|tel|zip|postal|ip$|ip_|token|hash/i;
+  /email|url|link|href|website|endpoint|uuid|guid|^id$|_id$|Id$|ID$|date|_at$|At$|time|timestamp|phone|\btel\b|zip|postal|^ip$|ip_/i;
 
 // Legitimately free-text fields — no format constraint expected
 const FREE_TEXT: RegExp =
@@ -43,7 +43,8 @@ const FORMAT_KEYWORDS: Record<string, RegExp> = {
 };
 
 function isCamel(s: string): boolean {
-  return /^[a-z][a-zA-Z0-9]*$/.test(s) && s !== s.toUpperCase() && /[A-Z]/.test(s);
+  // Single lowercase words (id, name, email) are valid camelCase — don't require uppercase
+  return /^[a-z][a-zA-Z0-9]*$/.test(s) && s !== s.toUpperCase();
 }
 function isSnake(s: string): boolean {
   return /^[a-z][a-z0-9_]*$/.test(s) && s.includes('_');
@@ -188,7 +189,7 @@ export function analyzeQuality(schema: Schema): QualityResult {
 
   // 3. Naming consistency — -15pt for mixed camelCase/snake_case
   const style = dominantStyle(stats.nameCounts);
-  if (style === 'mixed' && stats.total >= 3) {
+  if (style === 'mixed' && stats.total >= 2) {
     score -= 15;
     issues.push({ severity: 'warning', message: 'Field names mix camelCase and snake_case — pick one style consistently' });
   }

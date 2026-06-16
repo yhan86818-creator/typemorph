@@ -258,12 +258,12 @@ const printZodASTType = (type: ASTType, cyclicClassRefs: Set<string>, options: a
       }
       return 'z.array(z.any())';
     case 'string':
-      if (type.format === 'email') return 'z.string().email()';
-      if (type.format === 'url') return 'z.string().url()';
-      if (type.format === 'uuid') return 'z.string().uuid()';
+      if (type.format === 'email') return 'z.email()';
+      if (type.format === 'url') return 'z.url()';
+      if (type.format === 'uuid') return 'z.uuid()';
       return 'z.string()';
     case 'number':
-      return 'z.number()';
+      return options.zodMode === 'loose' ? 'z.coerce.number()' : 'z.number()';
     case 'boolean':
       return 'z.boolean()';
     default:
@@ -273,6 +273,11 @@ const printZodASTType = (type: ASTType, cyclicClassRefs: Set<string>, options: a
 
 export const zodGen = {
   generate: (schema: Schema, name: string = 'root', options: any = {}): string => {
+    const mode: 'loose' | 'strict' | 'enterprise' = options.zodMode ?? 'strict';
+    const isLoose = mode === 'loose';
+    const isEnterprise = mode === 'enterprise';
+    const modeOptions = { ...options, zodMode: mode };
+
     // Pre-compute discriminated union schemas
     const discriminatedMap = findDiscriminatedSchemas(schema, toPascalCase(name));
 
@@ -299,9 +304,9 @@ export const zodGen = {
               res += `  ${fk}: z.literal("${value}"),\n`;
             } else {
               const fvAst = convertToASTType(fv, variantPascal, fk);
-              let zType = printZodASTType(fvAst, cyclicClassRefs, options);
+              let zType = printZodASTType(fvAst, cyclicClassRefs, modeOptions);
               if (fv.nullable) zType += '.nullable()';
-              if (fv.optional) zType += '.optional()';
+              if (isLoose || fv.optional) zType += '.optional()';
               res += `  ${fk}: ${zType},\n`;
             }
           }
@@ -330,60 +335,72 @@ export const zodGen = {
       }
 
       for (const field of cls.fields) {
-        const isOpt = (options.optionalFields || field.isOptional) ? '.optional()' : '';
+        const isOpt = (options.optionalFields || field.isOptional || isLoose) ? '.optional()' : '';
         const isNull = field.isNullable ? '.nullable()' : '';
-        let zType = printZodASTType(field.fieldType, cyclicClassRefs, options);
+        let zType = printZodASTType(field.fieldType, cyclicClassRefs, modeOptions);
 
-        // Name-based validation: infer constraints from field names (email, url, uuid, age, price…)
+        // Name-based validation: skipped in loose mode
         const customKey = `${cls.name}.${field.name}`;
         const displayName = (options.customFieldNames as Record<string, string>)?.[customKey] ?? field.name;
         const k = displayName.toLowerCase();
-        if (field.fieldType.kind === 'number') {
-          if (k.includes('percent')) {
-            zType += '.min(0).max(100)';
-          } else if (k.includes('latitude') || k === 'lat' || k.endsWith('_lat')) {
-            zType += '.min(-90).max(90)';
-          } else if (k.includes('longitude') || k === 'lng' || k === 'lon' || k.endsWith('_lng') || k.endsWith('_lon')) {
-            zType += '.min(-180).max(180)';
-          } else if (k.includes('rating')) {
-            zType += '.min(0).max(5)';
-          } else if (k.includes('score')) {
-            zType += '.min(0).max(100)';
-          } else if (k.includes('age')) {
-            zType += '.int().min(0).max(150)';
-          } else if (k.includes('year')) {
-            zType += '.int().min(1900).max(2100)';
-          } else if (k.includes('month') && !k.includes('monthly')) {
-            zType += '.int().min(1).max(12)';
-          } else if (k === 'day' || k.endsWith('_day') || k.startsWith('day_')) {
-            zType += '.int().min(1).max(31)';
-          } else if (k.includes('hour')) {
-            zType += '.int().min(0).max(23)';
-          } else if (k.includes('minute') || k.includes('second')) {
-            zType += '.int().min(0).max(59)';
-          } else if (k.includes('count') || k.includes('quantity')) {
-            zType += '.int().min(0)';
-          } else if (['price', 'amount', 'cost', 'fee', 'rank'].some(w => k.includes(w))) {
-            zType += '.min(0)';
+        if (!isLoose) {
+          if (field.fieldType.kind === 'number') {
+            if (k.includes('percent')) {
+              zType += '.min(0).max(100)';
+            } else if (k.includes('latitude') || k === 'lat' || k.endsWith('_lat')) {
+              zType += '.min(-90).max(90)';
+            } else if (k.includes('longitude') || k === 'lng' || k === 'lon' || k.endsWith('_lng') || k.endsWith('_lon')) {
+              zType += '.min(-180).max(180)';
+            } else if (k.includes('rating')) {
+              zType += '.min(0).max(5)';
+            } else if (k.includes('score')) {
+              zType += '.min(0).max(100)';
+            } else if (k.includes('age')) {
+              zType += '.int().min(0).max(150)';
+            } else if (k.includes('year')) {
+              zType += '.int().min(1900).max(2100)';
+            } else if (k.includes('month') && !k.includes('monthly')) {
+              zType += '.int().min(1).max(12)';
+            } else if (k === 'day' || k.endsWith('_day') || k.startsWith('day_')) {
+              zType += '.int().min(1).max(31)';
+            } else if (k.includes('hour')) {
+              zType += '.int().min(0).max(23)';
+            } else if (k.includes('minute') || k.includes('second')) {
+              zType += '.int().min(0).max(59)';
+            } else if (k.includes('count') || k.includes('quantity')) {
+              zType += '.int().min(0)';
+            } else if (['price', 'amount', 'cost', 'fee', 'rank'].some(w => k.includes(w))) {
+              zType += '.min(0)';
+            }
           }
-        }
-        if (field.fieldType.kind === 'string' && !field.fieldType.format) {
-          if (k.includes('email')) zType = 'z.string().email()';
-          else if (k.includes('url') || k.includes('link') || k.includes('website')) zType = 'z.string().url()';
-          else if (k.includes('uuid') || k === 'id' || k.endsWith('_id') || /Id$/.test(displayName) || /ID$/.test(displayName)) zType = 'z.string().uuid()';
-          else if (k.includes('phone') || k.includes('tel')) zType = 'z.string().regex(/^\\+?[\\d\\s\\-\\.\\(\\)]{7,15}$/)';
-          else {
-            const hasTrim = k.includes('name') || k.includes('label') || k.includes('title');
-            const isRequired = !field.isOptional && !options.optionalFields;
-            const longText = ['description', 'note', 'bio', 'comment', 'content', 'body', 'text', 'message', 'summary', 'detail', 'info', 'about', 'remark'].some(w => k.includes(w));
-            if (hasTrim) zType = isRequired ? 'z.string().min(1).trim()' : 'z.string().trim()';
-            else if (isRequired && !longText) zType = 'z.string().min(1)';
+          if (field.fieldType.kind === 'string' && !field.fieldType.format) {
+            if (k.includes('email')) zType = 'z.email()';
+            else if (k.includes('url') || k.includes('link') || k.includes('website')) zType = 'z.url()';
+            else if (k.includes('uuid') || k.endsWith('_id') || /Id$/.test(displayName) || /ID$/.test(displayName)) zType = 'z.uuid()';
+            else if (k.includes('phone') || k.includes('tel')) zType = 'z.string().regex(/^\\+?[\\d\\s\\-\\.\\(\\)]{7,15}$/)';
+            else if (k.includes('password') || k.includes('passwd')) zType = 'z.string().min(8)';
+            else if (k.includes('slug')) zType = 'z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)';
+            else {
+              const hasTrim = k.includes('name') || k.includes('label') || k.includes('title');
+              const isRequired = !field.isOptional && !options.optionalFields;
+              const longText = ['description', 'note', 'bio', 'comment', 'content', 'body', 'text', 'message', 'summary', 'detail', 'info', 'about', 'remark'].some(w => k.includes(w));
+              if (hasTrim) zType = isRequired ? 'z.string().min(1).trim()' : 'z.string().trim()';
+              else if (isRequired && !longText) zType = 'z.string().min(1)';
+            }
           }
         }
 
-        res += `  ${displayName}: ${zType}${isNull}${isOpt},\n`;
+        let fieldExpr = `${zType}${isNull}${isOpt}`;
+        if (isEnterprise) {
+          const label = displayName.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim().toLowerCase();
+          fieldExpr += `.describe('${label}')`;
+        }
+
+        res += `  ${displayName}: ${fieldExpr},\n`;
       }
-      res += `});\n`;
+
+      const objSuffix = isLoose ? '.passthrough()' : isEnterprise ? '.strict()' : '';
+      res += `})${objSuffix};\n`;
       res += `export type ${cls.name} = z.infer<typeof ${camelName}Schema>;\n\n`;
     }
 
