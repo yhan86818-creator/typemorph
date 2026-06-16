@@ -19,6 +19,7 @@ import {
   parseOpenAPI,
   parseTypeScriptToSchema,
   parseEnvFile,
+  parseZodToSchema,
   getDecisions,
   type Decision
 } from '@/lib/engine';
@@ -376,6 +377,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
   const [history, setHistory] = useState<any[]>([]);
   const [library, setLibrary] = useState<LibraryEntry[]>([]);
   const [isEnvInput, setIsEnvInput] = useState(false);
+  const [isZodReverseMode, setIsZodReverseMode] = useState(false);
   const [envDiffInput, setEnvDiffInput] = useState('');
   const envDiffEntries = useMemo((): EnvDiffEntry[] | null => {
     if (!isEnvInput || !jsonData || !envDiffInput.trim()) return null;
@@ -583,6 +585,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     optionalFields: false,
     useUUID: true,
     zodMode: 'strict' as 'loose' | 'strict' | 'enterprise',
+    zodVersion: 'v4' as 'v3' | 'v4',
     sharedPrefix: 'Shared',
     disabledUnifications: [] as string[],
     customTypeNames: {} as Record<string, string>,
@@ -1089,6 +1092,22 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
           }
         } else {
           setIsEnvInput(false);
+        }
+        // Zod schema detection (Reverse Mode: Zod → JSON)
+        const isZodInput = !jsonObj && (
+          trimmed.includes('z.object(') || trimmed.includes('z.array(') ||
+          /(?:const|let|var|export)\s+\w+\s*=\s*z\./.test(trimmed)
+        );
+        const zodRes = isZodInput ? parseZodToSchema(trimmed) : null;
+        if (zodRes) {
+          jsonObj = zodRes;
+          success = true;
+          setIsZodReverseMode(true);
+          setOutputTab('mock');
+        } else if (isZodInput) {
+          setIsZodReverseMode(false);
+        } else {
+          setIsZodReverseMode(false);
         }
         const tsRes = (!jsonObj && (trimmed.includes('interface ') || trimmed.includes('type '))) ? parseTypeScriptToSchema(trimmed) : null;
         if (tsRes) {
@@ -2098,6 +2117,22 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                           </button>
                         ))}
                       </div>
+                      <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 tracking-wider mt-1.5">Zod Version</span>
+                      <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 text-[10px] font-bold">
+                        {(['v4', 'v3'] as const).map(v => (
+                          <button
+                            key={v}
+                            onClick={() => setGenSettings(s => ({...s, zodVersion: v}))}
+                            className={`flex-1 py-1.5 transition-colors ${
+                              genSettings.zodVersion === v
+                                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                            }`}
+                          >
+                            {v}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
 
@@ -2625,13 +2660,19 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                 </div>
               ) : (
                 <div className="flex-1 min-h-0 flex flex-col">
-                  {OUTPUT_TARGETS[outputTab]?.maturity === 'beta' && (
+                  {isZodReverseMode && (
+                    <div className="flex-none flex items-center gap-2 px-4 py-1.5 text-[11px] font-medium text-violet-700 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 border-b border-violet-200 dark:border-violet-500/20">
+                      <span className="font-black">⇄ REVERSE MODE</span>
+                      <span>Zod schema detected — generating JSON sample data from your schema.</span>
+                    </div>
+                  )}
+                  {OUTPUT_TARGETS[outputTab]?.maturity === 'beta' && !isZodReverseMode && (
                     <div className="flex-none flex items-center gap-2 px-4 py-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-b border-amber-200 dark:border-amber-500/20">
                       <span className="font-black">β BETA</span>
                       <span>{OUTPUT_TARGETS[outputTab].label} output is a scaffold — review types, constraints, and relations before production use.</span>
                     </div>
                   )}
-                  {OUTPUT_TARGETS[outputTab]?.maturity === 'experimental' && (
+                  {OUTPUT_TARGETS[outputTab]?.maturity === 'experimental' && !isZodReverseMode && (
                     <div className="flex-none flex items-center gap-2 px-4 py-1.5 text-[11px] font-medium text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border-b border-rose-200 dark:border-rose-500/20">
                       <span className="font-black">α EXPERIMENTAL</span>
                       <span>{OUTPUT_TARGETS[outputTab].label} output is a starting point only — structure and syntax may need significant adjustment.</span>

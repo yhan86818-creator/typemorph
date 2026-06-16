@@ -609,7 +609,7 @@ describe('generators-extended', () => {
     it('applies .datetime() to fields inferred as datetime format', () => {
       const schema = inferSchema({ created_at: '2024-01-01T00:00:00Z' });
       const result = apiRouteGen.generate(schema, 'Post');
-      expect(result).toContain('created_at: z.string().datetime()');
+      expect(result).toContain('created_at: z.iso.datetime()');
     });
 
     it('applies z.boolean() to boolean fields', () => {
@@ -924,6 +924,136 @@ describe('generators-extended', () => {
       const out = vercelAiToolGen.generate(schema, 'Search');
       expect(out).toContain('z.string()');
       expect(out).toContain('z.number()');
+    });
+  });
+
+  // ─── AI Tool Generator: advanced features ──────────────────────────────────
+
+  describe('openAiFunctionGen: nested objects', () => {
+    const schema = inferSchema({
+      user: { name: 'Alice', email: 'alice@example.com' },
+      count: 5,
+    });
+
+    it('expands nested objects into JSON Schema object type', () => {
+      const out = openAiFunctionGen.generate(schema, 'Task');
+      const parsed = JSON.parse(out);
+      const props = parsed.function.parameters.properties;
+      expect(props.user.type).toBe('object');
+      expect(props.user.properties).toBeDefined();
+      expect(props.user.properties.name.type).toBe('string');
+    });
+
+    it('sets email format inside nested object', () => {
+      const out = openAiFunctionGen.generate(schema, 'Task');
+      const parsed = JSON.parse(out);
+      const email = parsed.function.parameters.properties.user.properties.email;
+      expect(email.format).toBe('email');
+    });
+
+    it('nested object has required array', () => {
+      const out = openAiFunctionGen.generate(schema, 'Task');
+      const parsed = JSON.parse(out);
+      const user = parsed.function.parameters.properties.user;
+      expect(Array.isArray(user.required)).toBe(true);
+    });
+  });
+
+  describe('openAiFunctionGen: array item types', () => {
+    it('detects string array items', () => {
+      const out = openAiFunctionGen.generate(inferSchema({ tags: ['a', 'b'] }), 'Post');
+      const parsed = JSON.parse(out);
+      expect(parsed.function.parameters.properties.tags.items.type).toBe('string');
+    });
+
+    it('detects number array items', () => {
+      const out = openAiFunctionGen.generate(inferSchema({ scores: [1.5, 2.5] }), 'Game');
+      const parsed = JSON.parse(out);
+      expect(parsed.function.parameters.properties.scores.items.type).toBe('number');
+    });
+
+    it('detects object array items with nested properties', () => {
+      const out = openAiFunctionGen.generate(inferSchema({ items: [{ id: 1, name: 'x' }] }), 'Order');
+      const parsed = JSON.parse(out);
+      const items = parsed.function.parameters.properties.items;
+      expect(items.type).toBe('array');
+      expect(items.items.type).toBe('object');
+      expect(items.items.properties.name).toBeDefined();
+    });
+  });
+
+  describe('openAiFunctionGen: field descriptions', () => {
+    it('adds description to all top-level fields', () => {
+      const schema = inferSchema({ email: 'a@b.com', age: 25, isActive: true });
+      const out = openAiFunctionGen.generate(schema, 'User');
+      const parsed = JSON.parse(out);
+      const props = parsed.function.parameters.properties;
+      expect(typeof props.email.description).toBe('string');
+      expect(typeof props.age.description).toBe('string');
+      expect(typeof props.isActive.description).toBe('string');
+    });
+
+    it('describes email field as "Email address"', () => {
+      const schema = inferSchema({ email: 'a@b.com' });
+      const out = openAiFunctionGen.generate(schema, 'User');
+      const parsed = JSON.parse(out);
+      expect(parsed.function.parameters.properties.email.description).toBe('Email address');
+    });
+  });
+
+  describe('openAiFunctionGen: number constraints', () => {
+    it('adds minimum:0 to monetary amount fields', () => {
+      const schema = inferSchema({ price: 9.99, amount: 100 });
+      const out = openAiFunctionGen.generate(schema, 'Payment');
+      const parsed = JSON.parse(out);
+      expect(parsed.function.parameters.properties.price.minimum).toBe(0);
+      expect(parsed.function.parameters.properties.amount.minimum).toBe(0);
+    });
+
+    it('adds minimum:0 maximum:100 to score/rating fields', () => {
+      const schema = inferSchema({ score: 88.5 });
+      const out = openAiFunctionGen.generate(schema, 'Review');
+      const parsed = JSON.parse(out);
+      expect(parsed.function.parameters.properties.score.minimum).toBe(0);
+      expect(parsed.function.parameters.properties.score.maximum).toBe(100);
+    });
+
+    it('adds minimum:1 maximum:65535 to port field', () => {
+      const schema = inferSchema({ port: 8080 });
+      const out = openAiFunctionGen.generate(schema, 'Server');
+      const parsed = JSON.parse(out);
+      expect(parsed.function.parameters.properties.port.minimum).toBe(1);
+      expect(parsed.function.parameters.properties.port.maximum).toBe(65535);
+    });
+  });
+
+  describe('mcpToolGen: nested objects', () => {
+    it('renders nested object as z.object() instead of z.any()', () => {
+      const schema = inferSchema({ address: { city: 'Tokyo', country: 'JP' } });
+      const out = mcpToolGen.generate(schema, 'User');
+      expect(out).toContain('z.object(');
+      expect(out).toContain('city');
+    });
+
+    it('renders string arrays as z.array(z.string())', () => {
+      const schema = inferSchema({ tags: ['ts', 'react'] });
+      const out = mcpToolGen.generate(schema, 'Post');
+      expect(out).toContain('z.array(z.string())');
+    });
+  });
+
+  describe('vercelAiToolGen: nested objects', () => {
+    it('renders nested object as z.object() instead of z.any()', () => {
+      const schema = inferSchema({ address: { city: 'Tokyo', country: 'JP' } });
+      const out = vercelAiToolGen.generate(schema, 'User');
+      expect(out).toContain('z.object(');
+      expect(out).toContain('city');
+    });
+
+    it('renders string arrays as z.array(z.string())', () => {
+      const schema = inferSchema({ tags: ['ts', 'react'] });
+      const out = vercelAiToolGen.generate(schema, 'Post');
+      expect(out).toContain('z.array(z.string())');
     });
   });
 });

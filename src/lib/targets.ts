@@ -106,6 +106,8 @@ export const OUTPUT_TARGETS: Record<string, OutputTarget> = {
   'mcp-tool':      T('mcp-tool', 'MCP Tool', 2, 'typescript'),
   'openai-function': T('openai-function', 'OpenAI Function', 2, 'json'),
   'vercel-ai-tool': T('vercel-ai-tool', 'Vercel AI Tool', 2, 'typescript'),
+  'nestjs-dto':    T('nestjs-dto', 'NestJS DTO', 2, 'typescript'),
+  'effect-schema': T('effect-schema', 'Effect Schema', 2, 'typescript'),
 };
 
 /**
@@ -148,7 +150,9 @@ const ALIASES: [RegExp, string][] = [
   [/django/, 'django'],
   [/rails|ruby/, 'rails'],
   [/laravel|php/, 'php'],
-  [/spring-boot|nestjs-dto|java/, 'java'],
+  [/nestjs-dto|nestjs/, 'nestjs-dto'],
+  [/spring-boot|java/, 'java'],
+  [/effect-schema|effect/, 'effect-schema'],
   // --- documents / data formats ---
   [/openapi|swagger|asyncapi/, 'openapi'],
   [/postman/, 'postman'],

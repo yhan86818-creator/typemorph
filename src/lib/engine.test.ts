@@ -751,7 +751,7 @@ describe('TypeMorph Engine', () => {
       expect(out).toContain('public class Root');
       expect(out).toContain('private int id');
       expect(out).toContain('private String name');
-      expect(out).toContain('public int getId()');
+      expect(out).toContain('@Data'); // Lombok generates getters/setters
     });
 
     it('should bypass inferSchema when input is already an OpenAPI Schema', () => {

@@ -96,6 +96,10 @@ export const INDEXED_EN_SLUGS = new Set([
 
   // Niche Communities (Low Competition, High Rankability)
 
+  // NestJS & Effect (quality content added)
+  'json-to-nestjs-dto',
+  'json-to-effect-schema',
+
   // High-Demand Conversions (quality content added)
   'json-to-csharp-class',
   'yaml-to-json',

@@ -1385,6 +1385,21 @@ export const superstructGen = {
   }
 };
 
+const schemaToTsType = (s: Schema): string => {
+  if (s.type === 'boolean') return 'boolean';
+  if (s.type === 'number') return 'number';
+  if (s.type === 'object') return 'Record<string, unknown>';
+  if (s.type === 'array') {
+    const it = s.itemType;
+    if (!it) return 'unknown[]';
+    if (it.type === 'string') return 'string[]';
+    if (it.type === 'number') return 'number[]';
+    if (it.type === 'boolean') return 'boolean[]';
+    return 'Record<string, unknown>[]';
+  }
+  return 'string';
+};
+
 // ─── React Props ──────────────────────────────────────────────────────────────
 export const reactPropsGen = {
   generate: (schema: Schema, name: string = 'Component'): string => {
@@ -1394,12 +1409,7 @@ export const reactPropsGen = {
     let res = `import React from 'react';\n\n`;
     res += `export interface ${componentName}Props {\n`;
     for (const [k, v] of Object.entries(f)) {
-      let typeStr = 'string';
-      if (v.type === 'number') typeStr = 'number';
-      else if (v.type === 'boolean') typeStr = 'boolean';
-      else if (v.type === 'object') typeStr = 'Record<string, any>';
-      else if (v.type === 'array') typeStr = 'any[]';
-      res += `  ${k}${v.optional ? '?' : ''}: ${typeStr};\n`;
+      res += `  ${k}${v.optional ? '?' : ''}: ${schemaToTsType(v)};\n`;
     }
     res += `}\n\n`;
     res += `export const ${componentName}: React.FC<${componentName}Props> = (props) => {\n`;
@@ -1423,12 +1433,7 @@ export const reactContextGen = {
     let res = `import React, { createContext, useContext, useState, ReactNode } from 'react';\n\n`;
     res += `export interface ${contextName}State {\n`;
     for (const [k, v] of Object.entries(f)) {
-      let typeStr = 'string';
-      if (v.type === 'number') typeStr = 'number';
-      else if (v.type === 'boolean') typeStr = 'boolean';
-      else if (v.type === 'object') typeStr = 'Record<string, any>';
-      else if (v.type === 'array') typeStr = 'any[]';
-      res += `  ${k}${v.optional ? '?' : ''}: ${typeStr};\n`;
+      res += `  ${k}${v.optional ? '?' : ''}: ${schemaToTsType(v)};\n`;
     }
     res += `}\n\n`;
     res += `interface ${contextName}ContextType {\n  state: ${contextName}State;\n  updateState: (updates: Partial<${contextName}State>) => void;\n}\n\n`;
@@ -1452,12 +1457,7 @@ export const reduxSliceGen = {
     let res = `import { createSlice, PayloadAction } from '@reduxjs/toolkit';\n\n`;
     res += `export interface ${sliceName}State {\n`;
     for (const [k, v] of Object.entries(f)) {
-      let typeStr = 'string';
-      if (v.type === 'number') typeStr = 'number';
-      else if (v.type === 'boolean') typeStr = 'boolean';
-      else if (v.type === 'object') typeStr = 'Record<string, any>';
-      else if (v.type === 'array') typeStr = 'any[]';
-      res += `  ${k}${v.optional ? '?' : ''}: ${typeStr};\n`;
+      res += `  ${k}${v.optional ? '?' : ''}: ${schemaToTsType(v)};\n`;
     }
     res += `}\n\n`;
     res += `const initialState: ${sliceName}State = {\n`;
@@ -1988,7 +1988,7 @@ export const apiRouteGen = {
       if (v.format === 'email' || kl.includes('email')) return 'z.email()';
       if (v.format === 'uuid' || k.endsWith('_id') || /Id$/.test(k) || /ID$/.test(k)) return 'z.uuid()';
       if (v.format === 'url' || kl.includes('url') || kl.includes('link') || kl.includes('website')) return 'z.url()';
-      if (v.format === 'datetime') return 'z.string().datetime()';
+      if (v.format === 'datetime') return 'z.iso.datetime()';
       if (kl.includes('password') || kl.includes('passwd')) return 'z.string().min(8)';
       if (kl.includes('slug')) return 'z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)';
       if (kl.includes('phone') || kl.includes('tel')) return 'z.string().regex(/^\\+?[\\d\\s\\-\\.\\(\\)]{7,15}$/)';
@@ -2426,6 +2426,79 @@ export const cppGen = {
   }
 };
 
+// ─── Shared AI tool helpers ───────────────────────────────────────────────────
+
+/** Auto-generate a human-readable description for a field, used in .describe() and JSON Schema "description". */
+const aiFieldDesc = (k: string, v: Schema): string => {
+  const kl = k.toLowerCase();
+  if (v.format === 'email' || kl.includes('email')) return 'Email address';
+  if (v.format === 'uuid') return 'Unique identifier (UUID)';
+  if (v.format === 'url' || kl.includes('url') || kl.includes('link')) return 'URL';
+  if (v.format === 'datetime') return 'ISO 8601 datetime string';
+  if (kl.endsWith('id') || kl.endsWith('_id')) return 'Unique identifier';
+  if (kl.includes('password') || kl.includes('passwd')) return 'Password (min 8 characters)';
+  if (kl === 'phone' || kl === 'tel' || kl === 'telephone') return 'Phone number';
+  if (kl.includes('count') || kl.includes('quantity') || kl === 'qty') return 'Count or quantity (non-negative)';
+  if (['price','amount','cost','fee','total','subtotal','balance'].some(w => kl.includes(w))) return 'Monetary amount (non-negative)';
+  if (kl.includes('score') || kl.includes('rating')) return 'Score or rating (0–100)';
+  if (kl === 'age' || kl.endsWith('_age')) return 'Age in years (0–150)';
+  if (kl === 'port' || kl.endsWith('_port') || kl === 'port_number') return 'Network port (1–65535)';
+  if (v.type === 'boolean') {
+    const stripped = k.replace(/^(is|has|can|should)/i, '').replace(/([A-Z])/g, ' $1').trim().toLowerCase();
+    return `Whether ${stripped || k} is true`;
+  }
+  return k.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').trim();
+};
+
+/** Recursive Zod type string for MCP / Vercel AI tool generators. */
+const aiFieldToZod = (k: string, v: Schema, indent = '    '): string => {
+  const kl = k.toLowerCase();
+  const opt = v.optional || v.nullable ? '.optional()' : '';
+  if (v.type === 'boolean') return `z.boolean()${opt}`;
+  if (v.type === 'number') {
+    let z = 'z.number()';
+    if (v.format === 'int') z += '.int()';
+    const isMoney = ['price','amount','cost','fee','total','subtotal','balance'].some(w => kl.includes(w));
+    if ((v.format === 'int' && (kl.includes('count') || kl.includes('quantity') || kl === 'qty')) || isMoney) z += '.min(0)';
+    return `${z}${opt}`;
+  }
+  if (v.type === 'array') {
+    const it = v.itemType;
+    let inner = 'z.unknown()';
+    if (it) {
+      if (it.type === 'string') inner = 'z.string()';
+      else if (it.type === 'number') inner = it.format === 'int' ? 'z.number().int()' : 'z.number()';
+      else if (it.type === 'boolean') inner = 'z.boolean()';
+      else if (it.type === 'object' && it.fields) {
+        const ni = indent + '  ';
+        const props = Object.entries(it.fields).map(([nk, nv]) =>
+          `${ni}  ${nk}: ${aiFieldToZod(nk, nv, ni + '  ')}.describe('${aiFieldDesc(nk, nv)}'),`
+        ).join('\n');
+        inner = `z.object({\n${props}\n${ni}})`;
+      }
+    }
+    return `z.array(${inner})${opt}`;
+  }
+  if (v.type === 'object' && v.fields) {
+    const ni = indent + '  ';
+    const props = Object.entries(v.fields).map(([nk, nv]) =>
+      `${ni}${nk}: ${aiFieldToZod(nk, nv, ni)}.describe('${aiFieldDesc(nk, nv)}'),`
+    ).join('\n');
+    return `z.object({\n${props}\n${indent}})${opt}`;
+  }
+  if (v.type === 'union' && v.enumValues?.length) {
+    const vals = v.enumValues.map(e => `"${e}"`).join(', ');
+    return `z.enum([${vals}])${opt}`;
+  }
+  // string
+  if (v.format === 'email' || kl.includes('email')) return `z.email()${opt}`;
+  if (v.format === 'uuid' || /Id$/.test(k) || /ID$/.test(k) || kl.endsWith('_id')) return `z.uuid()${opt}`;
+  if (v.format === 'url' || kl.includes('url') || kl.includes('link')) return `z.url()${opt}`;
+  if (v.format === 'datetime') return `z.iso.datetime()${opt}`;
+  if (kl.includes('password') || kl.includes('passwd')) return `z.string().min(8)${opt}`;
+  return `z.string()${opt}`;
+};
+
 // ─── MCP Tool ─────────────────────────────────────────────────────────────────
 export const mcpToolGen = {
   generate: (schema: Schema, name: string = 'Root'): string => {
@@ -2433,21 +2506,8 @@ export const mcpToolGen = {
     const f = getFields(schema);
     const fields = Object.keys(f);
 
-    const fieldToZod = (k: string, v: Schema): string => {
-      const kl = k.toLowerCase();
-      if (v.type === 'number') return 'z.number()';
-      if (v.type === 'boolean') return 'z.boolean()';
-      if (v.type === 'object' || v.type === 'array' || v.type === 'union') return 'z.any()';
-      if (v.format === 'email' || kl.includes('email')) return 'z.email()';
-      if (v.format === 'uuid' || k.endsWith('_id') || /Id$/.test(k) || /ID$/.test(k)) return 'z.uuid()';
-      if (v.format === 'url' || kl.includes('url') || kl.includes('link') || kl.includes('website')) return 'z.url()';
-      if (v.format === 'datetime') return 'z.string().datetime()';
-      if (kl.includes('password') || kl.includes('passwd')) return 'z.string().min(8)';
-      return 'z.string()';
-    };
-
     const params = fields.map(k =>
-      `    ${k}: ${fieldToZod(k, f[k])}.describe('${k}'),`
+      `    ${k}: ${aiFieldToZod(k, f[k], '    ')}.describe('${aiFieldDesc(k, f[k])}'),`
     ).join('\n');
     const destructure = fields.join(', ');
 
@@ -2474,34 +2534,86 @@ export { server };`;
 // ─── OpenAI Function Calling ──────────────────────────────────────────────────
 export const openAiFunctionGen = {
   generate: (schema: Schema, name: string = 'Root'): string => {
-    const f = getFields(schema);
-    const fields = Object.keys(f);
+    const root = rootObject(schema);
+    const f = root.fields ?? {};
+    const fnName = toSnakeCase(name);
 
-    const fieldToJsonSchema = (k: string, v: Schema): Record<string, unknown> => {
+    const toJsonProp = (k: string, v: Schema): Record<string, unknown> => {
       const kl = k.toLowerCase();
-      if (v.type === 'boolean') return { type: 'boolean' };
-      if (v.type === 'number') return v.format === 'int' ? { type: 'integer' } : { type: 'number' };
-      if (v.type === 'array') return { type: 'array', items: { type: 'string' } };
-      if (v.format === 'email' || kl.includes('email')) return { type: 'string', format: 'email' };
-      if (v.format === 'uuid' || k.endsWith('_id') || /Id$/.test(k) || /ID$/.test(k)) return { type: 'string', format: 'uuid' };
-      if (v.format === 'url' || kl.includes('url') || kl.includes('link')) return { type: 'string', format: 'uri' };
-      if (v.format === 'datetime') return { type: 'string', format: 'date-time' };
-      return { type: 'string' };
+      const description = aiFieldDesc(k, v);
+
+      if (v.type === 'object' && v.fields) {
+        const nestedProps: Record<string, unknown> = {};
+        const nestedReq: string[] = [];
+        for (const [nk, nv] of Object.entries(v.fields)) {
+          nestedProps[nk] = toJsonProp(nk, nv);
+          if (!nv.optional && !nv.nullable) nestedReq.push(nk);
+        }
+        const obj: Record<string, unknown> = { type: 'object', description, properties: nestedProps };
+        if (nestedReq.length) obj.required = nestedReq;
+        return obj;
+      }
+
+      if (v.type === 'array') {
+        const it = v.itemType;
+        let items: Record<string, unknown> = { type: 'string' };
+        if (it) {
+          if (it.type === 'number') items = { type: it.format === 'int' ? 'integer' : 'number' };
+          else if (it.type === 'boolean') items = { type: 'boolean' };
+          else if (it.type === 'object' && it.fields) {
+            const ip: Record<string, unknown> = {};
+            const ir: string[] = [];
+            for (const [nk, nv] of Object.entries(it.fields)) {
+              ip[nk] = toJsonProp(nk, nv);
+              if (!nv.optional && !nv.nullable) ir.push(nk);
+            }
+            items = { type: 'object', properties: ip };
+            if (ir.length) (items as Record<string, unknown>).required = ir;
+          }
+        }
+        return { type: 'array', description, items };
+      }
+
+      if (v.type === 'union' && v.enumValues?.length) {
+        return { type: 'string', description, enum: v.enumValues };
+      }
+
+      if (v.type === 'boolean') return { type: 'boolean', description };
+
+      if (v.type === 'number') {
+        const prop: Record<string, unknown> = { description };
+        prop.type = v.format === 'int' ? 'integer' : 'number';
+        const isMoney = ['price','amount','cost','fee','total','subtotal','balance','payment'].some(w => kl.includes(w));
+        if (v.format === 'int' && (kl.includes('count') || kl.includes('quantity') || kl === 'qty')) prop.minimum = 0;
+        if (isMoney) prop.minimum = 0;
+        if (kl.includes('score') || kl.includes('rating')) { prop.minimum = 0; prop.maximum = 100; }
+        if (kl === 'age' || kl.endsWith('_age')) { prop.minimum = 0; prop.maximum = 150; }
+        if (kl === 'port' || kl.endsWith('_port') || kl === 'port_number') { prop.minimum = 1; prop.maximum = 65535; }
+        return prop;
+      }
+
+      // string
+      const s: Record<string, unknown> = { type: 'string', description };
+      if (v.format === 'email' || kl.includes('email')) s.format = 'email';
+      else if (v.format === 'uuid' || /Id$/.test(k) || /ID$/.test(k) || kl.endsWith('_id')) s.format = 'uuid';
+      else if (v.format === 'url' || kl.includes('url') || kl.includes('link')) s.format = 'uri';
+      else if (v.format === 'datetime') s.format = 'date-time';
+      else if (kl.includes('password') || kl.includes('passwd')) s.minLength = 8;
+      return s;
     };
 
     const properties: Record<string, unknown> = {};
     const required: string[] = [];
-    for (const k of fields) {
-      properties[k] = fieldToJsonSchema(k, f[k]);
-      if (!f[k].optional && !f[k].nullable) required.push(k);
+    for (const [k, v] of Object.entries(f)) {
+      properties[k] = toJsonProp(k, v);
+      if (!v.optional && !v.nullable) required.push(k);
     }
 
-    const fnName = toSnakeCase(name);
     return JSON.stringify({
       type: 'function',
       function: {
         name: fnName,
-        description: 'Auto-generated from JSON sample',
+        description: `Processes ${name} data — update with a meaningful description`,
         parameters: { type: 'object', properties, required },
       },
     }, null, 2);
@@ -2515,29 +2627,15 @@ export const vercelAiToolGen = {
     const f = getFields(schema);
     const fields = Object.keys(f);
 
-    const fieldToZod = (k: string, v: Schema): string => {
-      const kl = k.toLowerCase();
-      if (v.type === 'number') return 'z.number()';
-      if (v.type === 'boolean') return 'z.boolean()';
-      if (v.type === 'object' || v.type === 'array' || v.type === 'union') return 'z.any()';
-      if (v.format === 'email' || kl.includes('email')) return 'z.email()';
-      if (v.format === 'uuid' || k.endsWith('_id') || /Id$/.test(k) || /ID$/.test(k)) return 'z.uuid()';
-      if (v.format === 'url' || kl.includes('url') || kl.includes('link') || kl.includes('website')) return 'z.url()';
-      if (v.format === 'datetime') return 'z.string().datetime()';
-      if (kl.includes('password') || kl.includes('passwd')) return 'z.string().min(8)';
-      return 'z.string()';
-    };
-
-    const optSuffix = (v: Schema) => (v.optional || v.nullable ? '.optional()' : '');
     const params = fields.map(k =>
-      `    ${k}: ${fieldToZod(k, f[k])}${optSuffix(f[k])},`
+      `    ${k}: ${aiFieldToZod(k, f[k], '    ')}.describe('${aiFieldDesc(k, f[k])}'),`
     ).join('\n');
 
     return `import { tool } from "ai";
 import { z } from "zod";
 
 export const ${toolName}Tool = tool({
-  description: "Auto-generated from JSON sample",
+  description: "Auto-generated from JSON sample — update with a meaningful description",
   parameters: z.object({
 ${params}
   }),

@@ -71,32 +71,40 @@ exports[`Tier1 generators — BASIC input > graphql 1`] = `
 exports[`Tier1 generators — BASIC input > java 1`] = `
 "// Java version 8+ required (compatible with Jackson/Gson)
 
-public class User {
-  private String id;
-  private String name;
-  private String email;
-  private int age;
-  private double score;
-  private boolean active;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotNull;
+import java.util.UUID;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-  public String getId() { return id; }
-  public void setId(String id) { this.id = id; }
-  public String getName() { return name; }
-  public void setName(String name) { this.name = name; }
-  public String getEmail() { return email; }
-  public void setEmail(String email) { this.email = email; }
-  public int getAge() { return age; }
-  public void setAge(int age) { this.age = age; }
-  public double getScore() { return score; }
-  public void setScore(double score) { this.score = score; }
-  public boolean getActive() { return active; }
-  public void setActive(boolean active) { this.active = active; }
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class User {
+    @NotNull
+    private UUID id;
+    @NotNull
+    private String name;
+    @NotNull
+    @Email
+    private String email;
+    private int age;
+    private double score;
+    private boolean active;
 }"
 `;
 
 exports[`Tier1 generators — BASIC input > kotlin 1`] = `
 "// Kotlin standard library data class (compatible with kotlinx.serialization)
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class Root(
     val id: String,
     val name: String,
@@ -194,8 +202,10 @@ pub struct User {
 exports[`Tier1 generators — BASIC input > swift 1`] = `
 "// Swift 5.0+ (Codable protocol compliant)
 
+import Foundation
+
 struct Root : Codable {
-    let id: String
+    let id: UUID
     let name: String
     let email: String
     let age: Int
@@ -309,51 +319,59 @@ exports[`Tier1 generators — DISCRIMINATED (discriminated union) > graphql 1`] 
 exports[`Tier1 generators — DISCRIMINATED (discriminated union) > java 1`] = `
 "// Java version 8+ required (compatible with Jackson/Gson)
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import javax.annotation.Nullable;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class PostItem {
-  private String type; // enum: "text" | "image" | "video"
-  @Nullable
-  private String content;
-  @Nullable
-  private Integer char_count;
-  @Nullable
-  private String url;
-  @Nullable
-  private Integer width;
-  @Nullable
-  private Integer height;
-  @Nullable
-  private Integer duration_sec;
-
-  public String getType() { return type; }
-  public void setType(String type) { this.type = type; }
-  public String getContent() { return content; }
-  public void setContent(String content) { this.content = content; }
-  public Integer getCharCount() { return char_count; }
-  public void setCharCount(Integer char_count) { this.char_count = char_count; }
-  public String getUrl() { return url; }
-  public void setUrl(String url) { this.url = url; }
-  public Integer getWidth() { return width; }
-  public void setWidth(Integer width) { this.width = width; }
-  public Integer getHeight() { return height; }
-  public void setHeight(Integer height) { this.height = height; }
-  public Integer getDurationSec() { return duration_sec; }
-  public void setDurationSec(Integer duration_sec) { this.duration_sec = duration_sec; }
+    @NotNull
+    private String type; // enum: "text", "image", "video"
+    @Nullable
+    private String content;
+    @Nullable
+    @Min(0)
+    @JsonProperty("char_count")
+    private Integer charCount;
+    @Nullable
+    private String url;
+    @Nullable
+    private Integer width;
+    @Nullable
+    private Integer height;
+    @Nullable
+    @JsonProperty("duration_sec")
+    private Integer durationSec;
 }"
 `;
 
 exports[`Tier1 generators — DISCRIMINATED (discriminated union) > kotlin 1`] = `
 "// Kotlin standard library data class (compatible with kotlinx.serialization)
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
+
+@Serializable
 data class RootItem(
     val type: String,
     val content: String?,
-    val char_count: Int?,
+    @SerialName("char_count")
+    val charCount: Int?,
     val url: String?,
     val width: Int?,
     val height: Int?,
-    val duration_sec: Int?
+    @SerialName("duration_sec")
+    val durationSec: Int?
 )"
 `;
 
@@ -455,14 +473,26 @@ pub struct PostItem {
 exports[`Tier1 generators — DISCRIMINATED (discriminated union) > swift 1`] = `
 "// Swift 5.0+ (Codable protocol compliant)
 
+import Foundation
+
 struct RootItem : Codable {
     let type: String
     let content: String?
-    let char_count: Int?
+    let charCount: Int?
     let url: String?
     let width: Int?
     let height: Int?
-    let duration_sec: Int?
+    let durationSec: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case type
+        case content
+        case charCount = "char_count"
+        case url
+        case width
+        case height
+        case durationSec = "duration_sec"
+    }
 }"
 `;
 
@@ -659,57 +689,66 @@ type SharedOwnerAddress {
 exports[`Tier1 generators — NESTED (object + array) > java 1`] = `
 "// Java version 8+ required (compatible with Jackson/Gson)
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import javax.annotation.Nullable;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Project {
-  private String project;
-  private SharedOwner owner;
-  private List<String> tags;
-  private List<SharedOwner> collaborators;
-
-  public String getProject() { return project; }
-  public void setProject(String project) { this.project = project; }
-  public SharedOwner getOwner() { return owner; }
-  public void setOwner(SharedOwner owner) { this.owner = owner; }
-  public List<String> getTags() { return tags; }
-  public void setTags(List<String> tags) { this.tags = tags; }
-  public List<SharedOwner> getCollaborators() { return collaborators; }
-  public void setCollaborators(List<SharedOwner> collaborators) { this.collaborators = collaborators; }
+    @NotNull
+    private String project;
+    @NotNull
+    private SharedOwner owner;
+    @NotNull
+    private List<String> tags;
+    @NotNull
+    private List<SharedOwner> collaborators;
 }
 
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class SharedOwner {
-  private String id;
-  private String name;
-  @Nullable
-  private SharedOwnerAddress address;
-  @Nullable
-  private String role; // enum: "maintainer" | "contributor"
-
-  public String getId() { return id; }
-  public void setId(String id) { this.id = id; }
-  public String getName() { return name; }
-  public void setName(String name) { this.name = name; }
-  public SharedOwnerAddress getAddress() { return address; }
-  public void setAddress(SharedOwnerAddress address) { this.address = address; }
-  public String getRole() { return role; }
-  public void setRole(String role) { this.role = role; }
+    @NotNull
+    private String id;
+    @NotNull
+    private String name;
+    @Nullable
+    private SharedOwnerAddress address;
+    @Nullable
+    private String role; // enum: "maintainer", "contributor"
 }
 
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class SharedOwnerAddress {
-  private String city;
-  private String zip;
-
-  public String getCity() { return city; }
-  public void setCity(String city) { this.city = city; }
-  public String getZip() { return zip; }
-  public void setZip(String zip) { this.zip = zip; }
+    @NotNull
+    private String city;
+    @NotNull
+    private String zip;
 }"
 `;
 
 exports[`Tier1 generators — NESTED (object + array) > kotlin 1`] = `
 "// Kotlin standard library data class (compatible with kotlinx.serialization)
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class Root(
     val project: String,
     val owner: SharedOwner,
@@ -717,6 +756,7 @@ data class Root(
     val collaborators: List<SharedOwner>
 )
 
+@Serializable
 data class SharedOwner(
     val id: String,
     val name: String,
@@ -724,6 +764,7 @@ data class SharedOwner(
     val role: String?
 )
 
+@Serializable
 data class SharedOwnerAddress(
     val city: String,
     val zip: String
@@ -876,6 +917,8 @@ pub struct SharedOwnerAddress {
 exports[`Tier1 generators — NESTED (object + array) > swift 1`] = `
 "// Swift 5.0+ (Codable protocol compliant)
 
+import Foundation
+
 struct Root : Codable {
     let project: String
     let owner: SharedOwner
@@ -1011,28 +1054,46 @@ exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > graphql 1
 exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > java 1`] = `
 "// Java version 8+ required (compatible with Jackson/Gson)
 
-public class OrderItem {
-  private String order_id;
-  private String status; // enum: "pending" | "shipped" | "delivered"
-  private double amount;
-  private String currency; // enum: "USD" | "JPY" | "EUR"
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
+import java.util.UUID;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-  public String getOrderId() { return order_id; }
-  public void setOrderId(String order_id) { this.order_id = order_id; }
-  public String getStatus() { return status; }
-  public void setStatus(String status) { this.status = status; }
-  public double getAmount() { return amount; }
-  public void setAmount(double amount) { this.amount = amount; }
-  public String getCurrency() { return currency; }
-  public void setCurrency(String currency) { this.currency = currency; }
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class OrderItem {
+    @NotNull
+    @JsonProperty("order_id")
+    private UUID orderId;
+    @NotNull
+    private String status; // enum: "pending", "shipped", "delivered"
+    @NotNull
+    @Min(0)
+    private BigDecimal amount;
+    @NotNull
+    private String currency; // enum: "USD", "JPY", "EUR"
 }"
 `;
 
 exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > kotlin 1`] = `
 "// Kotlin standard library data class (compatible with kotlinx.serialization)
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
+
+@Serializable
 data class RootItem(
-    val order_id: String,
+    @SerialName("order_id")
+    val orderId: String,
     val status: String,
     val amount: Double,
     val currency: String
@@ -1114,11 +1175,20 @@ pub struct OrderItem {
 exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > swift 1`] = `
 "// Swift 5.0+ (Codable protocol compliant)
 
+import Foundation
+
 struct RootItem : Codable {
-    let order_id: String
+    let orderId: UUID
     let status: String
     let amount: Double
     let currency: String
+
+    enum CodingKeys: String, CodingKey {
+        case orderId = "order_id"
+        case status
+        case amount
+        case currency
+    }
 }"
 `;
 
@@ -1224,39 +1294,59 @@ exports[`Tier1 generators — WITH_NULLS (null/optional fields) > graphql 1`] = 
 exports[`Tier1 generators — WITH_NULLS (null/optional fields) > java 1`] = `
 "// Java version 8+ required (compatible with Jackson/Gson)
 
-public class Profile {
-  private String user_id;
-  private String display_name;
-  private Object bio;
-  private Object website;
-  private int follower_count;
-  private boolean is_verified;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import java.util.UUID;
+import javax.annotation.Nullable;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-  public String getUserId() { return user_id; }
-  public void setUserId(String user_id) { this.user_id = user_id; }
-  public String getDisplayName() { return display_name; }
-  public void setDisplayName(String display_name) { this.display_name = display_name; }
-  public Object getBio() { return bio; }
-  public void setBio(Object bio) { this.bio = bio; }
-  public Object getWebsite() { return website; }
-  public void setWebsite(Object website) { this.website = website; }
-  public int getFollowerCount() { return follower_count; }
-  public void setFollowerCount(int follower_count) { this.follower_count = follower_count; }
-  public boolean getIsVerified() { return is_verified; }
-  public void setIsVerified(boolean is_verified) { this.is_verified = is_verified; }
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class Profile {
+    @NotNull
+    @JsonProperty("user_id")
+    private UUID userId;
+    @NotNull
+    @JsonProperty("display_name")
+    private String displayName;
+    @Nullable
+    private Object bio;
+    @Nullable
+    private Object website;
+    @Min(0)
+    @JsonProperty("follower_count")
+    private int followerCount;
+    @JsonProperty("is_verified")
+    private boolean isVerified;
 }"
 `;
 
 exports[`Tier1 generators — WITH_NULLS (null/optional fields) > kotlin 1`] = `
 "// Kotlin standard library data class (compatible with kotlinx.serialization)
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
+
+@Serializable
 data class Root(
-    val user_id: String,
-    val display_name: String,
+    @SerialName("user_id")
+    val userId: String,
+    @SerialName("display_name")
+    val displayName: String,
     val bio: Any?,
     val website: Any?,
-    val follower_count: Int,
-    val is_verified: Boolean
+    @SerialName("follower_count")
+    val followerCount: Int,
+    @SerialName("is_verified")
+    val isVerified: Boolean
 )"
 `;
 
@@ -1348,13 +1438,24 @@ pub struct Profile {
 exports[`Tier1 generators — WITH_NULLS (null/optional fields) > swift 1`] = `
 "// Swift 5.0+ (Codable protocol compliant)
 
+import Foundation
+
 struct Root : Codable {
-    let user_id: String
-    let display_name: String
+    let userId: UUID
+    let displayName: String
     let bio: AnyCodable?
     let website: AnyCodable?
-    let follower_count: Int
-    let is_verified: Bool
+    let followerCount: Int
+    let isVerified: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case userId = "user_id"
+        case displayName = "display_name"
+        case bio
+        case website
+        case followerCount = "follower_count"
+        case isVerified = "is_verified"
+    }
 }"
 `;
 

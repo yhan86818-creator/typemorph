@@ -244,7 +244,7 @@ const printZodASTType = (type: ASTType, cyclicClassRefs: Set<string>, options: a
     case 'date':
       return 'z.coerce.date()';
     case 'datetime':
-      return 'z.string().datetime()';
+      return options.zodVersion === 'v3' ? 'z.string().datetime()' : 'z.iso.datetime()';
     case 'classRef': {
       if (!type.classRefName) return 'z.any()';
       const core = `${toCamelCase(type.classRefName)}Schema`;
@@ -258,9 +258,9 @@ const printZodASTType = (type: ASTType, cyclicClassRefs: Set<string>, options: a
       }
       return 'z.array(z.any())';
     case 'string':
-      if (type.format === 'email') return 'z.email()';
-      if (type.format === 'url') return 'z.url()';
-      if (type.format === 'uuid') return 'z.uuid()';
+      if (type.format === 'email') return options.zodVersion === 'v3' ? 'z.string().email()' : 'z.email()';
+      if (type.format === 'url') return options.zodVersion === 'v3' ? 'z.string().url()' : 'z.url()';
+      if (type.format === 'uuid') return options.zodVersion === 'v3' ? 'z.string().uuid()' : 'z.uuid()';
       return 'z.string()';
     case 'number':
       return options.zodMode === 'loose' ? 'z.coerce.number()' : 'z.number()';
@@ -276,6 +276,10 @@ export const zodGen = {
     const mode: 'loose' | 'strict' | 'enterprise' = options.zodMode ?? 'strict';
     const isLoose = mode === 'loose';
     const isEnterprise = mode === 'enterprise';
+    const isV3 = options.zodVersion === 'v3';
+    const zEmail = isV3 ? 'z.string().email()' : 'z.email()';
+    const zUrl = isV3 ? 'z.string().url()' : 'z.url()';
+    const zUuid = isV3 ? 'z.string().uuid()' : 'z.uuid()';
     const modeOptions = { ...options, zodMode: mode };
 
     // Pre-compute discriminated union schemas
@@ -376,9 +380,9 @@ export const zodGen = {
             }
           }
           if (field.fieldType.kind === 'string' && !field.fieldType.format) {
-            if (k.includes('email')) zType = 'z.email()';
-            else if (k.includes('url') || k.includes('link') || k.includes('website')) zType = 'z.url()';
-            else if (k.includes('uuid') || k.endsWith('_id') || /Id$/.test(displayName) || /ID$/.test(displayName)) zType = 'z.uuid()';
+            if (k.includes('email')) zType = zEmail;
+            else if (k.includes('url') || k.includes('link') || k.includes('website')) zType = zUrl;
+            else if (k.includes('uuid') || k.endsWith('_id') || /Id$/.test(displayName) || /ID$/.test(displayName)) zType = zUuid;
             else if (k.includes('phone') || k === 'tel' || k === 'telephone' || k.endsWith('_tel') || k.startsWith('tel_')) zType = 'z.string().regex(/^\\+?[\\d\\s\\-\\.\\(\\)]{7,15}$/)';
             else if (k.includes('password') || k.includes('passwd')) zType = 'z.string().min(8)';
             else if (k === 'zip' || k === 'zipcode' || k === 'zip_code' || k === 'postal_code' || k === 'postcode') zType = 'z.string().regex(/^[A-Z0-9][A-Z0-9\\s\\-]{1,8}[A-Z0-9]$/i)';
@@ -810,86 +814,120 @@ let res = usesTime
   }
 };
 
-const printJavaASTType = (type: ASTType, isNullable: boolean): string => {
+// ─── Java helpers ─────────────────────────────────────────────────────────────
+const toJavaClassName = (n: string) =>
+  n.split(/[_\s-]+/).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('');
+
+const toJavaFieldName = (k: string) =>
+  k.replace(/_([a-zA-Z0-9])/g, (_, c) => c.toUpperCase());
+
+const isJavaMoney = (k: string) =>
+  ['price','amount','cost','fee','total','subtotal','balance','payment'].some(w => k.toLowerCase().includes(w));
+
+const printJavaASTType = (type: ASTType, isNullable: boolean, fieldName = ''): string => {
   switch (type.kind) {
     case 'union': return 'Object';
     case 'enum': return 'String';
     case 'date': return 'LocalDate';
-    case 'datetime': return 'LocalDateTime';
-    case 'classRef': return type.classRefName ?? 'Object';
+    case 'datetime': return 'OffsetDateTime';
+    case 'classRef': return toJavaClassName(type.classRefName ?? 'Object');
     case 'array':
-      if (type.itemType) {
-        return `List<${printJavaASTType(type.itemType, true)}>`;
-      }
-      return 'List<Object>';
-    case 'string': return 'String';
-    case 'number': return type.format === 'int' ? (isNullable ? 'Integer' : 'int') : (isNullable ? 'Double' : 'double');
+      return type.itemType ? `List<${printJavaASTType(type.itemType, true, '')}>` : 'List<Object>';
+    case 'string':
+      if (type.format === 'uuid') return 'UUID';
+      return 'String';
+    case 'number':
+      if (isJavaMoney(fieldName)) return 'BigDecimal';
+      return type.format === 'int' ? (isNullable ? 'Integer' : 'int') : (isNullable ? 'Double' : 'double');
     case 'boolean': return isNullable ? 'Boolean' : 'boolean';
     default: return 'Object';
   }
 };
 
+const JAVA_PRIMITIVES = new Set(['int', 'long', 'double', 'float', 'boolean', 'char', 'byte', 'short']);
+
 export const javaGen = {
   generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
     const astClasses = schemaToAST(schema, toPascalCase(name), options);
-    let res = "";
 
-    let needsList = false;
-    let needsLocalDate = false;
-    let needsLocalDateTime = false;
+    const imports = new Set<string>([
+      'import lombok.AllArgsConstructor;',
+      'import lombok.Builder;',
+      'import lombok.Data;',
+      'import lombok.NoArgsConstructor;',
+      'import com.fasterxml.jackson.annotation.JsonIgnoreProperties;',
+    ]);
+    let needsJsonProperty = false;
+    let needsNotNull = false;
+    let needsEmail = false;
+    let needsMin = false;
     let needsNullable = false;
 
     for (const cls of astClasses) {
       for (const field of cls.fields) {
-        if (field.fieldType.kind === 'array') needsList = true;
-        if (field.fieldType.kind === 'date') needsLocalDate = true;
-        if (field.fieldType.kind === 'datetime') needsLocalDateTime = true;
-        if (field.isOptional) needsNullable = true;
+        const isNullable = field.isOptional || field.isNullable;
+        const javaType = printJavaASTType(field.fieldType, isNullable, field.name);
+        const javaName = toJavaFieldName(field.name);
+        const kl = field.name.toLowerCase();
+
+        if (field.name !== javaName) needsJsonProperty = true;
+        if (field.fieldType.kind === 'array') imports.add('import java.util.List;');
+        if (javaType === 'UUID') imports.add('import java.util.UUID;');
+        if (javaType === 'LocalDate') imports.add('import java.time.LocalDate;');
+        if (javaType === 'OffsetDateTime') imports.add('import java.time.OffsetDateTime;');
+        if (javaType === 'BigDecimal') imports.add('import java.math.BigDecimal;');
+        if (isNullable) needsNullable = true;
+        if (!isNullable && !JAVA_PRIMITIVES.has(javaType)) needsNotNull = true;
+        if (field.fieldType.format === 'email' || kl.includes('email')) needsEmail = true;
+        const isNumeric = field.fieldType.kind === 'number';
+        if (isNumeric && (isJavaMoney(field.name) || kl === 'count' || kl.endsWith('count') || kl.endsWith('_count') || kl.includes('quantity') || kl === 'qty')) needsMin = true;
       }
     }
 
-    if (needsList) res += "import java.util.List;\n";
-    if (needsLocalDate) res += "import java.time.LocalDate;\n";
-    if (needsLocalDateTime) res += "import java.time.LocalDateTime;\n";
-    if (needsNullable) res += "import javax.annotation.Nullable;\n";
-    if (res !== "") res += "\n";
+    if (needsJsonProperty) imports.add('import com.fasterxml.jackson.annotation.JsonProperty;');
+    if (needsNullable) imports.add('import javax.annotation.Nullable;');
+    if (needsNotNull) imports.add('import jakarta.validation.constraints.NotNull;');
+    if (needsEmail) imports.add('import jakarta.validation.constraints.Email;');
+    if (needsMin) imports.add('import jakarta.validation.constraints.Min;');
+
+    let res = [...imports].sort().join('\n') + '\n\n';
 
     for (const cls of astClasses) {
+      res += '@Data\n@Builder\n@NoArgsConstructor\n@AllArgsConstructor\n';
+      res += '@JsonIgnoreProperties(ignoreUnknown = true)\n';
       const baseClass = getBaseClass(cls);
-      const inheritance = baseClass ? ` extends ${baseClass}` : '';
-
-      res += `public class ${cls.name}${inheritance} {\n`;
-      for (const field of cls.fields) {
-        const isNullable = field.isOptional || field.isNullable;
-        const javaType = printJavaASTType(field.fieldType, isNullable);
-        
-        if (field.isOptional) {
-          res += `  @Nullable\n`;
-        }
-        
-        let comment = '';
-        if (field.fieldType.kind === 'enum' && field.fieldType.enumValues && field.fieldType.enumValues.length > 0) {
-          comment = ` // enum: ${field.fieldType.enumValues.map((v: string) => `"${v}"`).join(' | ')}`;
-        }
-        
-        res += `  private ${javaType} ${field.name};${comment}\n`;
-      }
-
-      if (cls.fields.length > 0) res += "\n";
+      const inheritance = baseClass ? ` extends ${toJavaClassName(baseClass)}` : '';
+      res += `public class ${toJavaClassName(cls.name)}${inheritance} {\n`;
 
       for (const field of cls.fields) {
         const isNullable = field.isOptional || field.isNullable;
-        const javaType = printJavaASTType(field.fieldType, isNullable);
-        const camel = field.name.replace(/_([a-zA-Z0-9])/g, (_, c) => c.toUpperCase());
-        const capitalizedName = camel.charAt(0).toUpperCase() + camel.slice(1);
+        const javaType = printJavaASTType(field.fieldType, isNullable, field.name);
+        const javaName = toJavaFieldName(field.name);
+        const kl = field.name.toLowerCase();
 
-        res += `  public ${javaType} get${capitalizedName}() { return ${field.name}; }\n`;
-        res += `  public void set${capitalizedName}(${javaType} ${field.name}) { this.${field.name} = ${field.name}; }\n`;
+        if (isNullable) {
+          res += `    @Nullable\n`;
+        } else if (!JAVA_PRIMITIVES.has(javaType)) {
+          res += `    @NotNull\n`;
+        }
+
+        if (field.fieldType.format === 'email' || kl.includes('email')) res += `    @Email\n`;
+        const isNumField = field.fieldType.kind === 'number';
+        if (isNumField && isJavaMoney(field.name)) res += `    @Min(0)\n`;
+        else if (isNumField && (kl === 'count' || kl.endsWith('count') || kl.endsWith('_count') || kl.includes('quantity') || kl === 'qty')) res += `    @Min(0)\n`;
+        if (field.name !== javaName) res += `    @JsonProperty("${field.name}")\n`;
+
+        if (field.fieldType.kind === 'enum' && field.fieldType.enumValues?.length) {
+          const vals = field.fieldType.enumValues.map(v => `"${v}"`).join(', ');
+          res += `    private String ${javaName}; // enum: ${vals}\n`;
+        } else {
+          res += `    private ${javaType} ${javaName};\n`;
+        }
       }
 
       res += `}\n\n`;
     }
-    return res.trim() + "\n";
+    return res.trim() + '\n';
   }
 };
 
@@ -1127,10 +1165,12 @@ const printSwiftASTType = (type: ASTType): string => {
     case 'enum': return 'String';
     case 'date':
     case 'datetime': return 'Date';
-    case 'classRef': return type.classRefName ?? 'AnyCodable';
+    case 'classRef': return toJavaClassName(type.classRefName ?? 'AnyCodable');
     case 'array':
       return type.itemType ? `[${printSwiftASTType(type.itemType)}]` : '[AnyCodable]';
-    case 'string': return 'String';
+    case 'string':
+      if (type.format === 'uuid') return 'UUID';
+      return 'String';
     case 'number': return type.format === 'int' ? 'Int' : 'Double';
     case 'boolean': return 'Bool';
     default: return 'AnyCodable';
@@ -1140,17 +1180,41 @@ const printSwiftASTType = (type: ASTType): string => {
 export const swiftGen = {
   generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
     const astClasses = schemaToAST(schema, toPascalCase(name), options);
-    let res = "";
+    let res = 'import Foundation\n\n';
 
     for (const cls of astClasses) {
+      const swiftName = toJavaClassName(cls.name);
       const baseClass = getBaseClass(cls);
-      const inheritance = baseClass ? `: ${baseClass}` : ': Codable';
-      res += `struct ${cls.name} ${inheritance} {\n`;
+      const inheritance = baseClass ? `: ${toJavaClassName(baseClass)}` : ': Codable';
+      res += `struct ${swiftName} ${inheritance} {\n`;
+
+      const codingKeys: Array<{ swift: string; json: string }> = [];
+
       for (const field of cls.fields) {
+        const swiftFieldName = toJavaFieldName(field.name);
         let swiftType = printSwiftASTType(field.fieldType);
         if (field.isOptional || field.isNullable) swiftType += '?';
-        res += `    let ${field.name}: ${swiftType}\n`;
+        res += `    let ${swiftFieldName}: ${swiftType}\n`;
+        if (field.name !== swiftFieldName) {
+          codingKeys.push({ swift: swiftFieldName, json: field.name });
+        } else {
+          codingKeys.push({ swift: swiftFieldName, json: '' });
+        }
       }
+
+      const needsCodingKeys = codingKeys.some(k => k.json !== '');
+      if (needsCodingKeys) {
+        res += '\n    enum CodingKeys: String, CodingKey {\n';
+        for (const { swift, json } of codingKeys) {
+          if (json) {
+            res += `        case ${swift} = "${json}"\n`;
+          } else {
+            res += `        case ${swift}\n`;
+          }
+        }
+        res += '    }\n';
+      }
+
       res += `}\n\n`;
     }
     return res;
@@ -1163,10 +1227,12 @@ const printKotlinASTType = (type: ASTType): string => {
     case 'enum': return 'String';
     case 'date':
     case 'datetime': return 'String';
-    case 'classRef': return type.classRefName ?? 'Any';
+    case 'classRef': return toJavaClassName(type.classRefName ?? 'Any');
     case 'array':
       return type.itemType ? `List<${printKotlinASTType(type.itemType)}>` : 'List<Any>';
-    case 'string': return 'String';
+    case 'string':
+      if (type.format === 'uuid') return 'String';
+      return 'String';
     case 'number': return type.format === 'int' ? 'Int' : 'Double';
     case 'boolean': return 'Boolean';
     default: return 'Any';
@@ -1176,21 +1242,195 @@ const printKotlinASTType = (type: ASTType): string => {
 export const kotlinGen = {
   generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
     const astClasses = schemaToAST(schema, toPascalCase(name), options);
-    let res = "";
+
+    let needsSerialName = false;
+    for (const cls of astClasses) {
+      for (const field of cls.fields) {
+        if (field.name !== toJavaFieldName(field.name)) { needsSerialName = true; break; }
+      }
+    }
+
+    let res = 'import kotlinx.serialization.Serializable\n';
+    if (needsSerialName) res += 'import kotlinx.serialization.SerialName\n';
+    res += '\n';
 
     for (const cls of astClasses) {
+      const ktName = toJavaClassName(cls.name);
       const baseClass = getBaseClass(cls);
-      const inheritance = baseClass ? ` : ${baseClass}` : '';
-      res += `data class ${cls.name}(\n`;
+      const inheritance = baseClass ? ` : ${toJavaClassName(baseClass)}` : '';
+      res += `@Serializable\ndata class ${ktName}(\n`;
       const fields = cls.fields.map(field => {
+        const ktFieldName = toJavaFieldName(field.name);
         let ktType = printKotlinASTType(field.fieldType);
         if (field.isOptional || field.isNullable) ktType += '?';
-        return `    val ${field.name}: ${ktType}`;
+        const serialName = field.name !== ktFieldName
+          ? `    @SerialName("${field.name}")\n`
+          : '';
+        return `${serialName}    val ${ktFieldName}: ${ktType}`;
       });
       res += fields.join(',\n');
       res += `\n)${inheritance}\n\n`;
     }
     return res;
+  }
+};
+
+// --- NestJS DTO Generator ---
+
+const printNestJsDtoFieldType = (type: ASTType): string => {
+  switch (type.kind) {
+    case 'string':
+      if (type.enumValues && type.enumValues.length > 0) {
+        return type.enumValues.map(v => `'${v}'`).join(' | ');
+      }
+      return 'string';
+    case 'number': return 'number';
+    case 'boolean': return 'boolean';
+    case 'date':
+    case 'datetime': return 'string';
+    case 'classRef': return `${toJavaClassName(type.classRefName ?? 'Object')}Dto`;
+    case 'array':
+      if (type.itemType) {
+        const inner = printNestJsDtoFieldType(type.itemType);
+        return inner.includes('|') ? `(${inner})[]` : `${inner}[]`;
+      }
+      return 'unknown[]';
+    case 'enum':
+      if (type.enumValues && type.enumValues.length > 0) {
+        return type.enumValues.map(v => `'${v}'`).join(' | ');
+      }
+      return 'string';
+    case 'union': return 'unknown';
+    default: return 'unknown';
+  }
+};
+
+export const nestjsDtoGen = {
+  generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
+    const astClasses = schemaToAST(schema, toPascalCase(name), options);
+
+    const cvImports = new Set<string>();
+    const ctImports = new Set<string>();
+    const classBlocks: string[] = [];
+
+    for (const cls of astClasses) {
+      const dtoName = `${cls.name}Dto`;
+      let block = `export class ${dtoName} {\n`;
+
+      for (const field of cls.fields) {
+        const k = field.name.toLowerCase();
+        const isOpt = field.isOptional;
+        const isNullable = field.isNullable;
+        const ft = field.fieldType;
+        const decorators: string[] = [];
+
+        if (isOpt) {
+          decorators.push('@IsOptional()');
+          cvImports.add('IsOptional');
+        }
+
+        if (ft.kind === 'string') {
+          const fmt = ft.format;
+          if (fmt === 'email' || k.includes('email')) {
+            decorators.push('@IsEmail()');
+            cvImports.add('IsEmail');
+          } else if (fmt === 'uuid') {
+            decorators.push('@IsUUID()');
+            cvImports.add('IsUUID');
+          } else if (fmt === 'url' || k.includes('url') || k.includes('website')) {
+            decorators.push('@IsUrl()');
+            cvImports.add('IsUrl');
+          } else if (fmt === 'datetime' || fmt === 'date') {
+            decorators.push('@IsISO8601()');
+            cvImports.add('IsISO8601');
+          } else if (ft.enumValues && ft.enumValues.length > 0) {
+            decorators.push(`@IsIn([${ft.enumValues.map(v => `'${v}'`).join(', ')}])`);
+            cvImports.add('IsIn');
+          } else {
+            decorators.push('@IsString()');
+            cvImports.add('IsString');
+            if (!isOpt) {
+              decorators.push('@IsNotEmpty()');
+              cvImports.add('IsNotEmpty');
+            }
+          }
+        } else if (ft.kind === 'number') {
+          if (ft.format === 'int') {
+            decorators.push('@IsInt()');
+            cvImports.add('IsInt');
+          } else {
+            decorators.push('@IsNumber()');
+            cvImports.add('IsNumber');
+          }
+          if (k.includes('percent')) {
+            decorators.push('@Min(0)', '@Max(100)');
+            cvImports.add('Min'); cvImports.add('Max');
+          } else if (k.includes('latitude') || k === 'lat') {
+            decorators.push('@Min(-90)', '@Max(90)');
+            cvImports.add('Min'); cvImports.add('Max');
+          } else if (k.includes('longitude') || k === 'lng' || k === 'lon') {
+            decorators.push('@Min(-180)', '@Max(180)');
+            cvImports.add('Min'); cvImports.add('Max');
+          } else if (k.includes('age')) {
+            decorators.push('@Min(0)', '@Max(150)');
+            cvImports.add('Min'); cvImports.add('Max');
+          }
+        } else if (ft.kind === 'boolean') {
+          decorators.push('@IsBoolean()');
+          cvImports.add('IsBoolean');
+        } else if (ft.kind === 'date' || ft.kind === 'datetime') {
+          decorators.push('@IsISO8601()');
+          cvImports.add('IsISO8601');
+        } else if (ft.kind === 'enum') {
+          if (ft.enumValues && ft.enumValues.length > 0) {
+            decorators.push(`@IsIn([${ft.enumValues.map(v => `'${v}'`).join(', ')}])`);
+            cvImports.add('IsIn');
+          } else {
+            decorators.push('@IsString()');
+            cvImports.add('IsString');
+          }
+        } else if (ft.kind === 'array') {
+          decorators.push('@IsArray()');
+          cvImports.add('IsArray');
+          if (ft.itemType?.kind === 'classRef') {
+            const refName = toJavaClassName(ft.itemType.classRefName ?? 'Object');
+            decorators.push('@ValidateNested({ each: true })');
+            decorators.push(`@Type(() => ${refName}Dto)`);
+            cvImports.add('ValidateNested');
+            ctImports.add('Type');
+          }
+        } else if (ft.kind === 'classRef') {
+          const refName = toJavaClassName(ft.classRefName ?? 'Object');
+          decorators.push('@ValidateNested()');
+          decorators.push(`@Type(() => ${refName}Dto)`);
+          cvImports.add('ValidateNested');
+          ctImports.add('Type');
+        }
+
+        let tsType = printNestJsDtoFieldType(ft);
+        if (isNullable) tsType += ' | null';
+        const optMark = isOpt ? '?' : '';
+
+        for (const dec of decorators) {
+          block += `  ${dec}\n`;
+        }
+        block += `  ${field.name}${optMark}: ${tsType};\n\n`;
+      }
+
+      block = block.trimEnd() + '\n}\n';
+      classBlocks.push(block);
+    }
+
+    let imports = '';
+    if (cvImports.size > 0) {
+      imports += `import { ${[...cvImports].sort().join(', ')} } from 'class-validator';\n`;
+    }
+    if (ctImports.size > 0) {
+      imports += `import { ${[...ctImports].sort().join(', ')} } from 'class-transformer';\n`;
+    }
+    if (imports) imports += '\n';
+
+    return imports + classBlocks.join('\n');
   }
 };
 
@@ -1229,6 +1469,87 @@ export const jsonSchemaGen = {
       $schema: "http://json-schema.org/draft-07/schema#", 
       ...build(schema)
     }, null, 2);
+  }
+};
+
+// --- Effect Schema Generator ---
+
+const printEffectSchemaType = (type: ASTType, cyclicClassRefs: Set<string>): string => {
+  switch (type.kind) {
+    case 'string':
+      if (type.format === 'uuid') return 'Schema.UUID';
+      if (type.format === 'datetime' || type.format === 'date') return 'Schema.DateTimeUtc';
+      if (type.enumValues && type.enumValues.length > 0) {
+        return `Schema.Literal(${type.enumValues.map(v => `"${v}"`).join(', ')})`;
+      }
+      return 'Schema.String';
+    case 'number':
+      return type.format === 'int' ? 'Schema.Int' : 'Schema.Number';
+    case 'boolean': return 'Schema.Boolean';
+    case 'date':
+    case 'datetime': return 'Schema.DateTimeUtc';
+    case 'classRef': {
+      if (!type.classRefName) return 'Schema.Unknown';
+      const refVar = toCamelCase(type.classRefName);
+      if (cyclicClassRefs.has(type.classRefName)) {
+        return `Schema.suspend((): Schema.Schema<${type.classRefName}> => ${refVar})`;
+      }
+      return refVar;
+    }
+    case 'array':
+      if (type.itemType) return `Schema.Array(${printEffectSchemaType(type.itemType, cyclicClassRefs)})`;
+      return 'Schema.Array(Schema.Unknown)';
+    case 'enum':
+      if (type.enumValues && type.enumValues.length > 0) {
+        return `Schema.Literal(${type.enumValues.map(v => `"${v}"`).join(', ')})`;
+      }
+      return 'Schema.String';
+    case 'union':
+      if (type.unionTypes && type.unionTypes.length > 0) {
+        const parts = type.unionTypes.map(t => printEffectSchemaType({ kind: t } as ASTType, cyclicClassRefs));
+        return parts.length === 1 ? parts[0] : `Schema.Union(${parts.join(', ')})`;
+      }
+      return 'Schema.Unknown';
+    default:
+      return 'Schema.Unknown';
+  }
+};
+
+export const effectSchemaGen = {
+  generate: (schema: Schema, name: string = 'root', options: any = {}): string => {
+    const astClasses = schemaToAST(schema, toPascalCase(name), options);
+    const { sorted: sortedClasses, cyclicClassRefs } = topoSortForZod(astClasses);
+    let res = '';
+
+    for (const cls of sortedClasses) {
+      const varName = toCamelCase(cls.name);
+      res += `export const ${varName} = Schema.Struct({\n`;
+
+      for (const field of cls.fields) {
+        let effectType = printEffectSchemaType(field.fieldType, cyclicClassRefs);
+        if (field.isNullable && field.isOptional) {
+          effectType = `Schema.optional(Schema.NullOr(${effectType}))`;
+        } else if (field.isNullable) {
+          effectType = `Schema.NullOr(${effectType})`;
+        } else if (field.isOptional) {
+          effectType = `Schema.optional(${effectType})`;
+        }
+        res += `  ${field.name}: ${effectType},\n`;
+      }
+
+      res += `});\n`;
+      res += `export type ${cls.name} = Schema.Schema.Type<typeof ${varName}>;\n\n`;
+    }
+
+    const itemName = rootArrayItemClassName(schema, toPascalCase(name));
+    if (itemName && astClasses.some(c => c.name === itemName)) {
+      const rootPascal = toPascalCase(name);
+      const rootCamel = toCamelCase(rootPascal);
+      res += `export const ${rootCamel} = Schema.Array(${toCamelCase(itemName)});\n`;
+      res += `export type ${rootPascal} = Schema.Schema.Type<typeof ${rootCamel}>;\n\n`;
+    }
+
+    return res;
   }
 };
 

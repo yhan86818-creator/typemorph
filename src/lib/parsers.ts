@@ -612,3 +612,166 @@ export const parseTypeScriptToSchema = (str: string): Schema | null => {
     return null;
   }
 };
+
+// ---------------------------------------------------------------------------
+// Zod Schema → TypeMorph Schema (Reverse Mode)
+// Converts Zod schema text into our internal Schema so mockGen can produce JSON.
+// ---------------------------------------------------------------------------
+
+function findMatchingClose(str: string, start: number, open: string, close: string): number {
+  let depth = 0;
+  for (let i = start; i < str.length; i++) {
+    if (str[i] === open) depth++;
+    else if (str[i] === close) { depth--; if (depth === 0) return i; }
+  }
+  return -1;
+}
+
+function splitTopLevelCommas(str: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let cur = '';
+  let inStr = false;
+  let strChar = '';
+  for (let i = 0; i < str.length; i++) {
+    const c = str[i];
+    if (inStr) {
+      cur += c;
+      if (c === strChar && str[i - 1] !== '\\') inStr = false;
+    } else if (c === '"' || c === "'") {
+      inStr = true; strChar = c; cur += c;
+    } else if (c === '(' || c === '{' || c === '[') {
+      depth++; cur += c;
+    } else if (c === ')' || c === '}' || c === ']') {
+      depth--; cur += c;
+    } else if (c === ',' && depth === 0) {
+      if (cur.trim()) parts.push(cur.trim());
+      cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  if (cur.trim()) parts.push(cur.trim());
+  return parts;
+}
+
+function parseZodTypeStr(typeStr: string): Schema {
+  const s = typeStr.trim();
+  const isOptional = /\.optional\(\)|\.nullish\(\)/.test(s);
+  const isNullable = /\.nullable\(\)|\.nullish\(\)/.test(s);
+
+  // z.object({...})
+  if (/^z\.object\s*\(/.test(s)) {
+    const braceOpen = s.indexOf('{');
+    if (braceOpen === -1) return { type: 'any' };
+    const braceClose = findMatchingClose(s, braceOpen, '{', '}');
+    const body = braceClose > -1 ? s.slice(braceOpen + 1, braceClose) : '';
+    const fields: Record<string, Schema> = {};
+    parseZodFields(body, fields);
+    return { type: 'object', fields, optional: isOptional || undefined, nullable: isNullable || undefined };
+  }
+
+  // z.array(...)
+  if (/^z\.array\s*\(/.test(s)) {
+    const parenOpen = s.indexOf('(');
+    const parenClose = findMatchingClose(s, parenOpen, '(', ')');
+    const inner = parenClose > -1 ? s.slice(parenOpen + 1, parenClose).trim() : 'z.string()';
+    const itemType = parseZodTypeStr(inner);
+    return { type: 'array', itemType, optional: isOptional || undefined };
+  }
+
+  // z.enum([...]) or z.nativeEnum
+  if (/^z\.enum\s*\(/.test(s)) {
+    const bracketOpen = s.indexOf('[');
+    const bracketClose = bracketOpen > -1 ? findMatchingClose(s, bracketOpen, '[', ']') : -1;
+    const vals = bracketClose > -1
+      ? splitTopLevelCommas(s.slice(bracketOpen + 1, bracketClose))
+          .map(v => v.trim().replace(/^['"`]|['"`]$/g, ''))
+          .filter(Boolean)
+      : [];
+    return { type: 'string', enumValues: vals.length ? vals : undefined, optional: isOptional || undefined };
+  }
+
+  // z.union([...]) or z.discriminatedUnion
+  if (/^z\.(?:union|discriminatedUnion)\s*\(/.test(s)) {
+    return { type: 'any', optional: isOptional || undefined };
+  }
+
+  // z.tuple([...])
+  if (/^z\.tuple\s*\(/.test(s)) {
+    return { type: 'array', itemType: { type: 'any' }, optional: isOptional || undefined };
+  }
+
+  // z.record(...)
+  if (/^z\.record\s*\(/.test(s)) {
+    return { type: 'object', fields: {}, optional: isOptional || undefined };
+  }
+
+  // Primitives
+  const schema: Schema = { type: 'any' };
+
+  if (/z\.string\b|z\.email\b|z\.url\b|z\.uuid\b|z\.cuid\b|z\.ulid\b/.test(s)) {
+    schema.type = 'string';
+    if (/\.email\(\)|z\.email\(\)/.test(s)) schema.format = 'email';
+    else if (/\.uuid\(\)|z\.uuid\(\)/.test(s)) schema.format = 'uuid';
+    else if (/\.url\(\)|z\.url\(\)/.test(s)) schema.format = 'url';
+    else if (/\.datetime\(\)/.test(s)) schema.format = 'datetime';
+    else if (/z\.cuid\(\)|z\.ulid\(\)/.test(s)) schema.format = 'uuid';
+  } else if (/z\.number\b|z\.int\b|z\.float\b/.test(s)) {
+    schema.type = 'number';
+    if (/\.int\(\)/.test(s)) schema.format = 'int';
+  } else if (/z\.boolean\b|z\.bool\b/.test(s)) {
+    schema.type = 'boolean';
+  } else if (/z\.date\b/.test(s)) {
+    schema.type = 'string'; schema.format = 'datetime';
+  } else if (/z\.null\(\)/.test(s)) {
+    schema.type = 'any'; schema.nullable = true;
+  } else if (/z\.any\(\)|z\.unknown\(\)/.test(s)) {
+    schema.type = 'any';
+  } else if (/z\.literal\(/.test(s)) {
+    const litMatch = s.match(/z\.literal\s*\(\s*(['"`])(.+?)\1\s*\)/);
+    schema.type = 'string';
+    if (litMatch) schema.enumValues = [litMatch[2]];
+  }
+
+  if (isOptional) schema.optional = true;
+  if (isNullable) schema.nullable = true;
+  return schema;
+}
+
+function parseZodFields(body: string, fields: Record<string, Schema>): void {
+  const entries = splitTopLevelCommas(body);
+  for (const entry of entries) {
+    const colonIdx = entry.indexOf(':');
+    if (colonIdx === -1) continue;
+    const key = entry.slice(0, colonIdx).trim().replace(/^['"`]|['"`]$/g, '');
+    const typeStr = entry.slice(colonIdx + 1).trim();
+    if (!key || !typeStr) continue;
+    fields[key] = parseZodTypeStr(typeStr);
+  }
+}
+
+export const parseZodToSchema = (input: string): Schema | null => {
+  try {
+    const trimmed = input.trim();
+    // Allow: z.object({...}), const x = z.object({...}), export const x = z.object({...})
+    if (!trimmed.includes('z.object(') && !trimmed.includes('z.array(') && !trimmed.includes('z.string(')
+        && !trimmed.includes('z.number(') && !trimmed.includes('z.boolean(')) {
+      return null;
+    }
+
+    // Find the main schema expression: const x = <expr> or just <expr>
+    let expr = trimmed;
+    const assignMatch = trimmed.match(/(?:const|let|var|export\s+(?:const|let|var)|export\s+default)\s+\w+\s*(?::\s*\w+\s*)?=\s*(z\.[\s\S]+)/);
+    if (assignMatch) expr = assignMatch[1].trim();
+    // Strip trailing semicolons
+    expr = expr.replace(/;\s*$/, '').trim();
+
+    const schema = parseZodTypeStr(expr);
+    if (schema.type === 'any' && !schema.optional) return null;
+    (schema as any)._isTypeMorphSchema = true;
+    return schema;
+  } catch {
+    return null;
+  }
+};

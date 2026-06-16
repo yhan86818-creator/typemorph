@@ -1,7 +1,7 @@
-import { 
+import {
   tsGen, zodGen, goGen, rustGen, javaGen, prismaGen, uiGen,
   dartGen, phpGen, pythonGen, protoGen, gqlGen, mockGen,
-  csharpGen, swiftGen, kotlinGen, jsonSchemaGen, docGen
+  csharpGen, swiftGen, kotlinGen, jsonSchemaGen, docGen, nestjsDtoGen, effectSchemaGen
 } from './generators';
 import {
   csvGen, sqlInsertGen, mysqlGen, postgresGen, sqliteGen, snowflakeGen,
@@ -18,14 +18,14 @@ import {
 } from './generators-extended';
 import { Schema, SchemaType } from './types';
 import { createHash } from 'crypto';
-import { parseYAML, parseXML, parseCurl, parseSQLToZod, curlToTypeScript, parseOpenAPI, parseTypeScriptToSchema, parseEnvFile } from './parsers';
+import { parseYAML, parseXML, parseCurl, parseSQLToZod, curlToTypeScript, parseOpenAPI, parseTypeScriptToSchema, parseEnvFile, parseZodToSchema } from './parsers';
 import { trackInferenceError, trackInferenceFallback, trackUnsupportedOutputTarget } from './analytics';
 import { isOpenAPISpec, parseOpenAPIComponents } from './openapi-parser';
 import { isJSONSchema, parseJSONSchema } from './jsonschema-parser';
 import { detectRecursiveTypes } from './recursive';
 
 export { type Schema };
-export { parseYAML, parseXML, parseCurl, parseSQLToZod, curlToTypeScript, parseOpenAPI, parseTypeScriptToSchema, parseEnvFile };
+export { parseYAML, parseXML, parseCurl, parseSQLToZod, curlToTypeScript, parseOpenAPI, parseTypeScriptToSchema, parseEnvFile, parseZodToSchema };
 
 // ---------------------------------------------------------------------------
 // Primitive types that can participate in a union (non-object, non-array)
@@ -533,6 +533,8 @@ const DEPENDENCY_COMMENTS: Record<string, string> = {
   'mcp-tool': '// Required: npm install @modelcontextprotocol/sdk zod\n\n',
   'openai-function': '',
   'vercel-ai-tool': '// Required: npm install ai zod\n\n',
+  'nestjs-dto': '// Required: npm install class-validator class-transformer\n// tsconfig.json: "experimentalDecorators": true, "emitDecoratorMetadata": true\n\n',
+  'effect-schema': '// Required: npm install effect\nimport { Schema } from "effect";\n\n',
 };
 
 const cleanAndFormatCode = (code: string): string => {
@@ -1266,12 +1268,14 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     else if (s.includes('mcp-tool') || s.includes('mcp')) out = mcpToolGen.generate(schema, rootName);
     else if (s.includes('openai-function') || s.includes('openai-func')) out = openAiFunctionGen.generate(schema, rootName);
     else if (s.includes('vercel-ai-tool') || s.includes('vercel-ai')) out = vercelAiToolGen.generate(schema, rootName);
+    else if (s.includes('nestjs-dto') || s.includes('nestjs')) out = nestjsDtoGen.generate(schema, rootName, options);
+    else if (s.includes('effect-schema') || s.includes('effect')) out = effectSchemaGen.generate(schema, rootNameLower, options);
 
     // Whether the requested target matched a known generator branch above.
     // (Used to avoid mislabelling a *recognised* target that legitimately produced
     //  an empty string — e.g. an empty input — as "unsupported".)
     const KNOWN_TARGETS_EXACT = new Set(['typescript', 'ts', 'zod', 'go', 'golang', 'rust', 'java', 'python', 'php', 'sql', 'prisma', 'proto', 'protobuf', 'graphql', 'gql', 'json', 'r']);
-    const KNOWN_TARGET_SUBSTR = ['csv', 'sql-insert', 'mysql', 'postgres', 'sqlite', 'snowflake', 'mongodb', 'mongoose', 'ruby', 'rails', 'django', 'dart', 'flutter', 'swift', 'kotlin', 'csharp', 'c-sharp', 'openapi', 'jsonschema', 'yup', 'joi', 'valibot', 'react-props', 'vue-props', 'svelte-props', 'solid-props', 'react-context', 'react-query', 'api-route', 'nextjs-api', 'redux-slice', 'pinia', 'sequelize', 'typeorm', 'drizzle', 'kysely', 'superstruct', 'arduino', 'mock', 'ui', 'doc', 'avro', 'toml', 'yaml', 'env-validator', 'env', 'properties', 'markdown', 'asciidoc', 'latex', 'mermaid', 'bigquery', 'dynamodb', 'postman', 'http', 'vscode', 'curl', 'cobol', 'clojure', 'elixir', 'elm', 'godot', 'gdscript', 'haskell', 'r-lang', 'scala', 'solidity', 'cpp', 'c++', 'cpp-struct', 'cpp-class', 'c-struct', 'json-to-c', 'mcp-tool', 'mcp', 'openai-function', 'openai-func', 'vercel-ai-tool', 'vercel-ai'];
+    const KNOWN_TARGET_SUBSTR = ['csv', 'sql-insert', 'mysql', 'postgres', 'sqlite', 'snowflake', 'mongodb', 'mongoose', 'ruby', 'rails', 'django', 'dart', 'flutter', 'swift', 'kotlin', 'csharp', 'c-sharp', 'openapi', 'jsonschema', 'yup', 'joi', 'valibot', 'react-props', 'vue-props', 'svelte-props', 'solid-props', 'react-context', 'react-query', 'api-route', 'nextjs-api', 'redux-slice', 'pinia', 'sequelize', 'typeorm', 'drizzle', 'kysely', 'superstruct', 'arduino', 'mock', 'ui', 'doc', 'avro', 'toml', 'yaml', 'env-validator', 'env', 'properties', 'markdown', 'asciidoc', 'latex', 'mermaid', 'bigquery', 'dynamodb', 'postman', 'http', 'vscode', 'curl', 'cobol', 'clojure', 'elixir', 'elm', 'godot', 'gdscript', 'haskell', 'r-lang', 'scala', 'solidity', 'cpp', 'c++', 'cpp-struct', 'cpp-class', 'c-struct', 'json-to-c', 'mcp-tool', 'mcp', 'openai-function', 'openai-func', 'vercel-ai-tool', 'vercel-ai', 'nestjs-dto', 'nestjs', 'effect-schema', 'effect'];
     const targetMatched = KNOWN_TARGETS_EXACT.has(s) || KNOWN_TARGET_SUBSTR.some(k => s.includes(k));
 
     // Explicit JSON output when requested, otherwise surface unsupported targets.

@@ -1,51 +1,109 @@
-<h2>JSON to Zod: 蠑ｷ蝗ｺ縺ｪ繝ｩ繝ｳ繧ｿ繧､繝ヰ繝ｪ繝繧ｷ繝ｧ繝ｳ縺ｮ螳溽樟</h2>
-<p>TypeScript縺ｯ髢狗匱譎ゅ蝙句ｮ牙繧呈署萓帙＠縺ｾ縺吶′縲√Λ繝ｳ繧ｿ繧､繝〒縺ｯ縺昴諠縺ｯ豸亥､ｱ縺励∪縺吶€：SON繧辿od繧ｹ繧ｭ繝ｼ繝医↓螟画鋤縺吶ｋ縺薙→縺ｧ縲∝､悶ΚAPI縺九ｉ縺ｮ繝繧ｿ繧Ε繝ｼ繧ｶ繝ｼ蜈･蜉帙ｒ螳溯｡梧凾縺ｫ讀懆ｨｼ縺励€√い繝励Μ繧ｱ繝ｼ繧ｷ繝ｧ繝ｳ縺ｮ菫｡鬆ｼ諤ｧ繧帝｣幄ｺ咲噪縺ｫ鬮倥ａ繧九％縺後〒縺阪∪縺吶€：od縺ｯ縲√ヰ繝ｪ繝繧ｷ繝ｧ繝ｳ縺ｨ蝙呈耳鬮ｒ蜷梧凾縺ｫ陦後≧縺薙→縺ｧ縲∬ｪ崎ｭ倥＠縺ｦ縺↑縺ョ繝ｼ繧ｿ縺ｮ豬∝繧帝亟縺弱€√そ繧ｭ繝･繧｢縺ｪ髢狗匱繧ｵ繧､繧ｯ繝ｫ繧堤ｶｭ謖√＠縺ｾ縺吶€</p>
+<h2>JSON to Zod: TypeScript の型と一致するランタイムバリデーション</h2>
+<p>TypeScript の型はコンパイル後に消えてしまうため、不正な API レスポンス、想定外の形のフォーム送信、フィールドが欠けたデータベースレコードからあなたを守ってはくれません。Zod はそのギャップを埋めます。JSON から Zod スキーマを生成すれば、TypeScript の型とランタイムのバリデータを「単一の真実の源」から同時に得られるため、両者が食い違うことがありません。</p>
 
-<h3>Live Example: 蜍慕噪JSON縺九ｉ讀懆ｨｼ貉医∩繧ｹ繧ｭ繝ｼ繝医∈</h3>
-<pre><code>// 蜈･蜉 JSON
+<h3>実例: API レスポンスの検証</h3>
+<pre><code>// API から受け取った JSON
 {
-  "id": 1,
-  "title": "Zod Guide",
-  "tags": ["typescript", "validation"],
-  "published": true
+  "api_version": "v2",
+  "status": "success",
+  "data": {
+    "count": 42,
+    "items": [
+      { "id": "p_001", "name": "Widget", "price": 19.99, "in_stock": true }
+    ]
+  }
 }
 
-// 逕滓縺輔ｌ縺 Zod Schema
+// 生成された Zod スキーマ
 import { z } from 'zod';
 
-const ArticleSchema = z.object({
-  id: z.number().int(),
-  title: z.string().min(1),
-  tags: z.array(z.string()),
-  published: z.boolean()
+const ItemSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1),
+  price: z.number().positive(),
+  in_stock: z.boolean(),
 });
 
-type Article = z.infer&lt;typeof ArticleSchema&gt;;
+const ApiResponseSchema = z.object({
+  api_version: z.string(),
+  status: z.enum(['success', 'error']),
+  data: z.object({
+    count: z.number().int().nonnegative(),
+    items: z.array(ItemSchema),
+  }),
+});
+
+export type ApiResponse = z.infer&lt;typeof ApiResponseSchema&gt;;
+export type Item = z.infer&lt;typeof ItemSchema&gt;;
 </code></pre>
 
-<h3>繧ｹ繝ャ繝励繧､繧ｹ繝ャ繝玲ｱ守畑繧ｬ繧､繝</h3>
-<p>1. <strong>繝繧ｿ蛻傳統:</strong> JSON繝輔ぅ繝ｼ繝ｫ繝峨′縺ｩ縺ｮ繧医≧縺ｪ蛻ｶ邏(譛€蟆丞€､縲∝ｽ｢蠑上↑縺)繧呈戟縺､縺九ｒ遒ｺ隱阪＠縺ｾ縺吶€<br>
-2. <strong>繧ｹ繧ｭ繝ｼ繝育函謌:</strong> 螟画鋤繝ｼ繝ｫ繧剃ｽｿ逕ｨ縺励※縲：SON縺九ｉ蝓ｺ譛ｬ逧↑Zod繧ｹ繧ｭ繝ｼ繝医ｒ閾ｪ蜍輔〒繝槭ャ繝斐Φ繧ｰ縺励∪縺吶€<br>
-3. <strong>繝舌Μ繝繧ｿ縺ｮ霑ｽ蜉:</strong> <code>.email()</code> 繧 <code>.url()</code> 縺ｮ繧医≧縺ｪZod蝗ｺ譛峨繝｡繧ｽ繝ラ繧定ｿｽ蜉縺励€√ヰ繝ｪ繝繧ｷ繝ｧ繝ｳ繧貞ｼｷ蛹悶＠縺ｾ縺吶€<br>
-4. <strong>蝙呈耳鬮:</strong> <code>z.infer</code> 繧剃ｽｿ逕ｨ縺励※縲√せ繧ｭ繝ｼ繝医°繧鱈ypeScript蝙九ｒ閾ｪ蜍輔〒蜿門ｾ励＠縺ｾ縺吶€</p>
+<h3>parse() と safeParse() ― 正しい入口を選ぶ</h3>
+<p>Zod には2つのパースモードがあり、間違った方を選ぶのはよくあるミスです。</p>
+<pre><code>// parse() ― 失敗すると ZodError を投げる
+// 用途: サーバー起動時の検証、テスト、CI チェック
+const config = ConfigSchema.parse(process.env);
 
-<h3>Technical Deep Dive: 繝代繧ｹ縺ｨ螟画鋤縺ｮ逧粋</h3>
-<p>Zod縺ｮ譛€螟ｧ縺ｮ迚ｹ蠕ｴ縺ｯ縲√€後ヰ繝ｪ繝繧ｷ繝ｧ繝ｳ縺ｨ蜷梧凾縺ｫ繝繧ｿ繧貞､画鋤(Transform)縺ｧ縺阪ｋ縲阪％縺ｨ縺ｧ縺吶€ゅ◆縺ｨ縺医縲：SON蜀譌･莉俶枚蟄怜繧od縺ｮ <code>z.coerce.date()</code> 繧剃ｽｿ逕ｨ縺吶ｋ縺薙→縺ｧ縲√ヰ繝ｪ繝繧ｷ繝ｧ繝ｳ譎ゅ↓閾ｪ蜍輔〒 <code>Date</code> 繧ｪ繝悶ず繧ｧ繧ｯ繝医∈螟画鋤縺ｧ縺阪∪縺吶€ゅ％繧後↓繧医ｊ縲√い繝励Μ繧ｱ繝ｼ繧ｷ繝ｧ繝ｳ蜀Κ縺ｧ縺ｯ蟶ｸ縺ｫ讀懆ｨｼ貉医∩縺ｮ譛€驕ｩ縺ｪ蝙九〒繝繧ｿ繧扱扱縺％縺後〒縺阪∪縺吶€</p>
+// safeParse() ― { success, data } または { success, error } を返す
+// 用途: ユーザー入力、API レスポンスなどエラーを丁寧に扱いたい場面
+const result = UserSchema.safeParse(req.body);
+if (!result.success) {
+  const errors = result.error.flatten().fieldErrors;
+  return res.status(400).json({ errors });
+}
+const user = result.data; // 完全に型付けされた User
+</code></pre>
+<p>目安: 絶対に間違ってはいけないもの（起動時のアプリ設定）には <code>parse()</code>、失敗が想定され回復可能な外部データには <code>safeParse()</code> を使います。</p>
 
-<h3>豈碑ｼ→莉｣譛ｿ譯</h3>
-<p>Zod縺ｯ迴ｾ蝨ｨ縺ｮ繝繝輔ぃ繧ｯ繝医せ繧ｿ繝ｳ繝€繝ｼ繝峨〒縺吶′縲√ヰ繝ｳ繝峨Ν繧ｵ繧､繧ｺ繧呈･ｵ髯舌∪縺ｧ蜑企ｸ帙＠縺溘＞蝣ｴ蜷医<strong>Valibot</strong>縺碁驕ｩ縺ｧ縺吶€ゅ∪縺溘€√ヰ繝け繧ｨ繝ｳ繝峨′Node.js縺ｮ蝣ｴ蜷医<strong>Joi</strong>繧ょｼｷ蜉帷噪縺ｧ縺吶′縲√€鱈ypeScript縺ｨ縺ｮ隕ｪ蜥梧€ｧ縺ｯZod縺瑚｡謎ｹ励＠縺ｦ縺∪縺吶€</p>
+<h3>判別可能なユニオン（discriminatedUnion）</h3>
+<p>API が <code>type</code> フィールドによって構造の変わるオブジェクトを返す場合、Zod の <code>discriminatedUnion</code> が正確な検証と網羅的な型チェックを提供します。</p>
+<pre><code>const ClickEventSchema = z.object({
+  type: z.literal('click'),
+  x: z.number(),
+  y: z.number(),
+});
 
-<h3>譛ｬ逡ｪ迺ｰ蠅〒縺ｮ繝吶せ繝医繝ｩ繧ｯ繝ぅ繧ｹ</h3>
+const KeypressEventSchema = z.object({
+  type: z.literal('keypress'),
+  key: z.string(),
+  ctrlKey: z.boolean(),
+});
+
+const DomEventSchema = z.discriminatedUnion('type', [
+  ClickEventSchema,
+  KeypressEventSchema,
+]);
+
+type DomEvent = z.infer&lt;typeof DomEventSchema&gt;;
+</code></pre>
+<p>可能なときは <code>union</code> より <code>discriminatedUnion</code> を使いましょう。判別子を最初にチェックするため高速で、エラーメッセージも分かりやすくなります。</p>
+
+<h3>省略可能（optional）と null 許容（nullable）の扱い</h3>
+<pre><code>const UserSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1),
+  email: z.string().email(),
+  bio: z.string().optional(),          // キー自体が存在しないかもしれない
+  deletedAt: z.string().nullable(),    // キーは存在するが null かもしれない
+  nickname: z.string().nullish(),      // 存在しない、または null
+});
+
+// PATCH エンドポイント向け ― 全フィールドを optional に
+const UpdateUserSchema = UserSchema.partial();
+</code></pre>
+
+<h3>よくある落とし穴</h3>
 <ul>
-  <li><strong>Fail Fast:</strong> 繝繧ｿ縺後す繧ｹ繝Β縺ｫ蜈･繧狗匱 骭 縺ｧ讀懆ｨｼ繧定｡後＞縲√ぞ繧ｭ繝･繝ｪ繝ぅ繝帙繝ｫ繧貞崟縺弱∪縺吶€</li>
-  <li><strong>繧ｫ繧ｹ繧ｿ繝繧ｨ繝ｩ繝ｼ繝｡繝そ繝ｼ繧ｸ:</strong> 繝ｦ繝ｼ繧ｶ繝ｼ縺ｫ謔ｪ縺 豎ｺ 縺ｪ繧ｨ繝ｩ繝ｼ繝｡繝そ繝ｼ繧ｸ繧定ｨｭ螳壹＠縲、X繧貞髄荳翫＆縺帙∪縺吶€</li>
-  <li><strong>Schema Reuse:</strong> 蟆上＆縺ｪ繧ｹ繧ｭ繝ｼ繝医ｒ邨∩蜷医ｏ縺帙※隍｡代↑讒矩€繧堤ｯ峨″縲∝蛻ｩ逕ｨ諤ｧ繧帝ｫ倥ａ縺ｾ縺吶€</li>
+  <li><strong><code>z.infer</code> を使わない:</strong> Zod スキーマと TypeScript の型を別々に手書きすると食い違います。必ず <code>type User = z.infer&lt;typeof UserSchema&gt;</code> のように型を導出しましょう。</li>
+  <li><strong>クエリパラメータに <code>z.coerce</code> を忘れる:</strong> URL のクエリは常に文字列です。<code>z.number()</code> は <code>"42"</code> で失敗するため <code>z.coerce.number()</code> を使います。</li>
+  <li><strong>1つのスキーマに深くネストしすぎる:</strong> 5階層のネストは読みにくくテストも困難です。<code>AddressSchema</code> などの名前付きサブスキーマに分割して組み合わせましょう。</li>
 </ul>
 
-<h3>FAQ</h3>
-<p><strong>Q: Zod縺ｯ繝代ヵ繧ｩ繝ｼ繝槭Φ繧ｹ縺ｫ蠖ｱ髻ｿ縺励∪縺吶°?</strong><br>
-A: 騾壼ｸｸ縺ｮWeb繧｢繝励Μ縺ｧ縺ｯ辟｡隕悶〒縺阪ｋ繝ｬ繝吶Ν縺ｧ縺吶′縲∝､ｧ驥冗ｷｨ髮ｄ鬮倬ｻ蠎ｦ縺ｪ蜃ｦ逅〒縺ｯ <code>ArkType</code> 縺ｮ讀懈ｨｼ繧る｡倥↓蜈･繧後∪縺吶€</p>
-<p><strong>Q: 繝輔ぅ繝ｫ繧ｿ繝ｪ繝ｳ繧ｰ縺ｯ蜿ｯ閭ｽ?</strong><br>
-A: <code>.strip()</code> 繧剃ｽｿ逕ｨ縺吶ｋ縺薙→縺ｧ縲√せ繧ｭ繝ｼ繝医↓縺ｪ繝輔ぅ繝ｼ繝ｫ繝峨ｒ閾ｪ蜍輔〒髯､蜴ｻ縺ｧ縺阪∪縺吶€</p>
-<p><strong>Q: 譌｢蟄倥TypeScript蝙九°繧育函謌撰溯｡後∴繧?</strong><br>
-A: <code>ts-to-zod</code> 縺ｮ繧医≧縺ｪ繝ｼ繝ｫ繧剃ｽｿ逕ｨ縺吶ｋ縺薙→縺ｧ縲√せ繧ｭ繝ｼ繝医閾ｪ蜍輔す繝ｳ繧ｯ縺悟庄閭ｽ縺ｧ縺吶€</p>
+<h3>よくある質問</h3>
+<p><strong>Q: optional と nullable の違いは?</strong><br>
+A: <code>.optional()</code> はキーが存在しないことを許します（<code>T | undefined</code>）。<code>.nullable()</code> は値が <code>null</code> になりうることを表します（<code>T | null</code>）。<code>.nullish()</code> はその両方（<code>T | null | undefined</code>）です。</p>
+
+<p><strong>Q: z.union と z.discriminatedUnion の違いは?</strong><br>
+A: <code>z.union</code> は各スキーマを順に試すため最悪 O(n) です。<code>z.discriminatedUnion</code> は判別子フィールドで一致するスキーマへ直接ジャンプするため O(1) です。共通の <code>type</code> や <code>kind</code> を持つなら常に後者を選びましょう。</p>
+
+<p><strong>Q: トップレベルが配列の JSON も検証できる?</strong><br>
+A: できます。<code>const TagsSchema = z.array(z.string().min(1)).min(1).max(20)</code> のように、オブジェクトに包まず配列を直接検証できます。</p>

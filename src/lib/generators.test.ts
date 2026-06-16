@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { swiftGen, kotlinGen, zodGen, protoGen, gqlGen, tsGen, goGen, rustGen, jsonSchemaGen, mockGen, prismaGen, javaGen, uiGen, docGen, csharpGen, phpGen } from './generators';
+import { swiftGen, kotlinGen, zodGen, protoGen, gqlGen, tsGen, goGen, rustGen, jsonSchemaGen, mockGen, prismaGen, javaGen, uiGen, docGen, csharpGen, phpGen, nestjsDtoGen, effectSchemaGen } from './generators';
 import { inferSchema } from './engine';
 import { parseTypeScriptToSchema } from './parsers';
 
@@ -546,7 +546,7 @@ describe('generators', () => {
       expect(result).toContain('public class User');
       expect(result).toContain('private String id');
       expect(result).toContain('private int age');
-      expect(result).toContain('getId()');
+      expect(result).toContain('@Data'); // Lombok generates getters/setters
     });
 
     it('optional フィールドに @Nullable がつく', () => {
@@ -554,6 +554,116 @@ describe('generators', () => {
       const schema = inferSchema(samples);
       const result = javaGen.generate(schema, 'User');
       expect(result).toContain('@Nullable');
+    });
+
+    it('Lombok annotations are present', () => {
+      const schema = inferSchema({ name: 'Alice', age: 30 });
+      const result = javaGen.generate(schema, 'User');
+      expect(result).toContain('@Data');
+      expect(result).toContain('@Builder');
+      expect(result).toContain('@NoArgsConstructor');
+      expect(result).toContain('@AllArgsConstructor');
+      expect(result).toContain('@JsonIgnoreProperties(ignoreUnknown = true)');
+    });
+
+    it('adds @JsonProperty for snake_case field names', () => {
+      const schema = inferSchema({ first_name: 'Alice', last_name: 'Doe' });
+      const result = javaGen.generate(schema, 'User');
+      expect(result).toContain('@JsonProperty("first_name")');
+      expect(result).toContain('private String firstName');
+      expect(result).toContain('@JsonProperty("last_name")');
+    });
+
+    it('uses BigDecimal for monetary fields', () => {
+      const schema = inferSchema({ price: 9.99, amount: 100.0, fee: 2.50 });
+      const result = javaGen.generate(schema, 'Invoice');
+      expect(result).toContain('BigDecimal');
+      expect(result).toContain('import java.math.BigDecimal;');
+    });
+
+    it('adds @Email annotation for email fields', () => {
+      const schema = inferSchema({ email: 'a@b.com', name: 'Alice' });
+      const result = javaGen.generate(schema, 'User');
+      expect(result).toContain('@Email');
+      expect(result).toContain('import jakarta.validation.constraints.Email;');
+    });
+
+    it('adds @Min(0) for monetary fields', () => {
+      const schema = inferSchema({ price: 9.99 });
+      const result = javaGen.generate(schema, 'Product');
+      expect(result).toContain('@Min(0)');
+    });
+
+    it('uses UUID type for uuid-format string fields', () => {
+      const schema = inferSchema({ id: '550e8400-e29b-41d4-a716-446655440000' });
+      const result = javaGen.generate(schema, 'Entity');
+      expect(result).toContain('UUID');
+      expect(result).toContain('import java.util.UUID;');
+    });
+
+    it('uses OffsetDateTime for datetime fields', () => {
+      const schema = inferSchema({ createdAt: '2024-01-15T10:30:00Z' });
+      const result = javaGen.generate(schema, 'Event');
+      expect(result).toContain('OffsetDateTime');
+      expect(result).toContain('import java.time.OffsetDateTime;');
+    });
+
+    it('adds @NotNull for required String fields', () => {
+      const schema = inferSchema({ name: 'Alice', email: 'a@b.com' });
+      const result = javaGen.generate(schema, 'User');
+      expect(result).toContain('@NotNull');
+    });
+  });
+
+  describe('swiftGen: CodingKeys', () => {
+    it('omits CodingKeys when all fields are camelCase', () => {
+      const schema = inferSchema({ id: 1, firstName: 'Alice', isActive: true });
+      const result = swiftGen.generate(schema, 'User');
+      expect(result).not.toContain('CodingKeys');
+    });
+
+    it('adds CodingKeys when snake_case fields exist', () => {
+      const schema = inferSchema({ first_name: 'Alice', last_name: 'Doe' });
+      const result = swiftGen.generate(schema, 'User');
+      expect(result).toContain('CodingKeys');
+      expect(result).toContain('case firstName = "first_name"');
+      expect(result).toContain('case lastName = "last_name"');
+    });
+
+    it('maps swift field names to camelCase', () => {
+      const schema = inferSchema({ first_name: 'Alice', is_active: true });
+      const result = swiftGen.generate(schema, 'User');
+      expect(result).toContain('let firstName: String');
+      expect(result).toContain('let isActive: Bool');
+    });
+
+    it('includes import Foundation', () => {
+      const schema = inferSchema({ name: 'Alice' });
+      const result = swiftGen.generate(schema, 'User');
+      expect(result).toContain('import Foundation');
+    });
+  });
+
+  describe('kotlinGen: Serialization', () => {
+    it('adds @Serializable annotation', () => {
+      const schema = inferSchema({ id: 1, name: 'Alice' });
+      const result = kotlinGen.generate(schema, 'User');
+      expect(result).toContain('@Serializable');
+      expect(result).toContain('import kotlinx.serialization.Serializable');
+    });
+
+    it('adds @SerialName for snake_case fields', () => {
+      const schema = inferSchema({ first_name: 'Alice', last_name: 'Doe' });
+      const result = kotlinGen.generate(schema, 'User');
+      expect(result).toContain('@SerialName("first_name")');
+      expect(result).toContain('val firstName: String');
+      expect(result).toContain('import kotlinx.serialization.SerialName');
+    });
+
+    it('does NOT add @SerialName for already camelCase fields', () => {
+      const schema = inferSchema({ firstName: 'Alice', isActive: true });
+      const result = kotlinGen.generate(schema, 'User');
+      expect(result).not.toContain('@SerialName');
     });
   });
 
@@ -678,6 +788,148 @@ describe('generators', () => {
       const schema = inferSchema({ slug: 'hello-world' });
       const result = docGen.generate(schema, 'Post');
       expect(result).toContain('URL-safe identifier slug.');
+    });
+  });
+
+  describe('nestjsDtoGen', () => {
+    it('generates class with Dto suffix and class-validator imports', () => {
+      const schema = inferSchema({ id: '550e8400-e29b-41d4-a716-446655440000', email: 'a@b.com', age: 25 });
+      const result = nestjsDtoGen.generate(schema, 'User');
+      expect(result).toContain("from 'class-validator'");
+      expect(result).toContain('export class UserDto');
+    });
+
+    it('adds @IsUUID() for uuid-format fields', () => {
+      const schema = inferSchema({ id: '550e8400-e29b-41d4-a716-446655440000' });
+      const result = nestjsDtoGen.generate(schema, 'User');
+      expect(result).toContain('@IsUUID()');
+    });
+
+    it('adds @IsEmail() for email-format fields', () => {
+      const schema = inferSchema({ email: 'alice@example.com' });
+      const result = nestjsDtoGen.generate(schema, 'User');
+      expect(result).toContain('@IsEmail()');
+    });
+
+    it('adds @IsInt() for integer number fields', () => {
+      const schema = inferSchema({ age: 25 });
+      const result = nestjsDtoGen.generate(schema, 'User');
+      expect(result).toContain('@IsInt()');
+    });
+
+    it('adds @IsNumber() for float number fields', () => {
+      const schema = inferSchema({ score: 9.5 });
+      const result = nestjsDtoGen.generate(schema, 'User');
+      expect(result).toContain('@IsNumber()');
+    });
+
+    it('adds @IsBoolean() for boolean fields', () => {
+      const schema = inferSchema({ active: true });
+      const result = nestjsDtoGen.generate(schema, 'User');
+      expect(result).toContain('@IsBoolean()');
+    });
+
+    it('adds @IsOptional() for optional fields', () => {
+      const samples = [{ name: 'Alice', bio: 'hi' }, { name: 'Bob' }];
+      const schema = inferSchema(samples);
+      const result = nestjsDtoGen.generate(schema, 'User');
+      expect(result).toContain('@IsOptional()');
+      expect(result).toContain('bio?: string');
+    });
+
+    it('adds @IsNotEmpty() for required string fields', () => {
+      const schema = inferSchema({ name: 'Alice' });
+      const result = nestjsDtoGen.generate(schema, 'User');
+      expect(result).toContain('@IsNotEmpty()');
+    });
+
+    it('adds @Min/@Max for age fields', () => {
+      const schema = inferSchema({ age: 25 });
+      const result = nestjsDtoGen.generate(schema, 'User');
+      expect(result).toContain('@Min(0)');
+      expect(result).toContain('@Max(150)');
+    });
+
+    it('adds @ValidateNested and @Type for nested objects', () => {
+      const schema = inferSchema({ user: { name: 'Alice', email: 'a@b.com' } });
+      const result = nestjsDtoGen.generate(schema, 'Root');
+      expect(result).toContain('@ValidateNested()');
+      expect(result).toContain('@Type(() => RootUserDto)');
+      expect(result).toContain("from 'class-transformer'");
+    });
+
+    it('adds @IsISO8601() for datetime fields', () => {
+      const schema = inferSchema({ created_at: '2024-01-01T00:00:00Z' });
+      const result = nestjsDtoGen.generate(schema, 'Post');
+      expect(result).toContain('@IsISO8601()');
+    });
+  });
+
+  describe('effectSchemaGen', () => {
+    it('wraps fields in Schema.Struct and exports type', () => {
+      const schema = inferSchema({ id: '550e8400-e29b-41d4-a716-446655440000', name: 'Alice' });
+      const result = effectSchemaGen.generate(schema, 'User');
+      expect(result).toContain('Schema.Struct({');
+      expect(result).toContain('export type User =');
+      expect(result).toContain('Schema.Schema.Type<typeof user>');
+    });
+
+    it('maps uuid format to Schema.UUID', () => {
+      const schema = inferSchema({ id: '550e8400-e29b-41d4-a716-446655440000' });
+      const result = effectSchemaGen.generate(schema, 'User');
+      expect(result).toContain('Schema.UUID');
+    });
+
+    it('maps datetime format to Schema.DateTimeUtc', () => {
+      const schema = inferSchema({ created_at: '2024-01-01T00:00:00Z' });
+      const result = effectSchemaGen.generate(schema, 'Post');
+      expect(result).toContain('Schema.DateTimeUtc');
+    });
+
+    it('maps integer to Schema.Int', () => {
+      const schema = inferSchema({ age: 25 });
+      const result = effectSchemaGen.generate(schema, 'User');
+      expect(result).toContain('Schema.Int');
+    });
+
+    it('maps float to Schema.Number', () => {
+      const schema = inferSchema({ score: 9.5 });
+      const result = effectSchemaGen.generate(schema, 'User');
+      expect(result).toContain('Schema.Number');
+    });
+
+    it('maps boolean to Schema.Boolean', () => {
+      const schema = inferSchema({ active: true });
+      const result = effectSchemaGen.generate(schema, 'User');
+      expect(result).toContain('Schema.Boolean');
+    });
+
+    it('wraps optional fields with Schema.optional()', () => {
+      const samples = [{ name: 'Alice', bio: 'hi' }, { name: 'Bob' }];
+      const schema = inferSchema(samples);
+      const result = effectSchemaGen.generate(schema, 'User');
+      expect(result).toContain('Schema.optional(');
+    });
+
+    it('wraps nullable fields with Schema.NullOr()', () => {
+      const schema = inferSchema({ name: 'Alice', bio: null });
+      const result = effectSchemaGen.generate(schema, 'User');
+      expect(result).toContain('Schema.NullOr(');
+    });
+
+    it('maps array to Schema.Array()', () => {
+      const schema = inferSchema({ tags: ['a', 'b'] });
+      const result = effectSchemaGen.generate(schema, 'Post');
+      expect(result).toContain('Schema.Array(Schema.String)');
+    });
+
+    it('maps enum values to Schema.Literal()', () => {
+      const samples = [
+        { role: 'admin' }, { role: 'user' }, { role: 'admin' }, { role: 'user' },
+      ];
+      const schema = inferSchema(samples);
+      const result = effectSchemaGen.generate(schema, 'User');
+      expect(result).toMatch(/Schema\.Literal\(/);
     });
   });
 

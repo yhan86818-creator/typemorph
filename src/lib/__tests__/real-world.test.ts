@@ -133,8 +133,8 @@ describe('Real-world: EC Order', () => {
       expect(out).toMatch(/city.*z\.string/);
     });
 
-    it('generates createdAt as z.string()', () => {
-      expect(out).toMatch(/createdAt.*z\.string/);
+    it('generates createdAt as z.iso.datetime()', () => {
+      expect(out).toMatch(/createdAt.*z\.iso\.datetime/);
     });
   });
 
@@ -246,9 +246,9 @@ describe('Real-world: User Profile', () => {
       expect(out).toMatch(/country.*z\.string/);
     });
 
-    it('generates createdAt and updatedAt as string fields', () => {
-      expect(out).toMatch(/createdAt.*z\.string/);
-      expect(out).toMatch(/updatedAt.*z\.string/);
+    it('generates createdAt and updatedAt as datetime fields', () => {
+      expect(out).toMatch(/createdAt.*z\.iso\.datetime/);
+      expect(out).toMatch(/updatedAt.*z\.iso\.datetime/);
     });
 
     it('generates isActive as z.boolean()', () => {
@@ -305,7 +305,7 @@ describe('Real-world: Paginated API Response', () => {
     it('generates meta nested fields in the output', () => {
       // requestId ends with 'Id' → inferred as z.uuid() (semantic inference)
       expect(out).toContain('requestId: z.uuid()');
-      expect(out).toMatch(/timestamp.*z\.string/);
+      expect(out).toMatch(/timestamp.*z\.iso\.datetime/);
     });
 
     it('applies .min(0) to price inside data items', () => {

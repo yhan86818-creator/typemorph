@@ -343,9 +343,9 @@ export function LandingView({ onSelect }: LandingViewProps) {
 <span className="text-blue-400">import</span> <span className="text-slate-300">{'{ z }'}</span> <span className="text-blue-400">from</span> <span className="text-emerald-300">'zod'</span>{'\n\n'}
 <span className="text-blue-400">export const</span> <span className="text-amber-300">userSchema</span>{'\n'}
 {'  '}<span className="text-slate-400">= z.object({'({'}</span>{'\n'}
-{'  '}<span className="text-slate-200">id</span><span className="text-slate-400">:</span> <span className="text-emerald-400">z.string().uuid()</span><span className="text-slate-500">,</span>{'\n'}
-{'  '}<span className="text-slate-200">email</span><span className="text-slate-400">:</span> <span className="text-emerald-400">z.string().email()</span><span className="text-slate-500">,</span>{'\n'}
-{'  '}<span className="text-slate-200">age</span><span className="text-slate-400">:</span> <span className="text-emerald-400">z.number().min(0)</span><span className="text-slate-500">,</span>{'\n'}
+{'  '}<span className="text-slate-200">id</span><span className="text-slate-400">:</span> <span className="text-emerald-400">z.uuid()</span><span className="text-slate-500">,</span>{'\n'}
+{'  '}<span className="text-slate-200">email</span><span className="text-slate-400">:</span> <span className="text-emerald-400">z.email()</span><span className="text-slate-500">,</span>{'\n'}
+{'  '}<span className="text-slate-200">age</span><span className="text-slate-400">:</span> <span className="text-emerald-400">z.int().min(0).max(150)</span><span className="text-slate-500">,</span>{'\n'}
 {'  '}<span className="text-slate-200">role</span><span className="text-slate-400">:</span> <span className="text-emerald-400">z.enum([</span>{'\n'}
 {'    '}<span className="text-amber-300">'admin'</span><span className="text-slate-500">, </span><span className="text-amber-300">'user'</span><span className="text-slate-400">{'])'}</span><span className="text-slate-500">,</span>{'\n'}
 <span className="text-slate-400">{'});'}</span>

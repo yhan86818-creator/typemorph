@@ -36,7 +36,7 @@ export const alternatives: Alternative[] = [
       useTypemorph:
         'You work with JSON, YAML, OpenAPI, or JSON Schema and need schema-focused outputs like Prisma, Drizzle, or Zod with semantic validators — or you want Schema Quality Scoring, Breaking Change Detection, a VS Code Extension, or a CLI.',
       useCompetitor:
-        'You need SVG→JSX, HTML→JSX/Pug, CSS→JS/Tailwind, or GraphQL conversions. transform.tools covers frontend asset transformations that TypeMorph does not.',
+        'You need SVG→JSX, HTML→JSX/Pug, or CSS→JS/Tailwind transformations. transform.tools covers frontend asset conversions that TypeMorph does not.',
     },
     table: [
       { feature: 'JSON → TypeScript', typemorph: true, competitor: true },
@@ -54,7 +54,8 @@ export const alternatives: Alternative[] = [
       { feature: 'SVG → JSX', typemorph: false, competitor: true },
       { feature: 'HTML → JSX / Pug', typemorph: false, competitor: true },
       { feature: 'CSS → JS / Tailwind', typemorph: false, competitor: true },
-      { feature: 'GraphQL conversions', typemorph: false, competitor: true },
+      { feature: 'GraphQL → TypeScript', typemorph: true, competitor: true },
+      { feature: 'SVG/HTML/CSS transformations', typemorph: false, competitor: true },
       { feature: 'Free to use', typemorph: true, competitor: true },
       { feature: 'Runs in your browser (no server)', typemorph: true, competitor: true },
     ],
@@ -89,7 +90,7 @@ export const alternatives: Alternative[] = [
       useTypemorph:
         'You want Prisma/Drizzle/ORM output, Schema Quality Scoring, Breaking Change Detection, a VS Code Extension, or CLI integration into CI. TypeMorph is built for schema engineering workflows.',
       useCompetitor:
-        'You need output for languages TypeMorph does not cover (C#, Swift via quicktype\'s algorithm, Objective-C, Elm, etc.), or you prefer quicktype\'s established multi-language coverage.',
+        'You need Objective-C or Elm output, or you prefer quicktype\'s long-established multi-language coverage.',
     },
     table: [
       { feature: 'JSON → TypeScript', typemorph: true, competitor: true },
@@ -99,7 +100,7 @@ export const alternatives: Alternative[] = [
       { feature: 'JSON → Python', typemorph: true, competitor: true },
       { feature: 'JSON → Java / Kotlin', typemorph: true, competitor: true },
       { feature: 'JSON → Swift', typemorph: true, competitor: true },
-      { feature: 'JSON → C# / C++', typemorph: false, competitor: true },
+      { feature: 'JSON → C# / C++', typemorph: true, competitor: true },
       { feature: 'JSON → Objective-C', typemorph: false, competitor: true },
       { feature: 'JSON → Elm', typemorph: false, competitor: true },
       { feature: 'JSON → Prisma / Drizzle / Kysely', typemorph: true, competitor: false },
@@ -122,7 +123,7 @@ export const alternatives: Alternative[] = [
       '100% browser-local — no network requests during conversion; your data never leaves your browser tab',
     ],
     competitorStrengths: [
-      'C#, Objective-C, C++, and Elm output — languages TypeMorph does not cover',
+      'Objective-C and Elm output — languages TypeMorph does not cover',
       'Long-established tool with a large user base and community resources',
       'CLI available via npm (quicktype package)',
     ],
