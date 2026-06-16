@@ -168,6 +168,24 @@ describe('generators', () => {
       expect(result).toContain('z.lazy(');
     });
 
+    it('[regression] "hotel" must NOT get phone regex — tel false positive fix', () => {
+      // k.includes('tel') matched 'hotel', 'template', etc. Fixed to exact match only.
+      const schema = inferSchema({ hotel: 'Tokyo Hilton', template: 'default', hostels: 3 });
+      const out = zodGen.generate(schema, 'Place', {});
+      expect(out).not.toContain('regex'); // no phone regex on any of these fields
+      expect(out).toMatch(/hotel.*z\.string/);
+      expect(out).toMatch(/template.*z\.string/);
+    });
+
+    it('[regression] "db_version" must NOT get semver regex — over-inference fix', () => {
+      // _version suffix rule was removed: db_version, api_version can hold non-semver strings
+      const schema = inferSchema({ db_version: 'PostgreSQL 15.3', api_version: 'v2', app_version: '2024.01' });
+      const out = zodGen.generate(schema, 'Config', {});
+      expect(out).not.toContain('regex(/^\\d');  // no semver regex
+      expect(out).toMatch(/db_version.*z\.string/);
+      expect(out).toMatch(/api_version.*z\.string/);
+    });
+
     it('[regression] union types must not generate invalid z.classRef() or z.object() calls', () => {
       // A union schema where members are proper ASTType objects ({kind}).
       // Previously the generator blindly did z.${t}() on raw kind strings,
@@ -186,6 +204,112 @@ describe('generators', () => {
       expect(result).toContain('z.union([z.string(), z.number()])');
       // Must NOT contain invalid patterns like z.classRef()
       expect(result).not.toMatch(/z\.classRef\(/);
+    });
+  });
+
+  describe('zodGen modes', () => {
+    const json = {
+      id: 'usr_123',
+      email: 'alice@example.com',
+      age: 30,
+      score: 4.5,
+      isActive: true,
+      name: 'Alice',
+    };
+    const schema = inferSchema(json);
+
+    describe('Strict (default)', () => {
+      const out = zodGen.generate(schema, 'User', {});
+
+      it('required fields have no .optional()', () => {
+        expect(out).not.toContain('.optional()');
+      });
+
+      it('uses z.number() (no coerce)', () => {
+        expect(out).toContain('z.number()');
+        expect(out).not.toContain('z.coerce.number()');
+      });
+
+      it('applies semantic inference (.email(), .min(0).max(100), .int())', () => {
+        expect(out).toContain('email: z.email()');
+        expect(out).toContain('score: z.number().min(0).max(100)');
+        expect(out).toContain('age: z.number().int().min(0).max(150)');
+      });
+
+      it('closes object without .passthrough() or .strict()', () => {
+        expect(out).not.toContain('.passthrough()');
+        expect(out).not.toContain('.strict()');
+        expect(out).toContain('});');
+      });
+
+      it('does not add .describe() to fields', () => {
+        expect(out).not.toContain('.describe(');
+      });
+    });
+
+    describe('Loose mode', () => {
+      const out = zodGen.generate(schema, 'User', { zodMode: 'loose' });
+
+      it('all fields get .optional()', () => {
+        // Every field line should end with .optional()
+        const fieldLines = out.split('\n').filter(l => l.includes(':') && !l.startsWith('export'));
+        expect(fieldLines.length).toBeGreaterThan(0);
+        fieldLines.forEach(line => {
+          expect(line).toContain('.optional()');
+        });
+      });
+
+      it('numbers use z.coerce.number()', () => {
+        expect(out).toContain('z.coerce.number()');
+        expect(out).not.toMatch(/(?<!coerce\.)number\(\)/);
+      });
+
+      it('skips name-based semantic constraints (.min(), .max(), .int())', () => {
+        // Loose mode skips NAME-based inference (price→.min(0), age→.int().min(0) etc.)
+        // but FORMAT-based detection (email value/key → z.email()) is preserved at the type level
+        expect(out).not.toContain('.min(');
+        expect(out).not.toContain('.max(');
+        expect(out).not.toContain('.int()');
+      });
+
+      it('closes object with .passthrough()', () => {
+        expect(out).toContain('.passthrough()');
+      });
+    });
+
+    describe('Enterprise mode', () => {
+      const out = zodGen.generate(schema, 'User', { zodMode: 'enterprise' });
+
+      it('all fields have .describe() with formatted label', () => {
+        expect(out).toContain(".describe('email')");
+        expect(out).toContain(".describe('age')");
+        expect(out).toContain(".describe('name')");
+        // camelCase → space-separated lowercase
+        expect(out).toContain(".describe('is active')");
+      });
+
+      it('closes object with .strict()', () => {
+        expect(out).toContain('.strict()');
+        expect(out).not.toContain('.passthrough()');
+      });
+
+      it('still applies semantic inference', () => {
+        expect(out).toContain('z.email()');
+        expect(out).toContain('.min(0).max(100)');
+      });
+
+      it('does not add .optional() to required fields', () => {
+        expect(out).not.toContain('.optional()');
+      });
+    });
+
+    describe('optionalFields option', () => {
+      it('makes all fields optional in strict mode when optionalFields=true', () => {
+        const out = zodGen.generate(schema, 'User', { optionalFields: true });
+        expect(out).toContain('.optional()');
+        // But keeps strict behavior otherwise
+        expect(out).not.toContain('.passthrough()');
+      });
     });
   });
 

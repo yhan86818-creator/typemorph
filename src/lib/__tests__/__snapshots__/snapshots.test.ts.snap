@@ -929,7 +929,7 @@ import { z } from "zod";
 
 export const sharedOwnerAddressSchema = z.object({
   city: z.string().min(1),
-  zip: z.string().min(1),
+  zip: z.string().regex(/^[A-Z0-9][A-Z0-9\\s\\-]{1,8}[A-Z0-9]$/i),
 });
 export type SharedOwnerAddress = z.infer<typeof sharedOwnerAddressSchema>;
 
@@ -1543,18 +1543,21 @@ uuid-xxxx-xxxx,"sample_value",user@example.com,0,0,true"
 exports[`Tier2 generators — BASIC input > drizzle 1`] = `
 "// Required dependencies: npm install drizzle-orm drizzle-kit
 
-import { pgTable, uuid, varchar, doublePrecision, boolean, jsonb, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, boolean, integer, real, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 
 export const root = pgTable('roots', {
-  id: varchar('id', { length: 255 }).notNull(),
+  id: uuid('id').defaultRandom().primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
-  email: varchar('email', { length: 255 }).notNull(),
-  age: doublePrecision('age').notNull(),
-  score: doublePrecision('score').notNull(),
-  active: boolean('active').notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull()
-});"
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  age: integer('age').notNull(),
+  score: real('score').notNull(),
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+});
+
+export type Root = typeof root.$inferSelect;
+export type NewRoot = typeof root.$inferInsert;"
 `;
 
 exports[`Tier2 generators — BASIC input > elixir 1`] = `
@@ -2388,19 +2391,22 @@ uuid-xxxx-xxxx,"sample_value","sample_value","sample_value",0,true"
 exports[`Tier2 generators — WITH_NULLS > drizzle 1`] = `
 "// Required dependencies: npm install drizzle-orm drizzle-kit
 
-import { pgTable, uuid, varchar, doublePrecision, boolean, jsonb, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, boolean, integer, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 
 export const root = pgTable('roots', {
   id: uuid('id').defaultRandom().primaryKey(),
-  user_id: varchar('user_id', { length: 255 }).notNull(),
+  user_id: uuid('user_id').notNull(),
   display_name: varchar('display_name', { length: 255 }).notNull(),
-  bio: varchar('bio', { length: 255 }),
-  website: varchar('website', { length: 255 }),
-  follower_count: doublePrecision('follower_count').notNull(),
-  is_verified: boolean('is_verified').notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull()
-});"
+  bio: text('bio'),
+  website: text('website'),
+  follower_count: integer('follower_count').notNull(),
+  is_verified: boolean('is_verified').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+});
+
+export type Root = typeof root.$inferSelect;
+export type NewRoot = typeof root.$inferInsert;"
 `;
 
 exports[`Tier2 generators — WITH_NULLS > elixir 1`] = `

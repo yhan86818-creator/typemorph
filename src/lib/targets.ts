@@ -12,6 +12,7 @@
  */
 
 export type TargetTier = 1 | 2;
+export type TargetMaturity = 'stable' | 'beta' | 'experimental';
 
 export interface OutputTarget {
   /** runEngine に渡すルーティングキー（= 出力タブ id） */
@@ -20,11 +21,13 @@ export interface OutputTarget {
   label: string;
   /** 品質ティア */
   tier: TargetTier;
+  /** 出力の成熟度 */
+  maturity: TargetMaturity;
   /** Monaco エディタのシンタックスハイライト言語 */
   monaco: string;
 }
 
-const T = (key: string, label: string, tier: TargetTier, monaco: string): OutputTarget => ({ key, label, tier, monaco });
+const T = (key: string, label: string, tier: TargetTier, monaco: string, maturity: TargetMaturity = tier === 1 ? 'stable' : 'beta'): OutputTarget => ({ key, label, tier, maturity, monaco });
 
 export const OUTPUT_TARGETS: Record<string, OutputTarget> = {
   // ─── Tier 1: 中核（テスト済み） ───────────────────────────────
@@ -56,7 +59,7 @@ export const OUTPUT_TARGETS: Record<string, OutputTarget> = {
   typeorm:         T('typeorm', 'TypeORM', 2, 'typescript'),
   drizzle:         T('drizzle', 'Drizzle', 2, 'typescript'),
   kysely:          T('kysely', 'Kysely', 2, 'typescript'),
-  'sql-insert':    T('sql-insert', 'SQL INSERT', 2, 'sql'),
+  'sql-insert':    T('sql-insert', 'SQL INSERT', 2, 'sql', 'experimental'),
   yup:             T('yup', 'Yup', 2, 'typescript'),
   joi:             T('joi', 'Joi', 2, 'typescript'),
   valibot:         T('valibot', 'Valibot', 2, 'typescript'),
@@ -73,33 +76,33 @@ export const OUTPUT_TARGETS: Record<string, OutputTarget> = {
   django:          T('django', 'Django', 2, 'python'),
   rails:           T('rails', 'Rails', 2, 'ruby'),
   openapi:         T('openapi', 'OpenAPI', 2, 'yaml'),
-  postman:         T('postman', 'Postman', 2, 'json'),
-  http:            T('http', 'HTTP File', 2, 'http'),
-  curl:            T('curl', 'cURL', 2, 'shell'),
-  vscode:          T('vscode', 'VS Code Snippet', 2, 'json'),
-  avro:            T('avro', 'Avro', 2, 'json'),
-  toml:            T('toml', 'TOML', 2, 'ini'),
-  yaml:            T('yaml', 'YAML', 2, 'yaml'),
-  env:             T('env', '.env', 2, 'shell'),
-  'env-validator': T('env-validator', 'Env Validator', 2, 'typescript'),
-  properties:      T('properties', '.properties', 2, 'ini'),
-  markdown:        T('markdown', 'Markdown', 2, 'markdown'),
-  asciidoc:        T('asciidoc', 'AsciiDoc', 2, 'markdown'),
-  latex:           T('latex', 'LaTeX', 2, 'latex'),
-  mermaid:         T('mermaid', 'Mermaid', 2, 'markdown'),
-  csv:             T('csv', 'CSV', 2, 'plaintext'),
-  cobol:           T('cobol', 'COBOL', 2, 'plaintext'),
-  clojure:         T('clojure', 'Clojure', 2, 'clojure'),
-  elixir:          T('elixir', 'Elixir', 2, 'elixir'),
-  elm:             T('elm', 'Elm', 2, 'elm'),
-  godot:           T('godot', 'GDScript', 2, 'plaintext'),
-  haskell:         T('haskell', 'Haskell', 2, 'haskell'),
-  'r-lang':        T('r-lang', 'R', 2, 'r'),
-  scala:           T('scala', 'Scala', 2, 'scala'),
-  solidity:        T('solidity', 'Solidity', 2, 'sol'),
-  arduino:         T('arduino', 'Arduino', 2, 'cpp'),
-  c:               T('c', 'C Struct', 2, 'c'),
-  cpp:             T('cpp', 'C++ Struct', 2, 'cpp'),
+  postman:         T('postman', 'Postman', 2, 'json', 'experimental'),
+  http:            T('http', 'HTTP File', 2, 'http', 'experimental'),
+  curl:            T('curl', 'cURL', 2, 'shell', 'experimental'),
+  vscode:          T('vscode', 'VS Code Snippet', 2, 'json', 'experimental'),
+  avro:            T('avro', 'Avro', 2, 'json', 'experimental'),
+  toml:            T('toml', 'TOML', 2, 'ini', 'experimental'),
+  yaml:            T('yaml', 'YAML', 2, 'yaml', 'experimental'),
+  env:             T('env', '.env', 2, 'shell', 'experimental'),
+  'env-validator': T('env-validator', 'Env Validator', 2, 'typescript', 'experimental'),
+  properties:      T('properties', '.properties', 2, 'ini', 'experimental'),
+  markdown:        T('markdown', 'Markdown', 2, 'markdown', 'experimental'),
+  asciidoc:        T('asciidoc', 'AsciiDoc', 2, 'markdown', 'experimental'),
+  latex:           T('latex', 'LaTeX', 2, 'latex', 'experimental'),
+  mermaid:         T('mermaid', 'Mermaid', 2, 'markdown', 'experimental'),
+  csv:             T('csv', 'CSV', 2, 'plaintext', 'experimental'),
+  cobol:           T('cobol', 'COBOL', 2, 'plaintext', 'experimental'),
+  clojure:         T('clojure', 'Clojure', 2, 'clojure', 'experimental'),
+  elixir:          T('elixir', 'Elixir', 2, 'elixir', 'experimental'),
+  elm:             T('elm', 'Elm', 2, 'elm', 'experimental'),
+  godot:           T('godot', 'GDScript', 2, 'plaintext', 'experimental'),
+  haskell:         T('haskell', 'Haskell', 2, 'haskell', 'experimental'),
+  'r-lang':        T('r-lang', 'R', 2, 'r', 'experimental'),
+  scala:           T('scala', 'Scala', 2, 'scala', 'experimental'),
+  solidity:        T('solidity', 'Solidity', 2, 'sol', 'experimental'),
+  arduino:         T('arduino', 'Arduino', 2, 'cpp', 'experimental'),
+  c:               T('c', 'C Struct', 2, 'c', 'experimental'),
+  cpp:             T('cpp', 'C++ Struct', 2, 'cpp', 'experimental'),
   'mcp-tool':      T('mcp-tool', 'MCP Tool', 2, 'typescript'),
   'openai-function': T('openai-function', 'OpenAI Function', 2, 'json'),
   'vercel-ai-tool': T('vercel-ai-tool', 'Vercel AI Tool', 2, 'typescript'),

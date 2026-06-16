@@ -958,39 +958,144 @@ export const drizzleGen = {
   generate: (schema: Schema, name: string = 'Root'): string => {
     const f = getFields(schema);
     if (!Object.keys(f).length) return '';
-    const tableName = `${toSnakeCase(name)}s`;
-    let res = `import { pgTable, uuid, varchar, doublePrecision, boolean, jsonb, timestamp } from 'drizzle-orm/pg-core';\n\n`;
-    res += `export const ${toSnakeCase(name)} = pgTable('${tableName}', {\n`;
 
+    const pascal = toPascalCase(name);
+    const snake = toSnakeCase(name);
+    const tableName = snake.endsWith('s') ? snake : `${snake}s`;
+
+    const imports = new Set<string>(['pgTable']);
+    const enumDefs: string[] = [];
     const lines: string[] = [];
-    if (!f.id) {
+    const nestedCols: string[] = [];
+
+    const hasId        = !!f.id;
+    const hasCreatedAt = !!f.createdAt || !!f.created_at;
+    const hasUpdatedAt = !!f.updatedAt || !!f.updated_at;
+
+    if (!hasId) {
+      imports.add('uuid');
       lines.push(`  id: uuid('id').defaultRandom().primaryKey()`);
     }
+
     for (const [k, v] of Object.entries(f)) {
       const dbCol = toSnakeCase(k);
-      let colBuilder = `varchar('${dbCol}', { length: 255 })`;
-      if (v.type === 'number') colBuilder = `doublePrecision('${dbCol}')`;
-      else if (v.type === 'boolean') colBuilder = `boolean('${dbCol}')`;
-      else if (v.type === 'object' || v.type === 'array' || v.type === 'union') colBuilder = `jsonb('${dbCol}')`;
-      else if (v.format === 'datetime') colBuilder = `timestamp('${dbCol}')`;
+      const kl    = k.toLowerCase();
+      const nn    = (!v.optional && !v.nullable) ? '.notNull()' : '';
+      let col     = '';
 
-      if (v.enumValues && v.enumValues.length) {
-        colBuilder = `varchar('${dbCol}', { enum: [${v.enumValues.map(e => `'${e}'`).join(', ')}] })`;
+      // ── Primary / foreign keys ──────────────────────────────────────────
+      if (k === 'id' || kl.endsWith('id')) {
+        if (k === 'id' && v.type === 'number') {
+          imports.add('serial');
+          col = `serial('${dbCol}').primaryKey()`;
+        } else if (k === 'id') {
+          imports.add('uuid');
+          col = `uuid('${dbCol}').defaultRandom().primaryKey()`;
+        } else {
+          // foreign key reference column
+          imports.add('uuid');
+          col = `uuid('${dbCol}')${nn}`;
+        }
+
+      // ── Boolean ─────────────────────────────────────────────────────────
+      } else if (v.type === 'boolean') {
+        imports.add('boolean');
+        const def = nn
+          ? (kl === 'is_active' || kl === 'isactive' || kl === 'active' || kl === 'enabled' || kl === 'is_enabled'
+              ? '.default(true)'
+              : '.default(false)')
+          : '';
+        col = `boolean('${dbCol}')${nn}${def}`;
+
+      // ── Number ──────────────────────────────────────────────────────────
+      } else if (v.type === 'number') {
+        // isMoney checked first: price/amount/total fields are always decimal even if value happens to be integer
+        const isMoney = ['price', 'amount', 'cost', 'fee', 'total', 'subtotal', 'balance', 'payment'].some(w => kl.includes(w));
+        const isInt   = !isMoney && (v.format === 'int' ||
+          ['count', 'quantity', 'qty', 'age', 'year', 'month', 'day', 'hour', 'minute', 'second', 'port', 'rank', 'size', 'limit', 'offset'].some(w => kl.includes(w)));
+        if (isMoney) {
+          imports.add('numeric');
+          col = `numeric('${dbCol}', { precision: 10, scale: 2 })${nn}`;
+        } else if (isInt) {
+          imports.add('integer');
+          col = `integer('${dbCol}')${nn}`;
+        } else {
+          imports.add('real');
+          col = `real('${dbCol}')${nn}`;
+        }
+
+      // ── Datetime ────────────────────────────────────────────────────────
+      } else if (v.format === 'datetime' || kl.endsWith('_at') || kl === 'createdat' || kl === 'updatedat' || kl.includes('timestamp')) {
+        imports.add('timestamp');
+        const auto = (kl.includes('createdat') || kl === 'created_at' || kl.includes('updatedat') || kl === 'updated_at')
+          ? '.defaultNow()' : '';
+        col = `timestamp('${dbCol}', { withTimezone: true })${auto}${nn}`;
+
+      // ── Nested object / array ────────────────────────────────────────────
+      } else if (v.type === 'object' || v.type === 'array' || v.type === 'union') {
+        imports.add('jsonb');
+        col = `jsonb('${dbCol}')${nn}`;
+        nestedCols.push(k);
+
+      // ── Enum ────────────────────────────────────────────────────────────
+      } else if (v.enumValues && v.enumValues.length) {
+        imports.add('pgEnum');
+        const enumVarName = `${toCamelCase(k)}Enum`;
+        const pgEnumKey   = `${snake}_${dbCol}`;
+        enumDefs.push(`export const ${enumVarName} = pgEnum('${pgEnumKey}', [${v.enumValues.map(e => `'${e}'`).join(', ')}]);`);
+        col = `${enumVarName}('${dbCol}')${nn}`;
+
+      // ── String ──────────────────────────────────────────────────────────
+      } else {
+        if (v.format === 'uuid' || kl === 'uuid') {
+          imports.add('uuid');
+          col = `uuid('${dbCol}')${nn}`;
+        } else if (v.format === 'email' || kl.includes('email')) {
+          imports.add('varchar');
+          col = `varchar('${dbCol}', { length: 255 })${nn}.unique()`;
+        } else if (v.format === 'url' || ['url', 'link', 'website', 'endpoint', 'href'].some(w => kl.includes(w))) {
+          imports.add('text');
+          col = `text('${dbCol}')${nn}`;
+        } else if (['description', 'bio', 'content', 'body', 'text', 'note', 'summary', 'detail', 'about', 'message', 'comment', 'remark', 'excerpt', 'caption', 'overview'].some(w => kl.includes(w))) {
+          imports.add('text');
+          col = `text('${dbCol}')${nn}`;
+        } else {
+          imports.add('varchar');
+          col = `varchar('${dbCol}', { length: 255 })${nn}`;
+        }
       }
 
-      const notNull = (v.optional || v.nullable) ? '' : '.notNull()';
-      lines.push(`  ${k}: ${colBuilder}${notNull}`);
+      lines.push(`  ${k}: ${col}`);
     }
-    if (!f.createdAt && !f.created_at) {
-      lines.push(`  createdAt: timestamp('created_at').defaultNow().notNull()`);
+
+    if (!hasCreatedAt) {
+      imports.add('timestamp');
+      lines.push(`  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()`);
     }
-    if (!f.updatedAt && !f.updated_at) {
-      lines.push(`  updatedAt: timestamp('updated_at').defaultNow().notNull()`);
+    if (!hasUpdatedAt) {
+      imports.add('timestamp');
+      lines.push(`  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()`);
     }
-    res += lines.join(',\n') + '\n';
-    res += `});\n`;
-    return res;
-  }
+
+    // Build import line: pgTable + pgEnum first, then alphabetical
+    const importList = [
+      'pgTable',
+      ...[...imports].filter(i => i === 'pgEnum'),
+      ...[...imports].filter(i => i !== 'pgTable' && i !== 'pgEnum').sort(),
+    ];
+
+    let out = `import { ${importList.join(', ')} } from 'drizzle-orm/pg-core';\n`;
+    if (enumDefs.length) out += '\n' + enumDefs.join('\n') + '\n';
+    out += `\nexport const ${snake} = pgTable('${tableName}', {\n`;
+    out += lines.join(',\n') + '\n';
+    out += `});\n\n`;
+    out += `export type ${pascal} = typeof ${snake}.$inferSelect;\n`;
+    out += `export type New${pascal} = typeof ${snake}.$inferInsert;\n`;
+    if (nestedCols.length) {
+      out += `\n// Note: [${nestedCols.join(', ')}] stored as jsonb — consider extracting to separate tables with foreign key relations.\n`;
+    }
+    return out;
+  },
 };
 
 // ─── Kysely Schema ────────────────────────────────────────────────────────────

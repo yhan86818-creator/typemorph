@@ -1,0 +1,397 @@
+/**
+ * Real-world schema tests
+ * ───────────────────────
+ * Verifies that TypeMorph's Zod / TypeScript / Prisma output is production-quality
+ * on schemas that actually appear in professional codebases.
+ *
+ * Each test asserts *intent*, not just "output didn't change":
+ *   - semantic constraints (`.min(0)`, `.email()`, `.int()`, etc.)
+ *   - correct nesting / array wrapping
+ *   - proper optionality
+ *
+ * These are the cases where TypeMorph should beat quicktype.
+ */
+
+import { describe, it, expect } from 'vitest';
+import { inferSchema } from '../engine';
+import { zodGen, tsGen, prismaGen } from '../generators';
+
+// ─── Shared fixtures ────────────────────────────────────────────────────────
+
+const EC_ORDER = {
+  id: 'ord_abc123',
+  userId: 'usr_456',
+  status: 'pending',
+  items: [
+    { productId: 'prd_789', quantity: 2, price: 29.99, discount: 0 },
+  ],
+  shippingAddress: {
+    street: '123 Main St',
+    city: 'Tokyo',
+    postalCode: '150-0002',
+    country: 'JP',
+  },
+  total: 59.98,
+  createdAt: '2024-01-15T10:30:00Z',
+};
+
+const BLOG_POST = {
+  id: 1,
+  title: 'Hello World',
+  slug: 'hello-world',
+  content: 'Long content here...',
+  author: {
+    id: 'usr_123',
+    name: 'Alice',
+    email: 'alice@example.com',
+    bio: 'Technical writer',
+  },
+  tags: ['javascript', 'react'],
+  publishedAt: '2024-01-15T10:30:00Z',
+  viewCount: 1234,
+  isPublished: true,
+  score: 4.8,
+};
+
+const USER_PROFILE = {
+  id: 'usr_123',
+  firstName: 'John',
+  lastName: 'Doe',
+  email: 'john@example.com',
+  role: 'admin',
+  address: {
+    street: '123 Main St',
+    city: 'New York',
+    state: 'NY',
+    country: 'US',
+    zipCode: '10001',
+  },
+  createdAt: '2024-01-01T00:00:00Z',
+  updatedAt: '2024-01-15T10:00:00Z',
+  isActive: true,
+};
+
+const PAGINATED_RESPONSE = {
+  data: [{ id: 1, name: 'Item A', price: 9.99 }],
+  pagination: {
+    page: 1,
+    perPage: 20,
+    total: 100,
+    totalPages: 5,
+  },
+  meta: {
+    requestId: 'req_abc123',
+    timestamp: '2024-01-15T10:30:00Z',
+  },
+};
+
+const TRANSACTION = {
+  transactionId: 'txn_abc123',
+  fromAccountId: 'acc_123',
+  toAccountId: 'acc_456',
+  amount: 1500.00,
+  fee: 2.50,
+  currency: 'USD',
+  type: 'transfer',
+  status: 'completed',
+  processedAt: '2024-01-15T10:30:00Z',
+  metadata: {
+    reference: 'INV-001',
+    note: 'Monthly subscription',
+  },
+};
+
+// ─── 1. EC Order ────────────────────────────────────────────────────────────
+
+describe('Real-world: EC Order', () => {
+  const schema = inferSchema(EC_ORDER);
+
+  describe('Zod', () => {
+    const out = zodGen.generate(schema, 'Order', {});
+
+    it('generates z.array() for items array field', () => {
+      // zodGen separates nested schemas into named variables
+      expect(out).toContain('z.array(');
+    });
+
+    it('applies .int().min(0) to quantity', () => {
+      expect(out).toContain('quantity: z.number().int().min(0)');
+    });
+
+    it('applies .min(0) to price (monetary field)', () => {
+      expect(out).toContain('price: z.number().min(0)');
+    });
+
+    it('applies .min(0) to total (monetary field)', () => {
+      expect(out).toContain('total: z.number().min(0)');
+    });
+
+    it('generates shippingAddress nested fields as z.object() block', () => {
+      // zodGen extracts nested objects into separate schema variables
+      expect(out).toContain('z.object({');
+      expect(out).toMatch(/street.*z\.string/);
+      expect(out).toMatch(/city.*z\.string/);
+    });
+
+    it('generates createdAt as z.string()', () => {
+      expect(out).toMatch(/createdAt.*z\.string/);
+    });
+  });
+
+  describe('TypeScript', () => {
+    const out = tsGen.generate(schema, 'Order');
+
+    it('generates nested interface for shippingAddress', () => {
+      expect(out).toContain('ShippingAddress');
+      expect(out).toMatch(/street.*string/);
+      expect(out).toMatch(/city.*string/);
+    });
+
+    it('types items as an array of objects', () => {
+      expect(out).toMatch(/items.*\[\]/);
+    });
+
+    it('types total as number', () => {
+      expect(out).toMatch(/total.*number/);
+    });
+  });
+
+  describe('Prisma', () => {
+    const out = prismaGen.generate(schema, 'Order');
+
+    it('generates a model block', () => {
+      expect(out).toContain('model Order');
+    });
+
+    it('generates id and userId fields', () => {
+      expect(out).toMatch(/\bid\b/);
+      expect(out).toMatch(/userId|user_id/);
+    });
+
+    it('generates total as Float', () => {
+      expect(out).toMatch(/total\s+Float/);
+    });
+  });
+});
+
+// ─── 2. Blog Post ───────────────────────────────────────────────────────────
+
+describe('Real-world: Blog Post', () => {
+  const schema = inferSchema(BLOG_POST);
+
+  describe('Zod', () => {
+    const out = zodGen.generate(schema, 'Post', {});
+
+    it('applies slug regex to slug field', () => {
+      expect(out).toContain('slug: z.string().regex(');
+      expect(out).toContain('[a-z0-9]');
+    });
+
+    it('applies .int().min(0) to viewCount', () => {
+      expect(out).toContain('viewCount: z.number().int().min(0)');
+    });
+
+    it('applies .min(0).max(100) to score', () => {
+      expect(out).toContain('score: z.number().min(0).max(100)');
+    });
+
+    it('generates email validation in nested author object', () => {
+      expect(out).toMatch(/email.*z\.email\(\)/);
+    });
+
+    it('generates author nested fields in a z.object() block', () => {
+      // zodGen extracts nested objects into separate named schemas
+      expect(out).toContain('z.object({');
+      expect(out).toMatch(/name.*z\.string/);
+    });
+
+    it('generates tags as z.array(z.string())', () => {
+      expect(out).toMatch(/tags.*z\.array\(z\.string\(\)\)/);
+    });
+  });
+
+  describe('TypeScript', () => {
+    const out = tsGen.generate(schema, 'Post');
+
+    it('types boolean field correctly', () => {
+      expect(out).toMatch(/isPublished.*boolean/);
+    });
+
+    it('generates nested Author interface', () => {
+      expect(out).toContain('Author');
+      expect(out).toMatch(/email.*string/);
+    });
+
+    it('types tags as string array', () => {
+      expect(out).toMatch(/tags.*string\[\]/);
+    });
+  });
+});
+
+// ─── 3. User Profile ────────────────────────────────────────────────────────
+
+describe('Real-world: User Profile', () => {
+  const schema = inferSchema(USER_PROFILE);
+
+  describe('Zod', () => {
+    const out = zodGen.generate(schema, 'User', {});
+
+    it('applies z.email() to email field', () => {
+      expect(out).toContain('email: z.email()');
+    });
+
+    it('generates address nested fields in a z.object() block', () => {
+      expect(out).toContain('z.object({');
+      expect(out).toMatch(/city.*z\.string/);
+      expect(out).toMatch(/country.*z\.string/);
+    });
+
+    it('generates createdAt and updatedAt as string fields', () => {
+      expect(out).toMatch(/createdAt.*z\.string/);
+      expect(out).toMatch(/updatedAt.*z\.string/);
+    });
+
+    it('generates isActive as z.boolean()', () => {
+      expect(out).toContain('isActive: z.boolean()');
+    });
+  });
+
+  describe('TypeScript', () => {
+    const out = tsGen.generate(schema, 'User');
+
+    it('generates nested Address interface', () => {
+      expect(out).toMatch(/Address\s*\{/);
+      expect(out).toMatch(/street.*string/);
+      expect(out).toMatch(/city.*string/);
+    });
+
+    it('types email as string', () => {
+      expect(out).toMatch(/email.*string/);
+    });
+
+    it('types isActive as boolean', () => {
+      expect(out).toMatch(/isActive.*boolean/);
+    });
+
+    it('exports the User type/interface', () => {
+      expect(out).toMatch(/export (type|interface) User/);
+    });
+  });
+});
+
+// ─── 4. Paginated API Response ──────────────────────────────────────────────
+
+describe('Real-world: Paginated API Response', () => {
+  const schema = inferSchema(PAGINATED_RESPONSE);
+
+  describe('Zod', () => {
+    const out = zodGen.generate(schema, 'Response', {});
+
+    it('generates data as z.array()', () => {
+      expect(out).toContain('z.array(');
+    });
+
+    it('applies .int() constraints to pagination counts', () => {
+      expect(out).toMatch(/page.*z\.number\(\)\.int/);
+      expect(out).toMatch(/total.*z\.number\(\)\.int|totalPages.*z\.number\(\)\.int/);
+    });
+
+    it('generates pagination nested fields as z.object() block', () => {
+      expect(out).toContain('z.object({');
+      expect(out).toMatch(/perPage.*z\.number/);
+      expect(out).toMatch(/totalPages.*z\.number/);
+    });
+
+    it('generates meta nested fields in the output', () => {
+      // requestId ends with 'Id' → inferred as z.uuid() (semantic inference)
+      expect(out).toContain('requestId: z.uuid()');
+      expect(out).toMatch(/timestamp.*z\.string/);
+    });
+
+    it('applies .min(0) to price inside data items', () => {
+      expect(out).toContain('price: z.number().min(0)');
+    });
+  });
+
+  describe('TypeScript', () => {
+    const out = tsGen.generate(schema, 'Response');
+
+    it('generates Pagination interface', () => {
+      expect(out).toMatch(/Pagination\s*\{/);
+      expect(out).toMatch(/perPage.*number/);
+    });
+
+    it('generates Meta interface', () => {
+      expect(out).toMatch(/Meta\s*\{/);
+    });
+
+    it('types data as array', () => {
+      expect(out).toMatch(/data.*\[\]/);
+    });
+  });
+});
+
+// ─── 5. Financial Transaction ────────────────────────────────────────────────
+
+describe('Real-world: Financial Transaction', () => {
+  const schema = inferSchema(TRANSACTION);
+
+  describe('Zod', () => {
+    const out = zodGen.generate(schema, 'Transaction', {});
+
+    it('applies .min(0) to amount and fee', () => {
+      expect(out).toContain('amount: z.number().min(0)');
+      expect(out).toContain('fee: z.number().min(0)');
+    });
+
+    it('generates metadata nested fields in a z.object() block', () => {
+      expect(out).toContain('z.object({');
+      expect(out).toMatch(/reference.*z\.string/);
+      expect(out).toMatch(/note.*z\.string/);
+    });
+
+    it('generates currency and status as string or enum (single-sample inference)', () => {
+      // With one data sample, single-value strings may be inferred as z.enum([...])
+      // Both are acceptable outputs; either is more specific than quicktype's plain `string`
+      expect(out).toMatch(/currency.*z\.(string|enum)/);
+      expect(out).toMatch(/status.*z\.(string|enum)/);
+    });
+  });
+
+  describe('TypeScript', () => {
+    const out = tsGen.generate(schema, 'Transaction');
+
+    it('generates Metadata interface', () => {
+      expect(out).toMatch(/Metadata\s*\{/);
+      expect(out).toMatch(/reference.*string/);
+    });
+
+    it('types amount and fee as number', () => {
+      expect(out).toMatch(/amount.*number/);
+      expect(out).toMatch(/fee.*number/);
+    });
+
+    it('exports the Transaction type/interface', () => {
+      expect(out).toMatch(/export (type|interface) Transaction/);
+    });
+  });
+
+  describe('Prisma', () => {
+    const out = prismaGen.generate(schema, 'Transaction');
+
+    it('generates model Transaction', () => {
+      expect(out).toContain('model Transaction');
+    });
+
+    it('maps amount and fee to Float', () => {
+      expect(out).toMatch(/amount\s+Float/);
+      expect(out).toMatch(/fee\s+Float/);
+    });
+
+    it('generates model Transaction with amount and fee fields', () => {
+      expect(out).toContain('model Transaction');
+      expect(out).toMatch(/amount\s+Float/);
+      expect(out).toMatch(/fee\s+Float/);
+    });
+  });
+});

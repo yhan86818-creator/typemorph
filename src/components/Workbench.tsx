@@ -1930,15 +1930,20 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
           {/* Desktop tabs navigation */}
           <div className="hidden md:flex flex-1 min-w-0 items-center gap-1">
             <div className="flex items-center gap-1 overflow-hidden flex-1 min-w-0 pb-1">
-            {mainTabs.map(tab => (
+            {mainTabs.map(tab => {
+              const maturity = OUTPUT_TARGETS[tab.id]?.maturity;
+              return (
               <button
                 key={tab.id}
                 onClick={() => setOutputTab(tab.id)}
-                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all shrink-0 ${outputTab === tab.id ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all shrink-0 ${outputTab === tab.id ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
               >
                 <span>{tab.label}</span>
+                {maturity === 'beta' && <span className="text-[7px] font-black text-amber-500 dark:text-amber-400 leading-none normal-case tracking-normal">β</span>}
+                {maturity === 'experimental' && <span className="text-[7px] font-black text-rose-400 dark:text-rose-300 leading-none normal-case tracking-normal">α</span>}
               </button>
-            ))}
+              );
+            })}
             </div>
             {/* + More ▼ dropdown */}
             <div className="relative group/more-tabs shrink-0">
@@ -1949,7 +1954,9 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                 <ChevronDown size={10} />
               </button>
               <div className="absolute left-0 top-full mt-1 w-44 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl opacity-0 invisible group-hover/more-tabs:opacity-100 group-hover/more-tabs:visible transition-all z-[9999] overflow-visible">
-                {moreTabs.map(tab => (
+                {moreTabs.map(tab => {
+                  const maturity = OUTPUT_TARGETS[tab.id]?.maturity;
+                  return (
                   <button
                     key={tab.id}
                     onClick={() => {
@@ -1965,8 +1972,15 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                     {tab.id === 'graph' && showGraphBadge && (
                       <span className="ml-auto text-[8px] font-black uppercase tracking-wider bg-indigo-500 text-white px-1.5 py-0.5 rounded-full leading-none">NEW</span>
                     )}
+                    {tab.id !== 'graph' && maturity === 'beta' && (
+                      <span className="ml-auto text-[8px] font-black uppercase tracking-wider text-amber-500 dark:text-amber-400 leading-none">BETA</span>
+                    )}
+                    {maturity === 'experimental' && (
+                      <span className="ml-auto text-[8px] font-black uppercase tracking-wider text-rose-400 dark:text-rose-300 leading-none">EXP</span>
+                    )}
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -2611,9 +2625,16 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                 </div>
               ) : (
                 <div className="flex-1 min-h-0 flex flex-col">
-                  {OUTPUT_TARGETS[outputTab]?.tier === 2 && (
-                    <div className="flex-none px-4 py-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-b border-amber-200 dark:border-amber-500/20">
-                      {OUTPUT_TARGETS[outputTab].label} output is a scaffold — review and adjust types, constraints, and relations before production use.
+                  {OUTPUT_TARGETS[outputTab]?.maturity === 'beta' && (
+                    <div className="flex-none flex items-center gap-2 px-4 py-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-b border-amber-200 dark:border-amber-500/20">
+                      <span className="font-black">β BETA</span>
+                      <span>{OUTPUT_TARGETS[outputTab].label} output is a scaffold — review types, constraints, and relations before production use.</span>
+                    </div>
+                  )}
+                  {OUTPUT_TARGETS[outputTab]?.maturity === 'experimental' && (
+                    <div className="flex-none flex items-center gap-2 px-4 py-1.5 text-[11px] font-medium text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border-b border-rose-200 dark:border-rose-500/20">
+                      <span className="font-black">α EXPERIMENTAL</span>
+                      <span>{OUTPUT_TARGETS[outputTab].label} output is a starting point only — structure and syntax may need significant adjustment.</span>
                     </div>
                   )}
                   <div className="flex-1 min-h-0">

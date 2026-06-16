@@ -218,6 +218,198 @@ describe('generators-extended', () => {
     });
   });
 
+  describe('drizzleGen', () => {
+    // ── Column type mapping ───────────────────────────────────────────────
+
+    it('maps integer numbers to integer()', () => {
+      const out = drizzleGen.generate(inferSchema({ age: 25, count: 0 }), 'Item');
+      expect(out).toContain("integer('age').notNull()");
+      expect(out).toContain("integer('count').notNull()");
+      expect(out).not.toContain('doublePrecision');
+    });
+
+    it('maps float numbers to real()', () => {
+      const out = drizzleGen.generate(inferSchema({ score: 4.5, weight: 72.3 }), 'Item');
+      expect(out).toContain("real('score').notNull()");
+      expect(out).toContain("real('weight').notNull()");
+    });
+
+    it('maps price/amount/cost/fee/total/balance fields to numeric(10,2)', () => {
+      const out = drizzleGen.generate(inferSchema({ price: 9.99, amount: 100.5, totalCost: 50.0, balance: 0.0 }), 'Order');
+      expect(out).toContain("numeric('price', { precision: 10, scale: 2 })");
+      expect(out).toContain("numeric('amount', { precision: 10, scale: 2 })");
+      expect(out).toContain("numeric('total_cost', { precision: 10, scale: 2 })");
+      expect(out).toContain("numeric('balance', { precision: 10, scale: 2 })");
+    });
+
+    it('maps email fields to varchar(255).unique()', () => {
+      const out = drizzleGen.generate(inferSchema({ email: 'a@b.com', userEmail: 'a@b.com' }), 'User');
+      expect(out).toContain("varchar('email', { length: 255 }).notNull().unique()");
+      expect(out).toContain("varchar('user_email', { length: 255 }).notNull().unique()");
+    });
+
+    it('maps bio/description/content/body/note fields to text()', () => {
+      const out = drizzleGen.generate(inferSchema({ bio: 'hello', description: 'x', content: 'y', body: 'z', note: 'n' }), 'Post');
+      expect(out).toContain("text('bio')");
+      expect(out).toContain("text('description')");
+      expect(out).toContain("text('content')");
+      expect(out).toContain("text('body')");
+      expect(out).toContain("text('note')");
+    });
+
+    it('maps url/link/website/href fields to text()', () => {
+      const out = drizzleGen.generate(inferSchema({ website: 'https://x.com', avatarUrl: 'https://x.com/img.png' }), 'Profile');
+      expect(out).toContain("text('website')");
+      expect(out).toContain("text('avatar_url')");
+    });
+
+    it('maps required boolean to boolean().notNull().default(false)', () => {
+      const out = drizzleGen.generate(inferSchema({ published: false }), 'Post');
+      expect(out).toContain("boolean('published').notNull().default(false)");
+    });
+
+    it('maps is_active/active/enabled to boolean().default(true)', () => {
+      const out = drizzleGen.generate(
+        inferSchema({ isActive: true, active: true, enabled: true }),
+        'User',
+      );
+      expect(out).toContain("boolean('is_active').notNull().default(true)");
+      expect(out).toContain("boolean('active').notNull().default(true)");
+      expect(out).toContain("boolean('enabled').notNull().default(true)");
+    });
+
+    it('maps datetime-format strings to timestamp({ withTimezone: true })', () => {
+      const out = drizzleGen.generate(inferSchema({ publishedAt: '2024-01-01T00:00:00Z' }), 'Post');
+      expect(out).toContain("timestamp('published_at', { withTimezone: true })");
+    });
+
+    it('maps nested objects and arrays to jsonb()', () => {
+      const out = drizzleGen.generate(inferSchema({ meta: { key: 'val' }, tags: ['a', 'b'] }), 'Post');
+      expect(out).toContain("jsonb('meta')");
+      expect(out).toContain("jsonb('tags')");
+      expect(out).toContain('consider extracting to separate tables');
+    });
+
+    // ── Primary key ───────────────────────────────────────────────────────
+
+    it('auto-injects uuid primary key when no id field', () => {
+      const out = drizzleGen.generate(inferSchema({ name: 'Alice' }), 'User');
+      expect(out).toContain("uuid('id').defaultRandom().primaryKey()");
+      expect((out.match(/id:/g) || []).length).toBe(1);
+    });
+
+    it('uses serial().primaryKey() when id is a number', () => {
+      const out = drizzleGen.generate(inferSchema({ id: 1, name: 'Alice' }), 'User');
+      expect(out).toContain("serial('id').primaryKey()");
+      expect(out).not.toContain("uuid('id')");
+    });
+
+    it('uses uuid().defaultRandom().primaryKey() when id is a string', () => {
+      const out = drizzleGen.generate(inferSchema({ id: 'abc-123', name: 'Alice' }), 'User');
+      expect(out).toContain("uuid('id').defaultRandom().primaryKey()");
+    });
+
+    it('treats userId/teamId as foreign key uuid columns, not primary key', () => {
+      const out = drizzleGen.generate(inferSchema({ userId: 'abc', teamId: 'def', name: 'Alice' }), 'Member');
+      expect(out).toContain("uuid('user_id')");
+      expect(out).toContain("uuid('team_id')");
+      // userId/teamId must not get primaryKey; only the auto-injected id does
+      expect(out).not.toMatch(/user_id.*primaryKey/);
+      expect(out).not.toMatch(/team_id.*primaryKey/);
+    });
+
+    // ── Enum ─────────────────────────────────────────────────────────────
+
+    it('generates pgEnum and uses it as column type', () => {
+      const schema: Schema = {
+        type: 'object',
+        fields: {
+          role: { type: 'string', enumValues: ['admin', 'user', 'guest'], optional: false, nullable: false },
+        },
+      };
+      const out = drizzleGen.generate(schema, 'User');
+      expect(out).toContain("pgEnum");
+      expect(out).toContain("'admin', 'user', 'guest'");
+      expect(out).toContain("roleEnum('role')");
+      expect(out).toContain("import { pgTable, pgEnum");
+    });
+
+    // ── Auto-inject createdAt / updatedAt ────────────────────────────────
+
+    it('auto-injects createdAt and updatedAt when absent', () => {
+      const out = drizzleGen.generate(inferSchema({ name: 'Alice' }), 'User');
+      expect(out).toContain("createdAt: timestamp('created_at'");
+      expect(out).toContain("updatedAt: timestamp('updated_at'");
+      expect(out).toContain('.defaultNow().notNull()');
+    });
+
+    it('does not duplicate createdAt/updatedAt when already present', () => {
+      const json = { id: 1, name: 'x', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' };
+      const out = drizzleGen.generate(inferSchema(json), 'User');
+      expect((out.match(/createdAt:/g) || []).length).toBe(1);
+      expect((out.match(/updatedAt:/g) || []).length).toBe(1);
+    });
+
+    // ── Type exports ─────────────────────────────────────────────────────
+
+    it('exports $inferSelect and $inferInsert types', () => {
+      const out = drizzleGen.generate(inferSchema({ name: 'Alice' }), 'User');
+      expect(out).toContain('export type User = typeof user.$inferSelect;');
+      expect(out).toContain('export type NewUser = typeof user.$inferInsert;');
+    });
+
+    // ── Imports ───────────────────────────────────────────────────────────
+
+    it('only imports used column types', () => {
+      const out = drizzleGen.generate(inferSchema({ name: 'Alice', age: 30 }), 'User');
+      expect(out).toContain('integer');
+      expect(out).toContain('varchar');
+      expect(out).not.toContain('doublePrecision');
+      expect(out).not.toContain('jsonb');
+      expect(out).not.toContain('real');
+    });
+
+    it('does not import pgEnum when no enum fields', () => {
+      const out = drizzleGen.generate(inferSchema({ name: 'Alice' }), 'User');
+      expect(out).not.toContain('pgEnum');
+    });
+
+    // ── Naming ────────────────────────────────────────────────────────────
+
+    it('converts camelCase field names to snake_case column names', () => {
+      const out = drizzleGen.generate(inferSchema({ firstName: 'Alice', lastName: 'Smith' }), 'User');
+      expect(out).toContain("varchar('first_name'");
+      expect(out).toContain("varchar('last_name'");
+    });
+
+    it('uses snake_case plural for table name', () => {
+      const out = drizzleGen.generate(inferSchema({ name: 'Alice' }), 'BlogPost');
+      expect(out).toContain("pgTable('blog_posts'");
+    });
+
+    it('does not double-pluralize already-plural table names', () => {
+      const out = drizzleGen.generate(inferSchema({ name: 'Alice' }), 'Users');
+      expect(out).toContain("pgTable('users'");
+      expect(out).not.toContain("pgTable('userss'");
+    });
+
+    // ── Optional fields ───────────────────────────────────────────────────
+
+    it('omits .notNull() for optional fields', () => {
+      const schema: Schema = {
+        type: 'object',
+        fields: {
+          nickname: { type: 'string', optional: true, nullable: false },
+          score: { type: 'number', format: 'float', optional: true, nullable: false },
+        },
+      };
+      const out = drizzleGen.generate(schema, 'User');
+      expect(out).toContain("varchar('nickname', { length: 255 })");
+      expect(out).not.toMatch(/varchar\('nickname'[^)]*\)\.notNull/);
+      expect(out).not.toMatch(/real\('score'\)\.notNull/);
+    });
+  });
+
   describe('bigQueryGen', () => {
     it('should expand nested objects as RECORD type', () => {
       const json = { user: { id: 1, name: 'Alice', address: { city: 'Tokyo', zip: '150-0002' } } };

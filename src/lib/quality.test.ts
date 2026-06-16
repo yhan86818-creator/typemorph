@@ -116,6 +116,52 @@ describe('analyzeQuality', () => {
     expect(result.stats.totalFields).toBe(2);
   });
 
+  it('[regression] accessToken/refreshToken must NOT trigger semantic string warning', () => {
+    // token/hash were removed from SEMANTIC_STRING — they are free-form strings, not format-constrained
+    const schema: Schema = {
+      type: 'object',
+      fields: {
+        accessToken:  { type: 'string' },
+        refreshToken: { type: 'string' },
+        apiKey:       { type: 'string' },
+      },
+    };
+    const result = analyzeQuality(schema);
+    const formatWarnings = result.issues.filter(i => i.message.includes('format constraint'));
+    expect(formatWarnings).toHaveLength(0);
+  });
+
+  it('[regression] single-word lowercase fields (id, name, email) must count as camelCase', () => {
+    // isCamel previously required uppercase letter → id/name/email got classified as "other"
+    // → mixed naming false positive on clean schemas like { id, email, createdAt }
+    const schema: Schema = {
+      type: 'object',
+      fields: {
+        id:        { type: 'string', format: 'uuid' },
+        email:     { type: 'string', format: 'email' },
+        name:      { type: 'string' },
+        createdAt: { type: 'string', format: 'datetime' },
+      },
+    };
+    const result = analyzeQuality(schema);
+    expect(result.stats.namingStyle).not.toBe('mixed');
+    expect(result.score).toBeGreaterThanOrEqual(85);
+  });
+
+  it('[regression] 2-field mixed schema must trigger mixed naming penalty', () => {
+    // Threshold was >= 3 → { user_name, userId } (2 fields) scored 100 despite mixed naming
+    const schema: Schema = {
+      type: 'object',
+      fields: {
+        user_name: { type: 'string' },
+        userId:    { type: 'number' },
+      },
+    };
+    const result = analyzeQuality(schema);
+    expect(result.stats.namingStyle).toBe('mixed');
+    expect(result.score).toBeLessThan(100);
+  });
+
   it('grades: A >= 90, B >= 75, F below 40', () => {
     // A: no any, has format hints → no penalties
     const aSchema: Schema = {

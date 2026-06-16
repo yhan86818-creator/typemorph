@@ -367,18 +367,22 @@ export const zodGen = {
               zType += '.int().min(0).max(23)';
             } else if (k.includes('minute') || k.includes('second')) {
               zType += '.int().min(0).max(59)';
-            } else if (k.includes('count') || k.includes('quantity')) {
+            } else if (k.includes('count') || k.includes('quantity') || k === 'qty') {
               zType += '.int().min(0)';
-            } else if (['price', 'amount', 'cost', 'fee', 'rank'].some(w => k.includes(w))) {
+            } else if (['price', 'amount', 'cost', 'fee', 'rank', 'total', 'subtotal'].some(w => k.includes(w))) {
               zType += '.min(0)';
+            } else if (k === 'port' || k.endsWith('_port') || k === 'portnumber' || k === 'port_number') {
+              zType += '.int().min(1).max(65535)';
             }
           }
           if (field.fieldType.kind === 'string' && !field.fieldType.format) {
             if (k.includes('email')) zType = 'z.email()';
             else if (k.includes('url') || k.includes('link') || k.includes('website')) zType = 'z.url()';
             else if (k.includes('uuid') || k.endsWith('_id') || /Id$/.test(displayName) || /ID$/.test(displayName)) zType = 'z.uuid()';
-            else if (k.includes('phone') || k.includes('tel')) zType = 'z.string().regex(/^\\+?[\\d\\s\\-\\.\\(\\)]{7,15}$/)';
+            else if (k.includes('phone') || k === 'tel' || k === 'telephone' || k.endsWith('_tel') || k.startsWith('tel_')) zType = 'z.string().regex(/^\\+?[\\d\\s\\-\\.\\(\\)]{7,15}$/)';
             else if (k.includes('password') || k.includes('passwd')) zType = 'z.string().min(8)';
+            else if (k === 'zip' || k === 'zipcode' || k === 'zip_code' || k === 'postal_code' || k === 'postcode') zType = 'z.string().regex(/^[A-Z0-9][A-Z0-9\\s\\-]{1,8}[A-Z0-9]$/i)';
+            else if (k === 'semver') zType = 'z.string().regex(/^\\d+\\.\\d+(\\.\\d+)?(-[\\w.]+)?(\\+[\\w.]+)?$/)';
             else if (k.includes('slug')) zType = 'z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)';
             else {
               const hasTrim = k.includes('name') || k.includes('label') || k.includes('title');
