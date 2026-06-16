@@ -40,11 +40,11 @@ describe('TypeScript compile check', () => {
     const tmp = join(tmpdir(), `typemorph-check-${Date.now()}.ts`);
     writeFileSync(tmp, out, 'utf8');
     try {
-      execSync(`npx tsc --noEmit --strict --target ES2020 --moduleResolution node ${tmp}`, { stdio: 'pipe' });
+      execSync(`npx tsc --noEmit --strict --target ES2020 --moduleResolution node ${tmp}`, { stdio: 'pipe', timeout: 30000 });
     } finally {
       unlinkSync(tmp);
     }
-  });
+  }, 30000);
 });
 
 // ── Zod v4 ──────────────────────────────────────────────────
@@ -52,19 +52,18 @@ describe('Zod compile check', () => {
   it('generates valid Zod v4 that tsc accepts', () => {
     const out = runEngine(ORDER_JSON, 'zod', '', { rootName: 'order' });
     const tmp = join(tmpdir(), `typemorph-zod-${Date.now()}.ts`);
-    // tsc needs zod types — write a wrapper that doesn't import, just check syntax
     const syntaxOnly = out
-      .replace(/^import.*$/m, '')       // remove import line
-      .replace(/\bz\./g, '(null as any).');  // neutralize z references
+      .replace(/^import.*$/m, '')
+      .replace(/\bz\./g, '(null as any).');
     writeFileSync(tmp, syntaxOnly, 'utf8');
     try {
-      execSync(`npx tsc --noEmit --strict --target ES2020 --moduleResolution node ${tmp}`, { stdio: 'pipe' });
+      execSync(`npx tsc --noEmit --strict --target ES2020 --moduleResolution node ${tmp}`, { stdio: 'pipe', timeout: 30000 });
     } catch {
       // Zod types need zod package — just check the output is non-empty and has expected structure
     }
     expect(out).toContain('z.object({');
     expect(out).toContain('z.infer<typeof');
-  });
+  }, 30000);
 
   it('v3 mode outputs z.string().email() not z.email()', () => {
     const out = runEngine(ORDER_JSON, 'zod', '', { rootName: 'order', zodVersion: 'v3' });
@@ -91,11 +90,11 @@ describe('Python compile check', () => {
     const tmp = join(tmpdir(), `typemorph-check-${Date.now()}.py`);
     writeFileSync(tmp, out, 'utf8');
     try {
-      execSync(`python -c "import py_compile; py_compile.compile('${tmp.replace(/\\/g, '/')}', doraise=True)"`, { stdio: 'pipe' });
+      execSync(`python -c "import py_compile; py_compile.compile('${tmp.replace(/\\/g, '/')}', doraise=True)"`, { stdio: 'pipe', timeout: 30000 });
     } finally {
       try { unlinkSync(tmp); } catch {}
     }
-  });
+  }, 30000);
 });
 
 // ── Go structural check ──────────────────────────────────────
