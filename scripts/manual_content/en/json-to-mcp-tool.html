@@ -1,0 +1,76 @@
+<h2>JSON to MCP Tool: Generate Model Context Protocol Tool Definitions from JSON</h2>
+<p>The <a href="https://modelcontextprotocol.io">Model Context Protocol (MCP)</a> lets you expose tools to AI agents like Claude, Cursor, and Windsurf. Every MCP tool needs a Zod schema describing its parameters — writing these by hand for every tool is error-prone and repetitive. TypeMorph infers the schema from a real JSON payload and generates a ready-to-run MCP tool definition in seconds.</p>
+
+<h3>Live Example: From JSON to MCP Tool</h3>
+<pre><code>// Input JSON (a sample API request payload)
+{
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "email": "alice@example.com",
+  "action": "send_report",
+  "count": 5
+}
+
+// Generated MCP Tool
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+
+const server = new McpServer({ name: "my-server", version: "1.0.0" });
+
+server.tool(
+  "root",
+  "Auto-generated MCP tool — replace with a meaningful description",
+  {
+    user_id: z.uuid().describe("UUID identifier for the user"),
+    email: z.email().describe("Email address"),
+    action: z.string().describe("Action to perform"),
+    count: z.number().int().min(0).describe("Count value"),
+  },
+  async ({ user_id, email, action, count }) => ({
+    content: [{ type: "text", text: JSON.stringify({ user_id, email, action, count }) }]
+  })
+);
+
+export { server };
+</code></pre>
+
+<h3>Step-by-Step Setup</h3>
+<p>1. <strong>Install the MCP SDK:</strong> <code>npm install @modelcontextprotocol/sdk zod</code><br>
+2. <strong>Paste your JSON payload</strong> into TypeMorph and select MCP Tool as the output format.<br>
+3. <strong>Update the tool name and description</strong> — replace <code>"root"</code> with a verb-noun name like <code>"createUser"</code> and write a description that tells the AI agent what the tool does.<br>
+4. <strong>Add your implementation</strong> inside the <code>async</code> handler — replace the JSON.stringify echo with your actual business logic.<br>
+5. <strong>Connect your server</strong> to a transport (stdio for local tools, SSE for remote).</p>
+
+<h3>Technical Deep Dive: Why Zod for MCP Parameters</h3>
+<p>MCP uses Zod schemas to validate tool inputs before passing them to your handler, and to generate JSON Schema for the AI agent's function-calling interface. TypeMorph's semantic inference means field names like <code>email</code> automatically get <code>z.email()</code>, UUIDs get <code>z.uuid()</code>, and numeric fields get appropriate <code>.min()</code>/<code>.max()</code> constraints. This gives the AI agent better hints about what values are valid, reducing hallucinated or invalid inputs.</p>
+
+<h3>MCP Tool Naming Best Practices</h3>
+<p>AI agents read the tool name and description to decide when to call your tool. Use <strong>verb-noun names</strong> like <code>getUserById</code>, <code>sendInvoice</code>, or <code>queryDatabase</code>. Avoid generic names like <code>process</code> or <code>run</code>. The description should explain what the tool does and when to use it — one or two sentences is ideal. Each parameter's <code>.describe()</code> string is shown to the agent, so describe the expected format and units (e.g., <code>"Unix timestamp in seconds"</code> or <code>"ISO 4217 currency code like USD"</code>).</p>
+
+<h3>Connecting to Claude Desktop / Cursor</h3>
+<p>For a stdio transport (the most common for local tools), add this to your <code>claude_desktop_config.json</code>:</p>
+<pre><code>{
+  "mcpServers": {
+    "my-tool": {
+      "command": "node",
+      "args": ["/path/to/your/server.js"]
+    }
+  }
+}
+</code></pre>
+<p>For Cursor, add the same configuration to <code>.cursor/mcp.json</code> in your project root.</p>
+
+<h3>Best Practices</h3>
+<ul>
+  <li><strong>One tool per operation:</strong> Avoid tools with 20+ parameters. Split complex operations into focused tools — agents perform better with smaller, well-named tools.</li>
+  <li><strong>Use <code>.describe()</code> on every parameter:</strong> The agent uses these strings to understand what to pass. Skip them and the agent guesses.</li>
+  <li><strong>Return structured JSON:</strong> Wrap your response in <code>JSON.stringify()</code> so downstream tools can parse the output programmatically.</li>
+  <li><strong>Add error handling:</strong> Return <code>{ content: [{ type: "text", text: errorMessage }], isError: true }</code> for recoverable errors so the agent can retry or escalate.</li>
+</ul>
+
+<h3>FAQ</h3>
+<p><strong>Q: Can I use this with FastMCP or other MCP frameworks?</strong><br>
+A: Yes. FastMCP uses the same Zod schema format for tool parameters. Copy the parameter object from the generated output and use it directly in your FastMCP <code>server.addTool()</code> call.</p>
+<p><strong>Q: Does TypeMorph support Standard Schema instead of Zod?</strong><br>
+A: The MCP Tool generator outputs Zod (v4) by default, which is the most widely used option. If your framework supports Standard Schema, the Zod output is compatible as Zod 4 implements the Standard Schema interface.</p>
+<p><strong>Q: How do I handle optional parameters in my MCP tool?</strong><br>
+A: Fields that were <code>null</code> or absent in your JSON sample are generated as <code>.optional()</code>. MCP agents will omit optional parameters when they don't have a value, and your handler should handle <code>undefined</code> for those fields.</p>

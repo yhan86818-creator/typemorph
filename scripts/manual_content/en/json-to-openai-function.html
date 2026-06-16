@@ -1,0 +1,75 @@
+<h2>JSON to OpenAI Function: Generate Function Calling Definitions from JSON Payloads</h2>
+<p>OpenAI's function calling (now called "tools") lets GPT-4 and other models invoke structured operations with validated parameters. Every tool definition requires a JSON Schema describing its parameters — writing this by hand for every endpoint is repetitive and easy to get wrong. TypeMorph infers the schema from a real JSON sample and generates a complete, ready-to-use OpenAI function definition.</p>
+
+<h3>Live Example: From JSON to OpenAI Function Definition</h3>
+<pre><code>// Input JSON (a sample payload)
+{
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "email": "alice@example.com",
+  "amount": 9900,
+  "currency": "USD",
+  "is_recurring": false
+}
+
+// Generated OpenAI Function Definition
+{
+  "type": "function",
+  "function": {
+    "name": "root",
+    "description": "Processes root data — update with a meaningful description",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string", "format": "uuid", "description": "UUID identifier for the user" },
+        "email": { "type": "string", "format": "email", "description": "Email address" },
+        "amount": { "type": "integer", "minimum": 0, "description": "Monetary amount" },
+        "currency": { "type": "string", "description": "Currency code" },
+        "is_recurring": { "type": "boolean", "description": "Whether this is recurring" }
+      },
+      "required": ["user_id", "email", "amount", "currency", "is_recurring"]
+    }
+  }
+}
+</code></pre>
+
+<h3>Step-by-Step Integration</h3>
+<p>1. <strong>Paste your JSON</strong> into TypeMorph and select OpenAI Function as the output format.<br>
+2. <strong>Update the function name and description</strong> — use a verb-noun name like <code>createPayment</code> and write a clear description so the model knows when to call this function.<br>
+3. <strong>Pass to the API</strong> in the <code>tools</code> array of your chat completion request.<br>
+4. <strong>Handle the response:</strong> When the model returns a <code>tool_calls</code> message, parse <code>JSON.parse(toolCall.function.arguments)</code> and execute your logic.<br>
+5. <strong>Return the result</strong> back to the model as a tool message for multi-step reasoning.</p>
+
+<h3>Technical Deep Dive: JSON Schema vs Zod for Function Calling</h3>
+<p>OpenAI's API accepts raw JSON Schema for tool parameters, not Zod. TypeMorph generates the correct JSON Schema format with semantic constraints inferred from field names: <code>email</code> fields get <code>"format": "email"</code>, UUID fields get <code>"format": "uuid"</code>, monetary amounts get <code>"minimum": 0</code>, and age fields get <code>"minimum": 0, "maximum": 150</code>. These hints help the model produce valid values rather than hallucinating formats. For structured outputs (JSON mode), you can use the same schema in the <code>response_format</code> parameter with <code>"strict": true</code>.</p>
+
+<h3>Structured Outputs (Strict Mode)</h3>
+<p>OpenAI's structured outputs feature enforces that the model always returns valid JSON matching your schema. To use it, add <code>"strict": true</code> and ensure every object has <code>"additionalProperties": false</code>:</p>
+<pre><code>const response = await openai.chat.completions.create({
+  model: "gpt-4o",
+  messages: [...],
+  response_format: {
+    type: "json_schema",
+    json_schema: {
+      name: "payment_schema",
+      strict: true,
+      schema: { ...generatedSchema, additionalProperties: false }
+    }
+  }
+});
+</code></pre>
+
+<h3>Best Practices</h3>
+<ul>
+  <li><strong>Use descriptive function names:</strong> The model picks functions by name and description. <code>createInvoice</code> is better than <code>process</code>.</li>
+  <li><strong>Add enum constraints for known values:</strong> If a field can only be <code>"USD"</code>, <code>"EUR"</code>, or <code>"JPY"</code>, add <code>"enum": ["USD", "EUR", "JPY"]</code> to eliminate invalid outputs.</li>
+  <li><strong>Keep required fields minimal:</strong> Only mark fields as <code>required</code> if the function cannot run without them. Optional fields give the model flexibility.</li>
+  <li><strong>Validate before executing:</strong> Even with function calling, validate the parsed arguments with Zod or another validator before passing them to your business logic.</li>
+</ul>
+
+<h3>FAQ</h3>
+<p><strong>Q: What's the difference between function calling and structured outputs?</strong><br>
+A: Function calling lets the model decide when to invoke a function and what arguments to pass. Structured outputs (JSON mode) always return JSON matching a schema — it's for extracting structured data from model responses, not triggering actions.</p>
+<p><strong>Q: Can I use this with other providers like Anthropic or Mistral?</strong><br>
+A: Most LLM providers support OpenAI-compatible tool definitions. Anthropic's tool use format is nearly identical but uses <code>input_schema</code> instead of <code>parameters</code>. The generated JSON Schema is directly reusable with minor renaming.</p>
+<p><strong>Q: How do I handle nested objects in function parameters?</strong><br>
+A: TypeMorph generates nested <code>{"type": "object", "properties": {...}}</code> for nested JSON objects. OpenAI's strict mode requires these to also have <code>"additionalProperties": false</code>.</p>

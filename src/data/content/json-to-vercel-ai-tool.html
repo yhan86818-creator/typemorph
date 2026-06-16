@@ -1,0 +1,80 @@
+<h2>JSON to Vercel AI SDK Tool: Generate tool() Definitions from JSON Payloads</h2>
+<p>The Vercel AI SDK's <code>tool()</code> helper is the fastest way to add typed, validated tool calls to AI applications built with Next.js and React. Every tool needs a Zod schema for its parameters — TypeMorph infers that schema from a real JSON payload and wraps it in the complete <code>tool()</code> call, ready to drop into your AI route handler.</p>
+
+<h3>Live Example: From JSON to Vercel AI Tool</h3>
+<pre><code>// Input JSON (a sample request payload)
+{
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "query": "latest invoices",
+  "limit": 10,
+  "include_draft": false
+}
+
+// Generated Vercel AI SDK Tool
+import { tool } from "ai";
+import { z } from "zod";
+
+export const rootTool = tool({
+  description: "Auto-generated tool — replace with a meaningful description",
+  parameters: z.object({
+    user_id: z.uuid().describe("UUID identifier for the user"),
+    query: z.string().min(1).describe("Search or filter query"),
+    limit: z.number().int().min(0).describe("Maximum number of results"),
+    include_draft: z.boolean().describe("Include draft items"),
+  }),
+  execute: async ({ user_id, query, limit, include_draft }) => {
+    // implement your logic here
+    return { user_id, query, limit, include_draft };
+  },
+});
+</code></pre>
+
+<h3>Step-by-Step Integration with Next.js App Router</h3>
+<p>1. <strong>Install dependencies:</strong> <code>npm install ai zod</code><br>
+2. <strong>Paste your JSON</strong> into TypeMorph and select Vercel AI Tool.<br>
+3. <strong>Add your logic</strong> inside the <code>execute</code> function — this is where your database calls, API requests, or business logic go.<br>
+4. <strong>Register the tool</strong> in your <code>app/api/chat/route.ts</code> handler:<br></p>
+<pre><code>import { streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { rootTool } from "@/lib/tools/root";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages,
+    tools: { root: rootTool },
+  });
+  return result.toDataStreamResponse();
+}
+</code></pre>
+<p>5. <strong>Use <code>useChat</code></strong> on the client side — tool calls and results are handled automatically by the AI SDK's streaming protocol.</p>
+
+<h3>Technical Deep Dive: Vercel AI SDK Tool Execution Flow</h3>
+<p>When the model decides to call your tool, the AI SDK: (1) parses the model's tool call arguments against your Zod schema, throwing if validation fails; (2) invokes your <code>execute</code> function with the validated, typed parameters; (3) streams the result back to the model for the next reasoning step. TypeMorph's Zod v4 output aligns with AI SDK's requirements — <code>z.uuid()</code> instead of <code>z.string().uuid()</code>, standalone <code>z.email()</code>, and <code>z.int()</code> for integer-only fields. Each parameter's <code>.describe()</code> string is passed to the model as a hint about expected values.</p>
+
+<h3>Multi-Step Tool Use with <code>maxSteps</code></h3>
+<p>By default the AI SDK stops after one tool call. For agents that need to chain tool calls, set <code>maxSteps</code>:</p>
+<pre><code>const result = streamText({
+  model: openai("gpt-4o"),
+  messages,
+  tools: { searchInvoices: searchTool, createPayment: paymentTool },
+  maxSteps: 5,  // allow up to 5 tool calls in one response
+});
+</code></pre>
+
+<h3>Best Practices</h3>
+<ul>
+  <li><strong>Name tools with verbs:</strong> <code>searchProducts</code>, <code>createOrder</code>, <code>getWeather</code>. The model uses the name to decide when to call the tool.</li>
+  <li><strong>Keep <code>execute</code> functions fast:</strong> Long-running operations block the streaming response. For slow tasks, return an ID immediately and poll in a follow-up tool.</li>
+  <li><strong>Use <code>experimental_toToolResultContent</code></strong> for rich return types: return images, structured data, or multiple content blocks alongside text.</li>
+  <li><strong>Add error handling in <code>execute</code>:</strong> The AI SDK propagates errors back to the model. Return an error message string so the model can recover gracefully.</li>
+</ul>
+
+<h3>FAQ</h3>
+<p><strong>Q: Does Vercel AI SDK support providers other than OpenAI?</strong><br>
+A: Yes — Anthropic, Google Gemini, Mistral, Cohere, and more via provider packages (<code>@ai-sdk/anthropic</code>, <code>@ai-sdk/google</code>, etc.). The same <code>tool()</code> definition works across all providers.</p>
+<p><strong>Q: Can I use this without Next.js?</strong><br>
+A: Yes. The AI SDK works in any Node.js environment. The <code>tool()</code> helper is framework-agnostic; only the streaming transports (<code>toDataStreamResponse()</code>) are Next.js-specific.</p>
+<p><strong>Q: How does tool calling differ from structured outputs?</strong><br>
+A: Tool calling lets the model trigger actions in your application. Structured outputs (<code>generateObject()</code> in AI SDK) always return JSON matching a schema without the model "deciding" to call anything — use it for extraction tasks, use tools for actions.</p>

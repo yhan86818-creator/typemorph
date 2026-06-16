@@ -93,8 +93,8 @@ export function LandingView({ onSelect }: LandingViewProps) {
           <VisualDemo />
 
           <p className="text-lg text-slate-500 dark:text-slate-400 font-medium max-w-2xl mx-auto leading-relaxed">
-            The premium schema workbench for modern software architects. <br className="hidden md:block" />
-            160+ tools, 100% local-first, including institutional-grade financial & database engineering.
+            Stop hand-writing TypeScript types from API responses. <br className="hidden md:block" />
+            Paste JSON and instantly get Zod schemas, TypeScript interfaces, database schemas — all in your browser.
           </p>
 
           <div className="flex items-center justify-center gap-3 mt-6 flex-wrap">

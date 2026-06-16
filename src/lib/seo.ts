@@ -100,6 +100,11 @@ export const INDEXED_EN_SLUGS = new Set([
   'json-to-nestjs-dto',
   'json-to-effect-schema',
 
+  // AI / LLM Tools (quality content added)
+  'json-to-mcp-tool',
+  'json-to-openai-function',
+  'json-to-vercel-ai-tool',
+
   // High-Demand Conversions (quality content added)
   'json-to-csharp-class',
   'yaml-to-json',
