@@ -376,7 +376,7 @@ describe('Kotlin real compile check', () => {
     const code = out
       .replace(/^import kotlinx\..+\n/gm, '')
       .replace(/^@Serializable\n/gm, '')
-      .replace(/^@SerialName\("[^"]+"\)\n\s*/gm, '')
+      .replace(/^[ \t]*@SerialName\("[^"]+"\)\n/gm, '')
       .replace(/\bInstant\b/g, 'String')
       .replace(/\bLocalDate\b/g, 'String');
     const dir = join(tmpdir(), `typemorph-kotlin-${Date.now()}`);
@@ -425,6 +425,7 @@ describe('Rust real compile check', () => {
       '[dependencies]',
       'serde = { version = "1", features = ["derive"] }',
       'chrono = { version = "0.4", features = ["serde"] }',
+      'serde_json = "1"',
     ].join('\n');
     writeFileSync(join(dir, 'Cargo.toml'), cargoToml, 'utf8');
     writeFileSync(join(dir, 'src', 'lib.rs'), out, 'utf8');
@@ -466,7 +467,7 @@ describe('C# real compile check', () => {
     const out = runEngine(ORDER_JSON, 'csharp', '', { rootName: 'Order' });
     const dir = join(tmpdir(), `typemorph-csharp-${Date.now()}`);
     mkdirSync(dir, { recursive: true });
-    const csproj = '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Library</OutputType><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable></PropertyGroup></Project>';
+    const csproj = '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Library</OutputType><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup></Project>';
     writeFileSync(join(dir, 'TypeMorphCheck.csproj'), csproj, 'utf8');
     writeFileSync(join(dir, 'TypeMorphCheck.cs'), out, 'utf8');
     try {
@@ -479,7 +480,7 @@ describe('C# real compile check', () => {
 
 // ── PHP real compile check (CI: requires PHP 8+) ─────────────────────────────
 // `php -l` performs a syntax-only lint without executing the script.
-// phpGen does not emit `<?php`; it is prepended in the temp file.
+// runEngine already prepends `<?php\n\n`; the output is written as-is.
 // CI installs PHP via shivammathur/setup-php — see .github/workflows/compiler-check.yml.
 
 describe('PHP real compile check', () => {
@@ -488,7 +489,7 @@ describe('PHP real compile check', () => {
   it.skipIf(!phpAvailable)('generates PHP that `php -l` accepts (ORDER_JSON)', () => {
     const out = runEngine(ORDER_JSON, 'php', '', { rootName: 'Order' });
     const tmp = join(tmpdir(), `typemorph-php-${Date.now()}.php`);
-    writeFileSync(tmp, `<?php\n${out}`, 'utf8');
+    writeFileSync(tmp, out, 'utf8');
     try {
       execSync(`php -l ${tmp}`, { stdio: 'pipe', timeout: 30000 });
     } finally {
@@ -499,7 +500,7 @@ describe('PHP real compile check', () => {
   it.skipIf(!phpAvailable)('generates PHP that `php -l` accepts (UNION_JSON)', () => {
     const out = runEngine(UNION_JSON, 'php', '', { rootName: 'Item' });
     const tmp = join(tmpdir(), `typemorph-php-union-${Date.now()}.php`);
-    writeFileSync(tmp, `<?php\n${out}`, 'utf8');
+    writeFileSync(tmp, out, 'utf8');
     try {
       execSync(`php -l ${tmp}`, { stdio: 'pipe', timeout: 30000 });
     } finally {
