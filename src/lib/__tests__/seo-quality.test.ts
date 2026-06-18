@@ -37,8 +37,7 @@ describe('SEO Index Quality Enforcement', () => {
   });
 
   it('enforces that every indexed Japanese slug has a high-quality manual content page', () => {
-    expect(INDEXED_JP_SLUGS.size).toBeGreaterThan(0);
-
+    // INDEXED_JP_SLUGS may be empty (all JP pages noindexed) — that is valid.
     for (const slug of INDEXED_JP_SLUGS) {
       const filePath = path.join(manualJpDir, `${slug}.html`);
       

@@ -240,7 +240,9 @@ const printZodASTType = (type: ASTType, cyclicClassRefs: Set<string>, options: a
       return `z.union([${parts.join(', ')}])`;
     }
     case 'enum':
-      return type.enumValues ? `z.enum([${type.enumValues.map(ev => `"${ev}"`).join(', ')}])` : 'z.string()';
+      if (!type.enumValues || type.enumValues.length === 0) return 'z.string()';
+      if (type.enumValues.length === 1) return `z.literal("${type.enumValues[0]}")`;
+      return `z.enum([${type.enumValues.map(ev => `"${ev}"`).join(', ')}])`;
     case 'date':
       return 'z.coerce.date()';
     case 'datetime':
@@ -415,12 +417,14 @@ export const zodGen = {
               zType += '.min(0)';
             } else if (k === 'port' || k.endsWith('_port') || k === 'portnumber' || k === 'port_number') {
               zType += '.int().min(1).max(65535)';
+            } else if (field.fieldType.format === 'int') {
+              zType += '.int()';
             }
           }
           if (field.fieldType.kind === 'string' && !field.fieldType.format) {
             if (k.includes('email')) zType = zEmail;
             else if (k.includes('url') || k.includes('link') || k.includes('website')) zType = zUrl;
-            else if (k.includes('uuid') || k.endsWith('_id') || /Id$/.test(displayName) || /ID$/.test(displayName)) zType = zUuid;
+            else if (k.includes('uuid') || ((k.endsWith('_id') || /Id$/.test(displayName) || /ID$/.test(displayName)) && field.fieldType.format === 'uuid')) zType = zUuid;
             else if (k.includes('phone') || k === 'tel' || k === 'telephone' || k.endsWith('_tel') || k.startsWith('tel_')) zType = 'z.string().regex(/^\\+?[\\d\\s\\-\\.\\(\\)]{7,15}$/)';
             else if (k.includes('password') || k.includes('passwd')) zType = 'z.string().min(8)';
             else if (k === 'zip' || k === 'zipcode' || k === 'zip_code' || k === 'postal_code' || k === 'postcode') zType = 'z.string().regex(/^[A-Z0-9][A-Z0-9\\s\\-]{1,8}[A-Z0-9]$/i)';
@@ -428,10 +432,7 @@ export const zodGen = {
             else if (k.includes('slug')) zType = 'z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)';
             else {
               const hasTrim = k.includes('name') || k.includes('label') || k.includes('title');
-              const isRequired = !field.isOptional && !options.optionalFields;
-              const longText = ['description', 'note', 'bio', 'comment', 'content', 'body', 'text', 'message', 'summary', 'detail', 'info', 'about', 'remark'].some(w => k.includes(w));
-              if (hasTrim) zType = isRequired ? 'z.string().min(1).trim()' : 'z.string().trim()';
-              else if (isRequired && !longText) zType = 'z.string().min(1)';
+              if (hasTrim) zType = 'z.string().trim()';
             }
           }
         }
@@ -849,7 +850,7 @@ let res = usesTime
         let goType = printGoASTType(field.fieldType);
         if (field.isNullable || field.isOptional) goType = `*${goType}`;
         const pascalFieldName = toPascalCase(field.name);
-        const omitEmpty = field.isOptional ? ',omitempty' : '';
+        const omitEmpty = (field.isOptional || field.isNullable) ? ',omitempty' : '';
         res += `  ${pascalFieldName} ${goType} \`json:"${field.name}${omitEmpty}"\`\n`;
       }
       res += `}\n\n`;
@@ -1017,8 +1018,10 @@ export const prismaGen = {
         }
       }
 
+      const DECIMAL_NAMES = /^(price|amount|cost|total|fee|balance|discount|tax|rate|salary|revenue|budget|charge|payment|subtotal|tip|markup|margin)s?$/i;
       for (const field of cls.fields) {
-        const prismaType = printPrismaASTType(field.fieldType);
+        let prismaType = printPrismaASTType(field.fieldType);
+        if (prismaType === 'Float' && DECIMAL_NAMES.test(field.name)) prismaType = 'Decimal';
         const isArray = field.fieldType.kind === 'array';
         const opt = (field.isOptional && !isArray) ? '?' : '';
         const customKey2 = `${cls.name}.${field.name}`;
@@ -1318,7 +1321,8 @@ export const kotlinGen = {
         const serialName = field.name !== ktFieldName
           ? `    @SerialName("${field.name}")\n`
           : '';
-        return `${serialName}    val ${ktFieldName}: ${ktType}`;
+        const defaultVal = (field.isOptional || field.isNullable) ? ' = null' : '';
+        return `${serialName}    val ${ktFieldName}: ${ktType}${defaultVal}`;
       });
       res += fields.join(',\n');
       res += `\n)${inheritance}\n\n`;
@@ -1671,5 +1675,109 @@ export const docGen = {
       return res;
     }
     return "";
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Type Guard Generator — generates is<Type>() runtime type guard functions
+// ---------------------------------------------------------------------------
+export const typeGuardGen = {
+  generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
+    const discriminatedMap = findDiscriminatedSchemas(schema, name);
+    const astClasses = schemaToAST(schema, name, options);
+    const lines: string[] = [];
+
+    const typeCheckExpr = (fieldType: ASTType, accessor: string): string => {
+      switch (fieldType.kind) {
+        case 'string':   return `typeof ${accessor} === 'string'`;
+        case 'number':   return `typeof ${accessor} === 'number'`;
+        case 'boolean':  return `typeof ${accessor} === 'boolean'`;
+        case 'date':
+        case 'datetime': return `(typeof ${accessor} === 'string' || ${accessor} instanceof Date)`;
+        case 'any':      return 'true';
+        case 'classRef': return `is${fieldType.classRefName}(${accessor})`;
+        case 'array':    return `Array.isArray(${accessor})`;
+        case 'enum': {
+          const vals = (fieldType.enumValues ?? []).map(v => `'${v}'`).join(', ');
+          return `typeof ${accessor} === 'string' && [${vals}].includes(${accessor})`;
+        }
+        case 'union': {
+          const checks = (fieldType.unionTypes ?? []).filter(t => t !== 'any').map(t => `typeof ${accessor} === '${t}'`);
+          return checks.length ? `(${checks.join(' || ')})` : 'true';
+        }
+        default: return 'true';
+      }
+    };
+
+    const buildFieldLine = (field: { name: string; fieldType: ASTType; isOptional: boolean; isNullable: boolean }): string => {
+      const acc = `o['${field.name}']`;
+      const check = typeCheckExpr(field.fieldType, acc);
+      const hasRealCheck = check !== 'true';
+      if (field.isOptional && field.isNullable) {
+        return hasRealCheck ? `(${acc} == null || ${check})` : `(${acc} == null)`;
+      }
+      if (field.isOptional) return hasRealCheck ? `(${acc} === undefined || ${check})` : 'true';
+      if (field.isNullable)  return hasRealCheck ? `(${acc} === null || ${check})` : `${acc} === null`;
+      return check; // 'true' for unknown required types → filtered in emitGuard
+    };
+
+    const emitGuard = (
+      className: string,
+      fields: Array<{ name: string; fieldType: ASTType; isOptional: boolean; isNullable: boolean }>
+    ) => {
+      lines.push(`export function is${className}(obj: unknown): obj is ${className} {`);
+      lines.push(`  if (typeof obj !== 'object' || obj === null) return false;`);
+      lines.push(`  const o = obj as Record<string, unknown>;`);
+      const checkLines = fields.map(buildFieldLine).filter(l => l !== 'true');
+      if (checkLines.length === 0) {
+        lines.push(`  return true;`);
+      } else {
+        lines.push(`  return (`);
+        checkLines.forEach((line, i) => {
+          const sep = i < checkLines.length - 1 ? ' &&' : '';
+          lines.push(`    ${line}${sep}`);
+        });
+        lines.push(`  );`);
+      }
+      lines.push(`}`);
+      lines.push('');
+    };
+
+    for (const cls of astClasses) {
+      const du = discriminatedMap.get(cls.name);
+      if (du) {
+        for (const [value, variantSchema] of Object.entries(du.variants)) {
+          const suffix = toPascalCase(value);
+          const variantName = `${cls.name}${suffix}`;
+          const variantFields = Object.entries(variantSchema.fields ?? {}).map(([fk, fv]) => {
+            if (fk === du.discriminatorField) {
+              return { name: fk, fieldType: { kind: 'enum' as const, enumValues: [value] }, isOptional: false, isNullable: false };
+            }
+            return { name: fk, fieldType: convertToASTType(fv, variantName, fk), isOptional: !!fv.optional, isNullable: !!fv.nullable };
+          });
+          emitGuard(variantName, variantFields);
+        }
+        const variantChecks = Object.keys(du.variants).map(v => `is${cls.name}${toPascalCase(v)}(obj)`);
+        lines.push(`export function is${cls.name}(obj: unknown): obj is ${cls.name} {`);
+        lines.push(`  return ${variantChecks.join(' || ')};`);
+        lines.push(`}`);
+        lines.push('');
+        continue;
+      }
+      emitGuard(cls.name, cls.fields);
+    }
+
+    if (schema.type === 'array' && schema.itemType) {
+      const itemName = rootArrayItemClassName(schema, name);
+      if (itemName) {
+        const pascalName = toPascalCase(name);
+        lines.push(`export function is${pascalName}(obj: unknown): obj is ${pascalName} {`);
+        lines.push(`  return Array.isArray(obj) && obj.every((item) => is${itemName}(item));`);
+        lines.push(`}`);
+        lines.push('');
+      }
+    }
+
+    return lines.join('\n');
   }
 };

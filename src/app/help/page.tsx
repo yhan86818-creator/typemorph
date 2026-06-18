@@ -70,9 +70,19 @@ export default function HelpPage() {
             <li>URL Import: You can load schemas directly from a public URL. If a URL is blocked by CORS, you can opt in to fetch it through our Cloudflare Worker proxy — but this is never done silently.</li>
           </ul>
 
-          <h2>5. PWA (Progressive Web App) Offline Mode</h2>
+          <h2>5. Schema Change Impact</h2>
           <p>
-            TypeMorph can be installed directly onto your OS. Simply click the Install App button in the top navigation. Once installed, it works completely offline, making it a permanent local development tool on your workstation.
+            The Impact tab (accessible via the &quot;More&quot; menu in the output panel) lets you compare two versions of a JSON structure and see exactly what breaks.
+          </p>
+          <ul>
+            <li>Paste your <strong>Before</strong> JSON and <strong>After</strong> JSON side by side.</li>
+            <li>Click <strong>Analyze Impact</strong>. TypeMorph traces the change through every class in the type graph and color-codes the result: <em>changed</em> (red), <em>impacted</em> (orange), <em>safe</em> (gray).</li>
+            <li>The language grid shows which of the 15 output targets need to be regenerated. Everything runs locally — no data is sent to any server.</li>
+          </ul>
+
+          <h2>6. PWA (Progressive Web App) Offline Mode</h2>
+          <p>
+            TypeMorph can be installed directly onto your OS. On supported browsers (desktop Chrome and Edge), an <strong>Install App</strong> button appears in the top navigation. Once installed, it works completely offline, making it a permanent local development tool on your workstation.
           </p>
 
           <p className="text-sm text-slate-400 mt-12">

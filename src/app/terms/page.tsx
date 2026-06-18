@@ -63,7 +63,7 @@ export default function TermsOfService() {
           </p>
 
           <p className="text-sm text-slate-400 mt-12">
-            Last Updated: May 2026
+            Last Updated: June 2026
           </p>
         </div>
       </div>

@@ -11,7 +11,6 @@ export const INDEXED_EN_SLUGS = new Set([
   // Tier 1: Core Web & Safety
   'json-to-typescript',
   'json-to-zod',
-  'curl-to-fetch',
   'json-to-valibot',
   'json-to-arktype',
   'typescript-to-zod',
@@ -37,13 +36,10 @@ export const INDEXED_EN_SLUGS = new Set([
   'json-to-kotlin-class',
   'json-to-swift-struct',
   'json-to-elixir-struct',
-  'json-to-lua-table',
 
   // Tier 4: FinTech & Protocols
   'fix-to-typescript',
-  'fix-to-json',
   'swift-to-typescript',
-  'swift-mt103-to-json',
   'iso-20022-to-typescript',
   'protobuf-to-typescript',
   'graphql-to-typescript',
@@ -51,39 +47,26 @@ export const INDEXED_EN_SLUGS = new Set([
   // Tier 5: API Documentation & Config
   'json-to-openapi-3',
   'json-to-openapi-definition',
-  'json-to-asyncapi-definition',
-  'json-to-json-api-spec',
   'json-to-yaml',
   'json-to-toml',
   'dotenv-to-json',
   'env-to-typescript',
 
   // Tier 6: Testing & QA
-  'json-to-jest-test',
-  'json-to-playwright-test',
-  'json-to-cypress-test',
   'json-to-postman-collection',
-  'json-to-insomnia-export',
 
   // Tier 7: Utility Data
-  'csv-to-json',
   'csv-to-typescript',
-  'xml-to-json',
   'xml-to-typescript',
   'csv-to-sql',
 
   // Strategic Niche Expansion (Long-tail SEO)
   'json-to-bigquery-schema',
-  'json-to-terraform-resource',
   'json-to-snowflake-table',
-  'json-to-docker-compose',
   'json-to-swiftui-preview',
   'json-to-jetpack-compose-preview',
-  'json-to-styled-components',
-  'json-to-tailwind-config',
   'json-to-avro-avsc',
   'json-to-clickhouse-table',
-  'json-to-neo4j-cypher',
   'json-to-pydantic',
   'json-to-laravel-migration',
   'json-to-django-model',
@@ -92,7 +75,6 @@ export const INDEXED_EN_SLUGS = new Set([
   'json-to-latex-table',
   'json-to-markdown-table',
   'json-to-proto-definition',
-  'json-to-grpc-web',
 
   // Niche Communities (Low Competition, High Rankability)
 
@@ -152,13 +134,7 @@ export const INDEXED_EN_SLUGS = new Set([
  * JP pages with hand-written original articles (not EN translation).
  * All other /jp/converters/* → noindex + canonical to EN.
  */
-export const INDEXED_JP_SLUGS = new Set([
-  'json-to-typescript',
-  'json-to-zod',
-  'sql-to-zod',
-  'fix-to-typescript',
-  'swift-to-typescript',
-]);
+export const INDEXED_JP_SLUGS = new Set<string>();
 
 /** Near-duplicate slugs → canonical primary (both get noindex if not primary). */
 export const CANONICAL_SLUG: Record<string, string> = {

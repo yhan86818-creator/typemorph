@@ -1,7 +1,8 @@
 import {
   tsGen, zodGen, goGen, rustGen, javaGen, prismaGen, uiGen,
   dartGen, phpGen, pythonGen, protoGen, gqlGen, mockGen,
-  csharpGen, swiftGen, kotlinGen, jsonSchemaGen, docGen, nestjsDtoGen, effectSchemaGen
+  csharpGen, swiftGen, kotlinGen, jsonSchemaGen, docGen, nestjsDtoGen, effectSchemaGen,
+  typeGuardGen
 } from './generators';
 import {
   csvGen, sqlInsertGen, mysqlGen, postgresGen, sqliteGen, snowflakeGen,
@@ -14,7 +15,8 @@ import {
   solidPropsGen, arduinoGen, cobolGen, clojureGen, elixirGen, elmGen,
   godotGen, haskellGen, rGen, scalaGen, solidityGen, djangoGen, railsGen,
   apiRouteGen, reactHookGen, cGen, cppGen,
-  mcpToolGen, openAiFunctionGen, vercelAiToolGen
+  mcpToolGen, openAiFunctionGen, vercelAiToolGen,
+  llmValidatorGen
 } from './generators-extended';
 import { Schema, SchemaType } from './types';
 import { createHash } from 'crypto';
@@ -337,17 +339,31 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
   }
 
   if (typeof val === 'string') {
+    // Empty strings: can't infer format from value. Use 'text' sentinel to prevent
+    // generator-level key-name re-inference from producing incorrect constraints.
+    if (val === '') return addMeta({ type: 'string', format: 'text' }, 'empty_string');
+
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) return addMeta({ type: 'string', format: 'uuid' }, 'format:uuid');
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return addMeta({ type: 'string', format: 'email' }, 'format:email');
+    if (/^https?:\/\/[^\s]+$/.test(val) && val.includes('{')) return addMeta({ type: 'string', format: 'text' }, 'format:url-template');
     if (/^https?:\/\/[^\s]+$/.test(val)) return addMeta({ type: 'string', format: 'url' }, 'format:url');
-    
-    // Pure YYYY-MM-DD date format
-    if (/^\d{4}-\d{2}-\d{2}$/.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: 'string', format: 'date' }, 'format:date');
-    
-    // Strict datetime detection (must look like YYYY-... or YYYY/... or contain T)
-    if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: 'string', format: 'datetime' }, 'format:datetime');
-    if (/^\d/.test(val) && val.includes('T') && !isNaN(Date.parse(val)) && val.length > 7) return addMeta({ type: 'string', format: 'datetime' }, 'format:datetime');
-    
+
+    // Fields named "version" / "api_version" / "semver" etc. carry version strings
+    // that often look like dates (e.g. "2010-04-01"). Skip date inference for these.
+    const isVersionKey = /version|semver|release/i.test(keyName ?? '');
+
+    if (!isVersionKey) {
+      // Pure YYYY-MM-DD date format (hyphen)
+      if (/^\d{4}-\d{2}-\d{2}$/.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: 'string', format: 'date' }, 'format:date');
+      // Pure YYYY/MM/DD date format (slash) — must have $ anchor to avoid matching datetimes
+      if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: 'string', format: 'date' }, 'format:date');
+
+      // Datetime detection: require explicit time component (HH:MM) to avoid classifying
+      // plain slash-dates like "2024/01/01" as datetime
+      if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}[ T]\d{2}:\d{2}/.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: 'string', format: 'datetime' }, 'format:datetime');
+      if (/^\d/.test(val) && val.includes('T') && !isNaN(Date.parse(val)) && val.length > 7) return addMeta({ type: 'string', format: 'datetime' }, 'format:datetime');
+    }
+
     // インテリジェントな Enum 候補推論
     let isEnumCandidate = false;
     if (keyName) {
@@ -356,13 +372,19 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
 
       // キー名に基づいた format 推論辞書（値パターンマッチの前に適用）
       const floatKeyPattern = /price|amount|cost|fee|tax|rate|ratio|percent|score|weight|height|width|balance|salary|revenue/i;
-      const uuidKeyPattern = /_id$|^uuid$|^guid$/i;
-      const urlKeyPattern = /url|uri|href|link|src|endpoint|avatar|thumbnail|image|photo/i;
+      const uuidKeyPattern = /^uuid$|^guid$/i;
+      // (?<![a-zA-Z])src excludes "isrc" (ISRC code) while still matching "src", "image_src"
+      const urlKeyPattern = /url|uri|href|link|(?<![a-zA-Z])src|endpoint|avatar|thumbnail|image|photo/i;
       const emailKeyPattern = /email|mail/i;
 
       if (uuidKeyPattern.test(keyName)) return addMeta({ type: 'string', format: 'uuid' }, 'format:uuid:keyname');
       if (emailKeyPattern.test(keyName)) return addMeta({ type: 'string', format: 'email' }, 'format:email:keyname');
-      if (urlKeyPattern.test(keyName)) return addMeta({ type: 'string', format: 'url' }, 'format:url:keyname');
+      // Skip URL key-name inference for:
+      //   - relative paths ("/api/v1/...") — z.url() requires absolute URL with protocol
+      //   - custom URI schemes ("spotify:track:abc", "mailto:...") — not HTTP URLs
+      const hasNonHttpScheme = /^[a-z][a-z0-9+.-]*:/.test(val) && !/^https?:\/\//.test(val);
+      if (urlKeyPattern.test(keyName) && !val.startsWith('/') && !hasNonHttpScheme && val.includes('{')) return addMeta({ type: 'string', format: 'text' }, 'format:url-template:keyname');
+      if (urlKeyPattern.test(keyName) && !val.startsWith('/') && !hasNonHttpScheme) return addMeta({ type: 'string', format: 'url' }, 'format:url:keyname');
 
       if (allowedEnumKeys) {
         // 統計判定情報が存在する場合はそれを利用
@@ -535,6 +557,11 @@ const DEPENDENCY_COMMENTS: Record<string, string> = {
   'vercel-ai-tool': '// Required: npm install ai zod\n\n',
   'nestjs-dto': '// Required: npm install class-validator class-transformer\n// tsconfig.json: "experimentalDecorators": true, "emitDecoratorMetadata": true\n\n',
   'effect-schema': '// Required: npm install effect\nimport { Schema } from "effect";\n\n',
+  'llm-response': '',
+  'llm-validator': '',
+  'llm-zod': '',
+  'type-guard': '',
+  'typeguard': '',
 };
 
 const cleanAndFormatCode = (code: string): string => {
@@ -622,6 +649,13 @@ const areFieldsIsomorphic = (s1: Schema, s2: Schema, visited = new Set<string>()
   if (pairKey) visited.add(pairKey);
 
   const allKeys = Array.from(new Set([...keys1, ...keys2]));
+
+  // Objects with zero shared field names cannot be isomorphic — this prevents null-heavy
+  // parent objects from being incorrectly merged with unrelated nested objects, because
+  // null fields (type:'any') would otherwise count as "matching" for absent fields.
+  const sharedFieldCount = allKeys.filter(k => s1.fields![k] && s2.fields![k]).length;
+  if (sharedFieldCount === 0) return false;
+
   let matchingKeys = 0;
   let typeMismatches = 0;
   let missingKeys = 0;
@@ -1270,12 +1304,17 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     else if (s.includes('vercel-ai-tool') || s.includes('vercel-ai')) out = vercelAiToolGen.generate(schema, rootName);
     else if (s.includes('nestjs-dto') || s.includes('nestjs')) out = nestjsDtoGen.generate(schema, rootName, options);
     else if (s.includes('effect-schema') || s.includes('effect')) out = effectSchemaGen.generate(schema, rootNameLower, options);
+    else if (s.includes('llm-response') || s.includes('llm-validator') || s.includes('llm-zod')) out = llmValidatorGen.generate(schema, rootName);
+    else if (s.includes('type-guard') || s.includes('typeguard')) {
+      const pfx = isOAComp ? '' : `/**\n * TypeMorph Generated Type Guards\n * No runtime dependencies required\n */\n`;
+      out = pfx + typeGuardGen.generate(schema, rootName, options);
+    }
 
     // Whether the requested target matched a known generator branch above.
     // (Used to avoid mislabelling a *recognised* target that legitimately produced
     //  an empty string — e.g. an empty input — as "unsupported".)
     const KNOWN_TARGETS_EXACT = new Set(['typescript', 'ts', 'zod', 'go', 'golang', 'rust', 'java', 'python', 'php', 'sql', 'prisma', 'proto', 'protobuf', 'graphql', 'gql', 'json', 'r']);
-    const KNOWN_TARGET_SUBSTR = ['csv', 'sql-insert', 'mysql', 'postgres', 'sqlite', 'snowflake', 'mongodb', 'mongoose', 'ruby', 'rails', 'django', 'dart', 'flutter', 'swift', 'kotlin', 'csharp', 'c-sharp', 'openapi', 'jsonschema', 'yup', 'joi', 'valibot', 'react-props', 'vue-props', 'svelte-props', 'solid-props', 'react-context', 'react-query', 'api-route', 'nextjs-api', 'redux-slice', 'pinia', 'sequelize', 'typeorm', 'drizzle', 'kysely', 'superstruct', 'arduino', 'mock', 'ui', 'doc', 'avro', 'toml', 'yaml', 'env-validator', 'env', 'properties', 'markdown', 'asciidoc', 'latex', 'mermaid', 'bigquery', 'dynamodb', 'postman', 'http', 'vscode', 'curl', 'cobol', 'clojure', 'elixir', 'elm', 'godot', 'gdscript', 'haskell', 'r-lang', 'scala', 'solidity', 'cpp', 'c++', 'cpp-struct', 'cpp-class', 'c-struct', 'json-to-c', 'mcp-tool', 'mcp', 'openai-function', 'openai-func', 'vercel-ai-tool', 'vercel-ai', 'nestjs-dto', 'nestjs', 'effect-schema', 'effect'];
+    const KNOWN_TARGET_SUBSTR = ['csv', 'sql-insert', 'mysql', 'postgres', 'sqlite', 'snowflake', 'mongodb', 'mongoose', 'ruby', 'rails', 'django', 'dart', 'flutter', 'swift', 'kotlin', 'csharp', 'c-sharp', 'openapi', 'jsonschema', 'yup', 'joi', 'valibot', 'react-props', 'vue-props', 'svelte-props', 'solid-props', 'react-context', 'react-query', 'api-route', 'nextjs-api', 'redux-slice', 'pinia', 'sequelize', 'typeorm', 'drizzle', 'kysely', 'superstruct', 'arduino', 'mock', 'ui', 'doc', 'avro', 'toml', 'yaml', 'env-validator', 'env', 'properties', 'markdown', 'asciidoc', 'latex', 'mermaid', 'bigquery', 'dynamodb', 'postman', 'http', 'vscode', 'curl', 'cobol', 'clojure', 'elixir', 'elm', 'godot', 'gdscript', 'haskell', 'r-lang', 'scala', 'solidity', 'cpp', 'c++', 'cpp-struct', 'cpp-class', 'c-struct', 'json-to-c', 'mcp-tool', 'mcp', 'openai-function', 'openai-func', 'vercel-ai-tool', 'vercel-ai', 'nestjs-dto', 'nestjs', 'effect-schema', 'effect', 'llm-response', 'llm-validator', 'llm-zod', 'type-guard', 'typeguard'];
     const targetMatched = KNOWN_TARGETS_EXACT.has(s) || KNOWN_TARGET_SUBSTR.some(k => s.includes(k));
 
     // Explicit JSON output when requested, otherwise surface unsupported targets.

@@ -8,6 +8,7 @@ interface Props {
   isDark: boolean;
   onFieldRename?: (nodeId: string, fieldName: string, newName: string) => void;
   highlights?: Map<string, ImpactKind>;
+  hideHint?: boolean;
 }
 
 interface NodePos {
@@ -81,7 +82,7 @@ function getEdgePath(from: NodePos, to: NodePos): string {
   return `M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}`;
 }
 
-export default function TypeGraphPanel({ tsCode, isDark, onFieldRename, highlights }: Props) {
+export default function TypeGraphPanel({ tsCode, isDark, onFieldRename, highlights, hideHint }: Props) {
   const [editingField, setEditingField] = useState<{ nodeId: string; fieldName: string } | null>(null);
   const [hoveredField, setHoveredField] = useState<{ nodeId: string; fieldName: string } | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -289,7 +290,7 @@ export default function TypeGraphPanel({ tsCode, isDark, onFieldRename, highligh
       </div>
 
       {/* One-time hint banner */}
-      {showHint && (
+      {showHint && !hideHint && (
         <div className="flex items-center justify-between px-4 py-2 bg-indigo-50 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900/50 shrink-0">
           <p className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300">
             ✦ Click any field name to rename it — the change rewrites all output languages instantly

@@ -268,11 +268,11 @@ export function LandingView({ onSelect }: LandingViewProps) {
         <div className="space-y-40 mb-40">
           <div className="text-center max-w-2xl mx-auto">
             <h2 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900 dark:text-white leading-tight">
-              Three Pillars of{' '}
+              Four Pillars of{' '}
               <span>Pure Schema Engineering</span>
             </h2>
             <p className="text-lg text-slate-500 dark:text-slate-400 font-medium mt-4">
-              We cut out the clutter. These three massive, premium workbenches solve 90% of your daily structural bottlenecks.
+              We cut out the clutter. These four premium workbenches solve 90% of your daily structural bottlenecks.
             </p>
           </div>
 
@@ -492,6 +492,113 @@ export function LandingView({ onSelect }: LandingViewProps) {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Pillar 4: Impact Propagation (Right Text, Left Image) */}
+          <div className="grid md:grid-cols-12 gap-12 items-center">
+            <div className="md:col-span-7 md:order-1 relative group">
+              <div className="relative p-[1px] bg-gradient-to-br from-slate-300/60 via-slate-200/20 to-slate-300/10 dark:from-slate-600/40 dark:via-slate-700/20 dark:to-slate-800/10 rounded-2xl shadow-2xl shadow-black/10 dark:shadow-black/40 overflow-hidden">
+                <div className="rounded-2xl overflow-hidden bg-slate-950 font-mono text-xs">
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-900">
+                    <div>
+                      <div className="text-[11px] font-semibold text-slate-200">Schema Change Impact</div>
+                      <div className="text-[9px] text-slate-500 mt-0.5">Before / After · 100% local</div>
+                    </div>
+                    <div className="text-[9px] font-mono px-2.5 py-1 rounded-lg bg-orange-950/40 border border-orange-900/40 text-orange-400">
+                      9 of 15 targets affected
+                    </div>
+                  </div>
+                  {/* Before / After inputs */}
+                  <div className="grid grid-cols-2 gap-2 px-3 pt-3 pb-2">
+                    <div className="border border-slate-800 rounded-xl overflow-hidden">
+                      <div className="flex items-center gap-1.5 px-2 py-1.5 bg-slate-900 border-b border-slate-800">
+                        <span className="w-2 h-2 rounded-full bg-slate-600" />
+                        <span className="text-[8px] text-slate-500 uppercase tracking-wider">Before</span>
+                      </div>
+                      <pre className="p-2.5 text-[9px] leading-4 text-slate-400 bg-slate-950">
+{`{ "price": 10,\n  "qty": 2 }`}
+                      </pre>
+                    </div>
+                    <div className="border border-slate-800 rounded-xl overflow-hidden">
+                      <div className="flex items-center gap-1.5 px-2 py-1.5 bg-slate-900 border-b border-slate-800">
+                        <span className="w-2 h-2 rounded-full bg-slate-400" />
+                        <span className="text-[8px] text-slate-500 uppercase tracking-wider">After</span>
+                      </div>
+                      <pre className="p-2.5 text-[9px] leading-4 text-slate-400 bg-slate-950">
+{`{ "price": "free",\n  "qty": 2, "sku": "A1" }`}
+                      </pre>
+                    </div>
+                  </div>
+                  {/* Stats bar */}
+                  <div className="mx-3 mb-2 flex items-center gap-3 px-3 py-2 rounded-xl bg-slate-900/60 border border-slate-800 text-[9px] font-mono">
+                    <span><span className="font-bold text-red-400">1</span><span className="text-slate-500"> changed</span></span>
+                    <span className="text-slate-700">·</span>
+                    <span><span className="font-bold text-orange-400">1</span><span className="text-slate-500"> impacted</span></span>
+                    <span className="text-slate-700">·</span>
+                    <span><span className="font-bold text-slate-500">1</span><span className="text-slate-500"> safe</span></span>
+                  </div>
+                  {/* Class impact nodes */}
+                  <div className="px-3 pb-2 flex flex-col gap-1.5">
+                    {[
+                      { name: 'Item', kind: 'changed', desc: 'price: number → string' },
+                      { name: 'Order', kind: 'impacted', desc: 'references Item' },
+                      { name: 'Customer', kind: 'safe', desc: 'unaffected' },
+                    ].map(({ name, kind, desc }) => (
+                      <div key={name} className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[9px] ${
+                        kind === 'changed' ? 'bg-red-950/30 border-red-900/40' :
+                        kind === 'impacted' ? 'bg-orange-950/30 border-orange-900/40' :
+                        'bg-slate-900/50 border-slate-800'
+                      }`}>
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${
+                          kind === 'changed' ? 'bg-red-500' :
+                          kind === 'impacted' ? 'bg-orange-500' :
+                          'bg-slate-600'
+                        }`} />
+                        <span className={`font-bold ${
+                          kind === 'changed' ? 'text-red-300' :
+                          kind === 'impacted' ? 'text-orange-300' :
+                          'text-slate-500'
+                        }`}>{name}</span>
+                        <span className="text-slate-600">{desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Language targets */}
+                  <div className="px-3 pb-3 flex flex-wrap gap-1">
+                    {[
+                      { l: 'TypeScript', hit: true }, { l: 'Zod', hit: true },
+                      { l: 'Go', hit: true }, { l: 'Rust', hit: true },
+                      { l: 'Python', hit: true }, { l: 'Java', hit: false },
+                      { l: 'Swift', hit: false }, { l: 'C#', hit: false },
+                    ].map(({ l, hit }) => (
+                      <span key={l} className={`text-[8px] px-2 py-0.5 rounded-md border font-bold ${
+                        hit ? 'bg-orange-950/30 border-orange-900/40 text-orange-400' : 'bg-slate-900 border-slate-800 text-slate-600'
+                      }`}>{l}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="md:col-span-5 md:order-2 space-y-6">
+              <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                Schema Change Impact: <br />
+                <span>Know What Breaks Before It Does.</span>
+              </h3>
+              <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                Paste a before and after version of your JSON. TypeMorph traces the change through every class in the type graph and shows exactly which output languages need to be regenerated — all in the browser, instantly.
+              </p>
+              <ul className="space-y-3 font-semibold text-slate-600 dark:text-slate-300">
+                <li className="flex items-center gap-3 text-sm">
+                  <CheckCircle2 size={16} className="text-slate-900 dark:text-white" />
+                  Visual graph: changed (red) · impacted (orange) · safe (gray)
+                </li>
+                <li className="flex items-center gap-3 text-sm">
+                  <CheckCircle2 size={16} className="text-slate-900 dark:text-white" />
+                  15 language targets checked instantly — no regeneration guesswork
+                </li>
+              </ul>
             </div>
           </div>
         </div>

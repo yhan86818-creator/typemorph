@@ -237,7 +237,7 @@ import { z } from "zod";
 
 export const userSchema = z.object({
   id: z.uuid(),
-  name: z.string().min(1).trim(),
+  name: z.string().trim(),
   email: z.email(),
   age: z.number().int().min(0).max(150),
   score: z.number().min(0).max(100),
@@ -364,14 +364,14 @@ import kotlinx.serialization.SerialName
 @Serializable
 data class RootItem(
     val type: String,
-    val content: String?,
+    val content: String? = null,
     @SerialName("char_count")
-    val charCount: Int?,
-    val url: String?,
-    val width: Int?,
-    val height: Int?,
+    val charCount: Int? = null,
+    val url: String? = null,
+    val width: Int? = null,
+    val height: Int? = null,
     @SerialName("duration_sec")
-    val durationSec: Int?
+    val durationSec: Int? = null
 )"
 `;
 
@@ -760,8 +760,8 @@ data class Root(
 data class SharedOwner(
     val id: String,
     val name: String,
-    val address: SharedOwnerAddress?,
-    val role: String?
+    val address: SharedOwnerAddress? = null,
+    val role: String? = null
 )
 
 @Serializable
@@ -971,21 +971,21 @@ exports[`Tier1 generators — NESTED (object + array) > zod 1`] = `
 import { z } from "zod";
 
 export const sharedOwnerAddressSchema = z.object({
-  city: z.string().min(1),
+  city: z.string(),
   zip: z.string().regex(/^[A-Z0-9][A-Z0-9\\s\\-]{1,8}[A-Z0-9]$/i),
 });
 export type SharedOwnerAddress = z.infer<typeof sharedOwnerAddressSchema>;
 
 export const sharedOwnerSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1).trim(),
+  id: z.string(),
+  name: z.string().trim(),
   address: sharedOwnerAddressSchema.optional(),
   role: z.enum(["maintainer", "contributor"]).optional(),
 });
 export type SharedOwner = z.infer<typeof sharedOwnerSchema>;
 
 export const projectSchema = z.object({
-  project: z.string().min(1),
+  project: z.string(),
   owner: sharedOwnerSchema,
   tags: z.array(z.string()),
   collaborators: z.array(sharedOwnerSchema),
@@ -1059,7 +1059,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
-import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -1073,7 +1072,7 @@ import lombok.NoArgsConstructor;
 public class OrderItem {
     @NotNull
     @JsonProperty("order_id")
-    private UUID orderId;
+    private String orderId;
     @NotNull
     private String status; // enum: "pending", "shipped", "delivered"
     @NotNull
@@ -1178,7 +1177,7 @@ exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > swift 1`]
 import Foundation
 
 struct RootItem : Codable {
-    let orderId: UUID
+    let orderId: String
     let status: String
     let amount: Double
     let currency: String
@@ -1214,7 +1213,7 @@ exports[`Tier1 generators — WITH_ENUM (array root, enum detection) > zod 1`] =
 import { z } from "zod";
 
 export const orderItemSchema = z.object({
-  order_id: z.uuid(),
+  order_id: z.string(),
   status: z.enum(["pending", "shipped", "delivered"]),
   amount: z.number().min(0),
   currency: z.enum(["USD", "JPY", "EUR"]),
@@ -1273,8 +1272,8 @@ package main
 type Profile struct {
   UserId string \`json:"user_id"\`
   DisplayName string \`json:"display_name"\`
-  Bio *interface{} \`json:"bio"\`
-  Website *interface{} \`json:"website"\`
+  Bio *interface{} \`json:"bio,omitempty"\`
+  Website *interface{} \`json:"website,omitempty"\`
   FollowerCount int64 \`json:"follower_count"\`
   IsVerified bool \`json:"is_verified"\`
 }"
@@ -1298,7 +1297,6 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-import java.util.UUID;
 import javax.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -1313,7 +1311,7 @@ import lombok.NoArgsConstructor;
 public class Profile {
     @NotNull
     @JsonProperty("user_id")
-    private UUID userId;
+    private String userId;
     @NotNull
     @JsonProperty("display_name")
     private String displayName;
@@ -1341,8 +1339,8 @@ data class Root(
     val userId: String,
     @SerialName("display_name")
     val displayName: String,
-    val bio: Any?,
-    val website: Any?,
+    val bio: Any? = null,
+    val website: Any? = null,
     @SerialName("follower_count")
     val followerCount: Int,
     @SerialName("is_verified")
@@ -1441,7 +1439,7 @@ exports[`Tier1 generators — WITH_NULLS (null/optional fields) > swift 1`] = `
 import Foundation
 
 struct Root : Codable {
-    let userId: UUID
+    let userId: String
     let displayName: String
     let bio: AnyCodable?
     let website: AnyCodable?
@@ -1481,8 +1479,8 @@ exports[`Tier1 generators — WITH_NULLS (null/optional fields) > zod 1`] = `
 import { z } from "zod";
 
 export const profileSchema = z.object({
-  user_id: z.uuid(),
-  display_name: z.string().min(1).trim(),
+  user_id: z.string(),
+  display_name: z.string().trim(),
   bio: z.any().nullable(),
   website: z.any().nullable(),
   follower_count: z.number().int().min(0),
@@ -2486,7 +2484,7 @@ exports[`Tier2 generators — WITH_NULLS > csv 1`] = `
 "// CSV Data Format (Excel compatible)
 
 user_id,display_name,bio,website,follower_count,is_verified
-uuid-xxxx-xxxx,"sample_value","sample_value","sample_value",0,true"
+"sample_value","sample_value","sample_value","sample_value",0,true"
 `;
 
 exports[`Tier2 generators — WITH_NULLS > drizzle 1`] = `
@@ -2570,7 +2568,7 @@ exports[`Tier2 generators — WITH_NULLS > env 1`] = `
 "# Environment variables (.env template)
 
 # Generated by TypeMorph
-USER_ID=uuid-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+USER_ID=your_value_here
 DISPLAY_NAME=your_value_here
 BIO=your_value_here
 WEBSITE=your_value_here
@@ -2586,8 +2584,8 @@ package main
 type Profile struct {
   UserId string \`json:"user_id"\`
   DisplayName string \`json:"display_name"\`
-  Bio *interface{} \`json:"bio"\`
-  Website *interface{} \`json:"website"\`
+  Bio *interface{} \`json:"bio,omitempty"\`
+  Website *interface{} \`json:"website,omitempty"\`
   FollowerCount int64 \`json:"follower_count"\`
   IsVerified bool \`json:"is_verified"\`
 }"
@@ -2619,7 +2617,7 @@ exports[`Tier2 generators — WITH_NULLS > joi 1`] = `
 "import Joi from 'joi';
 
 export const rootJoiSchema = Joi.object({
-  user_id: Joi.string().guid().required(),
+  user_id: Joi.string().required(),
   display_name: Joi.string().required(),
   bio: Joi.any().allow(null).required(),
   website: Joi.any().allow(null).required(),
@@ -2697,7 +2695,7 @@ exports[`Tier2 generators — WITH_NULLS > mysql 1`] = `
 
 CREATE TABLE \`root\` (
   \`id\` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  \`user_id\` CHAR(36) NOT NULL,
+  \`user_id\` VARCHAR(255) NOT NULL,
   \`display_name\` VARCHAR(255) NOT NULL,
   \`bio\` VARCHAR(255) NOT NULL,
   \`website\` VARCHAR(255) NOT NULL,
@@ -2753,7 +2751,6 @@ components:
       properties:
         user_id:
           type: string
-          format: uuid
         display_name:
           type: string
         bio:
@@ -2806,7 +2803,7 @@ exports[`Tier2 generators — WITH_NULLS > postgres 1`] = `
 
 CREATE TABLE "root" (
   "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  "user_id" UUID NOT NULL,
+  "user_id" VARCHAR(255) NOT NULL,
   "display_name" VARCHAR(255) NOT NULL,
   "bio" VARCHAR(255) NOT NULL,
   "website" VARCHAR(255) NOT NULL,
@@ -3033,7 +3030,7 @@ exports[`Tier2 generators — WITH_NULLS > sqlite 1`] = `
 
 CREATE TABLE IF NOT EXISTS "root" (
   "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-  "user_id" UUID NOT NULL,
+  "user_id" VARCHAR(255) NOT NULL,
   "display_name" VARCHAR(255) NOT NULL,
   "bio" VARCHAR(255) NOT NULL,
   "website" VARCHAR(255) NOT NULL,
@@ -3135,7 +3132,7 @@ exports[`Tier2 generators — WITH_NULLS > valibot 1`] = `
 "import * as v from 'valibot';
 
 export const rootValiSchema = v.object({
-  user_id: v.pipe(v.string(), v.uuid()),
+  user_id: v.string(),
   display_name: v.string(),
   bio: v.nullable(v.any()),
   website: v.nullable(v.any()),
@@ -3176,7 +3173,7 @@ defineProps<{
 exports[`Tier2 generators — WITH_NULLS > yaml 1`] = `
 "# YAML standard data format
 
-user_id: uuid-xxxx-xxxx
+user_id: sample_value
 display_name: sample_value
 bio: sample_value
 website: sample_value
@@ -3188,7 +3185,7 @@ exports[`Tier2 generators — WITH_NULLS > yup 1`] = `
 "import * as yup from 'yup';
 
 export const rootYupSchema = yup.object({
-  user_id: yup.string().uuid().required(),
+  user_id: yup.string().required(),
   display_name: yup.string().required(),
   bio: yup.mixed().nullable().required(),
   website: yup.mixed().nullable().required(),

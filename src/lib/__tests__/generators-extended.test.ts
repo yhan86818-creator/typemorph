@@ -827,7 +827,8 @@ describe('generators-extended', () => {
     it('required fields have no null=True', () => {
       const out = djangoGen.generate(inferSchema({ name: 'Alice', age: 30 }), 'User');
       expect(out).toContain('models.CharField(max_length=255)');
-      expect(out).toContain('models.FloatField()');
+      // age: 30 is integer → IntegerField (not FloatField)
+      expect(out).toContain('models.IntegerField()');
       expect(out).not.toContain('null=True');
     });
   });

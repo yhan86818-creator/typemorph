@@ -21,18 +21,18 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "TypeMorph | The Elite Local-First Schema Engineering Workbench",
+    default: "TypeMorph | TypeScript API Safety Toolkit",
     template: "%s | TypeMorph"
   },
-  description: "Institutional-grade schema transformation platform. 160+ local-first tools for database design, API synthesis, and code generation. 100% private, no-cloud processing for corporate data sovereignty.",
+  description: "Keep your TypeScript safe from API type drift. Generate Zod schemas, runtime type guards, and detect mismatches between your types and real API responses. Local-first, 100% private.",
   metadataBase: new URL('https://typemorph.dev'),
   icons: {
     icon: '/favicon.png',
     apple: '/favicon.png',
   },
   openGraph: {
-    title: "TypeMorph | 160+ Institutional-Grade Local-First Developer Tools",
-    description: "Secure your architecture with the world's most comprehensive local-first workbench. Zero data retention and 160+ parsers.",
+    title: "TypeMorph | TypeScript API Safety Toolkit",
+    description: "Catch API type drift before it reaches production. Generate Zod schemas, type guards, and validate LLM outputs — all local-first.",
     url: 'https://typemorph.dev',
     siteName: 'TypeMorph',
     images: [
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'TypeMorph - The Elite Local-First Developer Workbench'
+        alt: 'TypeMorph - TypeScript API Safety Toolkit'
       },
     ],
     locale: 'en_US',
@@ -48,8 +48,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TypeMorph | Elite Schema Engineering Workbench',
-    description: '160+ local-first tools for modern architects. 100% private data sovereignty.',
+    title: 'TypeMorph | TypeScript API Safety Toolkit',
+    description: 'Catch API type drift before it hits production. Zod schemas, type guards, drift detection — local-first.',
     images: ['/og-image.png'],
   },
   verification: {

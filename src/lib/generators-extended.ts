@@ -219,8 +219,14 @@ export const snowflakeGen = {
   generate: (schema: Schema, name: string = 'Root'): string => {
     const f = getFields(schema);
     if (!Object.keys(f).length) return '';
+
+    const hasId = 'id' in f;
+    const hasCreatedAt = 'created_at' in f || 'createdAt' in f;
+
     let res = `CREATE OR REPLACE TABLE ${toScreamingSnake(name)} (\n`;
-    res += `  ID VARCHAR(36) NOT NULL DEFAULT UUID_STRING(),\n`;
+    if (!hasId) {
+      res += `  ID VARCHAR(36) NOT NULL DEFAULT UUID_STRING(),\n`;
+    }
     for (const [k, v] of Object.entries(f)) {
       const col = toScreamingSnake(k);
       let type = 'VARCHAR';
@@ -230,7 +236,11 @@ export const snowflakeGen = {
       else if (v.format === 'datetime') type = 'TIMESTAMP_NTZ';
       res += `  ${col} ${type}${v.optional ? '' : ' NOT NULL'},\n`;
     }
-    res += `  CREATED_AT TIMESTAMP_NTZ NOT NULL DEFAULT CURRENT_TIMESTAMP()\n`;
+    if (!hasCreatedAt) {
+      res += `  CREATED_AT TIMESTAMP_NTZ NOT NULL DEFAULT CURRENT_TIMESTAMP()\n`;
+    } else {
+      res = res.replace(/,\s*$/, '\n');
+    }
     res += `);\n`;
     return res;
   }
@@ -991,8 +1001,12 @@ export const drizzleGen = {
         } else if (k === 'id') {
           imports.add('uuid');
           col = `uuid('${dbCol}').defaultRandom().primaryKey()`;
+        } else if (v.type === 'number') {
+          // integer foreign key (e.g. orderId: 123)
+          imports.add('integer');
+          col = `integer('${dbCol}')${nn}`;
         } else {
-          // foreign key reference column
+          // string foreign key — assume uuid reference
           imports.add('uuid');
           col = `uuid('${dbCol}')${nn}`;
         }
@@ -1918,13 +1932,25 @@ export const djangoGen = {
       const nullKw = v.optional ? 'null=True, blank=True' : '';
       let fieldStr: string;
       if (v.type === 'number') {
-        fieldStr = v.optional ? `models.FloatField(null=True, blank=True)` : `models.FloatField()`;
+        if (v.format === 'int') {
+          fieldStr = v.optional ? `models.IntegerField(null=True, blank=True)` : `models.IntegerField()`;
+        } else {
+          fieldStr = v.optional ? `models.FloatField(null=True, blank=True)` : `models.FloatField()`;
+        }
       } else if (v.type === 'boolean') {
         fieldStr = v.optional ? `models.BooleanField(null=True, blank=True)` : `models.BooleanField(default=False)`;
       } else if (v.type === 'object' || v.type === 'array') {
         fieldStr = v.optional ? `models.JSONField(null=True, blank=True)` : `models.JSONField()`;
       } else if (v.format === 'datetime') {
         fieldStr = v.optional ? `models.DateTimeField(null=True, blank=True)` : `models.DateTimeField()`;
+      } else if (v.format === 'date') {
+        fieldStr = v.optional ? `models.DateField(null=True, blank=True)` : `models.DateField()`;
+      } else if (v.format === 'email') {
+        fieldStr = v.optional ? `models.EmailField(null=True, blank=True)` : `models.EmailField()`;
+      } else if (v.format === 'url') {
+        fieldStr = v.optional ? `models.URLField(null=True, blank=True)` : `models.URLField()`;
+      } else if (v.format === 'uuid') {
+        fieldStr = v.optional ? `models.UUIDField(null=True, blank=True)` : `models.UUIDField()`;
       } else {
         fieldStr = `models.CharField(max_length=255${nullKw ? `, ${nullKw}` : ''})`;
       }
@@ -2451,16 +2477,19 @@ const aiFieldDesc = (k: string, v: Schema): string => {
 };
 
 /** Recursive Zod type string for MCP / Vercel AI tool generators. */
-const aiFieldToZod = (k: string, v: Schema, indent = '    '): string => {
+const aiFieldToZod = (k: string, v: Schema, indent = '    ', withDescribe = true): string => {
   const kl = k.toLowerCase();
-  const opt = v.optional || v.nullable ? '.optional()' : '';
-  if (v.type === 'boolean') return `z.boolean()${opt}`;
+  const suffix = v.nullable && v.optional ? '.nullable().optional()'
+               : v.nullable ? '.nullable()'
+               : v.optional ? '.optional()'
+               : '';
+  if (v.type === 'boolean') return `z.boolean()${suffix}`;
   if (v.type === 'number') {
     let z = 'z.number()';
     if (v.format === 'int') z += '.int()';
     const isMoney = ['price','amount','cost','fee','total','subtotal','balance'].some(w => kl.includes(w));
     if ((v.format === 'int' && (kl.includes('count') || kl.includes('quantity') || kl === 'qty')) || isMoney) z += '.min(0)';
-    return `${z}${opt}`;
+    return `${z}${suffix}`;
   }
   if (v.type === 'array') {
     const it = v.itemType;
@@ -2471,32 +2500,92 @@ const aiFieldToZod = (k: string, v: Schema, indent = '    '): string => {
       else if (it.type === 'boolean') inner = 'z.boolean()';
       else if (it.type === 'object' && it.fields) {
         const ni = indent + '  ';
-        const props = Object.entries(it.fields).map(([nk, nv]) =>
-          `${ni}  ${nk}: ${aiFieldToZod(nk, nv, ni + '  ')}.describe('${aiFieldDesc(nk, nv)}'),`
-        ).join('\n');
+        const props = Object.entries(it.fields).map(([nk, nv]) => {
+          const line = `${ni}  ${nk}: ${aiFieldToZod(nk, nv, ni + '  ', withDescribe)}`;
+          return withDescribe ? `${line}.describe('${aiFieldDesc(nk, nv)}'),` : `${line},`;
+        }).join('\n');
         inner = `z.object({\n${props}\n${ni}})`;
       }
     }
-    return `z.array(${inner})${opt}`;
+    return `z.array(${inner})${suffix}`;
   }
   if (v.type === 'object' && v.fields) {
     const ni = indent + '  ';
-    const props = Object.entries(v.fields).map(([nk, nv]) =>
-      `${ni}${nk}: ${aiFieldToZod(nk, nv, ni)}.describe('${aiFieldDesc(nk, nv)}'),`
-    ).join('\n');
-    return `z.object({\n${props}\n${indent}})${opt}`;
+    const props = Object.entries(v.fields).map(([nk, nv]) => {
+      const line = `${ni}${nk}: ${aiFieldToZod(nk, nv, ni, withDescribe)}`;
+      return withDescribe ? `${line}.describe('${aiFieldDesc(nk, nv)}'),` : `${line},`;
+    }).join('\n');
+    return `z.object({\n${props}\n${indent}})${suffix}`;
   }
   if (v.type === 'union' && v.enumValues?.length) {
     const vals = v.enumValues.map(e => `"${e}"`).join(', ');
-    return `z.enum([${vals}])${opt}`;
+    return `z.enum([${vals}])${suffix}`;
   }
   // string
-  if (v.format === 'email' || kl.includes('email')) return `z.email()${opt}`;
-  if (v.format === 'uuid' || /Id$/.test(k) || /ID$/.test(k) || kl.endsWith('_id')) return `z.uuid()${opt}`;
-  if (v.format === 'url' || kl.includes('url') || kl.includes('link')) return `z.url()${opt}`;
-  if (v.format === 'datetime') return `z.iso.datetime()${opt}`;
-  if (kl.includes('password') || kl.includes('passwd')) return `z.string().min(8)${opt}`;
-  return `z.string()${opt}`;
+  if (v.format === 'email' || kl.includes('email')) return `z.email()${suffix}`;
+  if (v.format === 'uuid' || /Id$/.test(k) || /ID$/.test(k) || kl.endsWith('_id')) return `z.uuid()${suffix}`;
+  if (v.format === 'url' || kl.includes('url') || kl.includes('link')) return `z.url()${suffix}`;
+  if (v.format === 'datetime') return `z.iso.datetime()${suffix}`;
+  if (kl.includes('password') || kl.includes('passwd')) return `z.string().min(8)${suffix}`;
+  return `z.string()${suffix}`;
+};
+
+// ─── LLM Response Validator ───────────────────────────────────────────────────
+export const llmValidatorGen = {
+  generate: (schema: Schema, name: string = 'Root'): string => {
+    const camelName = toCamelCase(name);
+    const pascalName = toPascalCase(name);
+    const schemaVar = `${camelName}Schema`;
+    const parseFn = `parse${pascalName}`;
+
+    const root = rootObject(schema);
+    const f = root.fields ?? {};
+
+    const fields = Object.entries(f)
+      .map(([k, v]) => `  ${k}: ${aiFieldToZod(k, v, '  ', false)},`)
+      .join('\n');
+
+    return `import { z } from "zod";
+
+// ── Schema ───────────────────────────────────────────────────────────────────
+const ${schemaVar} = z.object({
+${fields}
+});
+
+export type ${pascalName} = z.infer<typeof ${schemaVar}>;
+
+// ── Safe Parse ───────────────────────────────────────────────────────────────
+// Validates every LLM response before it reaches your application logic.
+export function ${parseFn}(raw: unknown):
+  | { ok: true; data: ${pascalName} }
+  | { ok: false; errors: string[] } {
+  const result = ${schemaVar}.safeParse(raw);
+  if (!result.success) {
+    return {
+      ok: false,
+      errors: result.error.issues.map(i => \`\${i.path.join(".")}: \${i.message}\`),
+    };
+  }
+  return { ok: true, data: result.data };
+}
+
+// ── Usage ─────────────────────────────────────────────────────────────────────
+// OpenAI (json_object / json_schema mode):
+//   const raw = JSON.parse(completion.choices[0].message.content!);
+//   const parsed = ${parseFn}(raw);
+//
+// Anthropic tool_use:
+//   const parsed = ${parseFn}(msg.content[0].input);
+//
+// Vercel AI SDK generateObject:
+//   const parsed = ${parseFn}(object);
+//
+//   if (!parsed.ok) {
+//     console.error("LLM schema mismatch:", parsed.errors);
+//   } else {
+//     use(parsed.data); // fully typed ✓
+//   }`;
+  }
 };
 
 // ─── MCP Tool ─────────────────────────────────────────────────────────────────

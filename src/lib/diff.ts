@@ -1,10 +1,60 @@
 export interface SchemaDiff {
   path: string;
-  type: 'added' | 'removed' | 'type_changed' | 'required_changed' | 'enum_changed' | 'format_changed' | 'nullable_changed';
+  type: 'added' | 'removed' | 'renamed' | 'type_changed' | 'required_changed' | 'enum_changed' | 'format_changed' | 'nullable_changed';
   oldType?: string;
   newType?: string;
   severity: 'info' | 'warning' | 'error';
   description: string;
+}
+
+function normalizeFieldName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function renameSimilarity(a: string, b: string): number {
+  const na = normalizeFieldName(a);
+  const nb = normalizeFieldName(b);
+  if (na === nb) return 3;
+  if (na.includes(nb) || nb.includes(na)) return 2;
+  const minLen = Math.min(na.length, nb.length);
+  if (minLen >= 4) {
+    let i = 0;
+    while (i < minLen && na[i] === nb[i]) i++;
+    if (i >= 4) return 1;
+  }
+  return 0;
+}
+
+function detectRenames(
+  oldFields: Record<string, import('./types').Schema>,
+  newFields: Record<string, import('./types').Schema>,
+): Map<string, string> {
+  const removedKeys = Object.keys(oldFields).filter(k => !(k in newFields));
+  const addedKeys = Object.keys(newFields).filter(k => !(k in oldFields));
+  const renames = new Map<string, string>();
+  const matched = new Set<string>();
+
+  // Two passes: prefer same-type matches, then allow cross-type
+  for (const sameTypeOnly of [true, false]) {
+    for (const oldKey of removedKeys) {
+      if (renames.has(oldKey)) continue;
+      const candidates = addedKeys.filter(nk => {
+        if (matched.has(nk)) return false;
+        if (sameTypeOnly && oldFields[oldKey].type !== newFields[nk].type) return false;
+        return renameSimilarity(oldKey, nk) > 0;
+      });
+      if (candidates.length === 0) continue;
+      // Among candidates, take the best score; only match if unambiguous at that score
+      const bestScore = Math.max(...candidates.map(nk => renameSimilarity(oldKey, nk)));
+      const best = candidates.filter(nk => renameSimilarity(oldKey, nk) === bestScore);
+      if (best.length === 1) {
+        renames.set(oldKey, best[0]);
+        matched.add(best[0]);
+      }
+    }
+  }
+
+  return renames;
 }
 
 // ---------------------------------------------------------------------------
@@ -113,35 +163,56 @@ export function compareSchemaTypes(
     if (old.type === 'object' && next.type === 'object') {
       const oldFields = old.fields ?? {};
       const newFields = next.fields ?? {};
+      const renames = detectRenames(oldFields, newFields);
+      const renamedToKeys = new Set(renames.values());
 
-      for (const key of Object.keys(oldFields)) {
-        if (!(key in newFields)) {
-          const wasRequired = !oldFields[key].optional;
+      for (const oldKey of Object.keys(oldFields)) {
+        const prefix = display === 'root' ? '' : display + '.';
+        if (oldKey in newFields) continue; // handled below
+        if (renames.has(oldKey)) {
+          const newKey = renames.get(oldKey)!;
+          const typeChanged = oldFields[oldKey].type !== newFields[newKey].type;
           diffs.push({
-            path: `${display === 'root' ? '' : display + '.'}${key}`,
+            path: `${prefix}${oldKey}`,
+            type: 'renamed',
+            oldType: oldKey,
+            newType: newKey,
+            severity: 'error',
+            description: typeChanged
+              ? `'${oldKey}' renamed to '${newKey}' (type: ${oldFields[oldKey].type} → ${newFields[newKey].type}). Clients using the old name will break.`
+              : `'${oldKey}' renamed to '${newKey}'. Clients using the old name will break.`,
+          });
+          if (!typeChanged && oldFields[oldKey].type === 'object') {
+            compare(oldFields[oldKey], newFields[newKey], `${p}.${newKey}`);
+          }
+        } else {
+          const wasRequired = !oldFields[oldKey].optional;
+          diffs.push({
+            path: `${prefix}${oldKey}`,
             type: 'removed',
-            oldType: oldFields[key].type,
+            oldType: oldFields[oldKey].type,
             severity: wasRequired ? 'error' : 'warning',
             description: wasRequired
-              ? `Required field '${key}' was removed. This is a breaking change.`
-              : `Optional field '${key}' was removed.`,
+              ? `Required field '${oldKey}' was removed. This is a breaking change.`
+              : `Optional field '${oldKey}' was removed.`,
           });
         }
       }
 
-      for (const key of Object.keys(newFields)) {
-        if (!(key in oldFields)) {
-          const isRequired = !newFields[key].optional;
-          diffs.push({
-            path: `${display === 'root' ? '' : display + '.'}${key}`,
-            type: 'added',
-            newType: newFields[key].type,
-            severity: isRequired ? 'error' : 'info',
-            description: isRequired
-              ? `New required field '${key}' added. Existing payloads missing this field will be invalid.`
-              : `New optional field '${key}' added.`,
-          });
-        }
+      for (const newKey of Object.keys(newFields)) {
+        const prefix = display === 'root' ? '' : display + '.';
+        if (newKey in oldFields) continue; // handled below
+        if (renamedToKeys.has(newKey)) continue; // already handled as rename target
+        const isRequired = !newFields[newKey].optional;
+        diffs.push({
+          path: `${prefix}${newKey}`,
+          type: 'added',
+          newType: newFields[newKey].type,
+          severity: isRequired ? 'error' : 'info',
+          description: isRequired
+            ? `New required field '${newKey}' added. Existing payloads missing this field will be invalid.`
+            : `New optional field '${newKey}' added.`,
+        });
       }
 
       for (const key of Object.keys(oldFields)) {

@@ -527,86 +527,127 @@ export const parseEnvFile = (str: string): Schema | null => {
   return result;
 };
 
+// Brace-aware interface body extractor: finds the matching } for the opening {
+function extractInterfaceBody(str: string): string | null {
+  const headerRe = /(?:export\s+)?(?:interface|type)\s+\w+(?:\s+extends\s+\w+)?\s*(?:=\s*)?\{/;
+  const headerMatch = str.match(headerRe);
+  if (!headerMatch || headerMatch.index === undefined) return null;
+  let i = headerMatch.index + headerMatch[0].length;
+  let depth = 1;
+  const start = i;
+  while (i < str.length && depth > 0) {
+    if (str[i] === '{') depth++;
+    else if (str[i] === '}') depth--;
+    i++;
+  }
+  return depth === 0 ? str.slice(start, i - 1) : null;
+}
+
+// Collect one type expression from position i, respecting {} and <> depth
+function collectTypeStr(body: string, i: number): { typeStr: string; end: number } {
+  let typeStr = '';
+  let braceDepth = 0;
+  let angleDepth = 0;
+  while (i < body.length) {
+    const ch = body[i];
+    if (ch === '{') { braceDepth++; typeStr += ch; i++; }
+    else if (ch === '}') {
+      if (braceDepth === 0) break; // end of parent body
+      braceDepth--; typeStr += ch; i++;
+    }
+    else if (ch === '<') { angleDepth++; typeStr += ch; i++; }
+    else if (ch === '>') { angleDepth--; typeStr += ch; i++; }
+    else if ((ch === ';' || ch === ',') && braceDepth === 0 && angleDepth === 0) {
+      i++; break;
+    }
+    else { typeStr += ch; i++; }
+  }
+  return { typeStr: typeStr.trim().split('//')[0].trim(), end: i };
+}
+
+// Convert a type string to Schema (recursive for inline objects)
+function tsTypeToSchema(typeStr: string): Schema {
+  // Inline object: { key: type; ... }
+  if (typeStr.startsWith('{') && typeStr.endsWith('}')) {
+    const nestedBody = typeStr.slice(1, -1);
+    return { type: 'object', fields: parseTsFields(nestedBody) };
+  }
+  if (typeStr === 'string') return { type: 'string' };
+  if (typeStr === 'number') return { type: 'number' };
+  if (typeStr === 'boolean') return { type: 'boolean' };
+  if (typeStr === 'Date') return { type: 'string', format: 'datetime' };
+  if (typeStr === 'null') return { type: 'any', nullable: true };
+  if (typeStr.endsWith('[]')) {
+    const inner = typeStr.slice(0, -2).trim();
+    return { type: 'array', itemType: mapSimpleTsTypeToSchema(inner) };
+  }
+  if (typeStr.startsWith('Array<') && typeStr.endsWith('>')) {
+    const inner = typeStr.slice(6, -1).trim();
+    return { type: 'array', itemType: mapSimpleTsTypeToSchema(inner) };
+  }
+  if (typeStr.includes('|')) {
+    const parts = typeStr.split('|').map(p => p.trim()).filter(Boolean);
+    const hasNull = parts.includes('null');
+    const hasUndefined = parts.includes('undefined');
+    const realParts = parts.filter(p => p !== 'null' && p !== 'undefined');
+    const primitiveMap: Record<string, string> = {
+      string: 'string', number: 'number', boolean: 'boolean', Date: 'datetime',
+    };
+    let s: Schema;
+    const isLiteralUnion = realParts.length > 0 && realParts.every(p => /^['"].*['"]$/.test(p));
+    if (isLiteralUnion) {
+      s = { type: 'string', enumValues: realParts.map(p => p.slice(1, -1)) };
+    } else if (realParts.length === 1) {
+      s = { ...mapSimpleTsTypeToSchema(realParts[0]) };
+    } else if (realParts.length > 1 && realParts.every(p => primitiveMap[p])) {
+      s = { type: 'union', unionTypes: realParts.map(p => primitiveMap[p]) };
+    } else {
+      s = { type: 'union' };
+    }
+    if (hasNull) s.nullable = true;
+    if (hasUndefined) s.optional = true;
+    return s;
+  }
+  return { type: 'any' };
+}
+
+// Parse fields from an interface body string (brace-aware)
+function parseTsFields(body: string): Record<string, Schema> {
+  const fields: Record<string, Schema> = {};
+  let i = 0;
+  while (i < body.length) {
+    // skip whitespace / separators
+    while (i < body.length && /[\s;,]/.test(body[i])) i++;
+    if (i >= body.length) break;
+    // skip line comments
+    if (body[i] === '/' && body[i + 1] === '/') {
+      while (i < body.length && body[i] !== '\n') i++;
+      continue;
+    }
+    // match: (readonly)? fieldName (?): (type)
+    const nameMatch = body.slice(i).match(/^(?:readonly\s+)?(['"]?\w+['"]?)\s*(\??)\s*:\s*/);
+    if (!nameMatch) { i++; continue; }
+    const fieldName = nameMatch[1].replace(/['"]/g, '');
+    const isOptional = nameMatch[2] === '?';
+    i += nameMatch[0].length;
+    const { typeStr, end } = collectTypeStr(body, i);
+    i = end;
+    if (!typeStr || !fieldName) continue;
+    const schema = tsTypeToSchema(typeStr);
+    if (isOptional) schema.optional = true;
+    fields[fieldName] = schema;
+  }
+  return fields;
+}
+
 export const parseTypeScriptToSchema = (str: string): Schema | null => {
   try {
-    const interfaceMatch = str.match(/(?:export\s+)?(?:interface|type)\s+(\w+)\s*(?:=\s*)?\{([\s\S]+?)\}/);
-    if (!interfaceMatch) return null;
-
-    const body = interfaceMatch[2];
-
-    const result: Schema = {
-      type: 'object',
-      fields: {},
-    };
+    const body = extractInterfaceBody(str);
+    if (!body) return null;
+    const fields = parseTsFields(body);
+    if (Object.keys(fields).length === 0) return null;
+    const result: Schema = { type: 'object', fields };
     (result as any)._isTypeMorphSchema = true;
-
-    // Match patterns like: name?: string;
-    const fieldRegex = /(['"]?\w+['"]?)\s*(\??)\s*:\s*([^;,\n]+)/g;
-    let m;
-    while ((m = fieldRegex.exec(body)) !== null) {
-      let key = m[1].replace(/['"]/g, ''); // Remove quotes if any
-      const isOptional = m[2] === '?';
-      let typeStr = m[3].trim();
-      
-      // Remove inline comments
-      typeStr = typeStr.split('//')[0].trim();
-
-      let fieldSchema: Schema = { type: 'any' };
-
-      if (typeStr === 'string') {
-        fieldSchema.type = 'string';
-      } else if (typeStr === 'number') {
-        fieldSchema.type = 'number';
-      } else if (typeStr === 'boolean') {
-        fieldSchema.type = 'boolean';
-      } else if (typeStr === 'Date') {
-        fieldSchema.type = 'string';
-        fieldSchema.format = 'datetime';
-      } else if (typeStr.endsWith('[]')) {
-        fieldSchema.type = 'array';
-        const inner = typeStr.slice(0, -2).trim();
-        fieldSchema.itemType = mapSimpleTsTypeToSchema(inner);
-      } else if (typeStr.startsWith('Array<') && typeStr.endsWith('>')) {
-        fieldSchema.type = 'array';
-        const inner = typeStr.substring(6, typeStr.length - 1).trim();
-        fieldSchema.itemType = mapSimpleTsTypeToSchema(inner);
-      } else if (typeStr.includes('|')) {
-        const parts = typeStr.split('|').map(p => p.trim()).filter(Boolean);
-        const hasNull = parts.includes('null');
-        const hasUndefined = parts.includes('undefined');
-        const realParts = parts.filter(p => p !== 'null' && p !== 'undefined');
-        const isLiteralUnion = realParts.length > 0 && realParts.every(p => /^['"].*['"]$/.test(p));
-        if (isLiteralUnion) {
-          fieldSchema.type = 'string';
-          fieldSchema.enumValues = realParts.map(p => p.slice(1, -1));
-        } else {
-          const primitiveMap: Record<string, string> = {
-            string: 'string', number: 'number', boolean: 'boolean', Date: 'datetime',
-          };
-          if (realParts.length === 1) {
-            fieldSchema = { ...mapSimpleTsTypeToSchema(realParts[0]) };
-          } else if (realParts.length > 1 && realParts.every(p => primitiveMap[p])) {
-            fieldSchema.type = 'union';
-            fieldSchema.unionTypes = realParts.map(p => primitiveMap[p]);
-          } else {
-            fieldSchema.type = 'union';
-          }
-        }
-        if (hasNull) fieldSchema.nullable = true;
-        if (hasUndefined) fieldSchema.optional = true;
-      }
-
-      if (isOptional) {
-        fieldSchema.optional = true;
-      }
-
-      if (result.fields) {
-        result.fields[key] = fieldSchema;
-      }
-    }
-
-    if (Object.keys(result.fields || {}).length === 0) return null;
-
     return result;
   } catch {
     return null;

@@ -5,7 +5,6 @@ import { inferSchema, runEngine } from '@/lib/engine';
 import { schemaToAST } from '@/lib/ast';
 import { compareSchemaTypes } from '@/lib/diff';
 import { analyzeImpact, analyzeLanguageImpact } from '@/lib/impact';
-import type { Schema } from '@/lib/types';
 import type { ImpactKind, ImpactResult, LanguageImpact } from '@/lib/impact';
 
 const TypeGraphPanel = dynamic(() => import('./TypeGraphPanel'), {
@@ -18,9 +17,7 @@ const TypeGraphPanel = dynamic(() => import('./TypeGraphPanel'), {
 });
 
 interface Props {
-  afterJsonData: unknown;
-  afterSchema: Schema | null;
-  afterTsCode: string;
+  defaultAfterJson?: unknown;
   isDark: boolean;
 }
 
@@ -29,6 +26,7 @@ interface AnalysisResult {
   langImpact: LanguageImpact[];
   highlights: Map<string, ImpactKind>;
   diffs: ReturnType<typeof compareSchemaTypes>;
+  afterTsCode: string;
 }
 
 const SEVERITY_COLOR: Record<string, string> = {
@@ -37,8 +35,14 @@ const SEVERITY_COLOR: Record<string, string> = {
   info: 'text-slate-500 dark:text-slate-400',
 };
 
-export default function ImpactView({ afterJsonData, afterSchema, afterTsCode, isDark }: Props) {
+function toText(data: unknown): string {
+  if (data == null) return '';
+  try { return JSON.stringify(data, null, 2); } catch { return ''; }
+}
+
+export default function ImpactView({ defaultAfterJson, isDark }: Props) {
   const [beforeText, setBeforeText] = useState('');
+  const [afterText, setAfterText] = useState(() => toText(defaultAfterJson));
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,38 +50,34 @@ export default function ImpactView({ afterJsonData, afterSchema, afterTsCode, is
     setError(null);
     setResult(null);
 
-    if (!afterSchema) {
-      setError('No schema loaded. Paste a JSON on the left side of the workbench first.');
-      return;
-    }
-
     let beforeJson: unknown;
-    try {
-      beforeJson = JSON.parse(beforeText);
-    } catch {
-      setError('Could not parse "Before" — must be valid JSON.');
-      return;
-    }
+    try { beforeJson = JSON.parse(beforeText); }
+    catch { setError('Could not parse "Before" — must be valid JSON.'); return; }
+
+    let afterJson: unknown;
+    try { afterJson = JSON.parse(afterText); }
+    catch { setError('Could not parse "After" — must be valid JSON.'); return; }
 
     try {
       const beforeSchema = inferSchema(beforeJson);
+      const afterSchema = inferSchema(afterJson);
       const diffs = compareSchemaTypes(beforeSchema, afterSchema, 'root');
       const classes = schemaToAST(afterSchema, 'Root');
       const impact = analyzeImpact(diffs, classes, 'Root');
-      const langImpact = analyzeLanguageImpact(beforeJson, afterJsonData);
-
-      const highlights = new Map<string, ImpactKind>(
-        Array.from(impact.classImpact.entries())
-      );
-
-      setResult({ impact, langImpact, highlights, diffs });
+      const langImpact = analyzeLanguageImpact(beforeJson, afterJson);
+      const afterTsCode = runEngine(afterJson, 'typescript', '', {}) as string;
+      const highlights = new Map<string, ImpactKind>(impact.classImpact.entries());
+      setResult({ impact, langImpact, highlights, diffs, afterTsCode });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Analysis failed.');
     }
-  }, [beforeText, afterSchema, afterJsonData]);
+  }, [beforeText, afterText]);
 
   const affectedLangs = result?.langImpact.filter(l => l.affected) ?? [];
   const totalLangs = result?.langImpact.length ?? 0;
+
+  const textareaClass =
+    'h-44 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-[12px] font-mono text-slate-800 dark:text-slate-200 p-3 resize-none focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-slate-500 placeholder:text-slate-300 dark:placeholder:text-slate-600';
 
   return (
     <div className="w-full min-h-full flex flex-col px-6 py-6 gap-6 bg-white dark:bg-[#0A0A0A]">
@@ -91,11 +91,11 @@ export default function ImpactView({ afterJsonData, afterSchema, afterTsCode, is
           Schema Change Impact
         </h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Paste the previous JSON below. TypeMorph will show which classes and output languages are affected.
+          Paste Before and After JSON. TypeMorph shows which classes and output languages are affected.
         </p>
       </div>
 
-      {/* Input row */}
+      {/* Two-textarea input */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-[10px] font-mono uppercase tracking-widest text-slate-500 dark:text-slate-400 font-bold">
@@ -106,25 +106,21 @@ export default function ImpactView({ afterJsonData, afterSchema, afterTsCode, is
             onChange={e => setBeforeText(e.target.value)}
             placeholder={'{\n  "user_id": "abc",\n  "name": "Alice"\n}'}
             spellCheck={false}
-            className="h-40 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-[12px] font-mono text-slate-800 dark:text-slate-200 p-3 resize-none focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-slate-500 placeholder:text-slate-300 dark:placeholder:text-slate-600"
+            className={textareaClass}
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
           <label className="text-[10px] font-mono uppercase tracking-widest text-slate-500 dark:text-slate-400 font-bold">
-            After (current workbench input)
+            After (JSON)
           </label>
-          <div className="h-40 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 text-[12px] font-mono text-slate-500 dark:text-slate-400 p-3 overflow-hidden">
-            {afterSchema ? (
-              <span className="text-slate-400 dark:text-slate-500">
-                {afterTsCode
-                  ? afterTsCode.split('\n').slice(0, 8).join('\n') + (afterTsCode.split('\n').length > 8 ? '\n…' : '')
-                  : '(schema loaded)'}
-              </span>
-            ) : (
-              <span className="text-slate-400 dark:text-slate-500 italic">No schema — paste JSON in the workbench</span>
-            )}
-          </div>
+          <textarea
+            value={afterText}
+            onChange={e => setAfterText(e.target.value)}
+            placeholder={'{\n  "user_id": "abc",\n  "name": "Alice",\n  "email": "alice@example.com"\n}'}
+            spellCheck={false}
+            className={textareaClass}
+          />
         </div>
       </div>
 
@@ -132,7 +128,7 @@ export default function ImpactView({ afterJsonData, afterSchema, afterTsCode, is
       <div className="flex items-center gap-3">
         <button
           onClick={analyze}
-          disabled={!beforeText.trim() || !afterSchema}
+          disabled={!beforeText.trim() || !afterText.trim()}
           className="px-4 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[11px] font-mono font-bold uppercase tracking-widest hover:bg-slate-700 dark:hover:bg-slate-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Analyze Impact
@@ -178,9 +174,10 @@ export default function ImpactView({ afterJsonData, afterSchema, afterTsCode, is
           {/* Graph */}
           <div className="h-[360px] rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
             <TypeGraphPanel
-              tsCode={afterTsCode}
+              tsCode={result.afterTsCode}
               isDark={isDark}
               highlights={result.highlights}
+              hideHint
             />
           </div>
 

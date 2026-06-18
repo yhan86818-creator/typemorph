@@ -2,7 +2,7 @@ export type SchemaType = 'string' | 'number' | 'boolean' | 'object' | 'array' | 
 
 export interface Schema {
   type: SchemaType;
-  format?: 'email' | 'url' | 'uuid' | 'datetime' | 'date' | 'int' | 'float';
+  format?: 'email' | 'url' | 'uuid' | 'datetime' | 'date' | 'int' | 'float' | 'text';
   fields?: Record<string, Schema>;
   itemType?: Schema;
   /** True when this field was absent in at least one sample object during inference */
@@ -65,5 +65,5 @@ export interface ASTType {
   itemType?: ASTType;            // Used when kind is 'array'
   unionTypes?: ASTTypeKind[];    // Used when kind is 'union'
   enumValues?: string[];         // Used when kind is 'enum'
-  format?: 'email' | 'url' | 'uuid' | 'datetime' | 'date' | 'int' | 'float'; // matches Schema.format
+  format?: 'email' | 'url' | 'uuid' | 'datetime' | 'date' | 'int' | 'float' | 'text'; // matches Schema.format
 }

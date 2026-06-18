@@ -349,6 +349,41 @@ components:
       expect(schema?.fields?.status?.enumValues).toEqual(['active', 'inactive']);
       expect(schema?.fields?.status?.nullable).toBe(true);
     });
+
+    it('inline nested object → fields.address.type is object, no field leakage', () => {
+      const ts = `interface Order { id: string; address: { city: string; zip: string }; }`;
+      const schema = parseTypeScriptToSchema(ts);
+      // address must be an object, not 'any'
+      expect(schema?.fields?.address?.type).toBe('object');
+      expect(schema?.fields?.address?.fields?.city?.type).toBe('string');
+      expect(schema?.fields?.address?.fields?.zip?.type).toBe('string');
+      // zip must NOT leak to top level
+      expect(schema?.fields?.zip).toBeUndefined();
+      expect(schema?.fields?.city).toBeUndefined();
+    });
+
+    it('deeply nested objects parse recursively', () => {
+      const ts = `interface A { outer: { inner: { value: number } } }`;
+      const schema = parseTypeScriptToSchema(ts);
+      expect(schema?.fields?.outer?.type).toBe('object');
+      expect(schema?.fields?.outer?.fields?.inner?.type).toBe('object');
+      expect(schema?.fields?.outer?.fields?.inner?.fields?.value?.type).toBe('number');
+    });
+
+    it('readonly fields are parsed correctly', () => {
+      const ts = `interface User { readonly id: string; name: string; }`;
+      const schema = parseTypeScriptToSchema(ts);
+      expect(schema?.fields?.id?.type).toBe('string');
+      expect(schema?.fields?.name?.type).toBe('string');
+    });
+
+    it('optional nested object', () => {
+      const ts = `interface User { id: string; address?: { city: string }; }`;
+      const schema = parseTypeScriptToSchema(ts);
+      expect(schema?.fields?.address?.type).toBe('object');
+      expect(schema?.fields?.address?.optional).toBe(true);
+      expect(schema?.fields?.address?.fields?.city?.type).toBe('string');
+    });
   });
 
   describe('parseEnvFile', () => {

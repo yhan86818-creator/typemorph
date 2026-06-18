@@ -1,62 +1,33 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { ArrowLeftRight, AlertCircle, Info, TriangleAlert, CheckCircle2, FileJson, FileCode2, Copy, Check } from 'lucide-react';
+import { Zap, AlertCircle, Info, TriangleAlert, CheckCircle2, Copy, Check } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import { compareSchemaTypes, SchemaDiff } from '@/lib/diff';
 import { inferSchema } from '@/lib/engine';
-import { parseYAML } from '@/lib/engine';
-import { isOpenAPISpec, parseOpenAPIComponents } from '@/lib/openapi-parser';
-import { isJSONSchema, parseJSONSchema } from '@/lib/jsonschema-parser';
-import type { Schema } from '@/lib/types';
+import { parseTypeScriptToSchema } from '@/lib/parsers';
 
-type ParsedSchemas = { name: string; schema: Schema }[];
+const SAMPLE_TS = `interface User {
+  id: string;
+  email: string;
+  status: "active" | "pending";
+  price: number;
+  tags?: string[];
+}`;
 
-type FormatLabel = 'JSON' | 'YAML' | 'OpenAPI 3.x' | 'Swagger 2.0' | 'JSON Schema';
+const SAMPLE_JSON = `{
+  "id": 1,
+  "email": "alice@example.com",
+  "status": "cancelled",
+  "price": "29.99",
+  "createdAt": "2024-01-15"
+}`;
 
-function detectAndParse(text: string): { schemas: ParsedSchemas; format: FormatLabel } {
-  const trimmed = text.trim();
-  if (!trimmed) throw new Error('Empty input');
-
-  let obj: any;
-  let format: FormatLabel = 'JSON';
-
-  try {
-    obj = JSON.parse(trimmed);
-  } catch {
-    try {
-      obj = parseYAML(trimmed);
-      format = 'YAML';
-    } catch {
-      throw new Error('Could not parse as JSON or YAML');
-    }
-  }
-
-  if (isOpenAPISpec(obj)) {
-    const o = obj as any;
-    format = typeof o.swagger === 'string' ? 'Swagger 2.0' : 'OpenAPI 3.x';
-    const schemas = parseOpenAPIComponents(obj);
-    if (schemas.length === 0) throw new Error('No component schemas found in spec');
-    return { schemas, format };
-  }
-
-  if (isJSONSchema(obj)) {
-    format = 'JSON Schema';
-    const schemas = parseJSONSchema(obj);
-    if (schemas.length === 0) throw new Error('No schemas found in JSON Schema document');
-    return { schemas, format };
-  }
-
-  const schema = inferSchema(obj);
-  return { schemas: [{ name: 'Root', schema }], format };
-}
-
-function compatibilityScore(diffs: SchemaDiff[]): number {
+function matchScore(diffs: SchemaDiff[]): number {
   if (diffs.length === 0) return 100;
-  const breakingCount = diffs.filter(d => d.severity === 'error').length;
-  const warningCount = diffs.filter(d => d.severity === 'warning').length;
-  const penalty = breakingCount * 15 + warningCount * 5;
-  return Math.max(0, 100 - penalty);
+  const breaking = diffs.filter(d => d.severity === 'error').length;
+  const warnings = diffs.filter(d => d.severity === 'warning').length;
+  return Math.max(0, 100 - breaking * 15 - warnings * 5);
 }
 
 function scoreColor(score: number) {
@@ -65,123 +36,61 @@ function scoreColor(score: number) {
   return 'text-red-600 dark:text-red-400';
 }
 
-const SAMPLE_A = `{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "User",
-  "type": "object",
-  "required": ["id", "email"],
-  "properties": {
-    "id": { "type": "string", "format": "uuid" },
-    "email": { "type": "string", "format": "email" },
-    "role": { "type": "string", "enum": ["admin", "user"] },
-    "age": { "type": "integer" }
-  }
-}`;
-
-const SAMPLE_B = `{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "User",
-  "type": "object",
-  "required": ["id", "email", "role"],
-  "properties": {
-    "id": { "type": "integer" },
-    "email": { "type": "string", "format": "email" },
-    "role": { "type": "string", "enum": ["admin", "user", "moderator"] },
-    "displayName": { "type": "string" }
-  }
-}`;
-
-export function SmartDiffView({ isDark, initialContent }: { isDark: boolean; initialContent?: string }) {
-  const [textA, setTextA] = useState(initialContent ?? SAMPLE_A);
-  const [textB, setTextB] = useState(SAMPLE_B);
-  const [result, setResult] = useState<{
-    diffs: SchemaDiff[];
-    formatA: FormatLabel;
-    formatB: FormatLabel;
-    schemaCount: number;
-  } | null>(null);
+export function TypeDriftView({ isDark }: { isDark: boolean }) {
+  const [tsText, setTsText] = useState(SAMPLE_TS);
+  const [jsonText, setJsonText] = useState(SAMPLE_JSON);
+  const [result, setResult] = useState<{ diffs: SchemaDiff[] } | null>(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const handleCompare = useCallback(() => {
+  const handleCheck = useCallback(() => {
     setError('');
-    try {
-      const { schemas: schemasA, format: fmtA } = detectAndParse(textA);
-      const { schemas: schemasB, format: fmtB } = detectAndParse(textB);
+    setResult(null);
 
-      const allDiffs: SchemaDiff[] = [];
-
-      // Schemas removed entirely
-      for (const { name } of schemasA) {
-        if (!schemasB.find(s => s.name === name)) {
-          allDiffs.push({
-            path: name,
-            type: 'removed',
-            severity: 'error',
-            description: `Schema '${name}' was completely removed.`,
-          });
-        }
-      }
-
-      // Schemas added
-      for (const { name } of schemasB) {
-        if (!schemasA.find(s => s.name === name)) {
-          allDiffs.push({
-            path: name,
-            type: 'added',
-            severity: 'info',
-            description: `New schema '${name}' added.`,
-          });
-        }
-      }
-
-      // Compare matching schemas
-      for (const { name, schema: schemaA } of schemasA) {
-        const matchB = schemasB.find(s => s.name === name);
-        if (matchB) {
-          const prefix = schemasA.length > 1 ? name : 'root';
-          allDiffs.push(...compareSchemaTypes(schemaA, matchB.schema, prefix));
-        }
-      }
-
-      setResult({
-        diffs: allDiffs,
-        formatA: fmtA,
-        formatB: fmtB,
-        schemaCount: schemasA.length,
-      });
-    } catch (err: any) {
-      setError(err?.message ?? 'Parse error');
-      setResult(null);
+    const tsSchema = parseTypeScriptToSchema(tsText.trim());
+    if (!tsSchema) {
+      setError('Could not parse TypeScript interface. Paste a valid interface or type definition.');
+      return;
     }
-  }, [textA, textB]);
+
+    let jsonObj: any;
+    try {
+      jsonObj = JSON.parse(jsonText.trim());
+    } catch {
+      setError('Could not parse JSON. Make sure the API response is valid JSON.');
+      return;
+    }
+
+    const apiSchema = inferSchema(jsonObj);
+    const diffs = compareSchemaTypes(tsSchema, apiSchema);
+    setResult({ diffs });
+  }, [tsText, jsonText]);
 
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
-        handleCompare();
+        handleCheck();
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleCompare]);
+  }, [handleCheck]);
 
   const breaking = result?.diffs.filter(d => d.severity === 'error') ?? [];
   const warnings = result?.diffs.filter(d => d.severity === 'warning') ?? [];
   const infos = result?.diffs.filter(d => d.severity === 'info') ?? [];
-  const score = result ? compatibilityScore(result.diffs) : null;
+  const score = result ? matchScore(result.diffs) : null;
 
   const handleCopyReport = useCallback(() => {
     if (!result || score === null) return;
-    const lines: string[] = [
-      `# Breaking Change Report`,
-      `Compatibility: ${score}% (${breaking.length} breaking, ${warnings.length} warnings, ${infos.length} info)`,
-      `Score formula: 100 - (breaking × 15) - (warning × 5)`,
+    const lines = [
+      `# API Type Drift Report`,
+      `Match Score: ${score}% (${breaking.length} mismatches, ${warnings.length} warnings, ${infos.length} info)`,
       '',
     ];
     if (breaking.length > 0) {
-      lines.push('## Breaking Changes');
+      lines.push('## Type Mismatches (Breaking)');
       breaking.forEach(d => lines.push(`- [${d.type}] ${d.path}: ${d.description}`));
       lines.push('');
     }
@@ -218,17 +127,12 @@ export function SmartDiffView({ isDark, initialContent }: { isDark: boolean; ini
     const slateCls = 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300';
     const severityCls = severity === 'error' ? redCls : severity === 'warning' ? amberCls : slateCls;
     const cls: Record<SchemaDiff['type'], string> = {
-      removed:          redCls,
-      type_changed:     redCls,
-      renamed:          amberCls,
-      required_changed: severityCls,
-      enum_changed:     severityCls,
-      nullable_changed: slateCls,
-      format_changed:   slateCls,
-      added:            slateCls,
+      removed: redCls, type_changed: redCls, renamed: amberCls,
+      required_changed: severityCls, enum_changed: severityCls,
+      nullable_changed: slateCls, format_changed: slateCls, added: slateCls,
     };
     const label: Record<SchemaDiff['type'], string> = {
-      removed: 'removed', added: 'added', renamed: 'renamed', type_changed: 'type',
+      removed: 'missing', added: 'unknown', renamed: 'renamed', type_changed: 'type mismatch',
       required_changed: 'required', enum_changed: 'enum',
       format_changed: 'format', nullable_changed: 'nullable',
     };
@@ -239,33 +143,27 @@ export function SmartDiffView({ isDark, initialContent }: { isDark: boolean; ini
     );
   };
 
-  const formatBadge = (f: FormatLabel) => (
-    <span className="flex items-center gap-1 text-[9px] font-mono uppercase px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
-      {f.includes('OpenAPI') || f.includes('Swagger') || f === 'JSON Schema'
-        ? <FileCode2 size={10} />
-        : <FileJson size={10} />}
-      {f}
-    </span>
-  );
-
   return (
     <div className="flex flex-col h-full bg-white dark:bg-[#0A0A0A] overflow-hidden">
 
       {/* ヘッダー */}
       <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-100 dark:border-[#1A1A1A] shrink-0">
         <div>
-          <h2 className="text-sm font-semibold text-slate-800 dark:text-[#E8E8E8]">Breaking Change Detector</h2>
+          <h2 className="text-sm font-semibold text-slate-800 dark:text-[#E8E8E8] flex items-center gap-1.5">
+            <Zap size={13} className="text-amber-400" />
+            API Type Drift Detector
+          </h2>
           <p className="text-[11px] text-slate-400 dark:text-[#606060] mt-0.5">
-            JSON · YAML · OpenAPI · JSON Schema — paste any two versions
+            Paste your TypeScript types + real API response — detect runtime mismatches
           </p>
         </div>
         <button
-          onClick={handleCompare}
+          onClick={handleCheck}
           className="flex items-center gap-2 px-4 py-2 text-slate-900 dark:text-white text-xs font-bold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
           title="Cmd+Enter or Ctrl+Enter"
         >
-          <ArrowLeftRight size={12} />
-          Compare
+          <Zap size={12} className="text-amber-400" />
+          Check Drift
           <span className="text-[9px] opacity-40 border border-current px-1 py-0.5 rounded">⌘↵</span>
         </button>
       </div>
@@ -280,53 +178,68 @@ export function SmartDiffView({ isDark, initialContent }: { isDark: boolean; ini
 
       {/* エディター2面 */}
       <div className="grid grid-cols-2 gap-3 flex-1 min-h-0 px-4 pt-3">
-        {[
-          { label: 'Version A (Before)', value: textA, onChange: setTextA, dot: 'bg-red-400', fmt: result?.formatA },
-          { label: 'Version B (After)',  value: textB, onChange: setTextB, dot: 'bg-green-400', fmt: result?.formatB },
-        ].map(({ label, value, onChange, dot, fmt }) => (
-          <div key={label} className="flex flex-col border border-slate-200 dark:border-[#1A1A1A] rounded-xl overflow-hidden">
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#0F0F0F]">
-              <div className={`w-2 h-2 rounded-full ${dot}`} />
-              <span className="text-[10px] font-mono uppercase text-slate-400 flex-1">{label}</span>
-              {fmt && formatBadge(fmt)}
-            </div>
-            <Editor
-              height="100%"
-              defaultLanguage="json"
-              value={value}
-              onChange={v => onChange(v || '')}
-              theme={isDark ? 'vs-dark' : 'light'}
-              options={{
-                minimap: { enabled: false }, fontSize: 12,
-                scrollBeyondLastLine: false, padding: { top: 10, bottom: 10 },
-                automaticLayout: true, wordWrap: 'on',
-              }}
-            />
+        {/* 左: TypeScript型定義 */}
+        <div className="flex flex-col border border-slate-200 dark:border-[#1A1A1A] rounded-xl overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#0F0F0F]">
+            <div className="w-2 h-2 rounded-full bg-blue-400" />
+            <span className="text-[10px] font-mono uppercase text-slate-400 flex-1">Your TypeScript Types</span>
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">interface / type</span>
           </div>
-        ))}
+          <Editor
+            height="100%"
+            defaultLanguage="typescript"
+            value={tsText}
+            onChange={v => setTsText(v || '')}
+            theme={isDark ? 'vs-dark' : 'light'}
+            options={{
+              minimap: { enabled: false }, fontSize: 12,
+              scrollBeyondLastLine: false, padding: { top: 10, bottom: 10 },
+              automaticLayout: true, wordWrap: 'on',
+            }}
+          />
+        </div>
+
+        {/* 右: 実APIレスポンス */}
+        <div className="flex flex-col border border-slate-200 dark:border-[#1A1A1A] rounded-xl overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#0F0F0F]">
+            <div className="w-2 h-2 rounded-full bg-amber-400" />
+            <span className="text-[10px] font-mono uppercase text-slate-400 flex-1">Real API Response</span>
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">JSON</span>
+          </div>
+          <Editor
+            height="100%"
+            defaultLanguage="json"
+            value={jsonText}
+            onChange={v => setJsonText(v || '')}
+            theme={isDark ? 'vs-dark' : 'light'}
+            options={{
+              minimap: { enabled: false }, fontSize: 12,
+              scrollBeyondLastLine: false, padding: { top: 10, bottom: 10 },
+              automaticLayout: true, wordWrap: 'on',
+            }}
+          />
+        </div>
       </div>
 
       {/* 結果パネル */}
       <div className="px-4 py-3 shrink-0 max-h-[45%] overflow-y-auto">
         {result && (
           <>
-            {/* サマリーバー */}
             <div className="flex items-start gap-3 mb-3 flex-wrap">
               {result.diffs.length === 0 ? (
                 <span className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 font-semibold">
-                  <CheckCircle2 size={14} /> 100% Compatible — No changes detected
+                  <CheckCircle2 size={14} /> 100% Match — Your types perfectly match the API response
                 </span>
               ) : (
                 <div className="flex-1 min-w-0 space-y-2">
-                  {/* Score row */}
                   <div className="flex items-center gap-3 flex-wrap">
                     <span className={`text-sm font-bold tabular-nums ${scoreColor(score!)}`}>
-                      {score}% compatible
+                      {score}% match
                     </span>
                     <div className="flex items-center gap-1.5">
                       {breaking.length > 0 && (
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
-                          {breaking.length} breaking
+                          {breaking.length} mismatch{breaking.length > 1 ? 'es' : ''}
                         </span>
                       )}
                       {warnings.length > 0 && (
@@ -340,13 +253,7 @@ export function SmartDiffView({ isDark, initialContent }: { isDark: boolean; ini
                         </span>
                       )}
                     </div>
-                    <div className="ml-auto flex items-center gap-2">
-                      {result.schemaCount > 1 && (
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                          {result.schemaCount} schemas
-                        </span>
-                      )}
-                      {/* Copy Report button */}
+                    <div className="ml-auto">
                       <button
                         onClick={handleCopyReport}
                         className="flex items-center gap-1 text-[10px] font-mono text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
@@ -357,7 +264,6 @@ export function SmartDiffView({ isDark, initialContent }: { isDark: boolean; ini
                       </button>
                     </div>
                   </div>
-                  {/* Score bar + formula hint */}
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                       <div
@@ -365,21 +271,17 @@ export function SmartDiffView({ isDark, initialContent }: { isDark: boolean; ini
                         style={{ width: `${score}%` }}
                       />
                     </div>
-                    <span
-                      className="text-[9px] font-mono text-slate-400 dark:text-slate-500 whitespace-nowrap"
-                      title="Score = 100 - (breaking × 15) - (warning × 5)"
-                    >
-                      −15/breaking · −5/warning
+                    <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                      −15/mismatch · −5/warning
                     </span>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* 差分リスト */}
             <div className="flex flex-col gap-1">
               {([
-                { items: breaking, label: 'Breaking Changes', labelCls: 'text-red-500/60' },
+                { items: breaking, label: 'Type Mismatches',  labelCls: 'text-red-500/60' },
                 { items: warnings, label: 'Warnings',         labelCls: 'text-amber-500/60' },
                 { items: infos,    label: 'Info',             labelCls: 'text-slate-500/60' },
               ] as const).map(({ items, label, labelCls }) =>
@@ -402,9 +304,7 @@ export function SmartDiffView({ isDark, initialContent }: { isDark: boolean; ini
                             {typeBadge(d.type, d.severity)}
                             {d.oldType && d.newType && (
                               <span className="font-mono text-[10px] text-slate-400">
-                                {d.type === 'renamed'
-                                  ? `${d.oldType} → ${d.newType}`
-                                  : `${d.oldType} → ${d.newType}`}
+                                declared: {d.oldType} → got: {d.newType}
                               </span>
                             )}
                           </div>
@@ -423,7 +323,7 @@ export function SmartDiffView({ isDark, initialContent }: { isDark: boolean; ini
 
         {!result && !error && (
           <p className="text-[11px] text-slate-400 dark:text-[#505050] text-center py-4">
-            Paste two versions of a schema above and click Compare
+            Paste your TypeScript interface and a real API response, then click Check Drift
           </p>
         )}
       </div>

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { swiftGen, kotlinGen, zodGen, protoGen, gqlGen, tsGen, goGen, rustGen, jsonSchemaGen, mockGen, prismaGen, javaGen, uiGen, docGen, csharpGen, phpGen, nestjsDtoGen, effectSchemaGen } from './generators';
+import { swiftGen, kotlinGen, zodGen, protoGen, gqlGen, tsGen, goGen, rustGen, jsonSchemaGen, mockGen, prismaGen, javaGen, uiGen, docGen, csharpGen, phpGen, nestjsDtoGen, effectSchemaGen, typeGuardGen } from './generators';
+import { llmValidatorGen } from './generators-extended';
 import { inferSchema } from './engine';
 import { parseTypeScriptToSchema } from './parsers';
 
@@ -25,15 +26,16 @@ describe('generators', () => {
       expect(result).toContain('val updatedAt: Any?');
     });
 
-    it('[regression] datetime fields should not embed comments that break comma-separated params', () => {
+    it('datetime fields use kotlinx.datetime.Instant, not String', () => {
       const json = { createdAt: '2024-01-01T00:00:00Z', name: 'Alice' };
       const schema = inferSchema(json);
       const result = kotlinGen.generate(schema, 'Root');
       expect(result).not.toContain('//');
-      expect(result).toContain('val createdAt: String');
+      expect(result).toContain('import kotlinx.datetime.Instant');
+      expect(result).toContain('val createdAt: Instant');
       expect(result).toContain('val name: String');
       const body = result.match(/data class Root\(([\s\S]*?)\)/)?.[1] ?? '';
-      expect(body).toMatch(/createdAt: String,/);
+      expect(body).toMatch(/createdAt: Instant,?/);
     });
   });
 
@@ -428,12 +430,13 @@ describe('generators', () => {
       expect(result).toContain('z.number().min(-180).max(180)');
     });
 
-    it('should add .min(1).trim() for required name field', () => {
+    it('should add .trim() (no .min) for required name field', () => {
       const json = { name: 'Alice' };
       const schema = inferSchema(json);
       if (schema.fields?.name) schema.fields.name.format = undefined;
       const result = zodGen.generate(schema, 'Root');
-      expect(result).toContain('z.string().min(1).trim()');
+      expect(result).toContain('z.string().trim()');
+      expect(result).not.toContain('z.string().min(1).trim()');
     });
 
     it('should add .trim() (no .min) for optional title field', () => {
@@ -445,12 +448,13 @@ describe('generators', () => {
       expect(result).not.toContain('z.string().min(1).trim()');
     });
 
-    it('should add .min(1) for required non-semantic string field', () => {
+    it('should not add .min(1) for generic required string field (single-sample inference)', () => {
       const json = { reference: 'REF-001' };
       const schema = inferSchema(json);
       if (schema.fields?.reference) schema.fields.reference.format = undefined;
       const result = zodGen.generate(schema, 'Root');
-      expect(result).toContain('z.string().min(1)');
+      expect(result).toContain('z.string()');
+      expect(result).not.toContain('z.string().min(1)');
     });
 
     it('should add slug regex for slug field', () => {
@@ -490,17 +494,26 @@ describe('generators', () => {
       expect(result).not.toContain('bid: z.uuid()');
     });
 
-    it('[bugfix] should still apply .uuid() to legitimate camelCase ID fields (userId, orderId, userID)', () => {
-      // These are genuine ID fields and must keep .uuid() validation after the fix.
-      const schema = inferSchema({ userId: 'not-a-uuid', orderId: 'not-a-uuid', userID: 'not-a-uuid' });
+    it('[bugfix] applies .uuid() to ID fields only when value is UUID format', () => {
+      // Value must actually be UUID format — name alone is not enough (fixes GitHub node_id false positive)
+      const uuid = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+      const schema = inferSchema({ userId: uuid, orderId: uuid, userID: uuid });
       const result = zodGen.generate(schema, 'Root');
       expect(result).toContain('userId: z.uuid()');
       expect(result).toContain('orderId: z.uuid()');
       expect(result).toContain('userID: z.uuid()');
     });
 
-    it('[bugfix] should still apply .uuid() to snake_case _id fields (user_id, order_id)', () => {
-      const schema = inferSchema({ user_id: 'not-a-uuid', order_id: 'not-a-uuid' });
+    it('[bugfix] does NOT apply .uuid() to ID fields with non-UUID values (e.g. GitHub node_id)', () => {
+      // node_id is base64, not UUID — should stay z.string()
+      const schema = inferSchema({ node_id: 'MDQ6VXNlcjE=', order_id: 'order_123' });
+      const result = zodGen.generate(schema, 'Root');
+      expect(result).not.toContain('z.uuid()');
+    });
+
+    it('[bugfix] should still apply .uuid() to snake_case _id fields with UUID values', () => {
+      const uuid = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+      const schema = inferSchema({ user_id: uuid, order_id: uuid });
       const result = zodGen.generate(schema, 'Root');
       expect(result).toContain('user_id: z.uuid()');
       expect(result).toContain('order_id: z.uuid()');
@@ -968,6 +981,161 @@ describe('generators', () => {
       const result = zodGen.generate(schema, 'T');
       expect(result).toContain('z.enum(["active", "inactive"])');
       expect(result).toContain('.nullable()');
+    });
+  });
+
+  describe('typeGuardGen', () => {
+    it('generates a basic type guard with primitive fields', () => {
+      const json = { id: '123', name: 'Alice', age: 30 };
+      const schema = inferSchema(json);
+      const result = typeGuardGen.generate(schema, 'User');
+      expect(result).toContain('export function isUser(obj: unknown): obj is User {');
+      expect(result).toContain("typeof o['id'] === 'string'");
+      expect(result).toContain("typeof o['name'] === 'string'");
+      expect(result).toContain("typeof o['age'] === 'number'");
+    });
+
+    it('handles optional fields (absent in some samples)', () => {
+      const json = [{ id: '1', email: 'a@b.com' }, { id: '2' }];
+      const schema = inferSchema(json);
+      const result = typeGuardGen.generate(schema, 'Root');
+      expect(result).toContain("o['email'] === undefined");
+    });
+
+    it('handles boolean fields', () => {
+      const json = { active: true, name: 'test' };
+      const schema = inferSchema(json);
+      const result = typeGuardGen.generate(schema, 'Root');
+      expect(result).toContain("typeof o['active'] === 'boolean'");
+    });
+
+    it('handles array fields', () => {
+      const json = { id: '1', tags: ['alpha', 'beta'] };
+      const schema = inferSchema(json);
+      const result = typeGuardGen.generate(schema, 'Root');
+      expect(result).toContain("Array.isArray(o['tags'])");
+    });
+
+    it('handles nested objects with recursive guards', () => {
+      const json = { id: '1', address: { city: 'Tokyo', zip: '100-0001' } };
+      const schema = inferSchema(json);
+      const result = typeGuardGen.generate(schema, 'Root');
+      // nested object becomes RootAddress (Root_ prefix convention)
+      expect(result).toContain('export function isRootAddress(obj: unknown): obj is RootAddress {');
+      expect(result).toContain("isRootAddress(o['address'])");
+    });
+
+    it('handles nullable fields', () => {
+      const json = { id: '1', deletedAt: null };
+      const schema = inferSchema(json);
+      const result = typeGuardGen.generate(schema, 'Root');
+      expect(result).toContain("o['deletedAt'] === null");
+    });
+
+    it('generates guards for all nested classes', () => {
+      const json = { user: { id: '1', role: { name: 'admin' } } };
+      const schema = inferSchema(json);
+      const result = typeGuardGen.generate(schema, 'Root');
+      // naming: Root_user → RootUser, Root_user_role → RootUserRole
+      // export function declarations are hoisted so order doesn't matter
+      expect(result).toContain('export function isRootUserRole(');
+      expect(result).toContain('export function isRootUser(');
+      expect(result).toContain('export function isRoot(');
+      // each guard references the nested type guard
+      expect(result).toContain('isRootUser(');
+      expect(result).toContain('isRootUserRole(');
+    });
+
+    it('null-only fields emit === null check without || true bug', () => {
+      const json = { id: '1', metadata: null };
+      const schema = inferSchema(json);
+      const result = typeGuardGen.generate(schema, 'Root');
+      // must NOT contain the always-true bug pattern
+      expect(result).not.toContain('|| true');
+      // null-only field → emit the null check without a type check suffix
+      expect(result).toContain("o['metadata'] === null");
+    });
+  });
+
+  describe('llmValidatorGen', () => {
+    it('generates Zod schema and safeParse function', () => {
+      const json = { name: 'Alice', score: 42, active: true };
+      const schema = inferSchema(json);
+      const result = llmValidatorGen.generate(schema, 'Response');
+
+      expect(result).toContain('import { z } from "zod"');
+      expect(result).toContain('const responseSchema = z.object({');
+      expect(result).toContain('export type Response =');
+      expect(result).toContain('export function parseResponse(raw: unknown)');
+      expect(result).toContain('responseSchema.safeParse(raw)');
+      expect(result).toContain('ok: true');
+      expect(result).toContain('ok: false');
+    });
+
+    it('applies semantic validators for email and uuid fields', () => {
+      const json = { id: '550e8400-e29b-41d4-a716-446655440000', email: 'test@example.com', score: 85 };
+      const schema = inferSchema(json);
+      const result = llmValidatorGen.generate(schema, 'Root');
+
+      expect(result).toContain('z.email()');
+      expect(result).toContain('z.uuid()');
+    });
+
+    it('handles optional fields with .optional()', () => {
+      const json = [{ id: '1', title: 'A', tags: ['x'] }, { id: '2', title: 'B' }];
+      const schema = inferSchema(json);
+      const result = llmValidatorGen.generate(schema, 'Item');
+
+      expect(result).toContain('.optional()');
+    });
+
+    it('handles array fields', () => {
+      const json = { messages: ['hello', 'world'], count: 2 };
+      const schema = inferSchema(json);
+      const result = llmValidatorGen.generate(schema, 'Root');
+
+      expect(result).toContain('z.array(z.string())');
+    });
+
+    it('includes OpenAI and Anthropic usage comments', () => {
+      const json = { answer: 'yes', confidence: 0.9 };
+      const schema = inferSchema(json);
+      const result = llmValidatorGen.generate(schema, 'Root');
+
+      expect(result).toContain('OpenAI');
+      expect(result).toContain('Anthropic');
+      expect(result).toContain('Vercel AI SDK');
+    });
+
+    it('handles nested objects inline without .describe()', () => {
+      const json = { id: '1', user: { name: 'Alice', email: 'alice@example.com' }, tags: ['x'] };
+      const schema = inferSchema(json);
+      const result = llmValidatorGen.generate(schema, 'Root');
+
+      // nested object renders inline
+      expect(result).toContain('z.object({');
+      expect(result).toContain('z.email()');
+      // no .describe() anywhere — validator should be clean
+      expect(result).not.toContain('.describe(');
+    });
+
+    it('uses .nullable() not .optional() for null fields', () => {
+      const json = { id: '1', deletedAt: null };
+      const schema = inferSchema(json);
+      const result = llmValidatorGen.generate(schema, 'Root');
+
+      expect(result).toContain('.nullable()');
+      expect(result).not.toMatch(/deletedAt:.*\.optional\(\)/);
+    });
+
+    it('handles array root schema', () => {
+      const json = [{ id: '1', name: 'Alice' }, { id: '2', name: 'Bob' }];
+      const schema = inferSchema(json);
+      const result = llmValidatorGen.generate(schema, 'User');
+
+      expect(result).toContain('const userSchema = z.object({');
+      expect(result).toContain('export type User =');
+      expect(result).toContain('export function parseUser(');
     });
   });
 });

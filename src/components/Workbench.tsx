@@ -43,10 +43,12 @@ import SuperBatchModal from './SuperBatchModal';
 import { loadLibrary, saveToLibrary, deleteFromLibrary, renameInLibrary, autoName, type LibraryEntry } from '@/lib/schemaLibrary';
 import dynamic from 'next/dynamic';
 import { SmartDiffView } from '@/components/SmartDiffView';
+import { TypeDriftView } from '@/components/TypeDriftView';
 import { FullStackArchitectView } from '@/components/FullStackArchitectView';
 import { sqlToMermaidERGen } from '@/lib/generators-extended';
 const TypeGraphPanel = dynamic(() => import('./TypeGraphPanel'), { ssr: false, loading: () => <div className="flex items-center justify-center h-full text-xs text-slate-400 font-mono">Loading graph…</div> });
 const ImpactView = dynamic(() => import('./ImpactView'), { ssr: false, loading: () => <div className="flex items-center justify-center h-full text-xs text-slate-400 font-mono">Loading…</div> });
+const ReverseView = dynamic(() => import('./ReverseView'), { ssr: false, loading: () => <div className="flex items-center justify-center h-full text-xs text-slate-400 font-mono">Loading…</div> });
 
 interface WorkbenchProps {
   slug: string;
@@ -317,7 +319,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
   }, [isLeftCollapsed, leftWidth]);
 
   useEffect(() => {
-    const isFullscreenTab = outputTab === 'architect' || outputTab === 'diff';
+    const isFullscreenTab = outputTab === 'architect' || outputTab === 'diff' || outputTab === 'type-drift';
     if (isFullscreenTab) {
       if (!isLeftCollapsed) {
         setIsLeftCollapsed(true);
@@ -442,7 +444,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     csharp: 'cs', protobuf: 'proto', graphql: 'graphql', sql: 'sql',
     jsonschema: 'schema.json', mock: 'json', json: 'json', er: 'mmd', doc: 'md',
   };
-  const VISUAL_TABS = new Set(['graph', 'impact', 'diff', 'architect', 'ui', 'saved', 'env-diff']);
+  const VISUAL_TABS = new Set(['graph', 'impact', 'reverse', 'diff', 'type-drift', 'architect', 'ui', 'saved', 'env-diff']);
 
   const handleDownload = () => {
     const content = outputs[outputTab];
@@ -1444,34 +1446,36 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     ] : []),
     { id: 'typescript', label: 'TS' },
     { id: 'zod', label: 'Zod' },
-    { id: 'go', label: 'Go' },
-    { id: 'python', label: 'Python' },
     ...(!isEnvInput ? [
-      { id: 'rust', label: 'Rust' },
-      { id: 'diff', label: '↔ Diff' },
+      { id: 'type-guard', label: 'Guard' },
+      { id: 'type-drift', label: 'Drift' },
+      { id: 'diff', label: 'Diff' },
     ] : []),
   ];
 
   const moreTabs = [
     ...(isEnvInput ? [
-      { id: 'rust', label: 'Rust' },
       { id: 'diff', label: '↔ Diff' },
     ] : []),
-    { id: 'er', label: 'ER Diagram' },
-    { id: 'architect', label: 'Architect' },
+    { id: 'go', label: 'Go' },
+    { id: 'python', label: 'Python' },
+    { id: 'rust', label: 'Rust' },
     { id: 'dart', label: 'Dart' },
-    { id: 'php', label: 'PHP' },
     { id: 'java', label: 'Java' },
     { id: 'kotlin', label: 'Kotlin' },
     { id: 'swift', label: 'Swift' },
     { id: 'csharp', label: 'C#' },
+    { id: 'php', label: 'PHP' },
     { id: 'protobuf', label: 'Proto' },
     { id: 'graphql', label: 'GQL' },
     { id: 'sql', label: 'SQL' },
     { id: 'jsonschema', label: 'Schema' },
     { id: 'mock', label: 'Mock Data' },
+    { id: 'er', label: 'ER Diagram' },
     { id: 'graph', label: 'Graph' },
+    { id: 'architect', label: 'Architect' },
     { id: 'impact', label: '⊕ Impact' },
+    { id: 'reverse', label: '⇄ Reverse' },
     { id: 'doc', label: 'Doc' },
     { id: 'json', label: 'JSON' }
   ];
@@ -2223,12 +2227,17 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
             )}
           </AnimatePresence>
 
-          {outputTab === 'impact' ? (
+          {outputTab === 'reverse' ? (
+            <div className="w-full h-full overflow-auto bg-white dark:bg-[#0A0A0A]">
+              <ReverseView
+                tsSeed={outputs['typescript'] || undefined}
+                isDark={isDark}
+              />
+            </div>
+          ) : outputTab === 'impact' ? (
             <div className="w-full h-full overflow-auto bg-white dark:bg-[#0A0A0A]">
               <ImpactView
-                afterJsonData={jsonData}
-                afterSchema={inferredSchema}
-                afterTsCode={outputs['typescript'] || ''}
+                defaultAfterJson={jsonData}
                 isDark={isDark}
               />
             </div>
@@ -2668,6 +2677,10 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                       </div>
                     )}
                   </div>
+                </div>
+              ) : outputTab === 'type-drift' ? (
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <TypeDriftView isDark={isDark} />
                 </div>
               ) : outputTab === 'diff' ? (
                 <div className="flex-1 min-h-0 overflow-hidden">

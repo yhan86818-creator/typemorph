@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { inferSchema } from '../engine';
+import { inferSchema, runEngine } from '../engine';
 import { zodGen, tsGen, prismaGen } from '../generators';
 
 // ─── Shared fixtures ────────────────────────────────────────────────────────
@@ -168,8 +168,8 @@ describe('Real-world: EC Order', () => {
       expect(out).toMatch(/userId|user_id/);
     });
 
-    it('generates total as Float', () => {
-      expect(out).toMatch(/total\s+Float/);
+    it('generates total as Decimal (monetary field)', () => {
+      expect(out).toMatch(/total\s+Decimal/);
     });
   });
 });
@@ -303,8 +303,8 @@ describe('Real-world: Paginated API Response', () => {
     });
 
     it('generates meta nested fields in the output', () => {
-      // requestId ends with 'Id' → inferred as z.uuid() (semantic inference)
-      expect(out).toContain('requestId: z.uuid()');
+      // requestId value is 'req_abc123' (not UUID format) → z.string(), not z.uuid()
+      expect(out).toMatch(/requestId.*z\.string/);
       expect(out).toMatch(/timestamp.*z\.iso\.datetime/);
     });
 
@@ -350,11 +350,11 @@ describe('Real-world: Financial Transaction', () => {
       expect(out).toMatch(/note.*z\.string/);
     });
 
-    it('generates currency and status as string or enum (single-sample inference)', () => {
-      // With one data sample, single-value strings may be inferred as z.enum([...])
-      // Both are acceptable outputs; either is more specific than quicktype's plain `string`
-      expect(out).toMatch(/currency.*z\.(string|enum)/);
-      expect(out).toMatch(/status.*z\.(string|enum)/);
+    it('generates currency and status as string, enum, or literal (single-sample inference)', () => {
+      // With one data sample, single-value strings may be inferred as z.literal() or z.enum([...])
+      // All are more specific than plain `string`; z.literal() is preferred for single values
+      expect(out).toMatch(/currency.*z\.(string|enum|literal)/);
+      expect(out).toMatch(/status.*z\.(string|enum|literal)/);
     });
   });
 
@@ -383,15 +383,255 @@ describe('Real-world: Financial Transaction', () => {
       expect(out).toContain('model Transaction');
     });
 
-    it('maps amount and fee to Float', () => {
-      expect(out).toMatch(/amount\s+Float/);
-      expect(out).toMatch(/fee\s+Float/);
+    it('maps amount and fee to Decimal (monetary fields)', () => {
+      expect(out).toMatch(/amount\s+Decimal/);
+      expect(out).toMatch(/fee\s+Decimal/);
     });
 
     it('generates model Transaction with amount and fee fields', () => {
       expect(out).toContain('model Transaction');
-      expect(out).toMatch(/amount\s+Float/);
-      expect(out).toMatch(/fee\s+Float/);
+      expect(out).toMatch(/amount\s+Decimal/);
+      expect(out).toMatch(/fee\s+Decimal/);
     });
+  });
+});
+
+// ─── Real API fixture tests ──────────────────────────────────────────────────
+// These tests use actual API response shapes to catch semantic misclassification.
+// Rule: if a public API returns a value, the generated schema must accept that value.
+
+describe('Real API fixtures — empty string fields (regression: gravatar_id bug)', () => {
+  // GitHub GET /users/:username returns gravatar_id as "" when not set.
+  // Before fix: inferred as z.uuid() which would REJECT the actual API response.
+  const GITHUB_USER = {
+    login: 'octocat',
+    id: 1,
+    node_id: 'MDQ6VXNlcjE=',
+    avatar_url: 'https://github.com/images/error/octocat_happy.gif',
+    gravatar_id: '',
+    url: 'https://api.github.com/users/octocat',
+    html_url: 'https://github.com/octocat',
+    type: 'User',
+    site_admin: false,
+    name: 'monalisa octocat',
+    company: 'GitHub',
+    blog: 'https://github.com/blog',
+    location: 'San Francisco',
+    email: null as unknown as string,
+    hireable: null as unknown as boolean,
+    bio: 'There once was...',
+    public_repos: 2,
+    followers: 20,
+    following: 0,
+    created_at: '2008-01-14T04:33:35Z',
+    updated_at: '2008-01-14T04:33:35Z',
+  };
+
+  const schema = inferSchema(GITHUB_USER);
+  const zodOut = zodGen.generate(schema, 'GitHubUser');
+
+  it('gravatar_id: "" must NOT become z.uuid() — would reject real API response', () => {
+    expect(zodOut).not.toContain('gravatar_id: z.uuid()');
+    expect(zodOut).not.toContain('gravatar_id: z.string().uuid()');
+  });
+
+  it('gravatar_id: "" infers as plain z.string()', () => {
+    expect(zodOut).toMatch(/gravatar_id:\s*z\.string\(\)/);
+  });
+
+  it('node_id with base64 value infers as z.string(), not z.uuid()', () => {
+    // node_id value is base64 (e.g. "MDQ6VXNlcjE="), not UUID format — must be z.string()
+    expect(zodOut).not.toContain('node_id: z.uuid()');
+    expect(zodOut).toMatch(/node_id:\s*z\.string/);
+  });
+
+  it('avatar_url with real URL value infers as z.url()', () => {
+    expect(zodOut).toMatch(/avatar_url:\s*z\.url\(\)/);
+  });
+
+  it('created_at ISO string infers as z.iso.datetime()', () => {
+    expect(zodOut).toMatch(/created_at:\s*z\.iso\.datetime\(\)/);
+  });
+
+  it('type with single observed value infers as z.literal("User")', () => {
+    expect(zodOut).toContain('type: z.literal("User")');
+  });
+
+  it('site_admin boolean field infers as z.boolean()', () => {
+    expect(zodOut).toContain('site_admin: z.boolean()');
+  });
+});
+
+describe('Real API fixtures — empty string engine schema', () => {
+  it('empty string fields get format:text sentinel, not uuid/email/url', () => {
+    const s = inferSchema({ gravatar_id: '', contact_email: '', profile_url: '' });
+    expect(s.fields?.gravatar_id?.format).toBe('text');
+    expect(s.fields?.contact_email?.format).toBe('text');
+    expect(s.fields?.profile_url?.format).toBe('text');
+  });
+
+  it('_id fields with non-UUID values do NOT get uuid format', () => {
+    // Only actual UUID-format values trigger uuid inference, not field name alone
+    const s = inferSchema({ user_id: 'abc', product_id: '123' });
+    expect(s.fields?.user_id?.format).not.toBe('uuid');
+    expect(s.fields?.product_id?.format).not.toBe('uuid');
+  });
+
+  it('words ending in "id" as substring do NOT get uuid (valid, grid, bid)', () => {
+    const s = inferSchema({ valid: 'yes', grid: '3x3', bid: '500' });
+    expect(s.fields?.valid?.format).not.toBe('uuid');
+    expect(s.fields?.grid?.format).not.toBe('uuid');
+    expect(s.fields?.bid?.format).not.toBe('uuid');
+  });
+});
+
+describe('Real API fixtures — Twilio (regression)', () => {
+  const TWILIO_SMS = {
+    account_sid: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    api_version: '2010-04-01',
+    body: 'Hi there',
+    date_created: 'Thu, 30 Jul 2015 20:12:31 +0000',
+    direction: 'outbound-api',
+    error_code: null as unknown as string,
+    from: '+15017122661',
+    num_media: '0',
+    price: '-0.00750',
+    price_unit: 'USD',
+    sid: 'SMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    status: 'sent',
+    subresource_uris: { media: '/2010-04-01/Accounts/ACxxx/Messages/SMxxx/Media.json' },
+    to: '+15558675310',
+    uri: '/2010-04-01/Accounts/ACxxx/Messages/SMxxx.json',
+  };
+
+  const schema = inferSchema(TWILIO_SMS);
+  const zodOut = zodGen.generate(schema, 'TwilioSMS');
+
+  it('api_version "2010-04-01" must NOT become z.coerce.date() — it is a version string', () => {
+    expect(zodOut).not.toContain('api_version: z.coerce.date()');
+    expect(zodOut).not.toContain('api_version: z.date()');
+  });
+
+  it('api_version stays as z.string()', () => {
+    expect(zodOut).toMatch(/api_version:\s*z\.string/);
+  });
+
+  it('uri with relative path must NOT become z.url() — z.url() requires absolute URL', () => {
+    expect(zodOut).not.toContain('uri: z.url()');
+  });
+
+  it('uri relative path stays as z.string()', () => {
+    expect(zodOut).toMatch(/uri:\s*z\.string/);
+  });
+
+  it('price as string number stays as z.string() — not coerced to number', () => {
+    expect(zodOut).toMatch(/price:\s*z\.string/);
+  });
+});
+
+describe('Real API fixtures — URL key-name inference', () => {
+  it('key name "avatar" with placeholder value still infers z.url() (key name trusted)', () => {
+    const s = inferSchema({ avatar: 'placeholder-string' });
+    expect(s.fields?.avatar?.format).toBe('url');
+  });
+
+  it('key name "uri" with relative path does NOT infer z.url()', () => {
+    const s = inferSchema({ uri: '/api/v1/resource' });
+    expect(s.fields?.uri?.format).not.toBe('url');
+  });
+
+  it('key name "profile_url" with absolute URL infers z.url()', () => {
+    const s = inferSchema({ profile_url: 'https://example.com/photo.jpg' });
+    expect(s.fields?.profile_url?.format).toBe('url');
+  });
+
+  it('key name "api_version" with date-like string does NOT infer date format', () => {
+    const s = inferSchema({ api_version: '2024-01-15' });
+    expect(s.fields?.api_version?.format).not.toBe('date');
+  });
+});
+
+describe('Real API fixtures — Stripe PaymentIntent (regression: isomorphic merge bug)', () => {
+  // Root object had 20+ null fields (type:any). The isomorphic detection was incorrectly
+  // treating "null field in parent, absent in child" as a match, causing the nested
+  // automatic_payment_methods object to be merged into a z.lazy() self-reference.
+  const STRIPE_PI = {
+    id: 'pi_abc123',
+    object: 'payment_intent',
+    amount: 2000,
+    amount_capturable: 0,
+    application: null as unknown as string,
+    application_fee_amount: null as unknown as number,
+    automatic_payment_methods: { allow_redirects: 'always', enabled: true },
+    canceled_at: null as unknown as number,
+    cancellation_reason: null as unknown as string,
+    capture_method: 'automatic',
+    created: 1724000000,
+    currency: 'usd',
+    description: null as unknown as string,
+    invoice: null as unknown as string,
+    last_payment_error: null as unknown as object,
+    latest_charge: null as unknown as string,
+    livemode: false,
+    metadata: {},
+    next_action: null as unknown as object,
+    payment_method: null as unknown as string,
+    payment_method_types: ['card'],
+    status: 'requires_payment_method',
+    transfer_data: null as unknown as object,
+    transfer_group: null as unknown as string,
+  };
+
+  it('must NOT produce z.lazy() — nested object should not be merged into parent', () => {
+    const out = runEngine(STRIPE_PI, 'zod', '');
+    expect(out).not.toContain('z.lazy(');
+  });
+
+  it('automatic_payment_methods generates as its own named schema', () => {
+    const out = runEngine(STRIPE_PI, 'zod', '');
+    expect(out).toMatch(/AutomaticPaymentMethods|automaticPaymentMethods/i);
+    expect(out).toContain('allow_redirects');
+    expect(out).toContain('enabled');
+  });
+
+  it('allow_redirects and enabled must NOT appear at root schema level', () => {
+    const out = runEngine(STRIPE_PI, 'zod', '');
+    // In root schema block only — the nested schema should contain them
+    const rootBlock = out.split('export const')[out.split('export const').length - 1];
+    expect(rootBlock).not.toContain('allow_redirects');
+    expect(rootBlock).not.toContain('enabled: z.boolean()');
+  });
+});
+
+describe('Real API fixtures — Spotify (regression)', () => {
+  it('isrc field must NOT become z.url() — "src" in "isrc" is not a URL indicator', () => {
+    const s = inferSchema({ isrc: 'GBUM71029604' });
+    expect(s.fields?.isrc?.format).not.toBe('url');
+  });
+
+  it('isrc infers as plain string', () => {
+    const out = runEngine({ external_ids: { isrc: 'GBUM71029604' } }, 'zod', '');
+    expect(out).toMatch(/isrc:\s*z\.string/);
+    expect(out).not.toContain('isrc: z.url()');
+  });
+
+  it('uri with custom scheme "spotify:track:abc" must NOT become z.url()', () => {
+    const s = inferSchema({ uri: 'spotify:track:4iV5W9uYEdYUVa79Axb7Rh' });
+    expect(s.fields?.uri?.format).not.toBe('url');
+  });
+
+  it('uri with https:// still infers as z.url()', () => {
+    const s = inferSchema({ uri: 'https://api.spotify.com/v1/tracks/abc' });
+    expect(s.fields?.uri?.format).toBe('url');
+  });
+
+  it('image_src with https:// still infers as z.url()', () => {
+    const s = inferSchema({ image_src: 'https://cdn.example.com/img.jpg' });
+    expect(s.fields?.image_src?.format).toBe('url');
+  });
+
+  it('custom URI schemes (mailto:, spotify:) are excluded from URL inference', () => {
+    const s = inferSchema({ callback_url: 'mailto:user@example.com' });
+    expect(s.fields?.callback_url?.format).not.toBe('url');
   });
 });
