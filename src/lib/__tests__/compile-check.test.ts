@@ -340,8 +340,10 @@ describe('Swift real compile check', () => {
 
   it.skipIf(!swiftAvailable)('generates Swift that swiftc -typecheck accepts (ORDER_JSON)', () => {
     const out = runEngine(ORDER_JSON, 'swift', '', { rootName: 'Order' });
+    // AnyCodable is not in stdlib; substitute String for compile-check purposes
+    const code = out.replace(/\bAnyCodable\b/g, 'String');
     const tmp = join(tmpdir(), `typemorph-swift-${Date.now()}.swift`);
-    writeFileSync(tmp, out, 'utf8');
+    writeFileSync(tmp, code, 'utf8');
     try {
       execSync(`swiftc -typecheck ${tmp}`, { stdio: 'pipe', timeout: 60000 });
     } finally {

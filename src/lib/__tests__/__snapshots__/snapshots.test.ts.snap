@@ -1360,8 +1360,8 @@ class Profile
     public function __construct(
         private string $user_id,
         private string $display_name,
-        private ?mixed $bio = null,
-        private ?mixed $website = null,
+        private mixed $bio = null,
+        private mixed $website = null,
         private int $follower_count,
         private bool $is_verified,
     ) {}
@@ -1372,11 +1372,11 @@ class Profile
     public function getDisplay_name(): string { return $this->display_name; }
     public function setDisplay_name(string $display_name): void { $this->display_name = $display_name; }
 
-    public function getBio(): ?mixed { return $this->bio; }
-    public function setBio(?mixed $bio): void { $this->bio = $bio; }
+    public function getBio(): mixed { return $this->bio; }
+    public function setBio(mixed $bio): void { $this->bio = $bio; }
 
-    public function getWebsite(): ?mixed { return $this->website; }
-    public function setWebsite(?mixed $website): void { $this->website = $website; }
+    public function getWebsite(): mixed { return $this->website; }
+    public function setWebsite(mixed $website): void { $this->website = $website; }
 
     public function getFollower_count(): int { return $this->follower_count; }
     public function setFollower_count(int $follower_count): void { $this->follower_count = $follower_count; }
@@ -1468,8 +1468,8 @@ exports[`Tier1 generators — WITH_NULLS (null/optional fields) > typescript 1`]
 export interface Profile {
   user_id: string;
   display_name: string;
-  bio: (any) | null;
-  website: (any) | null;
+  bio: any | null;
+  website: any | null;
   follower_count: number;
   is_verified: boolean;
 }"
@@ -3251,9 +3251,9 @@ exports[`edge cases > 全フィールドnull 1`] = `
  * TypeMorph Generated TypeScript Interface
  */
 export interface Root {
-  name: (any) | null;
-  age: (any) | null;
-  active: (any) | null;
+  name: any | null;
+  age: any | null;
+  active: any | null;
 }"
 `;
 
@@ -3341,6 +3341,6 @@ export type Item = ItemItem[];
 export interface ItemItem {
   id: number;
   name: string;
-  extra?: (string) | null;
+  extra?: string | null;
 }"
 `;
