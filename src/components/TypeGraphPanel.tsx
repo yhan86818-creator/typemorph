@@ -1,11 +1,13 @@
 'use client';
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { extractTypeGraph, type TypeNode, type TypeGraph } from '@/lib/graph';
+import type { ImpactKind } from '@/lib/impact';
 
 interface Props {
   tsCode: string;
   isDark: boolean;
   onFieldRename?: (nodeId: string, fieldName: string, newName: string) => void;
+  highlights?: Map<string, ImpactKind>;
 }
 
 interface NodePos {
@@ -79,7 +81,7 @@ function getEdgePath(from: NodePos, to: NodePos): string {
   return `M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}`;
 }
 
-export default function TypeGraphPanel({ tsCode, isDark, onFieldRename }: Props) {
+export default function TypeGraphPanel({ tsCode, isDark, onFieldRename, highlights }: Props) {
   const [editingField, setEditingField] = useState<{ nodeId: string; fieldName: string } | null>(null);
   const [hoveredField, setHoveredField] = useState<{ nodeId: string; fieldName: string } | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -201,6 +203,19 @@ export default function TypeGraphPanel({ tsCode, isDark, onFieldRename }: Props)
   ];
 
   const getNodeColor = (nodeId: string) => {
+    if (highlights) {
+      const kind = highlights.get(nodeId);
+      if (kind === 'changed') return isDark
+        ? { header: '#2d0a0a', border: '#ef4444', text: '#fca5a5' }
+        : { header: '#fee2e2', border: '#dc2626', text: '#991b1b' };
+      if (kind === 'impacted') return isDark
+        ? { header: '#311207', border: '#f97316', text: '#fdba74' }
+        : { header: '#ffedd5', border: '#ea580c', text: '#9a3412' };
+      // safe — dim out
+      return isDark
+        ? { header: '#0f172a', border: '#1e293b', text: '#334155' }
+        : { header: '#f8fafc', border: '#e2e8f0', text: '#cbd5e1' };
+    }
     const roots = graph.nodes.filter(n => n.isRoot);
     if (roots.some(r => r.id === nodeId)) return nodeColors[0];
     const idx = graph.nodes.findIndex(n => n.id === nodeId);
@@ -222,11 +237,18 @@ export default function TypeGraphPanel({ tsCode, isDark, onFieldRename }: Props)
             <path d="M7 12h8M17 6l-8 5M17 18l-8-5"/>
           </svg>
           <span className="text-[10px] font-mono uppercase font-bold text-slate-500 dark:text-slate-350 tracking-wider">
-            Type Relationship Graph
+            {highlights ? 'Impact Propagation Graph' : 'Type Relationship Graph'}
           </span>
           <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500">
             {graph.nodes.length} types · {graph.edges.length} refs
           </span>
+          {highlights && (
+            <span className="flex items-center gap-2 text-[9px] font-mono ml-2">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" />changed</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500 inline-block" />impacted</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />safe</span>
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500">

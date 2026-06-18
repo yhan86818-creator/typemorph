@@ -46,6 +46,7 @@ import { SmartDiffView } from '@/components/SmartDiffView';
 import { FullStackArchitectView } from '@/components/FullStackArchitectView';
 import { sqlToMermaidERGen } from '@/lib/generators-extended';
 const TypeGraphPanel = dynamic(() => import('./TypeGraphPanel'), { ssr: false, loading: () => <div className="flex items-center justify-center h-full text-xs text-slate-400 font-mono">Loading graph…</div> });
+const ImpactView = dynamic(() => import('./ImpactView'), { ssr: false, loading: () => <div className="flex items-center justify-center h-full text-xs text-slate-400 font-mono">Loading…</div> });
 
 interface WorkbenchProps {
   slug: string;
@@ -441,7 +442,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     csharp: 'cs', protobuf: 'proto', graphql: 'graphql', sql: 'sql',
     jsonschema: 'schema.json', mock: 'json', json: 'json', er: 'mmd', doc: 'md',
   };
-  const VISUAL_TABS = new Set(['graph', 'diff', 'architect', 'ui', 'saved', 'env-diff']);
+  const VISUAL_TABS = new Set(['graph', 'impact', 'diff', 'architect', 'ui', 'saved', 'env-diff']);
 
   const handleDownload = () => {
     const content = outputs[outputTab];
@@ -1470,6 +1471,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     { id: 'jsonschema', label: 'Schema' },
     { id: 'mock', label: 'Mock Data' },
     { id: 'graph', label: 'Graph' },
+    { id: 'impact', label: '⊕ Impact' },
     { id: 'doc', label: 'Doc' },
     { id: 'json', label: 'JSON' }
   ];
@@ -2221,7 +2223,16 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
             )}
           </AnimatePresence>
 
-          {outputTab === 'graph' ? (
+          {outputTab === 'impact' ? (
+            <div className="w-full h-full overflow-auto bg-white dark:bg-[#0A0A0A]">
+              <ImpactView
+                afterJsonData={jsonData}
+                afterSchema={inferredSchema}
+                afterTsCode={outputs['typescript'] || ''}
+                isDark={isDark}
+              />
+            </div>
+          ) : outputTab === 'graph' ? (
             <div className="w-full h-full p-0 overflow-hidden bg-slate-50 dark:bg-[#0f172a]">
               <TypeGraphPanel
                 tsCode={outputs['typescript'] || ""}
