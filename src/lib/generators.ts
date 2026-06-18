@@ -549,7 +549,8 @@ export const phpGen = {
       res += `    public function __construct(\n`;
       for (const field of cls.fields) {
         const phpType = printPhpASTType(field.fieldType);
-        const nullable = (field.isOptional || field.isNullable) ? '?' : '';
+        // `mixed` already includes null — `?mixed` is a PHP 8 fatal error
+        const nullable = (field.isOptional || field.isNullable) && phpType !== 'mixed' ? '?' : '';
         const defaultVal = (field.isOptional || field.isNullable) ? ' = null' : '';
         res += `        private ${nullable}${phpType} $${field.name}${defaultVal},\n`;
       }
@@ -558,7 +559,7 @@ export const phpGen = {
       // Getters and setters
       for (const field of cls.fields) {
         const phpType = printPhpASTType(field.fieldType);
-        const nullable = (field.isOptional || field.isNullable) ? '?' : '';
+        const nullable = (field.isOptional || field.isNullable) && phpType !== 'mixed' ? '?' : '';
         const cap = field.name.charAt(0).toUpperCase() + field.name.slice(1);
         res += `\n    public function get${cap}(): ${nullable}${phpType} { return $this->${field.name}; }\n`;
         res += `    public function set${cap}(${nullable}${phpType} $${field.name}): void { $this->${field.name} = $${field.name}; }\n`;
