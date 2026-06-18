@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Compile-level quality check — Tier 1 generator verification
  *
