@@ -137,7 +137,7 @@ export default function ImpactView({ afterJsonData, afterSchema, afterTsCode, is
         >
           Analyze Impact
         </button>
-        {result && result.impact.totalChanged === 0 && (
+        {result && result.diffs.length === 0 && (
           <span className="text-[11px] font-mono text-slate-400">No changes detected between these two schemas.</span>
         )}
       </div>
@@ -150,7 +150,7 @@ export default function ImpactView({ afterJsonData, afterSchema, afterTsCode, is
       )}
 
       {/* Results */}
-      {result && (result.impact.totalChanged > 0 || result.diffs.length > 0) && (
+      {result && result.diffs.length > 0 && (
         <>
           {/* Stats bar */}
           <div className="flex flex-wrap items-center gap-4 py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-[11px] font-mono">
