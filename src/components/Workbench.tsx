@@ -24,6 +24,7 @@ import {
   type Decision
 } from '@/lib/engine';
 import QualityScorePanel from '@/components/QualityScorePanel';
+import { MiniFeedback } from '@/components/MiniFeedback';
 import { compareSchemas, type SchemaDiff } from '@/lib/diff';
 import {
   trackWorkbenchOpen,
@@ -2265,6 +2266,9 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
               {inferredSchema && ['typescript', 'zod', 'go', 'rust', 'python', 'java', 'kotlin', 'swift', 'csharp', 'dart', 'php'].includes(outputTab) && (
                 <div className="px-4 pt-3 pb-0">
                   <QualityScorePanel schema={inferredSchema} />
+                  <div className="mt-3 pb-3">
+                    <MiniFeedback context={`code-generation:${outputTab}`} />
+                  </div>
                 </div>
               )}
 
@@ -2786,7 +2790,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
               Unlock TypeMorph
             </h2>
             <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-6 font-sans">
-              You've reached your free daily limit. Upgrade to <b>TypeMorph Pro</b> to unlock unlimited conversions, bulk folder mode, and local file sync.
+              You've reached your free daily limit. Upgrade to <b>TypeMorph Pro</b> to unlock unlimited conversions, bulk folder processing, and local file sync.
             </p>
 
             <div className="w-full flex flex-col gap-3">

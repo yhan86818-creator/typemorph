@@ -72,12 +72,12 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
           dangerouslySetInnerHTML={{ __html: post.content || '' }}
         />
         
-        <footer className="mt-20 p-8 rounded-3xl bg-primary text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-primary/20">
+        <footer className="mt-20 p-8 rounded-3xl bg-slate-900 text-white flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
             <h3 className="text-xl font-bold mb-2">Want to automate this?</h3>
-            <p className="text-slate-300 text-sm">Use TypeMorph to generate your types and schemas in seconds.</p>
+            <p className="text-slate-400 text-sm">Use TypeMorph to generate your types and schemas in seconds.</p>
           </div>
-          <Link prefetch={false} href="/?view=app" className="px-6 py-3 bg-accent rounded-xl font-bold hover:bg-accent/90 transition-colors">
+          <Link prefetch={false} href="/?view=app" className="px-6 py-3 bg-white text-slate-900 rounded-xl font-bold hover:bg-slate-100 transition-colors shrink-0">
             Try TypeMorph Now
           </Link>
         </footer>

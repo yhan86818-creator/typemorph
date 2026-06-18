@@ -6,6 +6,7 @@ import GlobalFooter from '@/components/GlobalFooter';
 export const metadata = {
   title: 'TypeMorph 使い方ガイド | ヘルプ＆ドキュメント',
   description: 'ローカルファーストのスキーマ設計・コード生成ツール TypeMorph の使い方。インタラクティブな関係グラフの編集方法やASTリファクタリング、プライバシー設定について解説。',
+  robots: { index: false, follow: false },
 };
 
 export default function JapaneseHelpPage() {

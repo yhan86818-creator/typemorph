@@ -159,7 +159,7 @@ export const tsGen = {
 
         let tsType = printASTType(field.fieldType);
         if (field.isNullable) {
-          tsType = `(${tsType}) | null`;
+          tsType = tsType.includes(' | ') ? `(${tsType}) | null` : `${tsType} | null`;
         }
 
         res += `  ${displayName}${optMark}: ${tsType};\n`;
@@ -271,6 +271,28 @@ const printZodASTType = (type: ASTType, cyclicClassRefs: Set<string>, options: a
   }
 };
 
+// Converts ASTType to a plain TypeScript type string.
+// Used only for self-referential (cyclic) schemas where an explicit type annotation
+// is required before the Zod schema definition so that TypeScript can resolve the
+// circular reference without inferring through the schema initializer (TS7022).
+const printTSTypeForZod = (type: ASTType): string => {
+  switch (type.kind) {
+    case 'string':
+    case 'date':
+    case 'datetime':
+      return 'string';
+    case 'number': return 'number';
+    case 'boolean': return 'boolean';
+    case 'classRef': return type.classRefName ?? 'unknown';
+    case 'array': return type.itemType ? `${printTSTypeForZod(type.itemType)}[]` : 'unknown[]';
+    case 'union':
+      return type.unionTypes?.map(t => printTSTypeForZod({ kind: t } as ASTType)).join(' | ') ?? 'unknown';
+    case 'enum':
+      return type.enumValues?.map(v => `"${v}"`).join(' | ') ?? 'string';
+    default: return 'unknown';
+  }
+};
+
 export const zodGen = {
   generate: (schema: Schema, name: string = 'root', options: any = {}): string => {
     const mode: 'loose' | 'strict' | 'enterprise' = options.zodMode ?? 'strict';
@@ -332,10 +354,26 @@ export const zodGen = {
       const baseClass = getBaseClass(cls);
       const baseCamel = baseClass ? toCamelCase(baseClass) : null;
 
+      // Self-referential schemas require an explicit TypeScript type declared BEFORE
+      // the Zod schema, and a z.ZodType<T> annotation on the const, so tsc can resolve
+      // the circular reference without triggering TS7022 (implicit 'any' inference).
+      const isCyclic = cyclicClassRefs.has(cls.name);
+      if (isCyclic) {
+        res += `export type ${cls.name} = {\n`;
+        for (const cycField of cls.fields) {
+          const tsType = printTSTypeForZod(cycField.fieldType);
+          const opt = (cycField.isOptional || isLoose) ? '?' : '';
+          const nullable = cycField.isNullable ? ' | null' : '';
+          res += `  ${cycField.name}${opt}: ${tsType}${nullable};\n`;
+        }
+        res += `};\n\n`;
+      }
+
+      const schemaTypeAnn = isCyclic ? `: z.ZodType<${cls.name}>` : '';
       if (baseCamel) {
-        res += `export const ${camelName}Schema = ${baseCamel}Schema.extend({\n`;
+        res += `export const ${camelName}Schema${schemaTypeAnn} = ${baseCamel}Schema.extend({\n`;
       } else {
-        res += `export const ${camelName}Schema = z.object({\n`;
+        res += `export const ${camelName}Schema${schemaTypeAnn} = z.object({\n`;
       }
 
       for (const field of cls.fields) {
@@ -409,7 +447,12 @@ export const zodGen = {
 
       const objSuffix = isLoose ? '.passthrough()' : isEnterprise ? '.strict()' : '';
       res += `})${objSuffix};\n`;
-      res += `export type ${cls.name} = z.infer<typeof ${camelName}Schema>;\n\n`;
+      if (isCyclic) {
+        // Type is already declared above; z.infer would re-introduce the circular inference
+        res += '\n';
+      } else {
+        res += `export type ${cls.name} = z.infer<typeof ${camelName}Schema>;\n\n`;
+      }
     }
 
     // トップレベルが配列の場合は配列スキーマのエイリアスを出力
@@ -982,16 +1025,13 @@ export const prismaGen = {
         const idTag = displayName2 === 'id' ? ' @id' : '';
         
         if (field.fieldType.kind === 'classRef') {
-          const targetName = field.fieldType.classRefName;
-          const relationField = `${field.name}Id`;
-
-          // Try to find target ID type
-          const targetCls = astClasses.find(c => c.name === targetName);
-          const targetIdField = targetCls?.fields.find(f => f.name === 'id');
-          const targetIdType = targetIdField ? printPrismaASTType(targetIdField.fieldType) : 'String';
-
-          res += `  ${displayName2} ${targetName}${opt} @relation(fields: [${displayName2}Id], references: [id])\n`;
-          res += `  ${displayName2}Id ${targetIdType}${opt}\n`;
+          // Embedded object → Json. Proper @relation requires bidirectional back-references
+          // in the target model, which cannot be auto-derived from a single JSON sample.
+          res += `  ${displayName2} Json${opt}\n`;
+        } else if (isArray && field.fieldType.itemType?.kind === 'classRef') {
+          // Array of embedded objects → Json. One-to-many @relation requires a back-reference
+          // field in the target model pointing to this model — not auto-derivable from JSON.
+          res += `  ${displayName2} Json\n`;
         } else {
           res += `  ${displayName2} ${prismaType}${opt}${idTag}\n`;
 
@@ -1120,8 +1160,8 @@ const printCsharpASTType = (type: ASTType): string => {
   switch (type.kind) {
     case 'union': return 'object';
     case 'enum': return 'string';
-    case 'date':
-    case 'datetime': return 'DateTime';
+    case 'date': return 'DateTime';
+    case 'datetime': return 'DateTimeOffset';
     case 'classRef': return type.classRefName ?? 'object';
     case 'array':
       return type.itemType ? `List<${printCsharpASTType(type.itemType)}>` : 'List<object>';
@@ -1225,8 +1265,8 @@ const printKotlinASTType = (type: ASTType): string => {
   switch (type.kind) {
     case 'union': return 'Any';
     case 'enum': return 'String';
-    case 'date':
-    case 'datetime': return 'String';
+    case 'date': return 'LocalDate';
+    case 'datetime': return 'Instant';
     case 'classRef': return toJavaClassName(type.classRefName ?? 'Any');
     case 'array':
       return type.itemType ? `List<${printKotlinASTType(type.itemType)}>` : 'List<Any>';
@@ -1239,6 +1279,12 @@ const printKotlinASTType = (type: ASTType): string => {
   }
 };
 
+const hasKotlinKind = (classes: ReturnType<typeof schemaToAST>, kind: string): boolean =>
+  classes.some(cls => cls.fields.some(f =>
+    f.fieldType.kind === kind ||
+    (f.fieldType.kind === 'array' && f.fieldType.itemType?.kind === kind)
+  ));
+
 export const kotlinGen = {
   generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
     const astClasses = schemaToAST(schema, toPascalCase(name), options);
@@ -1250,8 +1296,13 @@ export const kotlinGen = {
       }
     }
 
+    const needsInstant   = hasKotlinKind(astClasses, 'datetime');
+    const needsLocalDate = hasKotlinKind(astClasses, 'date');
+
     let res = 'import kotlinx.serialization.Serializable\n';
     if (needsSerialName) res += 'import kotlinx.serialization.SerialName\n';
+    if (needsInstant)   res += 'import kotlinx.datetime.Instant\n';
+    if (needsLocalDate) res += 'import kotlinx.datetime.LocalDate\n';
     res += '\n';
 
     for (const cls of astClasses) {

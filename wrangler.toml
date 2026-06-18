@@ -1,3 +1,9 @@
 name = "typemorph"
 pages_build_output_dir = "out"
 compatibility_date = "2024-05-26"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "typemorph-feedback"
+database_id = "6e0ae4b7-008a-4047-abd0-e7a058f4f8d5"
+

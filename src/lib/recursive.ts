@@ -1,5 +1,11 @@
 import { Schema } from './types';
 
+// Mirrors the toPascalCase in ast.ts/generators.ts so _sharedTypeName is always
+// in PascalCase, matching the class names schemaToAST produces.
+function toPascalCase(str: string): string {
+  return str.replace(/(^\w|_\w)/g, m => m.replace(/_/, '').toUpperCase());
+}
+
 function objectFieldNames(s: Schema): string[] | null {
   if (s.type !== 'object' || !s.fields) return null;
   return Object.keys(s.fields).sort();
@@ -28,12 +34,15 @@ function similarity(a: string[], b: string[]): number {
  * Requires at least 2 fields to avoid false positives on tiny schemas.
  */
 export function detectRecursiveTypes(schema: Schema, rootName: string): void {
-  // For array roots, the recursive type is the item type (named `${rootName}Item`)
+  // Always use PascalCase so _sharedTypeName matches schemaToAST's class naming.
+  // rootName may arrive as camelCase (e.g. 'category') from runEngine's rootNameLower path.
+  const pascal = toPascalCase(rootName);
+  // For array roots, the recursive type is the item type (named `${pascal}Item`)
   const [anchor, anchorName] =
     schema.type === 'array' && schema.itemType?.type === 'object'
-      ? [schema.itemType, `${rootName}Item`]
+      ? [schema.itemType, `${pascal}Item`]
       : schema.type === 'object'
-      ? [schema, rootName]
+      ? [schema, pascal]
       : [null, ''];
 
   if (!anchor || anchor.type !== 'object' || !anchor.fields) return;

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   ShieldCheck, Download, Crown,
   Search, ExternalLink, GitBranch, X, MessageSquare,
-  LayoutTemplate, Home,
+  LayoutTemplate, Home, Terminal,
   PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -153,20 +153,18 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
               ))}
               <Link prefetch={false} href="/converters/" className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all flex items-center gap-1.5"><LayoutTemplate size={11}/> 160+ Tools</Link>
               <Link prefetch={false} href="/blog/" className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-all">Blog</Link>
-            </div>
-
-            {/* Language Switcher */}
-            <div className="hidden sm:flex items-center gap-1 ml-4">
-              <Link prefetch={false} href={initialSlug ? `/converters/${initialSlug}` : '/'}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${mounted && !window.location.pathname.includes('/jp/') ? 'text-slate-950 dark:text-white font-black' : 'text-slate-400'}`}
-              >
-                EN
-              </Link>
-              <Link prefetch={false} href={initialSlug ? `/jp/converters/${initialSlug}` : '/jp'}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${mounted && window.location.pathname.includes('/jp/') ? 'text-slate-950 dark:text-white font-black' : 'text-slate-400'}`}
-              >
-                JP
-              </Link>
+              <Link prefetch={false} href="/privacy/" className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-all">Privacy</Link>
+              <a href="https://marketplace.visualstudio.com/items?itemName=TypeMorph.typemorph-vscode" target="_blank" rel="noopener noreferrer" className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-all flex items-center gap-1.5">
+                <svg width="11" height="11" viewBox="0 0 100 100" fill="currentColor"><path d="M74.3 6.9L42.7 36.1 19.2 18.4 6.9 24.8v50.4l12.3 6.4 23.5-17.7 31.6 29.2L93.1 87V13L74.3 6.9zM19.2 63.6V36.4l16.8 13.6-16.8 13.6zm55.1 14.5L48.5 50l25.8-28.1v55.2z"/></svg>
+                VS Code
+              </a>
+              <a href="https://www.npmjs.com/package/typemorph-cli" target="_blank" rel="noopener noreferrer" className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-all flex items-center gap-1.5">
+                <Terminal size={11} /> CLI
+              </a>
+              <a href="https://github.com/yhan86818-creator/typemorph" target="_blank" rel="noopener noreferrer" className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-all flex items-center gap-1.5">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+                GitHub
+              </a>
             </div>
           </div>
 

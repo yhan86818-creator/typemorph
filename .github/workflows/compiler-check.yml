@@ -1,0 +1,212 @@
+name: Compiler Verification
+
+# Verifies that Tier 1 generator outputs are accepted by the real language
+# toolchain for every language that requires a compiler/SDK not present on a
+# typical developer workstation.
+#
+# Tests use it.skipIf(!isToolAvailable(...)), so they run here (toolchain
+# installed) and are silently skipped on local machines (toolchain absent).
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    paths:
+      - 'src/lib/generators.ts'
+      - 'src/lib/generators-extended.ts'
+      - 'src/lib/__tests__/compile-check.test.ts'
+      - '.github/workflows/compiler-check.yml'
+  pull_request:
+    branches: [ "main", "master" ]
+    paths:
+      - 'src/lib/generators.ts'
+      - 'src/lib/generators-extended.ts'
+      - 'src/lib/__tests__/compile-check.test.ts'
+      - '.github/workflows/compiler-check.yml'
+
+# ── Shared setup steps (referenced by each job) ─────────────────────────────
+# GitHub Actions does not support YAML anchors natively, so Node setup is
+# duplicated across jobs. Keep it minimal.
+
+jobs:
+
+  # ── Go ─────────────────────────────────────────────────────────────────────
+  go:
+    name: Go compile check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Run Go compile-check tests
+        run: npx vitest run src/lib/__tests__/compile-check.test.ts --reporter=verbose
+
+  # ── Java ───────────────────────────────────────────────────────────────────
+  java:
+    name: Java compile check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Run Java compile-check tests
+        run: npx vitest run src/lib/__tests__/compile-check.test.ts --reporter=verbose
+
+  # ── Kotlin ─────────────────────────────────────────────────────────────────
+  kotlin:
+    name: Kotlin compile check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Kotlin compiler
+        run: sudo snap install kotlin --classic
+
+      - name: Run Kotlin compile-check tests
+        run: npx vitest run src/lib/__tests__/compile-check.test.ts --reporter=verbose
+
+  # ── Rust ───────────────────────────────────────────────────────────────────
+  rust:
+    name: Rust compile check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run Rust compile-check tests
+        run: npx vitest run src/lib/__tests__/compile-check.test.ts --reporter=verbose
+        timeout-minutes: 15
+
+  # ── C# (.NET) ──────────────────────────────────────────────────────────────
+  csharp:
+    name: C# compile check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Run C# compile-check tests
+        run: npx vitest run src/lib/__tests__/compile-check.test.ts --reporter=verbose
+
+  # ── Swift ──────────────────────────────────────────────────────────────────
+  # macOS runner: Swift toolchain is pre-installed (no setup action needed).
+  swift:
+    name: Swift compile check
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify Swift is available
+        run: swift --version
+
+      - name: Run Swift compile-check tests
+        run: npx vitest run src/lib/__tests__/compile-check.test.ts --reporter=verbose
+
+  # ── PHP ────────────────────────────────────────────────────────────────────
+  php:
+    name: PHP compile check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+
+      - name: Run PHP compile-check tests
+        run: npx vitest run src/lib/__tests__/compile-check.test.ts --reporter=verbose
+
+  # ── Dart ───────────────────────────────────────────────────────────────────
+  dart:
+    name: Dart compile check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Run Dart compile-check tests
+        run: npx vitest run src/lib/__tests__/compile-check.test.ts --reporter=verbose

@@ -97,26 +97,6 @@ export function LandingView({ onSelect }: LandingViewProps) {
             Paste JSON and instantly get Zod schemas, TypeScript interfaces, database schemas — all in your browser.
           </p>
 
-          <div className="flex items-center justify-center gap-3 mt-6 flex-wrap">
-            <a
-              href="https://marketplace.visualstudio.com/items?itemName=TypeMorph.typemorph-vscode"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-white/10 hover:bg-slate-700 dark:hover:bg-white/20 text-white text-xs font-bold rounded-lg border border-slate-700 dark:border-white/10 transition-colors"
-            >
-              <svg width="14" height="14" viewBox="0 0 100 100" fill="currentColor"><path d="M74.3 6.9L42.7 36.1 19.2 18.4 6.9 24.8v50.4l12.3 6.4 23.5-17.7 31.6 29.2L93.1 87V13L74.3 6.9zM19.2 63.6V36.4l16.8 13.6-16.8 13.6zm55.1 14.5L48.5 50l25.8-28.1v55.2z"/></svg>
-              VS Code Extension
-            </a>
-            <a
-              href="https://www.npmjs.com/package/typemorph-cli"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-lg border border-slate-200 dark:border-white/10 transition-colors"
-            >
-              <Terminal size={14} />
-              CLI — npm install typemorph-cli
-            </a>
-          </div>
         </motion.div>
 
         {/* Search Cockpit */}
@@ -516,72 +496,8 @@ export function LandingView({ onSelect }: LandingViewProps) {
           </div>
         </div>
 
-        {/* Competitor Comparison Section */}
-        <div className="mb-40">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white mb-4">Why TypeMorph Pro?</h2>
-            <p className="text-slate-500 dark:text-slate-400 font-medium">The ultimate balance of speed, privacy, and AI precision.</p>
-          </div>
-          
-          <div className="overflow-x-auto pb-8 custom-scrollbar">
-            <div className="min-w-[800px] grid grid-cols-4 gap-4 items-stretch">
-              {/* Header */}
-              <div className="col-span-1"></div>
-              <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border-2 border-slate-900 dark:border-white relative shadow-lg flex flex-col items-center justify-center text-center">
-                <div className="absolute -top-3.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">TypeMorph</div>
-                <ShieldCheck size={28} className="text-slate-900 dark:text-white mb-2" />
-                <h3 className="font-black text-slate-900 dark:text-white text-sm">TypeMorph</h3>
-              </div>
-              <div className="bg-slate-100 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center opacity-70">
-                <FileCode size={20} className="text-slate-400 mb-2" />
-                <h3 className="font-bold text-slate-600 dark:text-slate-400 text-xs">Legacy Web Tools</h3>
-              </div>
-              <div className="bg-slate-100 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center opacity-70">
-                <Terminal size={20} className="text-slate-400 mb-2" />
-                <h3 className="font-bold text-slate-600 dark:text-slate-400 text-xs">Generic AI Chatbots</h3>
-              </div>
-
-              {/* Rows */}
-              {[
-                { label: 'Data Privacy', tf: { text: '100% Local Engine', good: true }, std: { text: 'Unknown / Cloud', good: false }, ai: { text: 'Stored & Trained on', good: false } },
-                { label: 'Broken Data Handling', tf: { text: 'Descriptive Parse Errors', good: true }, std: { text: 'Syntax Error (Fails)', good: false }, ai: { text: 'Manual Prompting', good: false } },
-                { label: 'Speed & Workflow', tf: { text: 'Instant / 1-Click UI', good: true }, std: { text: 'Instant', good: null }, ai: { text: 'Slow typing / Copy-Paste', good: false } },
-                { label: 'Available Tools', tf: { text: '160+ Dedicated UIs', good: true }, std: { text: 'Limited (10–20)', good: false }, ai: { text: 'Infinite (Needs context)', good: null } },
-                { label: 'Visual Architecture', tf: { text: 'Automated Interactive SVGs', good: true }, std: { text: 'None', good: false }, ai: { text: 'Raw Code Only', good: false } }
-              ].map((row, i) => (
-                <React.Fragment key={i}>
-                  <div className="flex items-center justify-end pr-6 text-[10px] font-bold uppercase tracking-wider text-slate-400 text-right">{row.label}</div>
-                  {/* TypeMorph cell */}
-                  <div className="bg-white dark:bg-[#111] p-4 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col items-center justify-center gap-1.5 text-center">
-                    <CheckCircle2 size={15} className="text-slate-900 dark:text-white shrink-0" />
-                    <span className="text-xs font-bold text-slate-900 dark:text-white">{row.tf.text}</span>
-                  </div>
-                  {/* Legacy cell */}
-                  <div className="bg-slate-50 dark:bg-slate-900/20 p-4 rounded-xl border border-slate-200 dark:border-slate-800/80 flex flex-col items-center justify-center gap-1.5 text-center">
-                    {row.std.good === false ? (
-                      <X size={14} className="text-red-400 shrink-0" />
-                    ) : (
-                      <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 dark:border-slate-600 shrink-0" />
-                    )}
-                    <span className="text-xs font-medium text-slate-500">{row.std.text}</span>
-                  </div>
-                  {/* AI Chatbot cell */}
-                  <div className="bg-slate-50 dark:bg-slate-900/20 p-4 rounded-xl border border-slate-200 dark:border-slate-800/80 flex flex-col items-center justify-center gap-1.5 text-center">
-                    {row.ai.good === false ? (
-                      <X size={14} className="text-red-400 shrink-0" />
-                    ) : (
-                      <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 dark:border-slate-600 shrink-0" />
-                    )}
-                    <span className="text-xs font-medium text-slate-500">{row.ai.text}</span>
-                  </div>
-                </React.Fragment>
-              ))}
-            </div>
-          </div>
-        </div>
-
         {/* Privacy Manifesto Section */}
-        <div className="max-w-5xl mx-auto -mt-20 mb-40 p-10 rounded-3xl bg-white dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-700/50 shadow-2xl dark:shadow-black/40">
+        <div className="max-w-5xl mx-auto mt-20 mb-40 p-10 rounded-3xl bg-white dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-700/50 shadow-2xl dark:shadow-black/40">
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white font-mono text-[10px] uppercase tracking-wider mb-4 border border-slate-200 dark:border-white/10">
               <ShieldCheck size={12} /> Privacy Manifesto
@@ -590,7 +506,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
               100% Privacy-First Architecture
             </h3>
             <p className="text-slate-500 dark:text-slate-400 text-sm font-semibold max-w-xl mx-auto">
-              Your code never leaves your browser. We clearly separate secure local-only conversions from transparent client-to-Google direct AI operations.
+              Your code never leaves your browser. All type inference and code generation runs entirely client-side — no API calls, no upload endpoints.
             </p>
           </div>
 
@@ -606,7 +522,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
                   <span className="px-2.5 py-0.5 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white rounded text-[10px] font-mono uppercase tracking-normal font-bold border border-slate-200 dark:border-white/10">100% Private</span>
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
-                  Standard code conversions (JSON to TS/Go/Rust, etc.) are executed 100% entirely inside your browser via local client-side memory. Zero network traffic, zero external transmission. Your sensitive corporate payloads remain strictly secure on your machine.
+                  Standard code conversions (JSON to TS/Go/Rust, etc.) are executed 100% entirely inside your browser. Your schema content is never sent to any server. The only exception: if you import from a URL blocked by CORS and explicitly click &ldquo;Try via proxy,&rdquo; that URL is fetched through our Cloudflare Worker on your behalf.
                 </p>
               </div>
             </div>
@@ -654,68 +570,13 @@ export function LandingView({ onSelect }: LandingViewProps) {
                   <span className="px-2.5 py-0.5 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white rounded text-[10px] font-mono uppercase tracking-normal font-bold border border-slate-200 dark:border-white/10">100% Ethical</span>
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
-                  We will never sell or monetize your data. TypeMorph does not run third-party advertising, does not track your private structural operations, and absolutely never uses your source code to train AI models.
+                  We will never sell or monetize your data. TypeMorph does not run third-party advertising and does not track your private structural operations. Two things can reach our servers: feedback you explicitly submit, and URLs you opt-in to fetch via the CORS proxy.
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Social Proof / Comparison Section */}
-        <div className="mt-60 mb-40 text-center">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white/60 font-mono text-[10px] uppercase tracking-wider mb-12 border border-slate-200 dark:border-white/10">
-            [trusted-by-enterprise-architects]
-          </div>
-          <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-20 items-center">
-            <div className="text-left">
-              <h2 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white mb-6 leading-tight">
-                Stop pasting data into <span className="text-red-500 underline decoration-red-500/30">ad-heavy</span> tools.
-              </h2>
-              <p className="text-slate-500 dark:text-slate-400 font-medium text-lg leading-relaxed mb-8">
-                TypeMorph is the clean, high-performance alternative. No ads, no data mining, and zero latency. Just pure engineering utility.
-              </p>
-              <div className="space-y-4">
-                {[
-                  '18 Language Outputs (TypeScript, Go, Rust, Zod, Python, Swift and more)',
-                  'Schema Quality Score (Local rule-based grading, A–F)',
-                  'Local Folder Bulk Mode (Transform entire folders instantly)',
-                  'Breaking Change Detector (Semantic schema diff with severity scoring)',
-                  '100% Client-Side Sandbox (Zero server transmission, sub-millisecond compile)',
-                  'Developer-Rule Configs (Infer UUIDs, optional fields, and default exports)'
-                ].map((f, i) => (
-                  <div key={i} className="flex items-center gap-3 text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest">
-                    <div className="w-5 h-5 rounded-full bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shrink-0"><CheckCircle2 size={12} /></div>
-                    {f}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="relative">
-              <div className="relative p-1 bg-slate-200 dark:bg-slate-800 rounded-xl shadow-2xl overflow-hidden">
-                <div className="bg-white dark:bg-slate-900 rounded-lg p-10">
-                   <div className="flex gap-4 mb-8">
-                     <div className="w-3 h-3 rounded-full bg-red-400" />
-                     <div className="w-3 h-3 rounded-full bg-slate-400" />
-                     <div className="w-3 h-3 rounded-full bg-green-400" />
-                   </div>
-                   <div className="space-y-4">
-                     <div className="h-4 w-3/4 bg-slate-100 dark:bg-slate-800 rounded-full" />
-                     <div className="h-4 w-full bg-slate-100 dark:bg-slate-800 rounded-full" />
-                     <div className="h-4 w-1/2 bg-slate-100 dark:bg-slate-800 rounded-full" />
-                   </div>
-                   <div className="mt-12 p-6 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
-                     <div className="flex items-center gap-2 mb-2">
-                       <ShieldCheck className="text-slate-700 dark:text-white" size={14} />
-                       <span className="text-[10px] font-black uppercase text-slate-700 dark:text-white">PRISMA ➡ NEXT.JS API SYNTHESIS</span>
-                     </div>
-                     <div className="h-3 w-full bg-slate-300 dark:bg-white/20 rounded-full mb-3" />
-                     <div className="h-3 w-3/4 bg-slate-300 dark:bg-white/20 rounded-full" />
-                   </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
       <GlobalFooter />
     </div>

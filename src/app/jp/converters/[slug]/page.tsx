@@ -55,7 +55,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     alternates: {
       canonical: seo.canonical,
     },
-    robots: seo.robots,
+    robots: { index: false, follow: false },
     openGraph: {
       title: `${fromName} to ${toName} 変換`,
       description: `セキュアなローカルファースト開発ユーティリティ。`,
