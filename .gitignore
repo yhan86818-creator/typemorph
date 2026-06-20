@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+**/node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -47,3 +48,8 @@ debug_deploy*.txt
 deploy_debug*.txt
 *.log
 .wrangler/
+
+# scratch / temp debug files
+*vitest_out.txt
+test_bug.js
+_check*.mts

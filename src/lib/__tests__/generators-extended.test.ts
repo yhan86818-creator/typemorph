@@ -859,7 +859,9 @@ describe('generators-extended', () => {
 
     it('includes handler placeholder', () => {
       const out = mcpToolGen.generate(schema, 'User');
-      expect(out).toContain('async ({');
+      // Handler takes a single `args` param (not destructured) so invalid-identifier
+      // field keys like "content-type" don't produce a broken binding pattern.
+      expect(out).toContain('async (args) =>');
     });
   });
 

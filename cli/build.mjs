@@ -1,7 +1,9 @@
 import { build } from 'esbuild';
-import { mkdirSync } from 'fs';
+import { mkdirSync, readFileSync } from 'fs';
 
 mkdirSync('dist', { recursive: true });
+
+const { version } = JSON.parse(readFileSync('./package.json', 'utf8'));
 
 await build({
   entryPoints: ['src/index.ts'],
@@ -15,6 +17,7 @@ await build({
   alias: { '@': '../src' },
   // Node built-ins stay external
   external: ['fs', 'path', 'readline', 'crypto', 'os', 'stream', 'util', 'buffer', 'events'],
+  define: { __CLI_VERSION__: JSON.stringify(version) },
   minify: true,
   legalComments: 'none',
   tsconfig: '../tsconfig.json',

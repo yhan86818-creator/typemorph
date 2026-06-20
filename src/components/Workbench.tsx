@@ -49,6 +49,8 @@ import { sqlToMermaidERGen } from '@/lib/generators-extended';
 const TypeGraphPanel = dynamic(() => import('./TypeGraphPanel'), { ssr: false, loading: () => <div className="flex items-center justify-center h-full text-xs text-slate-400 font-mono">Loading graph…</div> });
 const ImpactView = dynamic(() => import('./ImpactView'), { ssr: false, loading: () => <div className="flex items-center justify-center h-full text-xs text-slate-400 font-mono">Loading…</div> });
 const ReverseView = dynamic(() => import('./ReverseView'), { ssr: false, loading: () => <div className="flex items-center justify-center h-full text-xs text-slate-400 font-mono">Loading…</div> });
+const ZodMigrateView = dynamic(() => import('./ZodMigrateView').then(m => ({ default: m.ZodMigrateView })), { ssr: false, loading: () => <div className="flex items-center justify-center h-full text-xs text-slate-400 font-mono">Loading…</div> });
+const TsToZodView = dynamic(() => import('./TsToZodView').then(m => ({ default: m.TsToZodView })), { ssr: false, loading: () => <div className="flex items-center justify-center h-full text-xs text-slate-400 font-mono">Loading…</div> });
 
 interface WorkbenchProps {
   slug: string;
@@ -319,7 +321,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
   }, [isLeftCollapsed, leftWidth]);
 
   useEffect(() => {
-    const isFullscreenTab = outputTab === 'architect' || outputTab === 'diff' || outputTab === 'type-drift';
+    const isFullscreenTab = outputTab === 'architect' || outputTab === 'diff' || outputTab === 'type-drift' || outputTab === 'zod-migrate' || outputTab === 'ts-to-zod';
     if (isFullscreenTab) {
       if (!isLeftCollapsed) {
         setIsLeftCollapsed(true);
@@ -444,7 +446,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     csharp: 'cs', protobuf: 'proto', graphql: 'graphql', sql: 'sql',
     jsonschema: 'schema.json', mock: 'json', json: 'json', er: 'mmd', doc: 'md',
   };
-  const VISUAL_TABS = new Set(['graph', 'impact', 'reverse', 'diff', 'type-drift', 'architect', 'ui', 'saved', 'env-diff']);
+  const VISUAL_TABS = new Set(['graph', 'impact', 'reverse', 'diff', 'type-drift', 'architect', 'ui', 'saved', 'env-diff', 'zod-migrate', 'ts-to-zod']);
 
   const handleDownload = () => {
     const content = outputs[outputTab];
@@ -588,6 +590,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     exportDefault: false,
     optionalFields: false,
     useUUID: true,
+    samplesMode: false,
     zodMode: 'strict' as 'loose' | 'strict' | 'enterprise',
     zodVersion: 'v4' as 'v3' | 'v4',
     sharedPrefix: 'Shared',
@@ -1447,9 +1450,10 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     { id: 'typescript', label: 'TS' },
     { id: 'zod', label: 'Zod' },
     ...(!isEnvInput ? [
-      { id: 'type-guard', label: 'Guard' },
-      { id: 'type-drift', label: 'Drift' },
-      { id: 'diff', label: 'Diff' },
+      { id: 'go', label: 'Go' },
+      { id: 'python', label: 'Python' },
+      { id: 'rust', label: 'Rust' },
+      { id: 'zod-migrate', label: '⬆ Zod v4' },
     ] : []),
   ];
 
@@ -1457,14 +1461,17 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     ...(isEnvInput ? [
       { id: 'diff', label: '↔ Diff' },
     ] : []),
-    { id: 'go', label: 'Go' },
-    { id: 'python', label: 'Python' },
-    { id: 'rust', label: 'Rust' },
-    { id: 'dart', label: 'Dart' },
+    ...(!isEnvInput ? [
+      { id: 'type-guard', label: 'Guard' },
+      { id: 'type-drift', label: 'Drift' },
+      { id: 'diff', label: 'Diff' },
+    ] : []),
+    { id: 'ts-to-zod', label: 'TS → Zod' },
     { id: 'java', label: 'Java' },
+    { id: 'csharp', label: 'C#' },
+    { id: 'dart', label: 'Dart' },
     { id: 'kotlin', label: 'Kotlin' },
     { id: 'swift', label: 'Swift' },
-    { id: 'csharp', label: 'C#' },
     { id: 'php', label: 'PHP' },
     { id: 'protobuf', label: 'Proto' },
     { id: 'graphql', label: 'GQL' },
@@ -1976,7 +1983,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
               <button
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all shrink-0 ${moreTabs.some(t => t.id === outputTab) ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
               >
-                <span>+ {moreTabs.some(t => t.id === outputTab) ? `More (${moreTabs.find(t => t.id === outputTab)?.label})` : 'More'}</span>
+                <span>+ More</span>
                 <ChevronDown size={10} />
               </button>
               <div className="absolute left-0 top-full mt-1 w-44 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl opacity-0 invisible group-hover/more-tabs:opacity-100 group-hover/more-tabs:visible transition-all z-[9999] overflow-visible">
@@ -2106,6 +2113,12 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                     <input type="checkbox" checked={genSettings.optionalFields} onChange={e => setGenSettings(s => ({...s, optionalFields: e.target.checked}))} className="rounded text-slate-900 dark:text-white focus:ring-slate-900/20 dark:focus:ring-white/20" />
                     Make all fields optional
                   </label>
+                  {Array.isArray(jsonData) && (
+                    <label className="flex items-center gap-2 text-xs font-bold dark:text-[#E8E8E8] cursor-pointer" title="Treat the array as multiple samples of one schema (merge & widen enums) instead of an array of items">
+                      <input type="checkbox" checked={genSettings.samplesMode} onChange={e => setGenSettings(s => ({...s, samplesMode: e.target.checked}))} className="rounded text-slate-900 dark:text-white focus:ring-slate-900/20 dark:focus:ring-white/20" />
+                      Treat array as samples
+                    </label>
+                  )}
                   {outputTab === 'zod' && (
                     <div className="flex flex-col gap-1.5 mt-1">
                       <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 tracking-wider">Zod Mode</span>
@@ -2681,6 +2694,14 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
               ) : outputTab === 'type-drift' ? (
                 <div className="flex-1 min-h-0 overflow-hidden">
                   <TypeDriftView isDark={isDark} />
+                </div>
+              ) : outputTab === 'zod-migrate' ? (
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <ZodMigrateView isDark={isDark} />
+                </div>
+              ) : outputTab === 'ts-to-zod' ? (
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <TsToZodView />
                 </div>
               ) : outputTab === 'diff' ? (
                 <div className="flex-1 min-h-0 overflow-hidden">

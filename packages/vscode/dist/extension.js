@@ -164,7 +164,7 @@ var optimizeAST = (classes, options = {}) => {
             if (!targetClassName) continue;
             if (targetClassName === cls.name || flattenedNames.has(targetClassName)) continue;
             const targetClass = optimized.find((c) => c.name === targetClassName);
-            if (targetClass) {
+            if (targetClass && (targetClass.fields.length > 1 || (targetClass.annotations?.length ?? 0) > 0)) {
               cls.fields = targetClass.fields.map((f) => ({
                 ...f,
                 docComment: `[Flattened from ${targetClassName}] ${f.docComment ?? ""}`
@@ -403,11 +403,19 @@ var tsGen = {
     const astClasses = schemaToAST(schema2, name, options);
     let res = "";
     {
-      const itemName = rootArrayItemClassName(schema2, name);
-      if (itemName && astClasses.some((c) => c.name === itemName)) {
-        res += `export type ${toPascalCase2(name)} = ${itemName}[];
+      if (schema2.type === "array" && schema2.itemType) {
+        const itemName = rootArrayItemClassName(schema2, name);
+        const hasItemClass = itemName ? astClasses.some((c) => c.name === itemName) : false;
+        if (hasItemClass) {
+          res += `export type ${toPascalCase2(name)} = ${itemName}[];
 
 `;
+        } else {
+          const itemAst = convertToASTType(schema2.itemType, name, "Item");
+          res += `export type ${toPascalCase2(name)} = ${printASTType(itemAst)}[];
+
+`;
+        }
       }
     }
     for (const cls of astClasses) {
@@ -453,7 +461,7 @@ var tsGen = {
         const displayName = options.customFieldNames?.[customKey] ?? field.name;
         let tsType = printASTType(field.fieldType);
         if (field.isNullable) {
-          tsType = `(${tsType}) | null`;
+          tsType = tsType.includes(" | ") ? `(${tsType}) | null` : `${tsType} | null`;
         }
         res += `  ${displayName}${optMark}: ${tsType};
 `;
@@ -518,11 +526,13 @@ var printZodASTType = (type2, cyclicClassRefs, options = {}) => {
       return `z.union([${parts.join(", ")}])`;
     }
     case "enum":
-      return type2.enumValues ? `z.enum([${type2.enumValues.map((ev) => `"${ev}"`).join(", ")}])` : "z.string()";
+      if (!type2.enumValues || type2.enumValues.length === 0) return "z.string()";
+      if (type2.enumValues.length === 1) return `z.literal("${type2.enumValues[0]}")`;
+      return `z.enum([${type2.enumValues.map((ev) => `"${ev}"`).join(", ")}])`;
     case "date":
       return "z.coerce.date()";
     case "datetime":
-      return "z.string().datetime()";
+      return options.zodVersion === "v3" ? "z.string().datetime()" : "z.iso.datetime()";
     case "classRef": {
       if (!type2.classRefName) return "z.any()";
       const core2 = `${toCamelCase(type2.classRefName)}Schema`;
@@ -535,20 +545,50 @@ var printZodASTType = (type2, cyclicClassRefs, options = {}) => {
       }
       return "z.array(z.any())";
     case "string":
-      if (type2.format === "email") return "z.string().email()";
-      if (type2.format === "url") return "z.string().url()";
-      if (type2.format === "uuid") return "z.string().uuid()";
+      if (type2.format === "email") return options.zodVersion === "v3" ? "z.string().email()" : "z.email()";
+      if (type2.format === "url") return options.zodVersion === "v3" ? "z.string().url()" : "z.url()";
+      if (type2.format === "uuid") return options.zodVersion === "v3" ? "z.string().uuid()" : "z.uuid()";
       return "z.string()";
     case "number":
-      return "z.number()";
+      return options.zodMode === "loose" ? "z.coerce.number()" : "z.number()";
     case "boolean":
       return "z.boolean()";
     default:
       return "z.any()";
   }
 };
+var printTSTypeForZod = (type2) => {
+  switch (type2.kind) {
+    case "string":
+    case "date":
+    case "datetime":
+      return "string";
+    case "number":
+      return "number";
+    case "boolean":
+      return "boolean";
+    case "classRef":
+      return type2.classRefName ?? "unknown";
+    case "array":
+      return type2.itemType ? `${printTSTypeForZod(type2.itemType)}[]` : "unknown[]";
+    case "union":
+      return type2.unionTypes?.map((t) => printTSTypeForZod({ kind: t })).join(" | ") ?? "unknown";
+    case "enum":
+      return type2.enumValues?.map((v) => `"${v}"`).join(" | ") ?? "string";
+    default:
+      return "unknown";
+  }
+};
 var zodGen = {
   generate: (schema2, name = "root", options = {}) => {
+    const mode = options.zodMode ?? "strict";
+    const isLoose = mode === "loose";
+    const isEnterprise = mode === "enterprise";
+    const isV3 = options.zodVersion === "v3";
+    const zEmail = isV3 ? "z.string().email()" : "z.email()";
+    const zUrl = isV3 ? "z.string().url()" : "z.url()";
+    const zUuid = isV3 ? "z.string().uuid()" : "z.uuid()";
+    const modeOptions = { ...options, zodMode: mode };
     const discriminatedMap = findDiscriminatedSchemas(schema2, toPascalCase2(name));
     const astClasses = schemaToAST(schema2, toPascalCase2(name), options);
     let res = "";
@@ -570,9 +610,9 @@ var zodGen = {
 `;
             } else {
               const fvAst = convertToASTType(fv, variantPascal, fk);
-              let zType = printZodASTType(fvAst, cyclicClassRefs, options);
+              let zType = printZodASTType(fvAst, cyclicClassRefs, modeOptions);
               if (fv.nullable) zType += ".nullable()";
-              if (fv.optional) zType += ".optional()";
+              if (isLoose || fv.optional) zType += ".optional()";
               res += `  ${fk}: ${zType},
 `;
             }
@@ -600,70 +640,106 @@ var zodGen = {
       const camelName = toCamelCase(cls.name);
       const baseClass = getBaseClass(cls);
       const baseCamel = baseClass ? toCamelCase(baseClass) : null;
+      const isCyclic = cyclicClassRefs.has(cls.name);
+      if (isCyclic) {
+        res += `export type ${cls.name} = {
+`;
+        for (const cycField of cls.fields) {
+          const tsType = printTSTypeForZod(cycField.fieldType);
+          const opt = cycField.isOptional || isLoose ? "?" : "";
+          const nullable = cycField.isNullable ? " | null" : "";
+          res += `  ${cycField.name}${opt}: ${tsType}${nullable};
+`;
+        }
+        res += `};
+
+`;
+      }
+      const schemaTypeAnn = isCyclic ? `: z.ZodType<${cls.name}>` : "";
       if (baseCamel) {
-        res += `export const ${camelName}Schema = ${baseCamel}Schema.extend({
+        res += `export const ${camelName}Schema${schemaTypeAnn} = ${baseCamel}Schema.extend({
 `;
       } else {
-        res += `export const ${camelName}Schema = z.object({
+        res += `export const ${camelName}Schema${schemaTypeAnn} = z.object({
 `;
       }
       for (const field of cls.fields) {
-        const isOpt = options.optionalFields || field.isOptional ? ".optional()" : "";
+        const isOpt = options.optionalFields || field.isOptional || isLoose ? ".optional()" : "";
         const isNull2 = field.isNullable ? ".nullable()" : "";
-        let zType = printZodASTType(field.fieldType, cyclicClassRefs, options);
+        let zType = printZodASTType(field.fieldType, cyclicClassRefs, modeOptions);
         const customKey = `${cls.name}.${field.name}`;
         const displayName = options.customFieldNames?.[customKey] ?? field.name;
         const k = displayName.toLowerCase();
-        if (field.fieldType.kind === "number") {
-          if (k.includes("percent")) {
-            zType += ".min(0).max(100)";
-          } else if (k.includes("latitude") || k === "lat" || k.endsWith("_lat")) {
-            zType += ".min(-90).max(90)";
-          } else if (k.includes("longitude") || k === "lng" || k === "lon" || k.endsWith("_lng") || k.endsWith("_lon")) {
-            zType += ".min(-180).max(180)";
-          } else if (k.includes("rating")) {
-            zType += ".min(0).max(5)";
-          } else if (k.includes("score")) {
-            zType += ".min(0).max(100)";
-          } else if (k.includes("age")) {
-            zType += ".int().min(0).max(150)";
-          } else if (k.includes("year")) {
-            zType += ".int().min(1900).max(2100)";
-          } else if (k.includes("month") && !k.includes("monthly")) {
-            zType += ".int().min(1).max(12)";
-          } else if (k === "day" || k.endsWith("_day") || k.startsWith("day_")) {
-            zType += ".int().min(1).max(31)";
-          } else if (k.includes("hour")) {
-            zType += ".int().min(0).max(23)";
-          } else if (k.includes("minute") || k.includes("second")) {
-            zType += ".int().min(0).max(59)";
-          } else if (k.includes("count") || k.includes("quantity")) {
-            zType += ".int().min(0)";
-          } else if (["price", "amount", "cost", "fee", "rank"].some((w) => k.includes(w))) {
-            zType += ".min(0)";
+        if (!isLoose) {
+          if (field.fieldType.kind === "number") {
+            if (k.includes("percent")) {
+              zType += ".min(0).max(100)";
+            } else if (k.includes("latitude") || k === "lat" || k.endsWith("_lat")) {
+              zType += ".min(-90).max(90)";
+            } else if (k.includes("longitude") || k === "lng" || k === "lon" || k.endsWith("_lng") || k.endsWith("_lon")) {
+              zType += ".min(-180).max(180)";
+            } else if (k.includes("rating")) {
+              zType += ".min(0).max(5)";
+            } else if (k.includes("score")) {
+              zType += ".min(0).max(100)";
+            } else if (k.includes("age")) {
+              zType += ".int().min(0).max(150)";
+            } else if (k.includes("year")) {
+              zType += ".int().min(1900).max(2100)";
+            } else if (k.includes("month") && !k.includes("monthly")) {
+              zType += ".int().min(1).max(12)";
+            } else if (k === "day" || k.endsWith("_day") || k.startsWith("day_")) {
+              zType += ".int().min(1).max(31)";
+            } else if (k.includes("hour")) {
+              zType += ".int().min(0).max(23)";
+            } else if (k.includes("minute") || k.includes("second")) {
+              zType += ".int().min(0).max(59)";
+            } else if (k.includes("count") || k.includes("quantity") || k === "qty") {
+              zType += ".int().min(0)";
+            } else if (["price", "amount", "cost", "fee", "rank", "total", "subtotal"].some((w) => k.includes(w))) {
+              zType += ".min(0)";
+            } else if (k === "port" || k.endsWith("_port") || k === "portnumber" || k === "port_number") {
+              zType += ".int().min(1).max(65535)";
+            } else if (field.fieldType.format === "int") {
+              zType += ".int()";
+            }
+          }
+          if (field.fieldType.kind === "string" && !field.fieldType.format) {
+            if (k.includes("email")) zType = zEmail;
+            else if (k.includes("url") || k.includes("link") || k.includes("website")) zType = zUrl;
+            else if (k.includes("uuid") || k.endsWith("_id") || /Id$/.test(displayName) || /ID$/.test(displayName)) zType = zUuid;
+            else if (k.includes("phone") || k === "tel" || k === "telephone" || k.endsWith("_tel") || k.startsWith("tel_")) zType = "z.string().regex(/^\\+?[\\d\\s\\-\\.\\(\\)]{7,15}$/)";
+            else if (k.includes("password") || k.includes("passwd")) zType = "z.string().min(8)";
+            else if (k === "zip" || k === "zipcode" || k === "zip_code" || k === "postal_code" || k === "postcode") zType = "z.string().regex(/^[A-Z0-9][A-Z0-9\\s\\-]{1,8}[A-Z0-9]$/i)";
+            else if (k === "semver") zType = "z.string().regex(/^\\d+\\.\\d+(\\.\\d+)?(-[\\w.]+)?(\\+[\\w.]+)?$/)";
+            else if (k.includes("slug")) zType = "z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)";
+            else {
+              const hasTrim = k.includes("name") || k.includes("label") || k.includes("title");
+              const isRequired = !field.isOptional && !options.optionalFields;
+              const longText = ["description", "note", "bio", "comment", "content", "body", "text", "message", "summary", "detail", "info", "about", "remark"].some((w) => k.includes(w));
+              if (hasTrim) zType = isRequired ? "z.string().min(1).trim()" : "z.string().trim()";
+              else if (isRequired && !longText) zType = "z.string().min(1)";
+            }
           }
         }
-        if (field.fieldType.kind === "string" && !field.fieldType.format) {
-          if (k.includes("email")) zType = "z.string().email()";
-          else if (k.includes("url") || k.includes("link") || k.includes("website")) zType = "z.string().url()";
-          else if (k.includes("uuid") || k === "id" || k.endsWith("_id") || /Id$/.test(displayName) || /ID$/.test(displayName)) zType = "z.string().uuid()";
-          else if (k.includes("phone") || k.includes("tel")) zType = "z.string().regex(/^\\+?[\\d\\s\\-\\.\\(\\)]{7,15}$/)";
-          else {
-            const hasTrim = k.includes("name") || k.includes("label") || k.includes("title");
-            const isRequired = !field.isOptional && !options.optionalFields;
-            const longText = ["description", "note", "bio", "comment", "content", "body", "text", "message", "summary", "detail", "info", "about", "remark"].some((w) => k.includes(w));
-            if (hasTrim) zType = isRequired ? "z.string().min(1).trim()" : "z.string().trim()";
-            else if (isRequired && !longText) zType = "z.string().min(1)";
-          }
+        let fieldExpr = `${zType}${isNull2}${isOpt}`;
+        if (isEnterprise) {
+          const label = displayName.replace(/_/g, " ").replace(/([A-Z])/g, " $1").trim().toLowerCase();
+          fieldExpr += `.describe('${label}')`;
         }
-        res += `  ${displayName}: ${zType}${isNull2}${isOpt},
+        res += `  ${displayName}: ${fieldExpr},
 `;
       }
-      res += `});
+      const objSuffix = isLoose ? ".passthrough()" : isEnterprise ? ".strict()" : "";
+      res += `})${objSuffix};
 `;
-      res += `export type ${cls.name} = z.infer<typeof ${camelName}Schema>;
+      if (isCyclic) {
+        res += "\n";
+      } else {
+        res += `export type ${cls.name} = z.infer<typeof ${camelName}Schema>;
 
 `;
+      }
     }
     const itemName = rootArrayItemClassName(schema2, toPascalCase2(name));
     if (itemName && astClasses.some((c) => c.name === itemName)) {
@@ -714,7 +790,9 @@ var dartGen = {
       res += `class ${cls.name}${inheritance} {
 `;
       for (const field of cls.fields) {
-        const dartType = printDartASTType(field.fieldType);
+        const isNullable = field.isOptional || field.isNullable;
+        let dartType = printDartASTType(field.fieldType);
+        if (isNullable && dartType !== "dynamic") dartType += "?";
         res += `  final ${dartType} ${field.name};
 `;
       }
@@ -722,7 +800,8 @@ var dartGen = {
   ${cls.name}({
 `;
       for (const field of cls.fields) {
-        res += `    required this.${field.name},
+        const isNullable = field.isOptional || field.isNullable;
+        res += `    ${isNullable ? "" : "required "}this.${field.name},
 `;
       }
       res += `  });
@@ -764,11 +843,28 @@ var phpGen = {
     for (const cls of astClasses) {
       const baseClass = getBaseClass(cls);
       const inheritance = baseClass ? ` extends ${baseClass}` : "";
-      res += `class ${cls.name}${inheritance} {
+      res += `class ${cls.name}${inheritance}
+{
+`;
+      res += `    public function __construct(
 `;
       for (const field of cls.fields) {
         const phpType = printPhpASTType(field.fieldType);
-        res += `    public ${phpType} $${field.name};
+        const nullable = (field.isOptional || field.isNullable) && phpType !== "mixed" ? "?" : "";
+        const defaultVal = field.isOptional || field.isNullable ? " = null" : "";
+        res += `        private ${nullable}${phpType} $${field.name}${defaultVal},
+`;
+      }
+      res += `    ) {}
+`;
+      for (const field of cls.fields) {
+        const phpType = printPhpASTType(field.fieldType);
+        const nullable = (field.isOptional || field.isNullable) && phpType !== "mixed" ? "?" : "";
+        const cap = field.name.charAt(0).toUpperCase() + field.name.slice(1);
+        res += `
+    public function get${cap}(): ${nullable}${phpType} { return $this->${field.name}; }
+`;
+        res += `    public function set${cap}(${nullable}${phpType} $${field.name}): void { $this->${field.name} = $${field.name}; }
 `;
       }
       res += `}
@@ -902,7 +998,7 @@ var printGqlASTType = (type2) => {
       return type2.classRefName ?? "String";
     case "array":
       if (type2.itemType) {
-        return `[${printGqlASTType(type2.itemType)}]`;
+        return `[${printGqlASTType(type2.itemType)}!]`;
       }
       return "[String]";
     case "string":
@@ -928,14 +1024,16 @@ var gqlGen = {
         if (baseCls) {
           for (const f of baseCls.fields) {
             const gqlType = printGqlASTType(f.fieldType);
-            res += `  ${f.name}: ${gqlType}
+            const bang = f.isOptional || f.isNullable ? "" : "!";
+            res += `  ${f.name}: ${gqlType}${bang}
 `;
           }
         }
       }
       for (const field of cls.fields) {
         const gqlType = printGqlASTType(field.fieldType);
-        res += `  ${field.name}: ${gqlType}
+        const bang = field.isOptional || field.isNullable ? "" : "!";
+        res += `  ${field.name}: ${gqlType}${bang}
 `;
       }
       res += `}
@@ -1068,7 +1166,7 @@ var goGen = {
         let goType = printGoASTType(field.fieldType);
         if (field.isNullable || field.isOptional) goType = `*${goType}`;
         const pascalFieldName = toPascalCase2(field.name);
-        const omitEmpty = field.isOptional ? ",omitempty" : "";
+        const omitEmpty = field.isOptional || field.isNullable ? ",omitempty" : "";
         res += `  ${pascalFieldName} ${goType} \`json:"${field.name}${omitEmpty}"\`
 `;
       }
@@ -1079,7 +1177,10 @@ var goGen = {
     return res;
   }
 };
-var printJavaASTType = (type2, isNullable) => {
+var toJavaClassName = (n) => n.split(/[_\s-]+/).map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join("");
+var toJavaFieldName = (k) => k.replace(/_([a-zA-Z0-9])/g, (_, c) => c.toUpperCase());
+var isJavaMoney = (k) => ["price", "amount", "cost", "fee", "total", "subtotal", "balance", "payment"].some((w) => k.toLowerCase().includes(w));
+var printJavaASTType = (type2, isNullable, fieldName = "") => {
   switch (type2.kind) {
     case "union":
       return "Object";
@@ -1088,17 +1189,16 @@ var printJavaASTType = (type2, isNullable) => {
     case "date":
       return "LocalDate";
     case "datetime":
-      return "LocalDateTime";
+      return "OffsetDateTime";
     case "classRef":
-      return type2.classRefName ?? "Object";
+      return toJavaClassName(type2.classRefName ?? "Object");
     case "array":
-      if (type2.itemType) {
-        return `List<${printJavaASTType(type2.itemType, true)}>`;
-      }
-      return "List<Object>";
+      return type2.itemType ? `List<${printJavaASTType(type2.itemType, true, "")}>` : "List<Object>";
     case "string":
+      if (type2.format === "uuid") return "UUID";
       return "String";
     case "number":
+      if (isJavaMoney(fieldName)) return "BigDecimal";
       return type2.format === "int" ? isNullable ? "Integer" : "int" : isNullable ? "Double" : "double";
     case "boolean":
       return isNullable ? "Boolean" : "boolean";
@@ -1106,55 +1206,83 @@ var printJavaASTType = (type2, isNullable) => {
       return "Object";
   }
 };
+var JAVA_PRIMITIVES = /* @__PURE__ */ new Set(["int", "long", "double", "float", "boolean", "char", "byte", "short"]);
 var javaGen = {
   generate: (schema2, name = "Root", options = {}) => {
     const astClasses = schemaToAST(schema2, toPascalCase2(name), options);
-    let res = "";
-    let needsList = false;
-    let needsLocalDate = false;
-    let needsLocalDateTime = false;
+    const imports = /* @__PURE__ */ new Set([
+      "import lombok.AllArgsConstructor;",
+      "import lombok.Builder;",
+      "import lombok.Data;",
+      "import lombok.NoArgsConstructor;",
+      "import com.fasterxml.jackson.annotation.JsonIgnoreProperties;"
+    ]);
+    let needsJsonProperty = false;
+    let needsNotNull = false;
+    let needsEmail = false;
+    let needsMin = false;
     let needsNullable = false;
     for (const cls of astClasses) {
       for (const field of cls.fields) {
-        if (field.fieldType.kind === "array") needsList = true;
-        if (field.fieldType.kind === "date") needsLocalDate = true;
-        if (field.fieldType.kind === "datetime") needsLocalDateTime = true;
-        if (field.isOptional) needsNullable = true;
+        const isNullable = field.isOptional || field.isNullable;
+        const javaType = printJavaASTType(field.fieldType, isNullable, field.name);
+        const javaName = toJavaFieldName(field.name);
+        const kl = field.name.toLowerCase();
+        if (field.name !== javaName) needsJsonProperty = true;
+        if (field.fieldType.kind === "array") imports.add("import java.util.List;");
+        if (javaType === "UUID") imports.add("import java.util.UUID;");
+        if (javaType === "LocalDate") imports.add("import java.time.LocalDate;");
+        if (javaType === "OffsetDateTime") imports.add("import java.time.OffsetDateTime;");
+        if (javaType === "BigDecimal") imports.add("import java.math.BigDecimal;");
+        if (isNullable) needsNullable = true;
+        if (!isNullable && !JAVA_PRIMITIVES.has(javaType)) needsNotNull = true;
+        if (field.fieldType.format === "email" || kl.includes("email")) needsEmail = true;
+        const isNumeric = field.fieldType.kind === "number";
+        if (isNumeric && (isJavaMoney(field.name) || kl === "count" || kl.endsWith("count") || kl.endsWith("_count") || kl.includes("quantity") || kl === "qty")) needsMin = true;
       }
     }
-    if (needsList) res += "import java.util.List;\n";
-    if (needsLocalDate) res += "import java.time.LocalDate;\n";
-    if (needsLocalDateTime) res += "import java.time.LocalDateTime;\n";
-    if (needsNullable) res += "import javax.annotation.Nullable;\n";
-    if (res !== "") res += "\n";
+    if (needsJsonProperty) imports.add("import com.fasterxml.jackson.annotation.JsonProperty;");
+    if (needsNullable) imports.add("import javax.annotation.Nullable;");
+    if (needsNotNull) imports.add("import jakarta.validation.constraints.NotNull;");
+    if (needsEmail) imports.add("import jakarta.validation.constraints.Email;");
+    if (needsMin) imports.add("import jakarta.validation.constraints.Min;");
+    let res = [...imports].sort().join("\n") + "\n\n";
     for (const cls of astClasses) {
+      res += "@Data\n@Builder\n@NoArgsConstructor\n@AllArgsConstructor\n";
+      res += "@JsonIgnoreProperties(ignoreUnknown = true)\n";
       const baseClass = getBaseClass(cls);
-      const inheritance = baseClass ? ` extends ${baseClass}` : "";
-      res += `public class ${cls.name}${inheritance} {
+      const inheritance = baseClass ? ` extends ${toJavaClassName(baseClass)}` : "";
+      res += `public class ${toJavaClassName(cls.name)}${inheritance} {
 `;
       for (const field of cls.fields) {
         const isNullable = field.isOptional || field.isNullable;
-        const javaType = printJavaASTType(field.fieldType, isNullable);
-        if (field.isOptional) {
-          res += `  @Nullable
+        const javaType = printJavaASTType(field.fieldType, isNullable, field.name);
+        const javaName = toJavaFieldName(field.name);
+        const kl = field.name.toLowerCase();
+        if (isNullable) {
+          res += `    @Nullable
+`;
+        } else if (!JAVA_PRIMITIVES.has(javaType)) {
+          res += `    @NotNull
 `;
         }
-        let comment = "";
-        if (field.fieldType.kind === "enum" && field.fieldType.enumValues && field.fieldType.enumValues.length > 0) {
-          comment = ` // enum: ${field.fieldType.enumValues.map((v) => `"${v}"`).join(" | ")}`;
+        if (field.fieldType.format === "email" || kl.includes("email")) res += `    @Email
+`;
+        const isNumField = field.fieldType.kind === "number";
+        if (isNumField && isJavaMoney(field.name)) res += `    @Min(0)
+`;
+        else if (isNumField && (kl === "count" || kl.endsWith("count") || kl.endsWith("_count") || kl.includes("quantity") || kl === "qty")) res += `    @Min(0)
+`;
+        if (field.name !== javaName) res += `    @JsonProperty("${field.name}")
+`;
+        if (field.fieldType.kind === "enum" && field.fieldType.enumValues?.length) {
+          const vals = field.fieldType.enumValues.map((v) => `"${v}"`).join(", ");
+          res += `    private String ${javaName}; // enum: ${vals}
+`;
+        } else {
+          res += `    private ${javaType} ${javaName};
+`;
         }
-        res += `  private ${javaType} ${field.name};${comment}
-`;
-      }
-      if (cls.fields.length > 0) res += "\n";
-      for (const field of cls.fields) {
-        const isNullable = field.isOptional || field.isNullable;
-        const javaType = printJavaASTType(field.fieldType, isNullable);
-        const capitalizedName = field.name.charAt(0).toUpperCase() + field.name.slice(1);
-        res += `  public ${javaType} get${capitalizedName}() { return ${field.name}; }
-`;
-        res += `  public void set${capitalizedName}(${javaType} ${field.name}) { this.${field.name} = ${field.name}; }
-`;
       }
       res += `}
 
@@ -1210,22 +1338,20 @@ var prismaGen = {
           }
         }
       }
+      const DECIMAL_NAMES = /^(price|amount|cost|total|fee|balance|discount|tax|rate|salary|revenue|budget|charge|payment|subtotal|tip|markup|margin)s?$/i;
       for (const field of cls.fields) {
-        const prismaType = printPrismaASTType(field.fieldType);
+        let prismaType = printPrismaASTType(field.fieldType);
+        if (prismaType === "Float" && DECIMAL_NAMES.test(field.name)) prismaType = "Decimal";
         const isArray = field.fieldType.kind === "array";
         const opt = field.isOptional && !isArray ? "?" : "";
         const customKey2 = `${cls.name}.${field.name}`;
         const displayName2 = options.customFieldNames?.[customKey2] ?? field.name;
         const idTag = displayName2 === "id" ? " @id" : "";
         if (field.fieldType.kind === "classRef") {
-          const targetName = field.fieldType.classRefName;
-          const relationField = `${field.name}Id`;
-          const targetCls = astClasses.find((c) => c.name === targetName);
-          const targetIdField = targetCls?.fields.find((f) => f.name === "id");
-          const targetIdType = targetIdField ? printPrismaASTType(targetIdField.fieldType) : "String";
-          res += `  ${displayName2} ${targetName}${opt} @relation(fields: [${displayName2}Id], references: [id])
+          res += `  ${displayName2} Json${opt}
 `;
-          res += `  ${displayName2}Id ${targetIdType}${opt}
+        } else if (isArray && field.fieldType.itemType?.kind === "classRef") {
+          res += `  ${displayName2} Json
 `;
         } else {
           res += `  ${displayName2} ${prismaType}${opt}${idTag}
@@ -1363,8 +1489,9 @@ var printCsharpASTType = (type2) => {
     case "enum":
       return "string";
     case "date":
-    case "datetime":
       return "DateTime";
+    case "datetime":
+      return "DateTimeOffset";
     case "classRef":
       return type2.classRefName ?? "object";
     case "array":
@@ -1382,24 +1509,32 @@ var printCsharpASTType = (type2) => {
 var csharpGen = {
   generate: (schema2, name = "Root", options = {}) => {
     const astClasses = schemaToAST(schema2, toPascalCase2(name), options);
-    let res = "";
+    let body = "";
+    let hasRequired = false;
     for (const cls of astClasses) {
       const baseClass = getBaseClass(cls);
       const inheritance = baseClass ? ` : ${baseClass}` : "";
-      res += `public class ${cls.name}${inheritance}
+      body += `public class ${cls.name}${inheritance}
 {
 `;
       for (const field of cls.fields) {
         const csType = printCsharpASTType(field.fieldType);
-        const nullable = field.isOptional || field.isNullable ? "?" : "";
-        res += `    public ${csType}${nullable} ${toPascalCase2(field.name)} { get; set; }
+        const isRequired = !field.isOptional && !field.isNullable;
+        const nullable = isRequired ? "" : "?";
+        if (isRequired) {
+          hasRequired = true;
+          body += `    [Required]
+`;
+        }
+        body += `    public ${csType}${nullable} ${toPascalCase2(field.name)} { get; set; }
 `;
       }
-      res += `}
+      body += `}
 
 `;
     }
-    return res;
+    const header = hasRequired ? "using System.ComponentModel.DataAnnotations;\n\n" : "";
+    return header + body;
   }
 };
 var printSwiftASTType = (type2) => {
@@ -1412,10 +1547,11 @@ var printSwiftASTType = (type2) => {
     case "datetime":
       return "Date";
     case "classRef":
-      return type2.classRefName ?? "AnyCodable";
+      return toJavaClassName(type2.classRefName ?? "AnyCodable");
     case "array":
       return type2.itemType ? `[${printSwiftASTType(type2.itemType)}]` : "[AnyCodable]";
     case "string":
+      if (type2.format === "uuid") return "UUID";
       return "String";
     case "number":
       return type2.format === "int" ? "Int" : "Double";
@@ -1428,17 +1564,39 @@ var printSwiftASTType = (type2) => {
 var swiftGen = {
   generate: (schema2, name = "Root", options = {}) => {
     const astClasses = schemaToAST(schema2, toPascalCase2(name), options);
-    let res = "";
+    let res = "import Foundation\n\n";
     for (const cls of astClasses) {
+      const swiftName = toJavaClassName(cls.name);
       const baseClass = getBaseClass(cls);
-      const inheritance = baseClass ? `: ${baseClass}` : ": Codable";
-      res += `struct ${cls.name} ${inheritance} {
+      const inheritance = baseClass ? `: ${toJavaClassName(baseClass)}` : ": Codable";
+      res += `struct ${swiftName} ${inheritance} {
 `;
+      const codingKeys = [];
       for (const field of cls.fields) {
+        const swiftFieldName = toJavaFieldName(field.name);
         let swiftType = printSwiftASTType(field.fieldType);
         if (field.isOptional || field.isNullable) swiftType += "?";
-        res += `    let ${field.name}: ${swiftType}
+        res += `    let ${swiftFieldName}: ${swiftType}
 `;
+        if (field.name !== swiftFieldName) {
+          codingKeys.push({ swift: swiftFieldName, json: field.name });
+        } else {
+          codingKeys.push({ swift: swiftFieldName, json: "" });
+        }
+      }
+      const needsCodingKeys = codingKeys.some((k) => k.json !== "");
+      if (needsCodingKeys) {
+        res += "\n    enum CodingKeys: String, CodingKey {\n";
+        for (const { swift, json: json2 } of codingKeys) {
+          if (json2) {
+            res += `        case ${swift} = "${json2}"
+`;
+          } else {
+            res += `        case ${swift}
+`;
+          }
+        }
+        res += "    }\n";
       }
       res += `}
 
@@ -1454,13 +1612,15 @@ var printKotlinASTType = (type2) => {
     case "enum":
       return "String";
     case "date":
+      return "LocalDate";
     case "datetime":
-      return "String // ISO 8601";
+      return "Instant";
     case "classRef":
-      return type2.classRefName ?? "Any";
+      return toJavaClassName(type2.classRefName ?? "Any");
     case "array":
       return type2.itemType ? `List<${printKotlinASTType(type2.itemType)}>` : "List<Any>";
     case "string":
+      if (type2.format === "uuid") return "String";
       return "String";
     case "number":
       return type2.format === "int" ? "Int" : "Double";
@@ -1470,19 +1630,43 @@ var printKotlinASTType = (type2) => {
       return "Any";
   }
 };
+var hasKotlinKind = (classes, kind) => classes.some((cls) => cls.fields.some(
+  (f) => f.fieldType.kind === kind || f.fieldType.kind === "array" && f.fieldType.itemType?.kind === kind
+));
 var kotlinGen = {
   generate: (schema2, name = "Root", options = {}) => {
     const astClasses = schemaToAST(schema2, toPascalCase2(name), options);
-    let res = "";
+    let needsSerialName = false;
     for (const cls of astClasses) {
+      for (const field of cls.fields) {
+        if (field.name !== toJavaFieldName(field.name)) {
+          needsSerialName = true;
+          break;
+        }
+      }
+    }
+    const needsInstant = hasKotlinKind(astClasses, "datetime");
+    const needsLocalDate = hasKotlinKind(astClasses, "date");
+    let res = "import kotlinx.serialization.Serializable\n";
+    if (needsSerialName) res += "import kotlinx.serialization.SerialName\n";
+    if (needsInstant) res += "import kotlinx.datetime.Instant\n";
+    if (needsLocalDate) res += "import kotlinx.datetime.LocalDate\n";
+    res += "\n";
+    for (const cls of astClasses) {
+      const ktName = toJavaClassName(cls.name);
       const baseClass = getBaseClass(cls);
-      const inheritance = baseClass ? ` : ${baseClass}` : "";
-      res += `data class ${cls.name}(
+      const inheritance = baseClass ? ` : ${toJavaClassName(baseClass)}` : "";
+      res += `@Serializable
+data class ${ktName}(
 `;
       const fields = cls.fields.map((field) => {
+        const ktFieldName = toJavaFieldName(field.name);
         let ktType = printKotlinASTType(field.fieldType);
         if (field.isOptional || field.isNullable) ktType += "?";
-        return `    val ${field.name}: ${ktType}`;
+        const serialName = field.name !== ktFieldName ? `    @SerialName("${field.name}")
+` : "";
+        const defaultVal = field.isOptional || field.isNullable ? " = null" : "";
+        return `${serialName}    val ${ktFieldName}: ${ktType}${defaultVal}`;
       });
       res += fields.join(",\n");
       res += `
@@ -1493,39 +1677,283 @@ var kotlinGen = {
     return res;
   }
 };
+var printNestJsDtoFieldType = (type2) => {
+  switch (type2.kind) {
+    case "string":
+      if (type2.enumValues && type2.enumValues.length > 0) {
+        return type2.enumValues.map((v) => `'${v}'`).join(" | ");
+      }
+      return "string";
+    case "number":
+      return "number";
+    case "boolean":
+      return "boolean";
+    case "date":
+    case "datetime":
+      return "string";
+    case "classRef":
+      return `${toJavaClassName(type2.classRefName ?? "Object")}Dto`;
+    case "array":
+      if (type2.itemType) {
+        const inner = printNestJsDtoFieldType(type2.itemType);
+        return inner.includes("|") ? `(${inner})[]` : `${inner}[]`;
+      }
+      return "unknown[]";
+    case "enum":
+      if (type2.enumValues && type2.enumValues.length > 0) {
+        return type2.enumValues.map((v) => `'${v}'`).join(" | ");
+      }
+      return "string";
+    case "union":
+      return "unknown";
+    default:
+      return "unknown";
+  }
+};
+var nestjsDtoGen = {
+  generate: (schema2, name = "Root", options = {}) => {
+    const astClasses = schemaToAST(schema2, toPascalCase2(name), options);
+    const cvImports = /* @__PURE__ */ new Set();
+    const ctImports = /* @__PURE__ */ new Set();
+    const classBlocks = [];
+    for (const cls of astClasses) {
+      const dtoName = `${cls.name}Dto`;
+      let block = `export class ${dtoName} {
+`;
+      for (const field of cls.fields) {
+        const k = field.name.toLowerCase();
+        const isOpt = field.isOptional;
+        const isNullable = field.isNullable;
+        const ft = field.fieldType;
+        const decorators = [];
+        if (isOpt) {
+          decorators.push("@IsOptional()");
+          cvImports.add("IsOptional");
+        }
+        if (ft.kind === "string") {
+          const fmt = ft.format;
+          if (fmt === "email" || k.includes("email")) {
+            decorators.push("@IsEmail()");
+            cvImports.add("IsEmail");
+          } else if (fmt === "uuid") {
+            decorators.push("@IsUUID()");
+            cvImports.add("IsUUID");
+          } else if (fmt === "url" || k.includes("url") || k.includes("website")) {
+            decorators.push("@IsUrl()");
+            cvImports.add("IsUrl");
+          } else if (fmt === "datetime" || fmt === "date") {
+            decorators.push("@IsISO8601()");
+            cvImports.add("IsISO8601");
+          } else if (ft.enumValues && ft.enumValues.length > 0) {
+            decorators.push(`@IsIn([${ft.enumValues.map((v) => `'${v}'`).join(", ")}])`);
+            cvImports.add("IsIn");
+          } else {
+            decorators.push("@IsString()");
+            cvImports.add("IsString");
+            if (!isOpt) {
+              decorators.push("@IsNotEmpty()");
+              cvImports.add("IsNotEmpty");
+            }
+          }
+        } else if (ft.kind === "number") {
+          if (ft.format === "int") {
+            decorators.push("@IsInt()");
+            cvImports.add("IsInt");
+          } else {
+            decorators.push("@IsNumber()");
+            cvImports.add("IsNumber");
+          }
+          if (k.includes("percent")) {
+            decorators.push("@Min(0)", "@Max(100)");
+            cvImports.add("Min");
+            cvImports.add("Max");
+          } else if (k.includes("latitude") || k === "lat") {
+            decorators.push("@Min(-90)", "@Max(90)");
+            cvImports.add("Min");
+            cvImports.add("Max");
+          } else if (k.includes("longitude") || k === "lng" || k === "lon") {
+            decorators.push("@Min(-180)", "@Max(180)");
+            cvImports.add("Min");
+            cvImports.add("Max");
+          } else if (k.includes("age")) {
+            decorators.push("@Min(0)", "@Max(150)");
+            cvImports.add("Min");
+            cvImports.add("Max");
+          }
+        } else if (ft.kind === "boolean") {
+          decorators.push("@IsBoolean()");
+          cvImports.add("IsBoolean");
+        } else if (ft.kind === "date" || ft.kind === "datetime") {
+          decorators.push("@IsISO8601()");
+          cvImports.add("IsISO8601");
+        } else if (ft.kind === "enum") {
+          if (ft.enumValues && ft.enumValues.length > 0) {
+            decorators.push(`@IsIn([${ft.enumValues.map((v) => `'${v}'`).join(", ")}])`);
+            cvImports.add("IsIn");
+          } else {
+            decorators.push("@IsString()");
+            cvImports.add("IsString");
+          }
+        } else if (ft.kind === "array") {
+          decorators.push("@IsArray()");
+          cvImports.add("IsArray");
+          if (ft.itemType?.kind === "classRef") {
+            const refName = toJavaClassName(ft.itemType.classRefName ?? "Object");
+            decorators.push("@ValidateNested({ each: true })");
+            decorators.push(`@Type(() => ${refName}Dto)`);
+            cvImports.add("ValidateNested");
+            ctImports.add("Type");
+          }
+        } else if (ft.kind === "classRef") {
+          const refName = toJavaClassName(ft.classRefName ?? "Object");
+          decorators.push("@ValidateNested()");
+          decorators.push(`@Type(() => ${refName}Dto)`);
+          cvImports.add("ValidateNested");
+          ctImports.add("Type");
+        }
+        let tsType = printNestJsDtoFieldType(ft);
+        if (isNullable) tsType += " | null";
+        const optMark = isOpt ? "?" : "";
+        for (const dec of decorators) {
+          block += `  ${dec}
+`;
+        }
+        block += `  ${field.name}${optMark}: ${tsType};
+
+`;
+      }
+      block = block.trimEnd() + "\n}\n";
+      classBlocks.push(block);
+    }
+    let imports = "";
+    if (cvImports.size > 0) {
+      imports += `import { ${[...cvImports].sort().join(", ")} } from 'class-validator';
+`;
+    }
+    if (ctImports.size > 0) {
+      imports += `import { ${[...ctImports].sort().join(", ")} } from 'class-transformer';
+`;
+    }
+    if (imports) imports += "\n";
+    return imports + classBlocks.join("\n");
+  }
+};
 var jsonSchemaGen = {
   generate: (schema2) => {
     const build = (s) => {
       if (s.type === "object" && s.fields) {
         const required = Object.keys(s.fields).filter((k) => !s.fields[k].optional);
         const res = {
-          type: "object",
+          // draft-07 では null 許容は type を配列にする（nullable は OpenAPI 拡張で無効）
+          type: s.nullable ? ["object", "null"] : "object",
           properties: Object.keys(s.fields).reduce((acc, k) => ({ ...acc, [k]: build(s.fields[k]) }), {})
         };
         if (required.length > 0) res.required = required;
-        if (s.nullable) res.nullable = true;
         return res;
       }
       if (s.type === "array") {
-        const res = { type: "array", items: build(s.itemType) };
-        if (s.nullable) res.nullable = true;
+        const res = { type: s.nullable ? ["array", "null"] : "array", items: build(s.itemType) };
         return res;
       }
       if (s.type === "union" && s.unionTypes) {
         const res = { anyOf: s.unionTypes.map((t) => ({ type: t })) };
-        if (s.nullable) res.nullable = true;
+        if (s.nullable) res.anyOf.push({ type: "null" });
         return res;
       }
-      const leaf = { type: s.type };
+      const leaf = {};
+      if (s.type !== "any") {
+        leaf.type = s.nullable ? [s.type, "null"] : s.type;
+      }
       if (s.format) leaf.format = s.format;
       if (s.enumValues && s.enumValues.length > 0) leaf.enum = s.enumValues;
-      if (s.nullable) leaf.nullable = true;
       return leaf;
     };
     return JSON.stringify({
       $schema: "http://json-schema.org/draft-07/schema#",
       ...build(schema2)
     }, null, 2);
+  }
+};
+var printEffectSchemaType = (type2, cyclicClassRefs) => {
+  switch (type2.kind) {
+    case "string":
+      if (type2.format === "uuid") return "Schema.UUID";
+      if (type2.format === "datetime" || type2.format === "date") return "Schema.DateTimeUtc";
+      if (type2.enumValues && type2.enumValues.length > 0) {
+        return `Schema.Literal(${type2.enumValues.map((v) => `"${v}"`).join(", ")})`;
+      }
+      return "Schema.String";
+    case "number":
+      return type2.format === "int" ? "Schema.Int" : "Schema.Number";
+    case "boolean":
+      return "Schema.Boolean";
+    case "date":
+    case "datetime":
+      return "Schema.DateTimeUtc";
+    case "classRef": {
+      if (!type2.classRefName) return "Schema.Unknown";
+      const refVar = toCamelCase(type2.classRefName);
+      if (cyclicClassRefs.has(type2.classRefName)) {
+        return `Schema.suspend((): Schema.Schema<${type2.classRefName}> => ${refVar})`;
+      }
+      return refVar;
+    }
+    case "array":
+      if (type2.itemType) return `Schema.Array(${printEffectSchemaType(type2.itemType, cyclicClassRefs)})`;
+      return "Schema.Array(Schema.Unknown)";
+    case "enum":
+      if (type2.enumValues && type2.enumValues.length > 0) {
+        return `Schema.Literal(${type2.enumValues.map((v) => `"${v}"`).join(", ")})`;
+      }
+      return "Schema.String";
+    case "union":
+      if (type2.unionTypes && type2.unionTypes.length > 0) {
+        const parts = type2.unionTypes.map((t) => printEffectSchemaType({ kind: t }, cyclicClassRefs));
+        return parts.length === 1 ? parts[0] : `Schema.Union(${parts.join(", ")})`;
+      }
+      return "Schema.Unknown";
+    default:
+      return "Schema.Unknown";
+  }
+};
+var effectSchemaGen = {
+  generate: (schema2, name = "root", options = {}) => {
+    const astClasses = schemaToAST(schema2, toPascalCase2(name), options);
+    const { sorted: sortedClasses, cyclicClassRefs } = topoSortForZod(astClasses);
+    let res = "";
+    for (const cls of sortedClasses) {
+      const varName = toCamelCase(cls.name);
+      res += `export const ${varName} = Schema.Struct({
+`;
+      for (const field of cls.fields) {
+        let effectType = printEffectSchemaType(field.fieldType, cyclicClassRefs);
+        if (field.isNullable && field.isOptional) {
+          effectType = `Schema.optional(Schema.NullOr(${effectType}))`;
+        } else if (field.isNullable) {
+          effectType = `Schema.NullOr(${effectType})`;
+        } else if (field.isOptional) {
+          effectType = `Schema.optional(${effectType})`;
+        }
+        res += `  ${field.name}: ${effectType},
+`;
+      }
+      res += `});
+`;
+      res += `export type ${cls.name} = Schema.Schema.Type<typeof ${varName}>;
+
+`;
+    }
+    const itemName = rootArrayItemClassName(schema2, toPascalCase2(name));
+    if (itemName && astClasses.some((c) => c.name === itemName)) {
+      const rootPascal = toPascalCase2(name);
+      const rootCamel = toCamelCase(rootPascal);
+      res += `export const ${rootCamel} = Schema.Array(${toCamelCase(itemName)});
+`;
+      res += `export type ${rootPascal} = Schema.Schema.Type<typeof ${rootCamel}>;
+
+`;
+    }
+    return res;
   }
 };
 var docGen = {
@@ -4325,7 +4753,7 @@ var mysqlGen = {
     for (const [k, v] of Object.entries(f)) {
       const nullable = v.optional ? " NULL" : " NOT NULL";
       const isId = k.toLowerCase() === "id";
-      const autoInc = isId ? " AUTO_INCREMENT" : "";
+      const autoInc = isId && v.type === "number" ? " AUTO_INCREMENT" : "";
       const pk = isId ? " PRIMARY KEY" : "";
       res += `  \`${toSnakeCase2(k)}\` ${sqlType(v, "mysql")}${nullable}${autoInc}${pk},
 `;
@@ -4420,10 +4848,14 @@ var snowflakeGen = {
   generate: (schema2, name = "Root") => {
     const f = getFields(schema2);
     if (!Object.keys(f).length) return "";
+    const hasId = "id" in f;
+    const hasCreatedAt = "created_at" in f || "createdAt" in f;
     let res = `CREATE OR REPLACE TABLE ${toScreamingSnake(name)} (
 `;
-    res += `  ID VARCHAR(36) NOT NULL DEFAULT UUID_STRING(),
+    if (!hasId) {
+      res += `  ID VARCHAR(36) NOT NULL DEFAULT UUID_STRING(),
 `;
+    }
     for (const [k, v] of Object.entries(f)) {
       const col = toScreamingSnake(k);
       let type2 = "VARCHAR";
@@ -4434,8 +4866,12 @@ var snowflakeGen = {
       res += `  ${col} ${type2}${v.optional ? "" : " NOT NULL"},
 `;
     }
-    res += `  CREATED_AT TIMESTAMP_NTZ NOT NULL DEFAULT CURRENT_TIMESTAMP()
+    if (!hasCreatedAt) {
+      res += `  CREATED_AT TIMESTAMP_NTZ NOT NULL DEFAULT CURRENT_TIMESTAMP()
 `;
+    } else {
+      res = res.replace(/,\s*$/, "\n");
+    }
     res += `);
 `;
     return res;
@@ -4540,8 +4976,8 @@ var envValidatorGen = {
         const intPart = v.format === "int" ? ".int()" : "";
         return `  ${k}: z.coerce.number()${intPart}`;
       }
-      if (v.format === "url") return `  ${k}: z.string().url()`;
-      if (v.format === "email") return `  ${k}: z.string().email()`;
+      if (v.format === "url") return `  ${k}: z.url()`;
+      if (v.format === "email") return `  ${k}: z.email()`;
       const optPart = v.optional ? ".optional()" : "";
       return `  ${k}: z.string()${optPart}`;
     };
@@ -5031,17 +5467,18 @@ var mongooseGen = {
     schema2 = rootObject(schema2);
     const modelName = toPascalCase3(name);
     const schemaName = `${modelName}Schema`;
-    const buildSchemaFields = (s, indent = "  ") => {
+    const buildSchemaFields = (s, indent = "  ", depth = 0) => {
+      if (depth > 4) return "Schema.Types.Mixed";
       const f = getFields(s);
       let res = "{\n";
       for (const [k, v] of Object.entries(f)) {
         res += `${indent}  ${k}: `;
         if (v.type === "object") {
-          res += buildSchemaFields(v, indent + "  ") + ",\n";
+          res += buildSchemaFields(v, indent + "  ", depth + 1) + ",\n";
         } else if (v.type === "array") {
           const item = v.itemType;
           if (item?.type === "object") {
-            res += `[${buildSchemaFields(item, indent + "  ")}],
+            res += `[${buildSchemaFields(item, indent + "  ", depth + 1)}],
 `;
           } else {
             let typeStr = "String";
@@ -5150,31 +5587,37 @@ var typeormGen = {
     }
     for (const [k, v] of Object.entries(f)) {
       let typeStr = "string";
-      let colDecorator = `@Column()`;
+      let colType = null;
       if (v.type === "number") {
         typeStr = "number";
-        colDecorator = `@Column('double')`;
+        colType = "double";
       } else if (v.type === "boolean") {
         typeStr = "boolean";
-        colDecorator = `@Column('boolean')`;
+        colType = "boolean";
       } else if (v.type === "object" || v.type === "array" || v.type === "union") {
         typeStr = "any";
-        colDecorator = `@Column('jsonb')`;
+        colType = "jsonb";
       } else if (v.format === "datetime") {
         typeStr = "Date";
-        colDecorator = `@Column('timestamp')`;
+        colType = "timestamp";
       }
+      let colDecorator;
       if (v.enumValues && v.enumValues.length) {
         const enumTypeStr = v.enumValues.map((e) => `'${e}'`).join(" | ");
         typeStr = enumTypeStr;
-        const enumOpts = [`type: 'enum'`, `enum: [${enumTypeStr}]`];
+        const enumArrayStr = v.enumValues.map((e) => `'${e}'`).join(", ");
+        const enumOpts = [`type: 'enum'`, `enum: [${enumArrayStr}]`];
         if (v.nullable) enumOpts.push("nullable: true");
         colDecorator = `@Column({
     ${enumOpts.join(",\n    ")}
   })`;
-      }
-      if (v.nullable && !(v.enumValues && v.enumValues.length)) {
-        colDecorator = colDecorator.replace(/\)$/, `, nullable: true)`);
+      } else if (v.nullable) {
+        const opts = [];
+        if (colType) opts.push(`type: '${colType}'`);
+        opts.push("nullable: true");
+        colDecorator = `@Column({ ${opts.join(", ")} })`;
+      } else {
+        colDecorator = colType ? `@Column('${colType}')` : `@Column()`;
       }
       res += `  ${colDecorator}
   ${k}${v.optional ? "?" : "!"}: ${typeStr}${v.nullable ? " | null" : ""};
@@ -5201,42 +5644,123 @@ var drizzleGen = {
   generate: (schema2, name = "Root") => {
     const f = getFields(schema2);
     if (!Object.keys(f).length) return "";
-    const tableName = `${toSnakeCase2(name)}s`;
-    let res = `import { pgTable, uuid, varchar, doublePrecision, boolean, jsonb, timestamp } from 'drizzle-orm/pg-core';
-
-`;
-    res += `export const ${toSnakeCase2(name)} = pgTable('${tableName}', {
-`;
-    if (!f.id) {
-      res += `  id: uuid('id').defaultRandom().primaryKey(),
-`;
+    const pascal = toPascalCase3(name);
+    const snake = toSnakeCase2(name);
+    const tableName = snake.endsWith("s") ? snake : `${snake}s`;
+    const imports = /* @__PURE__ */ new Set(["pgTable"]);
+    const enumDefs = [];
+    const lines = [];
+    const nestedCols = [];
+    const hasId = !!f.id;
+    const hasCreatedAt = !!f.createdAt || !!f.created_at;
+    const hasUpdatedAt = !!f.updatedAt || !!f.updated_at;
+    if (!hasId) {
+      imports.add("uuid");
+      lines.push(`  id: uuid('id').defaultRandom().primaryKey()`);
     }
     for (const [k, v] of Object.entries(f)) {
       const dbCol = toSnakeCase2(k);
-      let colBuilder = `varchar('${dbCol}', { length: 255 })`;
-      if (v.type === "number") colBuilder = `doublePrecision('${dbCol}')`;
-      else if (v.type === "boolean") colBuilder = `boolean('${dbCol}')`;
-      else if (v.type === "object" || v.type === "array" || v.type === "union") colBuilder = `jsonb('${dbCol}')`;
-      else if (v.format === "datetime") colBuilder = `timestamp('${dbCol}')`;
-      if (v.enumValues && v.enumValues.length) {
-        colBuilder = `varchar('${dbCol}', { enum: [${v.enumValues.map((e) => `'${e}'`).join(", ")}] })`;
+      const kl = k.toLowerCase();
+      const nn = !v.optional && !v.nullable ? ".notNull()" : "";
+      let col = "";
+      if (k === "id" || kl.endsWith("id")) {
+        if (k === "id" && v.type === "number") {
+          imports.add("serial");
+          col = `serial('${dbCol}').primaryKey()`;
+        } else if (k === "id") {
+          imports.add("uuid");
+          col = `uuid('${dbCol}').defaultRandom().primaryKey()`;
+        } else if (v.type === "number") {
+          imports.add("integer");
+          col = `integer('${dbCol}')${nn}`;
+        } else {
+          imports.add("uuid");
+          col = `uuid('${dbCol}')${nn}`;
+        }
+      } else if (v.type === "boolean") {
+        imports.add("boolean");
+        const def = nn ? kl === "is_active" || kl === "isactive" || kl === "active" || kl === "enabled" || kl === "is_enabled" ? ".default(true)" : ".default(false)" : "";
+        col = `boolean('${dbCol}')${nn}${def}`;
+      } else if (v.type === "number") {
+        const isMoney = ["price", "amount", "cost", "fee", "total", "subtotal", "balance", "payment"].some((w) => kl.includes(w));
+        const isInt = !isMoney && (v.format === "int" || ["count", "quantity", "qty", "age", "year", "month", "day", "hour", "minute", "second", "port", "rank", "size", "limit", "offset"].some((w) => kl.includes(w)));
+        if (isMoney) {
+          imports.add("numeric");
+          col = `numeric('${dbCol}', { precision: 10, scale: 2 })${nn}`;
+        } else if (isInt) {
+          imports.add("integer");
+          col = `integer('${dbCol}')${nn}`;
+        } else {
+          imports.add("real");
+          col = `real('${dbCol}')${nn}`;
+        }
+      } else if (v.format === "datetime" || kl.endsWith("_at") || kl === "createdat" || kl === "updatedat" || kl.includes("timestamp")) {
+        imports.add("timestamp");
+        const auto = kl.includes("createdat") || kl === "created_at" || kl.includes("updatedat") || kl === "updated_at" ? ".defaultNow()" : "";
+        col = `timestamp('${dbCol}', { withTimezone: true })${auto}${nn}`;
+      } else if (v.type === "object" || v.type === "array" || v.type === "union") {
+        imports.add("jsonb");
+        col = `jsonb('${dbCol}')${nn}`;
+        nestedCols.push(k);
+      } else if (v.enumValues && v.enumValues.length) {
+        imports.add("pgEnum");
+        const enumVarName = `${toCamelCase2(k)}Enum`;
+        const pgEnumKey = `${snake}_${dbCol}`;
+        enumDefs.push(`export const ${enumVarName} = pgEnum('${pgEnumKey}', [${v.enumValues.map((e) => `'${e}'`).join(", ")}]);`);
+        col = `${enumVarName}('${dbCol}')${nn}`;
+      } else {
+        if (v.format === "uuid" || kl === "uuid") {
+          imports.add("uuid");
+          col = `uuid('${dbCol}')${nn}`;
+        } else if (v.format === "email" || kl.includes("email")) {
+          imports.add("varchar");
+          col = `varchar('${dbCol}', { length: 255 })${nn}.unique()`;
+        } else if (v.format === "url" || ["url", "link", "website", "endpoint", "href"].some((w) => kl.includes(w))) {
+          imports.add("text");
+          col = `text('${dbCol}')${nn}`;
+        } else if (["description", "bio", "content", "body", "text", "note", "summary", "detail", "about", "message", "comment", "remark", "excerpt", "caption", "overview"].some((w) => kl.includes(w))) {
+          imports.add("text");
+          col = `text('${dbCol}')${nn}`;
+        } else {
+          imports.add("varchar");
+          col = `varchar('${dbCol}', { length: 255 })${nn}`;
+        }
       }
-      const notNull = v.optional || v.nullable ? "" : ".notNull()";
-      res += `  ${k}: ${colBuilder}${notNull},
+      lines.push(`  ${k}: ${col}`);
+    }
+    if (!hasCreatedAt) {
+      imports.add("timestamp");
+      lines.push(`  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()`);
+    }
+    if (!hasUpdatedAt) {
+      imports.add("timestamp");
+      lines.push(`  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()`);
+    }
+    const importList = [
+      "pgTable",
+      ...[...imports].filter((i) => i === "pgEnum"),
+      ...[...imports].filter((i) => i !== "pgTable" && i !== "pgEnum").sort()
+    ];
+    let out = `import { ${importList.join(", ")} } from 'drizzle-orm/pg-core';
+`;
+    if (enumDefs.length) out += "\n" + enumDefs.join("\n") + "\n";
+    out += `
+export const ${snake} = pgTable('${tableName}', {
+`;
+    out += lines.join(",\n") + "\n";
+    out += `});
+
+`;
+    out += `export type ${pascal} = typeof ${snake}.$inferSelect;
+`;
+    out += `export type New${pascal} = typeof ${snake}.$inferInsert;
+`;
+    if (nestedCols.length) {
+      out += `
+// Note: [${nestedCols.join(", ")}] stored as jsonb \u2014 consider extracting to separate tables with foreign key relations.
 `;
     }
-    if (!f.createdAt && !f.created_at) {
-      res += `  createdAt: timestamp('created_at').defaultNow().notNull(),
-`;
-    }
-    if (!f.updatedAt && !f.updated_at) {
-      res += `  updatedAt: timestamp('updated_at').defaultNow().notNull()
-`;
-    }
-    res = res.replace(/,\n$/, "\n");
-    res += `});
-`;
-    return res;
+    return out;
   }
 };
 var kyselyGen = {
@@ -5244,40 +5768,59 @@ var kyselyGen = {
     const f = getFields(schema2);
     if (!Object.keys(f).length) return "";
     const interfaceName = toPascalCase3(name);
+    const subInterfaces = [];
+    const dbEntries = [];
+    const kyselyType = (k, v) => {
+      if (v.type === "number") return "number";
+      if (v.type === "boolean") return "boolean";
+      if (v.format === "datetime") return "Date | string";
+      if (v.type === "object" && v.fields && Object.keys(v.fields).length) {
+        const subName = toPascalCase3(k);
+        const subFields = Object.entries(v.fields).map(([sk, sv]) => `  ${sk}: ${kyselyType(sk, sv)};`).join("\n");
+        subInterfaces.push(`export interface ${subName} {
+${subFields}
+}`);
+        const pluralKey = toSnakeCase2(k).endsWith("s") ? toSnakeCase2(k) : `${toSnakeCase2(k)}s`;
+        dbEntries.push(`  ${pluralKey}: ${subName};`);
+        return subName;
+      }
+      if (v.type === "array" && v.itemType?.type === "object" && v.itemType.fields) {
+        const subName = toPascalCase3(k.replace(/s$/, ""));
+        const subFields = Object.entries(v.itemType.fields).map(([sk, sv]) => `  ${sk}: ${kyselyType(sk, sv)};`).join("\n");
+        subInterfaces.push(`export interface ${subName} {
+${subFields}
+}`);
+        dbEntries.push(`  ${toSnakeCase2(k)}: ${subName};`);
+        return `${subName}[]`;
+      }
+      return "string";
+    };
     let res = `import { Generated, ColumnType } from 'kysely';
 
 `;
-    res += `export interface ${interfaceName}Table {
+    let tableBody = "";
+    if (!f.id) tableBody += `  id: Generated<string>;
 `;
-    if (!f.id) {
-      res += `  id: Generated<string>;
-`;
-    }
     for (const [k, v] of Object.entries(f)) {
-      let typeStr = "string";
-      if (v.type === "number") typeStr = "number";
-      else if (v.type === "boolean") typeStr = "boolean";
-      else if (v.type === "object" || v.type === "array") typeStr = "unknown";
-      else if (v.format === "datetime") typeStr = "Date | string";
+      const typeStr = kyselyType(k, v);
       const typeWithNull = v.optional ? `${typeStr} | null` : typeStr;
-      res += `  ${k}: ${typeWithNull};
+      tableBody += `  ${k}: ${typeWithNull};
 `;
     }
-    if (!f.createdAt && !f.created_at) {
-      res += `  createdAt: Generated<string>;
+    if (!f.createdAt && !f.created_at) tableBody += `  createdAt: Generated<string>;
 `;
-    }
-    if (!f.updatedAt && !f.updated_at) {
-      res += `  updatedAt: ColumnType<string, string | undefined, string>;
+    if (!f.updatedAt && !f.updated_at) tableBody += `  updatedAt: ColumnType<string, string | undefined, string>;
 `;
-    }
-    res += `}
+    if (subInterfaces.length) res += subInterfaces.join("\n\n") + "\n\n";
+    res += `export interface ${interfaceName}Table {
+${tableBody}}
 
 `;
     res += `export interface Database {
 `;
     res += `  ${toSnakeCase2(name)}s: ${interfaceName}Table;
 `;
+    if (dbEntries.length) res += dbEntries.join("\n") + "\n";
     res += `}
 `;
     return res;
@@ -5372,7 +5915,7 @@ var joiGen = {
           }
           joiType = `Joi.array().items(${innerJoi})`;
         } else if (v.type === "union" && v.unionTypes) {
-          joiType = `Joi.alternatives().try(${v.unionTypes.map((ut) => `Joi.valid(${typeof ut === "string" ? `"${ut}"` : ut})`).join(", ")})`;
+          joiType = `Joi.alternatives().try(${v.unionTypes.map((ut) => `Joi.${ut}()`).join(", ")})`;
         } else if (v.type === "string" && v.enumValues) {
           joiType = `Joi.string().valid(${v.enumValues.map((ev) => `"${ev}"`).join(", ")})`;
         } else if (v.type === "string") {
@@ -5428,7 +5971,7 @@ var valibotGen = {
           }
           valiType = `v.array(${innerVali})`;
         } else if (v.type === "union" && v.unionTypes) {
-          valiType = `v.union([${v.unionTypes.map((ut) => typeof ut === "string" ? `v.literal("${ut}")` : `v.literal(${ut})`).join(", ")}])`;
+          valiType = `v.union([${v.unionTypes.map((ut) => `v.${ut}()`).join(", ")}])`;
         } else if (v.type === "string" && v.enumValues) {
           valiType = `v.picklist([${v.enumValues.map((ev) => `"${ev}"`).join(", ")}])`;
         } else if (v.type === "string") {
@@ -5490,7 +6033,7 @@ var superstructGen = {
           }
           structType = `s.array(${innerStruct})`;
         } else if (v.type === "union" && v.unionTypes) {
-          structType = `s.union([${v.unionTypes.map((ut) => typeof ut === "string" ? `s.literal("${ut}")` : `s.literal(${ut})`).join(", ")}])`;
+          structType = `s.union([${v.unionTypes.map((ut) => `s.${ut}()`).join(", ")}])`;
         } else if (v.type === "string" && v.enumValues) {
           structType = `s.enums([${v.enumValues.map((ev) => `"${ev}"`).join(", ")}])`;
         } else {
@@ -5518,6 +6061,20 @@ var superstructGen = {
     return "";
   }
 };
+var schemaToTsType = (s) => {
+  if (s.type === "boolean") return "boolean";
+  if (s.type === "number") return "number";
+  if (s.type === "object") return "Record<string, unknown>";
+  if (s.type === "array") {
+    const it = s.itemType;
+    if (!it) return "unknown[]";
+    if (it.type === "string") return "string[]";
+    if (it.type === "number") return "number[]";
+    if (it.type === "boolean") return "boolean[]";
+    return "Record<string, unknown>[]";
+  }
+  return "string";
+};
 var reactPropsGen = {
   generate: (schema2, name = "Component") => {
     const f = getFields(schema2);
@@ -5529,12 +6086,7 @@ var reactPropsGen = {
     res += `export interface ${componentName}Props {
 `;
     for (const [k, v] of Object.entries(f)) {
-      let typeStr = "string";
-      if (v.type === "number") typeStr = "number";
-      else if (v.type === "boolean") typeStr = "boolean";
-      else if (v.type === "object") typeStr = "Record<string, any>";
-      else if (v.type === "array") typeStr = "any[]";
-      res += `  ${k}${v.optional ? "?" : ""}: ${typeStr};
+      res += `  ${k}${v.optional ? "?" : ""}: ${schemaToTsType(v)};
 `;
     }
     res += `}
@@ -5572,12 +6124,7 @@ var reactContextGen = {
     res += `export interface ${contextName}State {
 `;
     for (const [k, v] of Object.entries(f)) {
-      let typeStr = "string";
-      if (v.type === "number") typeStr = "number";
-      else if (v.type === "boolean") typeStr = "boolean";
-      else if (v.type === "object") typeStr = "Record<string, any>";
-      else if (v.type === "array") typeStr = "any[]";
-      res += `  ${k}${v.optional ? "?" : ""}: ${typeStr};
+      res += `  ${k}${v.optional ? "?" : ""}: ${schemaToTsType(v)};
 `;
     }
     res += `}
@@ -5628,12 +6175,7 @@ var reduxSliceGen = {
     res += `export interface ${sliceName}State {
 `;
     for (const [k, v] of Object.entries(f)) {
-      let typeStr = "string";
-      if (v.type === "number") typeStr = "number";
-      else if (v.type === "boolean") typeStr = "boolean";
-      else if (v.type === "object") typeStr = "Record<string, any>";
-      else if (v.type === "array") typeStr = "any[]";
-      res += `  ${k}${v.optional ? "?" : ""}: ${typeStr};
+      res += `  ${k}${v.optional ? "?" : ""}: ${schemaToTsType(v)};
 `;
     }
     res += `}
@@ -5684,12 +6226,22 @@ var piniaStoreGen = {
     if (!Object.keys(f).length) return "";
     const storeName = toPascalCase3(name);
     const snakeStore = toSnakeCase2(name);
+    const tsType = (v) => v.type === "number" ? "number" : v.type === "boolean" ? "boolean" : v.type === "array" ? "any[]" : v.type === "object" ? "Record<string, any>" : "string";
     let res = `import { defineStore } from 'pinia';
+
+`;
+    res += `export interface ${storeName}State {
+`;
+    for (const [k, v] of Object.entries(f)) {
+      res += `  ${k}: ${tsType(v)};
+`;
+    }
+    res += `}
 
 `;
     res += `export const use${storeName}Store = defineStore('${snakeStore}', {
 `;
-    res += `  state: () => ({
+    res += `  state: (): ${storeName}State => ({
 `;
     for (const [k, v] of Object.entries(f)) {
       let dVal = `''`;
@@ -5697,7 +6249,7 @@ var piniaStoreGen = {
       else if (v.type === "boolean") dVal = "false";
       else if (v.type === "object") dVal = "{}";
       else if (v.type === "array") dVal = "[]";
-      res += `    ${k}: ${dVal} as ${v.type === "number" ? "number" : v.type === "boolean" ? "boolean" : v.type === "array" ? "any[]" : v.type === "object" ? "Record<string, any>" : "string"},
+      res += `    ${k}: ${dVal},
 `;
     }
     res += `  }),
@@ -5764,6 +6316,13 @@ var sveltePropsGen = {
   generate: (schema2, name = "Component") => {
     const f = getFields(schema2);
     if (!Object.keys(f).length) return "";
+    const defaultFor = (typeStr) => {
+      if (typeStr === "number") return "0";
+      if (typeStr === "boolean") return "false";
+      if (typeStr === "Record<string, any>") return "{}";
+      if (typeStr === "any[]") return "[]";
+      return "''";
+    };
     let res = `<script lang="ts">
 `;
     for (const [k, v] of Object.entries(f)) {
@@ -5772,7 +6331,8 @@ var sveltePropsGen = {
       else if (v.type === "boolean") typeStr = "boolean";
       else if (v.type === "object") typeStr = "Record<string, any>";
       else if (v.type === "array") typeStr = "any[]";
-      res += `  export let ${k}: ${typeStr}${v.optional ? " | undefined = undefined" : ""};
+      const decl = v.optional ? `${typeStr} | undefined = undefined` : `${typeStr} = ${defaultFor(typeStr)}`;
+      res += `  export let ${k}: ${decl};
 `;
     }
     res += `</script>
@@ -6206,12 +6766,31 @@ from rest_framework import serializers
 `;
     for (const [k, v] of Object.entries(f)) {
       const snake = toSnakeCase2(k);
-      const nullOpt = v.optional ? ", null=True, blank=True" : "";
-      let fieldStr = `models.CharField(max_length=255${nullOpt})`;
-      if (v.type === "number") fieldStr = `models.FloatField(${nullOpt})`;
-      else if (v.type === "boolean") fieldStr = `models.BooleanField(default=False)`;
-      else if (v.type === "object" || v.type === "array") fieldStr = `models.JSONField(${nullOpt})`;
-      else if (v.format === "datetime") fieldStr = `models.DateTimeField(auto_now_add=True)`;
+      const nullKw = v.optional ? "null=True, blank=True" : "";
+      let fieldStr;
+      if (v.type === "number") {
+        if (v.format === "int") {
+          fieldStr = v.optional ? `models.IntegerField(null=True, blank=True)` : `models.IntegerField()`;
+        } else {
+          fieldStr = v.optional ? `models.FloatField(null=True, blank=True)` : `models.FloatField()`;
+        }
+      } else if (v.type === "boolean") {
+        fieldStr = v.optional ? `models.BooleanField(null=True, blank=True)` : `models.BooleanField(default=False)`;
+      } else if (v.type === "object" || v.type === "array") {
+        fieldStr = v.optional ? `models.JSONField(null=True, blank=True)` : `models.JSONField()`;
+      } else if (v.format === "datetime") {
+        fieldStr = v.optional ? `models.DateTimeField(null=True, blank=True)` : `models.DateTimeField()`;
+      } else if (v.format === "date") {
+        fieldStr = v.optional ? `models.DateField(null=True, blank=True)` : `models.DateField()`;
+      } else if (v.format === "email") {
+        fieldStr = v.optional ? `models.EmailField(null=True, blank=True)` : `models.EmailField()`;
+      } else if (v.format === "url") {
+        fieldStr = v.optional ? `models.URLField(null=True, blank=True)` : `models.URLField()`;
+      } else if (v.format === "uuid") {
+        fieldStr = v.optional ? `models.UUIDField(null=True, blank=True)` : `models.UUIDField()`;
+      } else {
+        fieldStr = `models.CharField(max_length=255${nullKw ? `, ${nullKw}` : ""})`;
+      }
       res += `    ${snake} = ${fieldStr}
 `;
     }
@@ -6277,10 +6856,13 @@ var apiRouteGen = {
       }
       if (v.type === "boolean") return "z.boolean()";
       if (v.type === "object" || v.type === "array" || v.type === "union") return "z.any()";
-      if (v.format === "email" || kl.includes("email")) return "z.string().email()";
-      if (v.format === "uuid" || kl === "id" || kl.endsWith("_id") || kl.endsWith("id")) return "z.string().uuid()";
-      if (v.format === "url" || kl.includes("url") || kl.includes("link") || kl.includes("website")) return "z.string().url()";
-      if (v.format === "datetime") return "z.string().datetime()";
+      if (v.format === "email" || kl.includes("email")) return "z.email()";
+      if (v.format === "uuid" || k.endsWith("_id") || /Id$/.test(k) || /ID$/.test(k)) return "z.uuid()";
+      if (v.format === "url" || kl.includes("url") || kl.includes("link") || kl.includes("website")) return "z.url()";
+      if (v.format === "datetime") return "z.iso.datetime()";
+      if (kl.includes("password") || kl.includes("passwd")) return "z.string().min(8)";
+      if (kl.includes("slug")) return "z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)";
+      if (kl.includes("phone") || kl.includes("tel")) return "z.string().regex(/^\\+?[\\d\\s\\-\\.\\(\\)]{7,15}$/)";
       const longText = ["description", "note", "bio", "comment", "content", "body", "text", "message", "summary"].some((w) => kl.includes(w));
       const hasTrim = kl.includes("name") || kl.includes("label") || kl.includes("title");
       if (hasTrim) return v.optional ? "z.string().trim()" : "z.string().min(1).trim()";
@@ -6400,6 +6982,421 @@ export const use${entityName}Delete = () => {
   });
 };
 `;
+  }
+};
+var cGen = {
+  generate: (schema2, name = "Root") => {
+    const f = getFields(schema2);
+    if (!Object.keys(f).length) return "";
+    const rootName = toPascalCase3(name);
+    const nestedDefs = [];
+    const cTypeFor = (v, key, parentName) => {
+      if (v.type === "number") return { base: v.format === "int" ? "int32_t" : "double", ptr: false };
+      if (v.type === "boolean") return { base: "bool", ptr: false };
+      if (v.type === "object") return { base: toPascalCase3(parentName + "_" + key), ptr: false };
+      return { base: "char", ptr: true };
+    };
+    const buildStruct = (fields, structName) => {
+      let s = `typedef struct {
+`;
+      for (const [k, v] of Object.entries(fields)) {
+        if (v.type === "object" && v.fields) {
+          const nestedName = toPascalCase3(structName + "_" + k);
+          nestedDefs.push(buildStruct(v.fields, nestedName));
+          s += `  ${nestedName} ${k};
+`;
+        } else if (v.type === "array") {
+          const it = v.itemType;
+          let itemBase = "char";
+          let itemPtr = true;
+          if (it?.type === "number") {
+            itemBase = it.format === "int" ? "int32_t" : "double";
+            itemPtr = false;
+          } else if (it?.type === "boolean") {
+            itemBase = "bool";
+            itemPtr = false;
+          } else if (it?.type === "object" && it.fields) {
+            const nestedName = toPascalCase3(structName + "_" + k + "Item");
+            nestedDefs.push(buildStruct(it.fields, nestedName));
+            itemBase = nestedName;
+            itemPtr = false;
+          }
+          const stars = itemPtr ? "**" : "*";
+          s += `  ${itemBase} ${stars}${k};
+`;
+          s += `  int ${k}_count;
+`;
+        } else {
+          const { base, ptr } = cTypeFor(v, k, structName);
+          const decl = ptr ? `*${k}` : k;
+          const comment = v.optional || v.nullable ? " /* nullable */" : "";
+          s += `  ${base} ${decl};${comment}
+`;
+        }
+      }
+      s += `} ${structName};`;
+      return s;
+    };
+    const mainStruct = buildStruct(f, rootName);
+    let res = `#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+`;
+    res += `/* cJSON \u2014 single-header JSON parser: https://github.com/DaveGamble/cJSON */
+`;
+    res += `#include "cJSON.h"
+
+`;
+    for (const nd of nestedDefs) res += nd + "\n\n";
+    res += mainStruct + "\n\n";
+    res += `${rootName} ${toSnakeCase2(name)}_from_json(const char *json_str) {
+`;
+    res += `  ${rootName} result = {0};
+`;
+    res += `  cJSON *root = cJSON_Parse(json_str);
+`;
+    res += `  if (!root) return result;
+
+`;
+    for (const [k, v] of Object.entries(f)) {
+      res += `  cJSON *_${k} = cJSON_GetObjectItemCaseSensitive(root, "${k}");
+`;
+      if (v.type === "number") {
+        const cast = v.format === "int" ? "(int32_t)" : "";
+        res += `  if (cJSON_IsNumber(_${k})) result.${k} = ${cast}_${k}->valuedouble;
+`;
+      } else if (v.type === "boolean") {
+        res += `  if (cJSON_IsBool(_${k})) result.${k} = cJSON_IsTrue(_${k});
+`;
+      } else if (v.type === "array") {
+        res += `  if (cJSON_IsArray(_${k})) result.${k}_count = cJSON_GetArraySize(_${k});
+`;
+      } else if (v.type === "object") {
+        res += `  /* TODO: parse nested ${k} struct */
+`;
+      } else {
+        res += `  if (cJSON_IsString(_${k})) result.${k} = _${k}->valuestring;
+`;
+      }
+    }
+    res += `
+  cJSON_Delete(root);
+  return result;
+}
+`;
+    return res;
+  }
+};
+var cppGen = {
+  generate: (schema2, name = "Root") => {
+    const f = getFields(schema2);
+    if (!Object.keys(f).length) return "";
+    const rootName = toPascalCase3(name);
+    const nestedDefs = [];
+    const hasOptional = Object.values(f).some((v) => v.optional || v.nullable);
+    const hasVector = Object.values(f).some((v) => v.type === "array");
+    const cppTypeFor = (v, key, parentName) => {
+      if (v.type === "number") return v.format === "int" ? "int64_t" : "double";
+      if (v.type === "boolean") return "bool";
+      if (v.type === "object") return toPascalCase3(parentName + key.charAt(0).toUpperCase() + key.slice(1));
+      if (v.type === "array") {
+        const it = v.itemType;
+        let inner = "std::string";
+        if (it?.type === "number") inner = it.format === "int" ? "int64_t" : "double";
+        else if (it?.type === "boolean") inner = "bool";
+        else if (it?.type === "object") inner = toPascalCase3(parentName + key.charAt(0).toUpperCase() + key.slice(1) + "Item");
+        return `std::vector<${inner}>`;
+      }
+      return "std::string";
+    };
+    const buildStruct = (fields, structName) => {
+      for (const [k, v] of Object.entries(fields)) {
+        if (v.type === "object" && v.fields) {
+          const nestedName = toPascalCase3(structName + k.charAt(0).toUpperCase() + k.slice(1));
+          nestedDefs.push(buildStruct(v.fields, nestedName));
+        } else if (v.type === "array" && v.itemType?.type === "object" && v.itemType.fields) {
+          const nestedName = toPascalCase3(structName + k.charAt(0).toUpperCase() + k.slice(1) + "Item");
+          nestedDefs.push(buildStruct(v.itemType.fields, nestedName));
+        }
+      }
+      let s = `struct ${structName} {
+`;
+      for (const [k, v] of Object.entries(fields)) {
+        let cppType = cppTypeFor(v, k, structName);
+        if (v.optional || v.nullable) cppType = `std::optional<${cppType}>`;
+        s += `  ${cppType} ${k};
+`;
+      }
+      s += `
+`;
+      s += `  static ${structName} from_json(const nlohmann::json& j) {
+`;
+      s += `    ${structName} obj;
+`;
+      for (const [k, v] of Object.entries(fields)) {
+        const baseCppType = cppTypeFor(v, k, structName);
+        if (v.optional || v.nullable) {
+          s += `    if (j.contains("${k}") && !j["${k}"].is_null())
+`;
+          s += `      obj.${k} = j["${k}"].get<${baseCppType}>();
+`;
+        } else if (v.type === "object") {
+          s += `    if (j.contains("${k}")) obj.${k} = ${baseCppType}::from_json(j["${k}"]);
+`;
+        } else {
+          s += `    obj.${k} = j.at("${k}").get<${baseCppType}>();
+`;
+        }
+      }
+      s += `    return obj;
+  }
+
+`;
+      s += `  nlohmann::json to_json() const {
+    return {
+`;
+      for (const [k, v] of Object.entries(fields)) {
+        if (v.optional || v.nullable) {
+          s += `      {"${k}", ${k}.has_value() ? nlohmann::json(*${k}) : nlohmann::json(nullptr)},
+`;
+        } else if (v.type === "object") {
+          s += `      {"${k}", ${k}.to_json()},
+`;
+        } else {
+          s += `      {"${k}", ${k}},
+`;
+        }
+      }
+      s += `    };
+  }
+};
+`;
+      return s;
+    };
+    const mainStruct = buildStruct(f, rootName);
+    let res = `#include <string>
+`;
+    if (hasVector) res += `#include <vector>
+`;
+    if (hasOptional) res += `#include <optional>
+`;
+    res += `#include <cstdint>
+`;
+    res += `/* nlohmann/json \u2014 header-only JSON: https://github.com/nlohmann/json */
+`;
+    res += `#include <nlohmann/json.hpp>
+
+`;
+    for (const nd of nestedDefs) res += nd + "\n";
+    res += mainStruct;
+    return res;
+  }
+};
+var aiFieldDesc = (k, v) => {
+  const kl = k.toLowerCase();
+  if (v.format === "email" || kl.includes("email")) return "Email address";
+  if (v.format === "uuid") return "Unique identifier (UUID)";
+  if (v.format === "url" || kl.includes("url") || kl.includes("link")) return "URL";
+  if (v.format === "datetime") return "ISO 8601 datetime string";
+  if (kl.endsWith("id") || kl.endsWith("_id")) return "Unique identifier";
+  if (kl.includes("password") || kl.includes("passwd")) return "Password (min 8 characters)";
+  if (kl === "phone" || kl === "tel" || kl === "telephone") return "Phone number";
+  if (kl.includes("count") || kl.includes("quantity") || kl === "qty") return "Count or quantity (non-negative)";
+  if (["price", "amount", "cost", "fee", "total", "subtotal", "balance"].some((w) => kl.includes(w))) return "Monetary amount (non-negative)";
+  if (kl.includes("score") || kl.includes("rating")) return "Score or rating (0\u2013100)";
+  if (kl === "age" || kl.endsWith("_age")) return "Age in years (0\u2013150)";
+  if (kl === "port" || kl.endsWith("_port") || kl === "port_number") return "Network port (1\u201365535)";
+  if (v.type === "boolean") {
+    const stripped = k.replace(/^(is|has|can|should)/i, "").replace(/([A-Z])/g, " $1").trim().toLowerCase();
+    return `Whether ${stripped || k} is true`;
+  }
+  return k.replace(/([A-Z])/g, " $1").replace(/_/g, " ").trim();
+};
+var aiFieldToZod = (k, v, indent = "    ") => {
+  const kl = k.toLowerCase();
+  const opt = v.optional || v.nullable ? ".optional()" : "";
+  if (v.type === "boolean") return `z.boolean()${opt}`;
+  if (v.type === "number") {
+    let z = "z.number()";
+    if (v.format === "int") z += ".int()";
+    const isMoney = ["price", "amount", "cost", "fee", "total", "subtotal", "balance"].some((w) => kl.includes(w));
+    if (v.format === "int" && (kl.includes("count") || kl.includes("quantity") || kl === "qty") || isMoney) z += ".min(0)";
+    return `${z}${opt}`;
+  }
+  if (v.type === "array") {
+    const it = v.itemType;
+    let inner = "z.unknown()";
+    if (it) {
+      if (it.type === "string") inner = "z.string()";
+      else if (it.type === "number") inner = it.format === "int" ? "z.number().int()" : "z.number()";
+      else if (it.type === "boolean") inner = "z.boolean()";
+      else if (it.type === "object" && it.fields) {
+        const ni = indent + "  ";
+        const props = Object.entries(it.fields).map(
+          ([nk, nv]) => `${ni}  ${nk}: ${aiFieldToZod(nk, nv, ni + "  ")}.describe('${aiFieldDesc(nk, nv)}'),`
+        ).join("\n");
+        inner = `z.object({
+${props}
+${ni}})`;
+      }
+    }
+    return `z.array(${inner})${opt}`;
+  }
+  if (v.type === "object" && v.fields) {
+    const ni = indent + "  ";
+    const props = Object.entries(v.fields).map(
+      ([nk, nv]) => `${ni}${nk}: ${aiFieldToZod(nk, nv, ni)}.describe('${aiFieldDesc(nk, nv)}'),`
+    ).join("\n");
+    return `z.object({
+${props}
+${indent}})${opt}`;
+  }
+  if (v.type === "union" && v.enumValues?.length) {
+    const vals = v.enumValues.map((e) => `"${e}"`).join(", ");
+    return `z.enum([${vals}])${opt}`;
+  }
+  if (v.format === "email" || kl.includes("email")) return `z.email()${opt}`;
+  if (v.format === "uuid" || /Id$/.test(k) || /ID$/.test(k) || kl.endsWith("_id")) return `z.uuid()${opt}`;
+  if (v.format === "url" || kl.includes("url") || kl.includes("link")) return `z.url()${opt}`;
+  if (v.format === "datetime") return `z.iso.datetime()${opt}`;
+  if (kl.includes("password") || kl.includes("passwd")) return `z.string().min(8)${opt}`;
+  return `z.string()${opt}`;
+};
+var mcpToolGen = {
+  generate: (schema2, name = "Root") => {
+    const toolName = toCamelCase2(name);
+    const f = getFields(schema2);
+    const fields = Object.keys(f);
+    const params = fields.map(
+      (k) => `    ${k}: ${aiFieldToZod(k, f[k], "    ")}.describe('${aiFieldDesc(k, f[k])}'),`
+    ).join("\n");
+    const destructure = fields.join(", ");
+    return `import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+
+const server = new McpServer({ name: "my-server", version: "1.0.0" });
+
+server.tool(
+  "${toolName}",
+  "Auto-generated MCP tool \u2014 replace with a meaningful description",
+  {
+${params}
+  },
+  async ({ ${destructure} }) => ({
+    content: [{ type: "text", text: JSON.stringify({ ${destructure} }) }]
+  })
+);
+
+export { server };`;
+  }
+};
+var openAiFunctionGen = {
+  generate: (schema2, name = "Root") => {
+    const root = rootObject(schema2);
+    const f = root.fields ?? {};
+    const fnName = toSnakeCase2(name);
+    const toJsonProp = (k, v) => {
+      const kl = k.toLowerCase();
+      const description = aiFieldDesc(k, v);
+      if (v.type === "object" && v.fields) {
+        const nestedProps = {};
+        const nestedReq = [];
+        for (const [nk, nv] of Object.entries(v.fields)) {
+          nestedProps[nk] = toJsonProp(nk, nv);
+          if (!nv.optional && !nv.nullable) nestedReq.push(nk);
+        }
+        const obj = { type: "object", description, properties: nestedProps };
+        if (nestedReq.length) obj.required = nestedReq;
+        return obj;
+      }
+      if (v.type === "array") {
+        const it = v.itemType;
+        let items = { type: "string" };
+        if (it) {
+          if (it.type === "number") items = { type: it.format === "int" ? "integer" : "number" };
+          else if (it.type === "boolean") items = { type: "boolean" };
+          else if (it.type === "object" && it.fields) {
+            const ip = {};
+            const ir = [];
+            for (const [nk, nv] of Object.entries(it.fields)) {
+              ip[nk] = toJsonProp(nk, nv);
+              if (!nv.optional && !nv.nullable) ir.push(nk);
+            }
+            items = { type: "object", properties: ip };
+            if (ir.length) items.required = ir;
+          }
+        }
+        return { type: "array", description, items };
+      }
+      if (v.type === "union" && v.enumValues?.length) {
+        return { type: "string", description, enum: v.enumValues };
+      }
+      if (v.type === "boolean") return { type: "boolean", description };
+      if (v.type === "number") {
+        const prop = { description };
+        prop.type = v.format === "int" ? "integer" : "number";
+        const isMoney = ["price", "amount", "cost", "fee", "total", "subtotal", "balance", "payment"].some((w) => kl.includes(w));
+        if (v.format === "int" && (kl.includes("count") || kl.includes("quantity") || kl === "qty")) prop.minimum = 0;
+        if (isMoney) prop.minimum = 0;
+        if (kl.includes("score") || kl.includes("rating")) {
+          prop.minimum = 0;
+          prop.maximum = 100;
+        }
+        if (kl === "age" || kl.endsWith("_age")) {
+          prop.minimum = 0;
+          prop.maximum = 150;
+        }
+        if (kl === "port" || kl.endsWith("_port") || kl === "port_number") {
+          prop.minimum = 1;
+          prop.maximum = 65535;
+        }
+        return prop;
+      }
+      const s = { type: "string", description };
+      if (v.format === "email" || kl.includes("email")) s.format = "email";
+      else if (v.format === "uuid" || /Id$/.test(k) || /ID$/.test(k) || kl.endsWith("_id")) s.format = "uuid";
+      else if (v.format === "url" || kl.includes("url") || kl.includes("link")) s.format = "uri";
+      else if (v.format === "datetime") s.format = "date-time";
+      else if (kl.includes("password") || kl.includes("passwd")) s.minLength = 8;
+      return s;
+    };
+    const properties = {};
+    const required = [];
+    for (const [k, v] of Object.entries(f)) {
+      properties[k] = toJsonProp(k, v);
+      if (!v.optional && !v.nullable) required.push(k);
+    }
+    return JSON.stringify({
+      type: "function",
+      function: {
+        name: fnName,
+        description: `Processes ${name} data \u2014 update with a meaningful description`,
+        parameters: { type: "object", properties, required }
+      }
+    }, null, 2);
+  }
+};
+var vercelAiToolGen = {
+  generate: (schema2, name = "Root") => {
+    const toolName = toCamelCase2(name);
+    const f = getFields(schema2);
+    const fields = Object.keys(f);
+    const params = fields.map(
+      (k) => `    ${k}: ${aiFieldToZod(k, f[k], "    ")}.describe('${aiFieldDesc(k, f[k])}'),`
+    ).join("\n");
+    return `import { tool } from "ai";
+import { z } from "zod";
+
+export const ${toolName}Tool = tool({
+  description: "Auto-generated from JSON sample \u2014 update with a meaningful description",
+  parameters: z.object({
+${params}
+  }),
+  execute: async (params) => {
+    // implement your logic here
+    return params;
+  },
+});`;
   }
 };
 
@@ -6671,6 +7668,9 @@ function parseJSONSchema(root) {
 }
 
 // ../../src/lib/recursive.ts
+function toPascalCase4(str2) {
+  return str2.replace(/(^\w|_\w)/g, (m) => m.replace(/_/, "").toUpperCase());
+}
 function objectFieldNames(s) {
   if (s.type !== "object" || !s.fields) return null;
   return Object.keys(s.fields).sort();
@@ -6683,7 +7683,8 @@ function similarity(a, b) {
   return union === 0 ? 0 : intersection / union;
 }
 function detectRecursiveTypes(schema2, rootName) {
-  const [anchor, anchorName] = schema2.type === "array" && schema2.itemType?.type === "object" ? [schema2.itemType, `${rootName}Item`] : schema2.type === "object" ? [schema2, rootName] : [null, ""];
+  const pascal = toPascalCase4(rootName);
+  const [anchor, anchorName] = schema2.type === "array" && schema2.itemType?.type === "object" ? [schema2.itemType, `${pascal}Item`] : schema2.type === "object" ? [schema2, pascal] : [null, ""];
   if (!anchor || anchor.type !== "object" || !anchor.fields) return;
   const anchorFields = objectFieldNames(anchor);
   if (!anchorFields || anchorFields.length < 2) return;
@@ -6955,23 +7956,29 @@ var inferSchema = (val, keyName, depth = 0, allowedEnumKeys, options) => {
     return addMeta({ type: "object", fields }, "object", { fieldCount: Object.keys(fields).length });
   }
   if (typeof val === "string") {
+    if (val === "") return addMeta({ type: "string", format: "text" }, "empty_string");
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) return addMeta({ type: "string", format: "uuid" }, "format:uuid");
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return addMeta({ type: "string", format: "email" }, "format:email");
     if (/^https?:\/\/[^\s]+$/.test(val)) return addMeta({ type: "string", format: "url" }, "format:url");
-    if (/^\d{4}-\d{2}-\d{2}$/.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: "string", format: "date" }, "format:date");
-    if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: "string", format: "datetime" }, "format:datetime");
-    if (/^\d/.test(val) && val.includes("T") && !isNaN(Date.parse(val)) && val.length > 7) return addMeta({ type: "string", format: "datetime" }, "format:datetime");
+    const isVersionKey = /version|semver|release/i.test(keyName ?? "");
+    if (!isVersionKey) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: "string", format: "date" }, "format:date");
+      if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: "string", format: "date" }, "format:date");
+      if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}[ T]\d{2}:\d{2}/.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: "string", format: "datetime" }, "format:datetime");
+      if (/^\d/.test(val) && val.includes("T") && !isNaN(Date.parse(val)) && val.length > 7) return addMeta({ type: "string", format: "datetime" }, "format:datetime");
+    }
     let isEnumCandidate = false;
     if (keyName) {
       const k = keyName.toLowerCase();
       const enumKeywords = Array.from(enumKeywordsSet);
       const floatKeyPattern = /price|amount|cost|fee|tax|rate|ratio|percent|score|weight|height|width|balance|salary|revenue/i;
-      const uuidKeyPattern = /^id$|_id$|^uuid$|^guid$|^token$/i;
-      const urlKeyPattern = /url|uri|href|link|src|endpoint|avatar|thumbnail|image|photo/i;
+      const uuidKeyPattern = /_id$|^uuid$|^guid$/i;
+      const urlKeyPattern = /url|uri|href|link|(?<![a-zA-Z])src|endpoint|avatar|thumbnail|image|photo/i;
       const emailKeyPattern = /email|mail/i;
       if (uuidKeyPattern.test(keyName)) return addMeta({ type: "string", format: "uuid" }, "format:uuid:keyname");
       if (emailKeyPattern.test(keyName)) return addMeta({ type: "string", format: "email" }, "format:email:keyname");
-      if (urlKeyPattern.test(keyName)) return addMeta({ type: "string", format: "url" }, "format:url:keyname");
+      const hasNonHttpScheme = /^[a-z][a-z0-9+.-]*:/.test(val) && !/^https?:\/\//.test(val);
+      if (urlKeyPattern.test(keyName) && !val.startsWith("/") && !hasNonHttpScheme) return addMeta({ type: "string", format: "url" }, "format:url:keyname");
       if (allowedEnumKeys) {
         isEnumCandidate = allowedEnumKeys.has(keyName);
       } else {
@@ -7080,6 +8087,8 @@ var DEPENDENCY_COMMENTS = {
   "svelte-props": "// Svelte 3/4 TypeScript component props scaffold\n\n",
   "solid-props": "// Required dependencies: npm install solid-js\n\n",
   "arduino": "// Required libraries: ArduinoJson (v6 or v7)\n\n",
+  "c": "// C99+ required. cJSON dependency: https://github.com/DaveGamble/cJSON\n\n",
+  "cpp": "// C++17 required. nlohmann/json: https://github.com/nlohmann/json\n\n",
   "clojure": ";; Clojure clojure.spec/alpha definition\n\n",
   "elixir": "# Required dependencies: Ecto (mix ecto)\n\n",
   "elm": "-- Required Elm packages:\n-- elm install elm/json\n-- elm install elm-community/json-extra\n\n",
@@ -7089,22 +8098,28 @@ var DEPENDENCY_COMMENTS = {
   "rails": "# Rails ActiveRecord Migration template\n\n",
   // Extended targets — previously missing entries
   "mongodb": "// Required dependencies: npm install mongoose\n\n",
-  "dynamodb": "// AWS SDK required: npm install @aws-sdk/client-dynamodb\n\n",
-  "bigquery": "// Required dependencies: npm install @google-cloud/bigquery\n\n",
-  "openapi": "// OpenAPI 3.0 specification (YAML format)\n\n",
-  "avro": "// Apache Avro schema format\n\n",
-  "mermaid": "// Mermaid ER Diagram \u2014 paste into https://mermaid.live\n\n",
-  "postman": "// Postman Collection v2.1 format\n\n",
+  // JSON 出力にはコメントを付けられないため prefix なし（//で始めると JSON.parse が失敗する）
+  "dynamodb": "",
+  "bigquery": "",
+  "openapi": "# OpenAPI 3.0 specification (YAML format)\n\n",
+  "avro": "",
+  "mermaid": "%% Mermaid ER Diagram \u2014 paste into https://mermaid.live\n\n",
+  "postman": "",
   "http": "// HTTP file format (JetBrains IDE / VS Code REST Client compatible)\n\n",
   "vscode": "// VS Code snippet format \u2014 paste into .vscode/snippets.json\n\n",
-  "curl": "// cURL command\n\n",
+  "curl": "# cURL command\n\n",
   "cobol": "* COBOL Copybook format\n\n",
   "scala": "// Scala case class\n\n",
   "solidity": "// SPDX-License-Identifier: MIT\n\n",
   "r-lang": "# R dataframe scaffold\n\n",
   "react-query": "// Required dependencies: npm install @tanstack/react-query\n\n",
   "api-route": "// Generated Next.js App Router API Route\n// Required: Next.js 13+ with App Router enabled\n\n",
-  "nextjs-api": "// Generated Next.js App Router API Route\n// Required: Next.js 13+ with App Router enabled\n\n"
+  "nextjs-api": "// Generated Next.js App Router API Route\n// Required: Next.js 13+ with App Router enabled\n\n",
+  "mcp-tool": "// Required: npm install @modelcontextprotocol/sdk zod\n\n",
+  "openai-function": "",
+  "vercel-ai-tool": "// Required: npm install ai zod\n\n",
+  "nestjs-dto": '// Required: npm install class-validator class-transformer\n// tsconfig.json: "experimentalDecorators": true, "emitDecoratorMetadata": true\n\n',
+  "effect-schema": '// Required: npm install effect\nimport { Schema } from "effect";\n\n'
 };
 var cleanAndFormatCode = (code) => {
   const lines = code.split("\n").map((line) => line.trimEnd());
@@ -7177,6 +8192,8 @@ var areFieldsIsomorphic = (s1, s2, visited = /* @__PURE__ */ new Set(), options 
   if (pairKey && visited.has(pairKey)) return true;
   if (pairKey) visited.add(pairKey);
   const allKeys = Array.from(/* @__PURE__ */ new Set([...keys1, ...keys2]));
+  const sharedFieldCount = allKeys.filter((k) => s1.fields[k] && s2.fields[k]).length;
+  if (sharedFieldCount === 0) return false;
   let matchingKeys = 0;
   let typeMismatches = 0;
   let missingKeys = 0;
@@ -7382,10 +8399,20 @@ var runEngine = (json2, lang, slug = "", options = {}) => {
     } else if (s === "java") {
       out = javaGen.generate(schema2, rootName, options);
     } else if (s === "python") {
-      const pfx = isOAComp ? "" : `from pydantic import BaseModel
-
+      const body = pythonGen.generate(schema2, rootName, options);
+      const typingNeeded = [];
+      if (/\bOptional\[/.test(body)) typingNeeded.push("Optional");
+      if (/\bList\[/.test(body)) typingNeeded.push("List");
+      if (/\bAny\b/.test(body)) typingNeeded.push("Any");
+      let imports = `from pydantic import BaseModel
 `;
-      out = pfx + pythonGen.generate(schema2, rootName, options);
+      if (typingNeeded.length) imports += `from typing import ${typingNeeded.join(", ")}
+`;
+      if (/:\s*datetime\b/.test(body)) imports += `from datetime import datetime
+`;
+      const pfx = isOAComp ? "" : `${imports}
+`;
+      out = pfx + body;
     } else if (s === "php") {
       const pfx = isOAComp ? "" : `<?php
 
@@ -7465,8 +8492,15 @@ syntax = "proto3";
       matchedKey = "r-lang";
     } else if (s.includes("scala")) out = scalaGen.generate(schema2, "Root");
     else if (s.includes("solidity")) out = solidityGen.generate(schema2, "Root");
+    else if (s.includes("cpp") || s.includes("c++") || s.includes("cpp-struct") || s.includes("cpp-class")) out = cppGen.generate(schema2, rootName);
+    else if (s === "c" || s.includes("c-struct") || s.includes("json-to-c")) out = cGen.generate(schema2, rootName);
+    else if (s.includes("mcp-tool") || s.includes("mcp")) out = mcpToolGen.generate(schema2, rootName);
+    else if (s.includes("openai-function") || s.includes("openai-func")) out = openAiFunctionGen.generate(schema2, rootName);
+    else if (s.includes("vercel-ai-tool") || s.includes("vercel-ai")) out = vercelAiToolGen.generate(schema2, rootName);
+    else if (s.includes("nestjs-dto") || s.includes("nestjs")) out = nestjsDtoGen.generate(schema2, rootName, options);
+    else if (s.includes("effect-schema") || s.includes("effect")) out = effectSchemaGen.generate(schema2, rootNameLower, options);
     const KNOWN_TARGETS_EXACT = /* @__PURE__ */ new Set(["typescript", "ts", "zod", "go", "golang", "rust", "java", "python", "php", "sql", "prisma", "proto", "protobuf", "graphql", "gql", "json", "r"]);
-    const KNOWN_TARGET_SUBSTR = ["csv", "sql-insert", "mysql", "postgres", "sqlite", "snowflake", "mongodb", "mongoose", "ruby", "rails", "django", "dart", "flutter", "swift", "kotlin", "csharp", "c-sharp", "openapi", "jsonschema", "yup", "joi", "valibot", "react-props", "vue-props", "svelte-props", "solid-props", "react-context", "react-query", "api-route", "nextjs-api", "redux-slice", "pinia", "sequelize", "typeorm", "drizzle", "kysely", "superstruct", "arduino", "mock", "ui", "doc", "avro", "toml", "yaml", "env-validator", "env", "properties", "markdown", "asciidoc", "latex", "mermaid", "bigquery", "dynamodb", "postman", "http", "vscode", "curl", "cobol", "clojure", "elixir", "elm", "godot", "gdscript", "haskell", "r-lang", "scala", "solidity"];
+    const KNOWN_TARGET_SUBSTR = ["csv", "sql-insert", "mysql", "postgres", "sqlite", "snowflake", "mongodb", "mongoose", "ruby", "rails", "django", "dart", "flutter", "swift", "kotlin", "csharp", "c-sharp", "openapi", "jsonschema", "yup", "joi", "valibot", "react-props", "vue-props", "svelte-props", "solid-props", "react-context", "react-query", "api-route", "nextjs-api", "redux-slice", "pinia", "sequelize", "typeorm", "drizzle", "kysely", "superstruct", "arduino", "mock", "ui", "doc", "avro", "toml", "yaml", "env-validator", "env", "properties", "markdown", "asciidoc", "latex", "mermaid", "bigquery", "dynamodb", "postman", "http", "vscode", "curl", "cobol", "clojure", "elixir", "elm", "godot", "gdscript", "haskell", "r-lang", "scala", "solidity", "cpp", "c++", "cpp-struct", "cpp-class", "c-struct", "json-to-c", "mcp-tool", "mcp", "openai-function", "openai-func", "vercel-ai-tool", "vercel-ai", "nestjs-dto", "nestjs", "effect-schema", "effect"];
     const targetMatched = KNOWN_TARGETS_EXACT.has(s) || KNOWN_TARGET_SUBSTR.some((k) => s.includes(k));
     if (s === "json") {
       out = JSON.stringify(json2, null, 2);
@@ -7495,7 +8529,7 @@ syntax = "proto3";
 };
 
 // ../../src/lib/quality.ts
-var SEMANTIC_STRING = /email|url|link|href|website|endpoint|uuid|guid|^id$|_id$|Id$|ID$|date|_at$|At$|time|timestamp|phone|tel|zip|postal|ip$|ip_|token|hash/i;
+var SEMANTIC_STRING = /email|url|link|href|website|endpoint|uuid|guid|^id$|_id$|Id$|ID$|date|_at$|At$|time|timestamp|phone|\btel\b|zip|postal|^ip$|ip_/i;
 var FREE_TEXT = /^(name|label|title|description|desc|summary|body|content|text|message|note|notes|comment|comments|bio|about|reason|details|info|caption|heading|subtitle|excerpt|overview|remark|remarks|placeholder|hint|tooltip|instruction|instructions|query|search|address|street|city|country|state|province|slug|tag|category|type|status|kind|mode|locale|lang|language|currency|unit|format|source|target|key|value|data)$/i;
 var SENSITIVE = /password|passwd|secret|token|apikey|api_key|auth|credential|private/i;
 var FORMAT_KEYWORDS = {
@@ -7610,7 +8644,7 @@ function analyzeQuality(schema2) {
     }
   }
   const style = dominantStyle(stats.nameCounts);
-  if (style === "mixed" && stats.total >= 3) {
+  if (style === "mixed" && stats.total >= 2) {
     score -= 15;
     issues.push({ severity: "warning", message: "Field names mix camelCase and snake_case \u2014 pick one style consistently" });
   }
@@ -7645,8 +8679,179 @@ function analyzeQuality(schema2) {
   };
 }
 
+// ../../src/lib/graph.ts
+function extractTypeGraph(tsCode) {
+  const nodes = [];
+  const edges = [];
+  const allInterfaceNames = /* @__PURE__ */ new Set();
+  const scanRegex = /(?:export\s+)?interface\s+(\w+)/g;
+  let scanMatch;
+  while ((scanMatch = scanRegex.exec(tsCode)) !== null) {
+    allInterfaceNames.add(scanMatch[1]);
+  }
+  const extractedInterfaces = [];
+  const headerRe = /(?:export\s+)?interface\s+(\w+)\s*(?:extends\s+[\w,\s]+)?\s*\{/g;
+  let hm;
+  while ((hm = headerRe.exec(tsCode)) !== null) {
+    const ifName = hm[1];
+    let depth = 1;
+    let pos = hm.index + hm[0].length;
+    while (pos < tsCode.length && depth > 0) {
+      const ch = tsCode[pos++];
+      if (ch === "{") depth++;
+      else if (ch === "}") depth--;
+    }
+    extractedInterfaces.push({ name: ifName, body: tsCode.slice(hm.index + hm[0].length, pos - 1) });
+  }
+  const nodeMap = /* @__PURE__ */ new Map();
+  for (const { name: interfaceName, body } of extractedInterfaces) {
+    const fields = [];
+    const fieldLines = body.split("\n").map((l) => l.trim()).filter(Boolean);
+    for (const line of fieldLines) {
+      if (line.startsWith("//") || line.startsWith("*") || line.startsWith("/*")) continue;
+      const fieldMatch = line.match(/^(\w+)(\?)?:\s*(.+?);?\s*$/);
+      if (!fieldMatch) continue;
+      const [, fieldName, optional, rawType] = fieldMatch;
+      const cleanType = rawType.replace(/[;,]$/, "").trim();
+      fields.push({
+        name: fieldName,
+        type: cleanType,
+        optional: optional === "?"
+      });
+    }
+    const node = {
+      id: interfaceName,
+      label: interfaceName,
+      fields,
+      isRoot: false
+    };
+    if (nodeMap.has(interfaceName)) continue;
+    nodes.push(node);
+    nodeMap.set(interfaceName, node);
+  }
+  for (const node of nodes) {
+    for (const field of node.fields) {
+      const typeTokens = field.type.replace(/\[\]/g, "").split(/[|&,\s<>]+/).map((t) => t.trim()).filter((t) => t.length > 0 && /^[A-Z]/.test(t));
+      for (const token of typeTokens) {
+        if (allInterfaceNames.has(token) && token !== node.id) {
+          const exists = edges.some((e) => e.from === node.id && e.to === token && e.label === field.name);
+          if (!exists) {
+            edges.push({
+              from: node.id,
+              to: token,
+              label: field.name
+            });
+          }
+        }
+      }
+    }
+  }
+  const referencedIds = new Set(edges.map((e) => e.to));
+  for (const node of nodes) {
+    node.isRoot = !referencedIds.has(node.id);
+  }
+  return { nodes, edges };
+}
+
+// ../../src/lib/reverse.ts
+function sampleString(fieldName) {
+  const k = fieldName.toLowerCase();
+  if (/(_id$|^id$)/.test(k) || /Id$/.test(fieldName)) return "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+  if (/email/.test(k)) return "user@example.com";
+  if (/url|link|href|uri|website/.test(k)) return "https://example.com";
+  if (/(_at$|_date$|_time$)/.test(k) || /^(created|updated|deleted|started|ended|expires|published)/.test(k)) return "2024-01-01T00:00:00Z";
+  if (/phone|tel/.test(k)) return "+1-555-000-0000";
+  if (/zip|postal/.test(k)) return "10001";
+  if (/country/.test(k)) return "US";
+  if (/currency/.test(k)) return "USD";
+  if (/language|locale/.test(k)) return "en";
+  if (/color|colour/.test(k)) return "#000000";
+  if (/password|secret|token|key/.test(k)) return "example-token";
+  if (/name/.test(k)) return "Example Name";
+  if (/title/.test(k)) return "Example Title";
+  if (/description|desc|body|content|message|note/.test(k)) return "Example text";
+  if (/path|route/.test(k)) return "/example";
+  if (/status|type|kind|category|tag|label/.test(k)) return "active";
+  return "string";
+}
+function sampleNumber(fieldName) {
+  const k = fieldName.toLowerCase();
+  if (/price|amount|cost|fee|balance|salary|budget|total|subtotal/.test(k)) return 9.99;
+  if (/percent|rate/.test(k)) return 50;
+  if (/lat/.test(k)) return 35.6895;
+  if (/lng|lon/.test(k)) return 139.6917;
+  if (/year/.test(k)) return 2024;
+  if (/month/.test(k)) return 1;
+  if (/day/.test(k)) return 1;
+  if (/age/.test(k)) return 30;
+  if (/count|quantity|qty|size|length/.test(k)) return 1;
+  if (/index|rank|page/.test(k)) return 1;
+  return 0;
+}
+function parseType(typeStr, fieldName, nodeMap, visited, depth) {
+  if (depth > 6) return null;
+  const t = typeStr.trim().replace(/;$/, "");
+  if (t.includes("|")) {
+    const members = t.split("|").map((m) => m.trim()).filter((m) => m !== "null" && m !== "undefined" && m !== "never" && m !== "void");
+    if (members.length === 0) return null;
+    return parseType(members[0], fieldName, nodeMap, visited, depth);
+  }
+  if (t === "string") return sampleString(fieldName);
+  if (t === "number" || t === "bigint" || t === "int" || t === "float") return sampleNumber(fieldName);
+  if (t === "boolean") return false;
+  if (t === "null" || t === "undefined" || t === "void" || t === "never") return null;
+  if (t === "any" || t === "unknown") return null;
+  if (t === "true") return true;
+  if (t === "false") return false;
+  if (t === "object" || t === "Record<string,unknown>" || t === "Record<string, unknown>") return {};
+  const strLit = t.match(/^['"](.+)['"]$/);
+  if (strLit) return strLit[1];
+  if (/^-?\d+(\.\d+)?$/.test(t)) return parseFloat(t);
+  const arrayBracket = t.match(/^(.+)\[\]$/);
+  if (arrayBracket) {
+    return [parseType(arrayBracket[1].trim(), fieldName, nodeMap, visited, depth + 1)];
+  }
+  const arrayGeneric = t.match(/^Array<(.+)>$/);
+  if (arrayGeneric) {
+    return [parseType(arrayGeneric[1].trim(), fieldName, nodeMap, visited, depth + 1)];
+  }
+  const wrapper = t.match(/^(?:Partial|Required|Readonly|NonNullable|Promise)<(.+)>$/);
+  if (wrapper) return parseType(wrapper[1].split(",")[0].trim(), fieldName, nodeMap, visited, depth);
+  if (/^(Record|Map|Set)</.test(t)) return {};
+  if (nodeMap.has(t)) {
+    if (visited.has(t)) return {};
+    return buildFromNode(nodeMap.get(t), nodeMap, /* @__PURE__ */ new Set([...visited, t]), depth + 1);
+  }
+  return null;
+}
+function buildFromNode(node, nodeMap, visited, depth) {
+  const result = {};
+  for (const field of node.fields) {
+    result[field.name] = parseType(field.type, field.name, nodeMap, visited, depth);
+  }
+  return result;
+}
+function generateSampleJson(tsCode) {
+  try {
+    const graph = extractTypeGraph(tsCode);
+    if (graph.nodes.length === 0) {
+      return {
+        json: "",
+        error: "No TypeScript interfaces found.\n\nExample:\n\ninterface User {\n  user_id: string;\n  name: string;\n  email: string;\n  age: number;\n}"
+      };
+    }
+    const nodeMap = new Map(graph.nodes.map((n) => [n.id, n]));
+    const roots = graph.nodes.filter((n) => n.isRoot);
+    const target = roots.length > 0 ? roots[0] : graph.nodes[0];
+    const sample = buildFromNode(target, nodeMap, /* @__PURE__ */ new Set([target.id]), 0);
+    return { json: JSON.stringify(sample, null, 2) };
+  } catch (e) {
+    return { json: "", error: e instanceof Error ? e.message : "Parse error" };
+  }
+}
+
 // ../../src/lib/targets.ts
-var T = (key, label, tier, monaco) => ({ key, label, tier, monaco });
+var T = (key, label, tier, monaco, maturity = tier === 1 ? "stable" : "beta") => ({ key, label, tier, maturity, monaco });
 var OUTPUT_TARGETS = {
   // ─── Tier 1: 中核（テスト済み） ───────────────────────────────
   typescript: T("typescript", "TypeScript", 1, "typescript"),
@@ -7676,7 +8881,7 @@ var OUTPUT_TARGETS = {
   typeorm: T("typeorm", "TypeORM", 2, "typescript"),
   drizzle: T("drizzle", "Drizzle", 2, "typescript"),
   kysely: T("kysely", "Kysely", 2, "typescript"),
-  "sql-insert": T("sql-insert", "SQL INSERT", 2, "sql"),
+  "sql-insert": T("sql-insert", "SQL INSERT", 2, "sql", "experimental"),
   yup: T("yup", "Yup", 2, "typescript"),
   joi: T("joi", "Joi", 2, "typescript"),
   valibot: T("valibot", "Valibot", 2, "typescript"),
@@ -7693,31 +8898,38 @@ var OUTPUT_TARGETS = {
   django: T("django", "Django", 2, "python"),
   rails: T("rails", "Rails", 2, "ruby"),
   openapi: T("openapi", "OpenAPI", 2, "yaml"),
-  postman: T("postman", "Postman", 2, "json"),
-  http: T("http", "HTTP File", 2, "http"),
-  curl: T("curl", "cURL", 2, "shell"),
-  vscode: T("vscode", "VS Code Snippet", 2, "json"),
-  avro: T("avro", "Avro", 2, "json"),
-  toml: T("toml", "TOML", 2, "ini"),
-  yaml: T("yaml", "YAML", 2, "yaml"),
-  env: T("env", ".env", 2, "shell"),
-  "env-validator": T("env-validator", "Env Validator", 2, "typescript"),
-  properties: T("properties", ".properties", 2, "ini"),
-  markdown: T("markdown", "Markdown", 2, "markdown"),
-  asciidoc: T("asciidoc", "AsciiDoc", 2, "markdown"),
-  latex: T("latex", "LaTeX", 2, "latex"),
-  mermaid: T("mermaid", "Mermaid", 2, "markdown"),
-  csv: T("csv", "CSV", 2, "plaintext"),
-  cobol: T("cobol", "COBOL", 2, "plaintext"),
-  clojure: T("clojure", "Clojure", 2, "clojure"),
-  elixir: T("elixir", "Elixir", 2, "elixir"),
-  elm: T("elm", "Elm", 2, "elm"),
-  godot: T("godot", "GDScript", 2, "plaintext"),
-  haskell: T("haskell", "Haskell", 2, "haskell"),
-  "r-lang": T("r-lang", "R", 2, "r"),
-  scala: T("scala", "Scala", 2, "scala"),
-  solidity: T("solidity", "Solidity", 2, "sol"),
-  arduino: T("arduino", "Arduino", 2, "cpp")
+  postman: T("postman", "Postman", 2, "json", "experimental"),
+  http: T("http", "HTTP File", 2, "http", "experimental"),
+  curl: T("curl", "cURL", 2, "shell", "experimental"),
+  vscode: T("vscode", "VS Code Snippet", 2, "json", "experimental"),
+  avro: T("avro", "Avro", 2, "json", "experimental"),
+  toml: T("toml", "TOML", 2, "ini", "experimental"),
+  yaml: T("yaml", "YAML", 2, "yaml", "experimental"),
+  env: T("env", ".env", 2, "shell", "experimental"),
+  "env-validator": T("env-validator", "Env Validator", 2, "typescript", "experimental"),
+  properties: T("properties", ".properties", 2, "ini", "experimental"),
+  markdown: T("markdown", "Markdown", 2, "markdown", "experimental"),
+  asciidoc: T("asciidoc", "AsciiDoc", 2, "markdown", "experimental"),
+  latex: T("latex", "LaTeX", 2, "latex", "experimental"),
+  mermaid: T("mermaid", "Mermaid", 2, "markdown", "experimental"),
+  csv: T("csv", "CSV", 2, "plaintext", "experimental"),
+  cobol: T("cobol", "COBOL", 2, "plaintext", "experimental"),
+  clojure: T("clojure", "Clojure", 2, "clojure", "experimental"),
+  elixir: T("elixir", "Elixir", 2, "elixir", "experimental"),
+  elm: T("elm", "Elm", 2, "elm", "experimental"),
+  godot: T("godot", "GDScript", 2, "plaintext", "experimental"),
+  haskell: T("haskell", "Haskell", 2, "haskell", "experimental"),
+  "r-lang": T("r-lang", "R", 2, "r", "experimental"),
+  scala: T("scala", "Scala", 2, "scala", "experimental"),
+  solidity: T("solidity", "Solidity", 2, "sol", "experimental"),
+  arduino: T("arduino", "Arduino", 2, "cpp", "experimental"),
+  c: T("c", "C Struct", 2, "c", "experimental"),
+  cpp: T("cpp", "C++ Struct", 2, "cpp", "experimental"),
+  "mcp-tool": T("mcp-tool", "MCP Tool", 2, "typescript"),
+  "openai-function": T("openai-function", "OpenAI Function", 2, "json"),
+  "vercel-ai-tool": T("vercel-ai-tool", "Vercel AI Tool", 2, "typescript"),
+  "nestjs-dto": T("nestjs-dto", "NestJS DTO", 2, "typescript"),
+  "effect-schema": T("effect-schema", "Effect Schema", 2, "typescript")
 };
 
 // src/extension.ts
@@ -7797,15 +9009,36 @@ async function cmdQuality() {
   }
   const schema2 = parsed.schemas[0]?.schema ?? inferSchema(parsed.json);
   const result = analyzeQuality(schema2);
-  const icon = result.grade === "A" ? "$(pass)" : result.grade === "B" ? "$(info)" : "$(warning)";
-  const msg = `${icon} Schema Quality: ${result.grade}  (${result.score}/100)`;
+  const grade = result.grade;
+  const msg = `Schema Quality: ${grade}  (${result.score}/100)`;
   const detail = result.issues.length ? result.issues.map((i) => `\u2022 ${i.message}`).join("\n") : "No issues found.";
-  vscode.window.showInformationMessage(msg, { detail, modal: false });
+  vscode.window.showInformationMessage(msg, { detail, modal: true });
+}
+async function cmdReverse() {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showErrorMessage("TypeMorph: Open a TypeScript file first.");
+    return;
+  }
+  const sel = editor.selection;
+  const text = editor.document.getText(sel.isEmpty ? void 0 : sel).trim();
+  if (!text) {
+    vscode.window.showErrorMessage("TypeMorph: No content selected.");
+    return;
+  }
+  const { json: json2, error } = generateSampleJson(text);
+  if (error || !json2) {
+    vscode.window.showErrorMessage(`TypeMorph: ${error ?? "No interfaces found."}`);
+    return;
+  }
+  const doc = await vscode.workspace.openTextDocument({ content: json2, language: "json" });
+  await vscode.window.showTextDocument(doc, vscode.ViewColumn.Beside);
 }
 function activate(context) {
   context.subscriptions.push(
     vscode.commands.registerCommand("typemorph.convert", cmdConvert),
-    vscode.commands.registerCommand("typemorph.quality", cmdQuality)
+    vscode.commands.registerCommand("typemorph.quality", cmdQuality),
+    vscode.commands.registerCommand("typemorph.reverse", cmdReverse)
   );
 }
 function deactivate() {

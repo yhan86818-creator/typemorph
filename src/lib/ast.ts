@@ -7,6 +7,8 @@ const astTypeRefersTo = (type: ASTType | undefined, name: string): boolean => {
   if (!type) return false;
   if (type.kind === 'classRef') return type.classRefName === name;
   if (type.kind === 'array') return astTypeRefersTo(type.itemType, name);
+  if (type.kind === 'record') return astTypeRefersTo(type.recordValueType, name);
+  if (type.kind === 'tuple') return (type.tupleTypes ?? []).some(t => astTypeRefersTo(t, name));
   return false;
 };
 
@@ -32,20 +34,39 @@ export const rootArrayItemClassName = (schema: Schema, rootName: string): string
 
 // Schema の個別の型表現から ASTType へのコンバーター
 export const convertToASTType = (v: Schema, parentClassPrefix: string, fieldKey: string): ASTType => {
+  // Record (dynamic-keyed map): key is always string, value carries its own type.
+  if (v.type === 'object' && v.recordValueType) {
+    return {
+      kind: 'record',
+      recordValueType: convertToASTType(v.recordValueType, parentClassPrefix + "_" + fieldKey, 'Value')
+    };
+  }
+
+  // Tuple (positional heterogeneous array): each element keeps its own type.
+  if (v.type === 'array' && v.tupleTypes) {
+    return {
+      kind: 'tuple',
+      tupleTypes: v.tupleTypes.map(t => convertToASTType(t, parentClassPrefix + "_" + fieldKey, 'Item'))
+    };
+  }
+
+  // Raw Zod constraint suffixes carried through verbatim for round-trip (R4).
+  const refs = v.refinements?.length ? { refinements: v.refinements } : {};
+
   if (v.type === 'union' && v.unionTypes) {
     return {
       kind: 'union',
       unionTypes: v.unionTypes as ASTTypeKind[]
     };
   }
-  
+
   if (v.type === 'string') {
     if (v.enumValues) {
-      return { kind: 'enum', enumValues: v.enumValues };
+      return { kind: 'enum', enumValues: v.enumValues, ...refs };
     }
-    if (v.format === 'date') return { kind: 'date', format: 'date' };
-    if (v.format === 'datetime') return { kind: 'datetime', format: 'datetime' };
-    return { kind: 'string', format: v.format };
+    if (v.format === 'date') return { kind: 'date', format: 'date', ...refs };
+    if (v.format === 'datetime') return { kind: 'datetime', format: 'datetime', ...refs };
+    return { kind: 'string', format: v.format, ...refs };
   }
   
   if (v.type === 'object') {
@@ -73,16 +94,18 @@ export const convertToASTType = (v: Schema, parentClassPrefix: string, fieldKey:
       }
       return {
         kind: 'array',
-        itemType: { kind: 'classRef', classRefName: childItemName }
+        itemType: { kind: 'classRef', classRefName: childItemName },
+        ...refs
       };
     }
 
     return {
       kind: 'array',
-      itemType: convertToASTType(v.itemType, childPrefix, 'Item')
+      itemType: convertToASTType(v.itemType, childPrefix, 'Item'),
+      ...refs
     };
   }
-  
+
   // safe mapping for primitives to ASTTypeKind
   // At this point v.type is one of: 'number' | 'boolean' | 'any' | 'union' (others handled above)
   const primitiveMap: Partial<Record<SchemaType, ASTTypeKind>> = {
@@ -92,7 +115,7 @@ export const convertToASTType = (v: Schema, parentClassPrefix: string, fieldKey:
     union: 'union',
   };
   const kind: ASTTypeKind = primitiveMap[v.type] ?? 'any';
-  return { kind, format: v.format };
+  return { kind, format: v.format, ...refs };
 };
 
 // スキーマ・リファクタリングエンジン (AST 最適化)
@@ -242,6 +265,16 @@ export const schemaToAST = (
       return;
     }
 
+    // Record schema: the dynamic keys are not real fields, so emit no class for them.
+    // Only the value type needs a class (when it's an object). The value class name
+    // mirrors convertToASTType's `${prefix}_${fieldKey}_Value` scheme.
+    if (s.type === 'object' && s.recordValueType) {
+      const rv = s.recordValueType;
+      if (rv.type === 'object') traverse(rv, name + '_Value');
+      else if (rv.type === 'array' && rv.itemType?.type === 'object') traverse(rv.itemType, name + '_Value_Item');
+      return;
+    }
+
     if (s.type !== 'object' || !s.fields) return;
 
     // 1. 共通型名が指定されている場合、すでに処理済みなら早期リターンして重複排除！
@@ -352,6 +385,12 @@ export const resolveNameCollisions = (classes: ASTClass[]): ASTClass[] => {
     }
     if (type.kind === 'union' && type.unionTypes) {
       for (const ut of type.unionTypes) updateType(ut);
+    }
+    if (type.kind === 'record' && type.recordValueType) {
+      updateType(type.recordValueType);
+    }
+    if (type.kind === 'tuple' && type.tupleTypes) {
+      for (const t of type.tupleTypes) updateType(t);
     }
   };
 

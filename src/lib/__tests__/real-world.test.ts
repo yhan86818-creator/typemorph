@@ -292,8 +292,13 @@ describe('Real-world: Paginated API Response', () => {
     });
 
     it('applies .int() constraints to pagination counts', () => {
-      expect(out).toMatch(/page.*z\.number\(\)\.int/);
-      expect(out).toMatch(/total.*z\.number\(\)\.int|totalPages.*z\.number\(\)\.int/);
+      // page / perPage are unambiguous integer pagination counts → .int()
+      expect(out).toMatch(/page: z\.number\(\)\.int/);
+      expect(out).toMatch(/perPage: z\.number\(\)\.int/);
+      // Regression guard: "totalPages" must NOT be treated as an age. The 'age'
+      // substring rule previously matched 'totalPages'/'page', capping it at
+      // .max(150) — a paginated response can have far more than 150 pages.
+      expect(out).not.toMatch(/(?:total)?[pP]age.*\.max\(150\)/);
     });
 
     it('generates pagination nested fields as z.object() block', () => {
@@ -453,8 +458,13 @@ describe('Real API fixtures — empty string fields (regression: gravatar_id bug
     expect(zodOut).toMatch(/created_at:\s*z\.iso\.datetime\(\)/);
   });
 
-  it('type with single observed value infers as z.literal("User")', () => {
-    expect(zodOut).toContain('type: z.literal("User")');
+  it('type with a single observed value softens to z.string(), not z.literal (P2)', () => {
+    // GitHub's "type" is "User" OR "Organization"; from one sample we only see "User".
+    // z.literal("User") would reject every Organization payload — too narrow. A single
+    // observed value is weak evidence, so we emit z.string() until multiple samples
+    // promote it to a real z.enum([...]).
+    expect(zodOut).toContain('type: z.string()');
+    expect(zodOut).not.toContain('type: z.literal(');
   });
 
   it('site_admin boolean field infers as z.boolean()', () => {

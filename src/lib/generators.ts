@@ -85,6 +85,10 @@ const printASTType = (type: ASTType): string => {
         return `${sub}[]`;
       }
       return 'any[]';
+    case 'record':
+      return `Record<string, ${type.recordValueType ? printASTType(type.recordValueType) : 'any'}>`;
+    case 'tuple':
+      return `[${(type.tupleTypes ?? []).map(t => printASTType(t)).join(', ')}]`;
     default:
       return type.kind; // string, number, boolean, any
   }
@@ -125,13 +129,13 @@ export const tsGen = {
           res += `export interface ${variantInterfaceName} {\n`;
           for (const [fk, fv] of Object.entries(variantSchema.fields ?? {})) {
             if (fk === du.discriminatorField) {
-              res += `  ${fk}: "${value}";\n`;
+              res += `  ${safeKey(fk)}: "${value}";\n`;
             } else {
               const fvAst = convertToASTType(fv, variantInterfaceName, fk);
               const tsType = printASTType(fvAst);
               const optMark = fv.optional ? '?' : '';
               const nullSuffix = fv.nullable ? ' | null' : '';
-              res += `  ${fk}${optMark}: ${tsType}${nullSuffix};\n`;
+              res += `  ${safeKey(fk)}${optMark}: ${tsType}${nullSuffix};\n`;
             }
           }
           res += `}\n\n`;
@@ -162,7 +166,7 @@ export const tsGen = {
           tsType = tsType.includes(' | ') ? `(${tsType}) | null` : `${tsType} | null`;
         }
 
-        res += `  ${displayName}${optMark}: ${tsType};\n`;
+        res += `  ${safeKey(displayName)}${optMark}: ${tsType};\n`;
       }
       res += `}\n\n`;
     }
@@ -184,6 +188,8 @@ const topoSortForZod = (classes: ASTClass[]): { sorted: ASTClass[], cyclicClassR
   const getClassRefs = (type: ASTType): string[] => {
     if (type.kind === 'classRef' && type.classRefName) return [type.classRefName];
     if (type.kind === 'array' && type.itemType) return getClassRefs(type.itemType);
+    if (type.kind === 'record' && type.recordValueType) return getClassRefs(type.recordValueType);
+    if (type.kind === 'tuple' && type.tupleTypes) return type.tupleTypes.flatMap(getClassRefs);
     if (type.kind === 'union' && type.unionTypes) {
       // unionTypes in AST only hold primitive strings (ASTTypeKind), so they never contain classRefs.
       return [];
@@ -227,8 +233,14 @@ const topoSortForZod = (classes: ASTClass[]): { sorted: ASTClass[], cyclicClassR
   return { sorted, cyclicClassRefs };
 };
 
-// Zod型表現を出力するプリンタヘルパー
+// Zod型表現を出力するプリンタヘルパー。
+// printZodASTType はラッパーで、生成された基本型に対し R4 で保存した raw 制約
+// (.min/.max/.regex/.default/.describe 等) を末尾に再付与する。
 const printZodASTType = (type: ASTType, cyclicClassRefs: Set<string>, options: any = {}): string => {
+  const base = printZodASTTypeBase(type, cyclicClassRefs, options);
+  return type.refinements?.length ? base + type.refinements.join('') : base;
+};
+const printZodASTTypeBase = (type: ASTType, cyclicClassRefs: Set<string>, options: any = {}): string => {
   switch (type.kind) {
     case 'union': {
       if (!type.unionTypes || type.unionTypes.length === 0) return 'z.any()';
@@ -241,10 +253,14 @@ const printZodASTType = (type: ASTType, cyclicClassRefs: Set<string>, options: a
     }
     case 'enum':
       if (!type.enumValues || type.enumValues.length === 0) return 'z.string()';
-      if (type.enumValues.length === 1) return `z.literal("${type.enumValues[0]}")`;
+      // P2: a single observed value is weak evidence for an enum — z.literal("active")
+      // would reject every other valid value (pending, cancelled…). Emit z.string()
+      // instead; supplying multiple samples promotes it to a real z.enum([...]).
+      // (Discriminated-union discriminators emit z.literal via a separate code path.)
+      if (type.enumValues.length === 1) return 'z.string()';
       return `z.enum([${type.enumValues.map(ev => `"${ev}"`).join(', ')}])`;
     case 'date':
-      return 'z.coerce.date()';
+      return options.zodVersion === 'v3' ? 'z.coerce.date()' : 'z.iso.date()';
     case 'datetime':
       return options.zodVersion === 'v3' ? 'z.string().datetime()' : 'z.iso.datetime()';
     case 'classRef': {
@@ -259,10 +275,22 @@ const printZodASTType = (type: ASTType, cyclicClassRefs: Set<string>, options: a
         return `z.array(${sub})`;
       }
       return 'z.array(z.any())';
+    case 'record': {
+      const val = type.recordValueType
+        ? printZodASTType(type.recordValueType, cyclicClassRefs, options)
+        : 'z.any()';
+      return options.zodVersion === 'v3' ? `z.record(${val})` : `z.record(z.string(), ${val})`;
+    }
+    case 'tuple': {
+      if (!type.tupleTypes || type.tupleTypes.length === 0) return 'z.array(z.any())';
+      const items = type.tupleTypes.map(t => printZodASTType(t, cyclicClassRefs, options));
+      return `z.tuple([${items.join(', ')}])`;
+    }
     case 'string':
       if (type.format === 'email') return options.zodVersion === 'v3' ? 'z.string().email()' : 'z.email()';
       if (type.format === 'url') return options.zodVersion === 'v3' ? 'z.string().url()' : 'z.url()';
       if (type.format === 'uuid') return options.zodVersion === 'v3' ? 'z.string().uuid()' : 'z.uuid()';
+      if (type.format === 'color') return 'z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/)';
       return 'z.string()';
     case 'number':
       return options.zodMode === 'loose' ? 'z.coerce.number()' : 'z.number()';
@@ -287,6 +315,10 @@ const printTSTypeForZod = (type: ASTType): string => {
     case 'boolean': return 'boolean';
     case 'classRef': return type.classRefName ?? 'unknown';
     case 'array': return type.itemType ? `${printTSTypeForZod(type.itemType)}[]` : 'unknown[]';
+    case 'record':
+      return `Record<string, ${type.recordValueType ? printTSTypeForZod(type.recordValueType) : 'unknown'}>`;
+    case 'tuple':
+      return `[${(type.tupleTypes ?? []).map(t => printTSTypeForZod(t)).join(', ')}]`;
     case 'union':
       return type.unionTypes?.map(t => printTSTypeForZod({ kind: t } as ASTType)).join(' | ') ?? 'unknown';
     case 'enum':
@@ -294,6 +326,20 @@ const printTSTypeForZod = (type: ASTType): string => {
     default: return 'unknown';
   }
 };
+
+// Object keys that aren't valid JS identifiers (kebab-case headers like
+// "content-type", keys starting with a digit, keys with spaces/dots, etc.) must
+// be quoted, or the generated TypeScript/Zod fails to parse. JSON.stringify
+// produces a correctly-escaped double-quoted key for any string.
+const safeKey = (name: string): string =>
+  /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) ? name : JSON.stringify(name);
+
+// Splits a field name into lowercase word tokens, honoring snake_case, kebab-case,
+// spaces, and camelCase boundaries. Used so name-based heuristics match whole
+// words ("count" in "follower_count" / "itemCount") without false positives on
+// substrings ("discount", "account", "page", "message", "usage").
+const fieldWords = (name: string): string[] =>
+  name.split(/[_\-\s]+|(?<=[a-z0-9])(?=[A-Z])/).map(w => w.toLowerCase()).filter(Boolean);
 
 export const zodGen = {
   generate: (schema: Schema, name: string = 'root', options: any = {}): string => {
@@ -329,13 +375,13 @@ export const zodGen = {
           res += `export const ${variantCamel}Schema = z.object({\n`;
           for (const [fk, fv] of Object.entries(variantSchema.fields ?? {})) {
             if (fk === du.discriminatorField) {
-              res += `  ${fk}: z.literal("${value}"),\n`;
+              res += `  ${safeKey(fk)}: z.literal("${value}"),\n`;
             } else {
               const fvAst = convertToASTType(fv, variantPascal, fk);
               let zType = printZodASTType(fvAst, cyclicClassRefs, modeOptions);
               if (fv.nullable) zType += '.nullable()';
               if (isLoose || fv.optional) zType += '.optional()';
-              res += `  ${fk}: ${zType},\n`;
+              res += `  ${safeKey(fk)}: ${zType},\n`;
             }
           }
           res += `});\n`;
@@ -366,7 +412,7 @@ export const zodGen = {
           const tsType = printTSTypeForZod(cycField.fieldType);
           const opt = (cycField.isOptional || isLoose) ? '?' : '';
           const nullable = cycField.isNullable ? ' | null' : '';
-          res += `  ${cycField.name}${opt}: ${tsType}${nullable};\n`;
+          res += `  ${safeKey(cycField.name)}${opt}: ${tsType}${nullable};\n`;
         }
         res += `};\n\n`;
       }
@@ -387,7 +433,12 @@ export const zodGen = {
         const customKey = `${cls.name}.${field.name}`;
         const displayName = (options.customFieldNames as Record<string, string>)?.[customKey] ?? field.name;
         const k = displayName.toLowerCase();
-        if (!isLoose) {
+        const words = fieldWords(displayName);
+        const hasWord = (...ws: string[]) => ws.some(w => words.includes(w));
+        // Skip name-based constraint inference when the field already carries explicit
+        // refinements preserved from a parsed Zod schema (R4) — the user's own
+        // constraints win and must not be doubled up.
+        if (!isLoose && !field.fieldType.refinements?.length) {
           if (field.fieldType.kind === 'number') {
             if (k.includes('percent')) {
               zType += '.min(0).max(100)';
@@ -399,7 +450,7 @@ export const zodGen = {
               zType += '.min(0).max(5)';
             } else if (k.includes('score')) {
               zType += '.min(0).max(100)';
-            } else if (k.includes('age')) {
+            } else if (hasWord('age')) {
               zType += '.int().min(0).max(150)';
             } else if (k.includes('year')) {
               zType += '.int().min(1900).max(2100)';
@@ -411,9 +462,9 @@ export const zodGen = {
               zType += '.int().min(0).max(23)';
             } else if (k.includes('minute') || k.includes('second')) {
               zType += '.int().min(0).max(59)';
-            } else if (k.includes('count') || k.includes('quantity') || k === 'qty') {
+            } else if (hasWord('count', 'quantity', 'qty')) {
               zType += '.int().min(0)';
-            } else if (['price', 'amount', 'cost', 'fee', 'rank', 'total', 'subtotal'].some(w => k.includes(w))) {
+            } else if (hasWord('price', 'amount', 'cost', 'fee', 'rank', 'total', 'subtotal')) {
               zType += '.min(0)';
             } else if (k === 'port' || k.endsWith('_port') || k === 'portnumber' || k === 'port_number') {
               zType += '.int().min(1).max(65535)';
@@ -425,15 +476,35 @@ export const zodGen = {
             if (k.includes('email')) zType = zEmail;
             else if (k.includes('url') || k.includes('link') || k.includes('website')) zType = zUrl;
             else if (k.includes('uuid') || ((k.endsWith('_id') || /Id$/.test(displayName) || /ID$/.test(displayName)) && field.fieldType.format === 'uuid')) zType = zUuid;
+            // Zod v4 REMOVED z.string().ip() and has no z.ip() — it crashes at runtime.
+            // v4 splits into z.ipv4()/z.ipv6(); accept either via a union. v3 keeps .ip().
+            else if (k === 'ip' || k.includes('ip_address') || k.includes('ipaddress') || k === 'remote_ip' || k === 'client_ip' || k === 'server_ip') zType = isV3 ? 'z.string().ip()' : 'z.union([z.ipv4(), z.ipv6()])';
             else if (k.includes('phone') || k === 'tel' || k === 'telephone' || k.endsWith('_tel') || k.startsWith('tel_')) zType = 'z.string().regex(/^\\+?[\\d\\s\\-\\.\\(\\)]{7,15}$/)';
             else if (k.includes('password') || k.includes('passwd')) zType = 'z.string().min(8)';
             else if (k === 'zip' || k === 'zipcode' || k === 'zip_code' || k === 'postal_code' || k === 'postcode') zType = 'z.string().regex(/^[A-Z0-9][A-Z0-9\\s\\-]{1,8}[A-Z0-9]$/i)';
             else if (k === 'semver') zType = 'z.string().regex(/^\\d+\\.\\d+(\\.\\d+)?(-[\\w.]+)?(\\+[\\w.]+)?$/)';
             else if (k.includes('slug')) zType = 'z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)';
+            // ISO 3166-1 alpha-2 country code (US/JP) — exactly 2 letters. Not bare
+            // "country", which usually holds a full name ("United States").
+            // (currency/currencyCode are handled by enum detection — see enumKeywordsSet —
+            //  so a single sample yields z.literal("USD"); multi-sample yields z.enum.)
+            else if (k === 'countrycode' || k === 'country_code') zType = 'z.string().length(2)';
             else {
               const hasTrim = k.includes('name') || k.includes('label') || k.includes('title');
               if (hasTrim) zType = 'z.string().trim()';
             }
+          }
+          // null-in-sample fields arrive as kind 'any' (z.any()). The value gives no
+          // type, but the NAME often does — recover a meaningful base type so common
+          // nullable columns (deletedAt, archivedAt, lastLoginAt …) aren't left as a
+          // useless z.any().nullable(). Falls through to z.any() when no hint matches.
+          if (field.fieldType.kind === 'any' && field.isNullable) {
+            const lastWord = words[words.length - 1];
+            if (lastWord === 'at' || hasWord('timestamp', 'datetime')) zType = isV3 ? 'z.string().datetime()' : 'z.iso.datetime()';
+            else if (hasWord('date')) zType = isV3 ? 'z.coerce.date()' : 'z.iso.date()';
+            else if (hasWord('time')) zType = isV3 ? 'z.string().datetime()' : 'z.iso.datetime()';
+            else if (k.includes('email')) zType = zEmail;
+            else if (k.includes('url') || k.includes('link') || k.includes('website')) zType = zUrl;
           }
         }
 
@@ -443,7 +514,7 @@ export const zodGen = {
           fieldExpr += `.describe('${label}')`;
         }
 
-        res += `  ${displayName}: ${fieldExpr},\n`;
+        res += `  ${safeKey(displayName)}: ${fieldExpr},\n`;
       }
 
       const objSuffix = isLoose ? '.passthrough()' : isEnterprise ? '.strict()' : '';
@@ -1085,6 +1156,16 @@ export const mockGen = {
   generate: (schema: Schema): string => {
     let _arrayIndex = 0;
     const generateMock = (s: Schema, key: string = "", parentKey: string = ""): any => {
+      // Record (dynamic-keyed map): emit a couple of representative entries.
+      if (s.type === 'object' && s.recordValueType) {
+        const obj: any = {};
+        for (let i = 1; i <= 2; i++) obj[`key${i}`] = generateMock(s.recordValueType!, key, parentKey);
+        return obj;
+      }
+      // Tuple: emit one value per positional element type.
+      if (s.type === 'array' && s.tupleTypes) {
+        return s.tupleTypes.map(t => generateMock(t, key, parentKey));
+      }
       if (s.type === 'object' && s.fields) {
         const obj: any = {};
         for (const [k, v] of Object.entries(s.fields)) {
@@ -1470,7 +1551,7 @@ export const nestjsDtoGen = {
         for (const dec of decorators) {
           block += `  ${dec}\n`;
         }
-        block += `  ${field.name}${optMark}: ${tsType};\n\n`;
+        block += `  ${safeKey(field.name)}${optMark}: ${tsType};\n\n`;
       }
 
       block = block.trimEnd() + '\n}\n';
@@ -1590,7 +1671,7 @@ export const effectSchemaGen = {
         } else if (field.isOptional) {
           effectType = `Schema.optional(${effectType})`;
         }
-        res += `  ${field.name}: ${effectType},\n`;
+        res += `  ${safeKey(field.name)}: ${effectType},\n`;
       }
 
       res += `});\n`;

@@ -1,0 +1,36 @@
+name: Schema Breaking Change Check
+
+on:
+  pull_request:
+    paths:
+      - 'openapi.yaml'
+      - 'schema.json'
+
+jobs:
+  breaking-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Save the base branch version
+      - name: Get base schema
+        run: git show origin/${{ github.base_ref }}:openapi.yaml > /tmp/openapi-base.yaml
+
+      # Diff against current PR version
+      - name: Check for breaking changes
+        id: diff
+        uses: yhan86818-creator/typemorph@v1
+        with:
+          command: diff
+          old-file: /tmp/openapi-base.yaml
+          new-file: openapi.yaml
+
+      # Use the output in downstream steps
+      - name: Report
+        if: always()
+        run: |
+          echo "Breaking changes: ${{ steps.diff.outputs.breaking }}"
+          echo "Compatibility score: ${{ steps.diff.outputs.score }}"
+          echo "Passed: ${{ steps.diff.outputs.passed }}"

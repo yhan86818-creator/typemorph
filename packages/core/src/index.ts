@@ -26,6 +26,9 @@ export { analyzeQuality }                    from '../../../src/lib/quality';
 export type { SchemaDiff }                        from '../../../src/lib/diff';
 export { compareSchemaTypes, compareSchemas }     from '../../../src/lib/diff';
 
+// ── Reverse ──────────────────────────────────────────────────────────────────
+export { generateSampleJson } from '../../../src/lib/reverse';
+
 // ── Targets ──────────────────────────────────────────────────────────────────
 export type { OutputTarget, TargetTier }                              from '../../../src/lib/targets';
 export { OUTPUT_TARGETS, resolveSlugTarget, monacoLanguageForTarget } from '../../../src/lib/targets';

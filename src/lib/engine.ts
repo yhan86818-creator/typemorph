@@ -265,6 +265,28 @@ const applyContextCorrections = (fields: Record<string, Schema>): void => {
   }
 };
 
+// Strong-signal record detection: returns true only when every key looks "dynamic"
+// (a map entry) rather than a fixed field name. Conservative by design so that normal
+// fixed-shape objects like { x, y, z } are never misclassified as z.record(...).
+const RECORD_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isDynamicRecordKeys = (keys: string[]): boolean => {
+  if (keys.length < 2) return false;
+  // (a) all purely numeric keys: { "0": …, "1": … }
+  if (keys.every(k => /^\d+$/.test(k))) return true;
+  // (b) all UUID keys: a map keyed by entity id
+  if (keys.every(k => RECORD_UUID_RE.test(k))) return true;
+  // (c) all share a non-empty prefix followed by a number: user_1, item-2, key0
+  const m0 = keys[0].match(/^(.*?)[_-]?\d+$/);
+  if (m0 && m0[1]) {
+    const prefix = m0[1];
+    if (keys.every(k => {
+      const m = k.match(/^(.*?)[_-]?\d+$/);
+      return !!m && m[1] === prefix;
+    })) return true;
+  }
+  return false;
+};
+
 export const inferSchema = (val: any, keyName?: string, depth: number = 0, allowedEnumKeys?: Set<string>, options?: InferOptions): Schema => {
   const maxDepth = options?.maxDepth ?? MAX_DEPTH;
   const addMeta = (s: Schema, reason: string, info?: any): Schema => {
@@ -325,7 +347,19 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
       }
     }
 
-    return addMeta({ type: 'array', itemType }, 'array_inferred', { samples: len, sampled: sampledItems.length });
+    // Tuple detection (conservative): a short (2–6) array whose elements are all
+    // primitives but of ≥2 distinct types is positional data, not a homogeneous list
+    // (e.g. ["lat", 35.6] → [string, number]). itemType is kept for graceful degradation.
+    let tupleTypes: Schema[] | undefined;
+    if (len >= 2 && len <= 6 && val.every((el: any) => el === null || typeof el !== 'object')) {
+      const elems = val.map((el: any) => inferSchema(el, undefined, depth + 1, undefined, options));
+      // Heterogeneity is judged by base type only — ["2026-05-21", "free text"] are both
+      // strings (one just looks like a date) and must stay string[], not a [Date, string] tuple.
+      const sigs = new Set(elems.map(s => s.type));
+      if (sigs.size >= 2) tupleTypes = elems;
+    }
+
+    return addMeta({ type: 'array', itemType, ...(tupleTypes ? { tupleTypes } : {}) }, 'array_inferred', { samples: len, sampled: sampledItems.length });
   }
 
   if (typeof val === 'object') {
@@ -335,6 +369,17 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
     }
     // 隣接フィールドの文脈で format を補正
     applyContextCorrections(fields);
+
+    // Record detection (conservative): when every key is a dynamic map key (numeric /
+    // uuid / shared-prefix+number), this is a map, not a fixed struct. Merge all value
+    // schemas into a single value type. fields is kept for graceful degradation.
+    const keys = Object.keys(fields);
+    if (isDynamicRecordKeys(keys)) {
+      let valueType: Schema = fields[keys[0]];
+      for (let i = 1; i < keys.length; i++) valueType = mergeSchemas(valueType, fields[keys[i]], depth + 1);
+      return addMeta({ type: 'object', fields, recordValueType: valueType }, 'record_inferred', { fieldCount: keys.length });
+    }
+
     return addMeta({ type: 'object', fields }, 'object', { fieldCount: Object.keys(fields).length });
   }
 
@@ -345,6 +390,8 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
 
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) return addMeta({ type: 'string', format: 'uuid' }, 'format:uuid');
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return addMeta({ type: 'string', format: 'email' }, 'format:email');
+    // Hex color (#RGB / #RRGGBB) — value-driven so named colors ("red") stay plain strings
+    if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(val)) return addMeta({ type: 'string', format: 'color' }, 'format:color');
     if (/^https?:\/\/[^\s]+$/.test(val) && val.includes('{')) return addMeta({ type: 'string', format: 'text' }, 'format:url-template');
     if (/^https?:\/\/[^\s]+$/.test(val)) return addMeta({ type: 'string', format: 'url' }, 'format:url');
 
@@ -1186,7 +1233,15 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     }
 
     const isOAComp: boolean = !!options._openAPIComponent;
-    const schema = json && json._isTypeMorphSchema ? json : inferSchema(json);
+    let schema = json && json._isTypeMorphSchema ? json : inferSchema(json);
+    // Samples mode (F-8): the input array holds N samples of ONE schema, not an array
+    // of distinct items. inferSchema already merged the items into itemType (widening
+    // enums, marking missing fields optional, unioning divergent types), so emit that
+    // merged object as the root — no z.array wrapper. Caller opts in explicitly because
+    // "array of samples" and "array of items" are otherwise indistinguishable.
+    if (options.samplesMode && schema.type === 'array' && schema.itemType) {
+      schema = schema.itemType;
+    }
     const rootName: string = options.rootName ?? 'Root';
     // Detect self-referential schemas (e.g. TreeNode.children: TreeNode[]) before
     // extractSharedTypes so the named stubs don't get merged away.
@@ -1299,6 +1354,33 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
     else if (s.includes('solidity')) out = solidityGen.generate(schema, 'Root');
     else if (s.includes('cpp') || s.includes('c++') || s.includes('cpp-struct') || s.includes('cpp-class')) out = cppGen.generate(schema, rootName);
     else if (s === 'c' || s.includes('c-struct') || s.includes('json-to-c')) out = cGen.generate(schema, rootName);
+    else if (s.includes('zod-migrate') || s.includes('zod-v3') || s.includes('zod-v4')) {
+      out = `/* Zod v4 Migration — paste your Zod v3 schema in the ⬆ Zod v4 tab */
+import { z } from 'zod';
+
+// Format validators are now top-level in Zod v4:
+const examples = {
+  email:    z.email(),           // was: z.string().email()
+  url:      z.url(),             // was: z.string().url()
+  uuid:     z.uuid(),            // was: z.string().uuid()
+  datetime: z.iso.datetime(),    // was: z.string().datetime()
+  date:     z.iso.date(),        // was: z.string().date()
+};`;
+      matchedKey = 'zod-migrate';
+    }
+    else if (s.includes('ts-to-zod') || s === 'ts-to-zod') {
+      out = `/* TypeScript → Zod — paste your TypeScript interfaces in the TS → Zod tab */
+import { z } from 'zod';
+
+const UserSchema = z.object({
+  id:    z.string(),
+  email: z.string(),
+  age:   z.number(),
+  role:  z.enum(['admin', 'user', 'guest']),
+});
+export type User = z.infer<typeof UserSchema>;`;
+      matchedKey = 'ts-to-zod';
+    }
     else if (s.includes('mcp-tool') || s.includes('mcp')) out = mcpToolGen.generate(schema, rootName);
     else if (s.includes('openai-function') || s.includes('openai-func')) out = openAiFunctionGen.generate(schema, rootName);
     else if (s.includes('vercel-ai-tool') || s.includes('vercel-ai')) out = vercelAiToolGen.generate(schema, rootName);

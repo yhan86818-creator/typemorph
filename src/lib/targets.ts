@@ -108,6 +108,8 @@ export const OUTPUT_TARGETS: Record<string, OutputTarget> = {
   'vercel-ai-tool': T('vercel-ai-tool', 'Vercel AI Tool', 2, 'typescript'),
   'nestjs-dto':    T('nestjs-dto', 'NestJS DTO', 2, 'typescript'),
   'effect-schema': T('effect-schema', 'Effect Schema', 2, 'typescript'),
+  'zod-migrate':   T('zod-migrate', 'Zod v4 Migration', 1, 'typescript'),
+  'ts-to-zod':     T('ts-to-zod', 'TS → Zod', 1, 'typescript'),
 };
 
 /**
@@ -198,11 +200,19 @@ const ALIASES: [RegExp, string][] = [
   [/mcp-tool|\bmcp\b/, 'mcp-tool'],
   [/openai-function|openai-func/, 'openai-function'],
   [/vercel-ai-tool|vercel-ai/, 'vercel-ai-tool'],
+  [/zod-migrate|zod-v3|zod.*v4|v3.*v4/, 'zod-migrate'],
+  [/ts-to-zod|typescript.*zod|ts.*zod/, 'ts-to-zod'],
 ];
+
+const SLUG_DIRECT: Record<string, string> = {
+  'zod-v3-to-v4': 'zod-migrate',
+  'typescript-to-zod': 'ts-to-zod',
+};
 
 export function resolveSlugTarget(slug: string): OutputTarget | null {
   if (!slug) return null;
   const lower = slug.toLowerCase();
+  if (SLUG_DIRECT[lower]) return OUTPUT_TARGETS[SLUG_DIRECT[lower]] ?? null;
   const tail = lower.includes('-to-') ? lower.split('-to-').pop()! : lower;
   for (const [re, key] of ALIASES) {
     if (re.test(tail)) return OUTPUT_TARGETS[key] ?? null;

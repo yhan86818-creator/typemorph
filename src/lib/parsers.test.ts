@@ -384,6 +384,57 @@ components:
       expect(schema?.fields?.address?.optional).toBe(true);
       expect(schema?.fields?.address?.fields?.city?.type).toBe('string');
     });
+
+    // NEW-A: the main-editor TS→Schema path was previously much weaker than the
+    // dedicated TS→Zod tab — nested refs, Record, enums, extends, index signatures
+    // and tuples all collapsed to `any`. It now resolves them like ts-to-zod.
+    describe('NEW-A: rich TS resolution (parity with TS→Zod tab)', () => {
+      it('resolves interface references to nested objects (not any)', () => {
+        const ts = `interface Address { street: string; city: string; }
+interface User { id: string; address: Address; }`;
+        const s = parseTypeScriptToSchema(ts);
+        expect(s?.fields?.address?.type).toBe('object');
+        expect(s?.fields?.address?.fields?.city?.type).toBe('string');
+      });
+
+      it('maps Record<string, V> to a record schema', () => {
+        const s = parseTypeScriptToSchema(`interface C { meta: Record<string, number>; }`);
+        expect(s?.fields?.meta?.recordValueType?.type).toBe('number');
+      });
+
+      it('merges fields inherited via extends', () => {
+        const ts = `interface Base { id: string; createdAt: Date; }
+interface Post extends Base { title: string; }`;
+        const s = parseTypeScriptToSchema(ts);
+        expect(s?.fields?.id?.type).toBe('string');
+        expect(s?.fields?.title?.type).toBe('string');
+      });
+
+      it('resolves a string enum to enumValues', () => {
+        const ts = `enum Role { Admin = "admin", User = "user" }
+interface Account { role: Role; }`;
+        const s = parseTypeScriptToSchema(ts);
+        expect(s?.fields?.role?.enumValues).toEqual(['admin', 'user']);
+      });
+
+      it('maps an index signature to a record', () => {
+        const ts = `interface Dict { [key: string]: number; }
+interface Cfg { dict: Dict; }`;
+        const s = parseTypeScriptToSchema(ts);
+        expect(s?.fields?.dict?.recordValueType?.type).toBe('number');
+      });
+
+      it('parses tuple element types', () => {
+        const s = parseTypeScriptToSchema(`interface Geo { coord: [number, number]; }`);
+        expect(s?.fields?.coord?.tupleTypes?.map(t => t.type)).toEqual(['number', 'number']);
+      });
+
+      it('keeps readonly fields (regression: previously dropped by the graph parser)', () => {
+        const s = parseTypeScriptToSchema(`interface User { readonly id: string; name: string; }`);
+        expect(s?.fields?.id?.type).toBe('string');
+        expect(s?.fields?.name?.type).toBe('string');
+      });
+    });
   });
 
   describe('parseEnvFile', () => {

@@ -117,22 +117,28 @@ describe('TypeMorph Engine', () => {
       expect(addressDeclarations?.length).toBe(1);
     });
 
-    it('should infer pure YYYY-MM-DD date format and map to Date/z.coerce.date()', () => {
+    it('should infer pure YYYY-MM-DD date format and map to Date/z.iso.date()', () => {
       const json = {
         joinedAt: "2026-05-18",
         history: ["2026-05-19", "2026-05-20"],
         mixed: ["2026-05-21", "invalid-date-string"]
       };
-      
+
       const tsResult = runEngine(json, 'typescript');
       expect(tsResult).toContain('joinedAt: Date;');
       expect(tsResult).toContain('history: Date[];');
       expect(tsResult).toContain('mixed: string[];');
-      
+
+      // v4 default: z.iso.date() for YYYY-MM-DD strings
       const zodResult = runEngine(json, 'zod');
-      expect(zodResult).toContain('joinedAt: z.coerce.date()');
-      expect(zodResult).toContain('history: z.array(z.coerce.date())');
+      expect(zodResult).toContain('joinedAt: z.iso.date()');
+      expect(zodResult).toContain('history: z.array(z.iso.date())');
       expect(zodResult).toContain('mixed: z.array(z.string())');
+
+      // v3: z.coerce.date()
+      const zodV3Result = runEngine(json, 'zod', '', { zodVersion: 'v3' });
+      expect(zodV3Result).toContain('joinedAt: z.coerce.date()');
+      expect(zodV3Result).toContain('history: z.array(z.coerce.date())');
     });
 
     it('should perform schema refactoring (flattening wrappers and extracting TimestampModel)', () => {
@@ -764,6 +770,40 @@ describe('TypeMorph Engine', () => {
       };
       const out = runEngine(schemaFromOpenAPI, 'typescript', 'json-to-typescript');
       expect(out).toContain('isActive: boolean;');
+    });
+  });
+
+  describe('samplesMode (F-8: treat array as N samples of one schema)', () => {
+    const samples = [
+      { id: 1, status: 'active', role: 'admin' },
+      { id: 2, status: 'pending', role: 'user' },
+      { id: 3, status: 'cancelled', role: 'user' },
+    ];
+
+    it('default (off): a root array is an array of items → z.array wrapper', () => {
+      const out = runEngine(samples, 'zod', '', { rootName: 'User' });
+      expect(out).toContain('z.array(userItemSchema)');
+    });
+
+    it('on: emits the merged object as the root, no z.array wrapper', () => {
+      const out = runEngine(samples, 'zod', '', { rootName: 'User', samplesMode: true });
+      expect(out).toContain('export const userSchema = z.object({');
+      expect(out).not.toContain('z.array(');
+      expect(out).not.toContain('ItemSchema');
+    });
+
+    it('aggregates across samples: enums widen, missing fields become optional', () => {
+      const out = runEngine(
+        [{ status: 'active', nickname: 'a' }, { status: 'pending' }, { status: 'cancelled' }],
+        'zod', '', { rootName: 'User', samplesMode: true },
+      );
+      expect(out).toContain('z.enum(["active", "pending", "cancelled"])');
+      expect(out).toMatch(/nickname:.*\.optional\(\)/);
+    });
+
+    it('is a no-op for a single (non-array) object', () => {
+      const out = runEngine({ id: 1 }, 'zod', '', { rootName: 'User', samplesMode: true });
+      expect(out).toContain('export const userSchema = z.object({');
     });
   });
 });

@@ -21,18 +21,18 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "TypeMorph | TypeScript API Safety Toolkit",
+    default: "TypeMorph | JSON to Zod — 160+ Schema Formats, Runs in Browser",
     template: "%s | TypeMorph"
   },
-  description: "Keep your TypeScript safe from API type drift. Generate Zod schemas, runtime type guards, and detect mismatches between your types and real API responses. Local-first, 100% private.",
+  description: "The best way to convert JSON to Zod schemas. Migrate Zod v3 → v4 automatically, generate TypeScript, Go, Rust and 160+ formats. 100% browser-local, no signup.",
   metadataBase: new URL('https://typemorph.dev'),
   icons: {
     icon: '/favicon.png',
     apple: '/favicon.png',
   },
   openGraph: {
-    title: "TypeMorph | TypeScript API Safety Toolkit",
-    description: "Catch API type drift before it reaches production. Generate Zod schemas, type guards, and validate LLM outputs — all local-first.",
+    title: "TypeMorph | JSON to Zod — 160+ Schema Formats, Runs in Browser",
+    description: "The best way to convert JSON to Zod schemas. Migrate Zod v3 → v4 automatically, generate TypeScript, Go, Rust and 160+ formats. 100% browser-local, no signup.",
     url: 'https://typemorph.dev',
     siteName: 'TypeMorph',
     images: [
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'TypeMorph - TypeScript API Safety Toolkit'
+        alt: 'TypeMorph — JSON to Zod, 160+ Schema Formats, Runs in Browser'
       },
     ],
     locale: 'en_US',
@@ -48,8 +48,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TypeMorph | TypeScript API Safety Toolkit',
-    description: 'Catch API type drift before it hits production. Zod schemas, type guards, drift detection — local-first.',
+    title: 'TypeMorph | JSON to Zod — 160+ Schema Formats, Runs in Browser',
+    description: 'The best way to convert JSON to Zod schemas. Migrate Zod v3 → v4 automatically. 160+ formats, 100% browser-local.',
     images: ['/og-image.png'],
   },
   verification: {

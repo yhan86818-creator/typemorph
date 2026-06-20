@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import ts from 'typescript';
 import { swiftGen, kotlinGen, zodGen, protoGen, gqlGen, tsGen, goGen, rustGen, jsonSchemaGen, mockGen, prismaGen, javaGen, uiGen, docGen, csharpGen, phpGen, nestjsDtoGen, effectSchemaGen, typeGuardGen } from './generators';
 import { llmValidatorGen } from './generators-extended';
 import { inferSchema } from './engine';
@@ -53,6 +54,45 @@ describe('generators', () => {
       const schema = inferSchema(json);
       const result = zodGen.generate(schema, 'Root');
       expect(result).toContain('export type Root = z.infer<typeof rootSchema>;');
+    });
+
+    // G1/G2: conservative record/tuple detection on the JSON→Zod generation path.
+    describe('record/tuple detection (G1/G2, strong-signal only)', () => {
+      const zod = (json: any) => zodGen.generate(inferSchema(json), 'Root');
+
+      it('detects z.record for dynamic numeric/prefix/uuid keys', () => {
+        expect(zod({ metrics: { metric_1: 90, metric_2: 85 } })).toContain('metrics: z.record(z.string(), z.number())');
+        expect(zod({ cache: { '1': 'x', '2': 'y' } })).toContain('cache: z.record(z.string(), z.string())');
+      });
+
+      it('emits a value class for object-valued records', () => {
+        const out = zod({ usersById: { user_1: { name: 'a' }, user_2: { name: 'b' } } });
+        expect(out).toContain('usersById: z.record(z.string(), rootUsersByIdValueSchema)');
+        // value class must be declared (and, per topo-sort, before it is referenced)
+        expect(out).toContain('export const rootUsersByIdValueSchema = z.object({');
+        expect(out.indexOf('rootUsersByIdValueSchema = z.object')).toBeLessThan(out.indexOf('rootSchema = z.object'));
+      });
+
+      it('does NOT treat fixed-shape objects as records (no false positive)', () => {
+        expect(zod({ point: { x: 1, y: 2, z: 3 } })).not.toContain('z.record');
+        expect(zod({ scores: { math: 90, science: 85, history: 78 } })).not.toContain('z.record');
+      });
+
+      it('detects z.tuple for short heterogeneous primitive arrays', () => {
+        expect(zod({ coord: ['lat', 35.6] })).toContain('coord: z.tuple([z.string(), z.number()])');
+      });
+
+      it('does NOT treat homogeneous or date-like string arrays as tuples', () => {
+        expect(zod({ nums: [1, 2, 3] })).toContain('nums: z.array(');
+        expect(zod({ nums: [1, 2, 3] })).not.toContain('z.tuple');
+        // both strings (one looks like a date) → stays an array, not [Date, string]
+        expect(zod({ mixed: ['2026-05-21', 'free text'] })).not.toContain('z.tuple');
+      });
+
+      it('uses single-arg z.record on Zod v3', () => {
+        const out = zodGen.generate(inferSchema({ cache: { '1': 'x', '2': 'y' } }), 'Root', { zodVersion: 'v3' });
+        expect(out).toContain('cache: z.record(z.string())');
+      });
     });
   });
 
@@ -1137,5 +1177,150 @@ describe('generators', () => {
       expect(result).toContain('export type User =');
       expect(result).toContain('export function parseUser(');
     });
+  });
+});
+
+// Regression: the test corpus historically used only valid-identifier keys (camelCase /
+// snake_case) and integer-valued count/amount fields, so two whole classes of bug were
+// invisible — (1) invalid-identifier object keys emitted unquoted → non-compiling output,
+// (2) name heuristics matching substrings ("discount" → count, "page" → age). These
+// adversarial inputs lock both classes shut for zodGen.
+describe('zodGen — adversarial key & name regressions', () => {
+  const syntaxErrors = (code: string): string[] => {
+    const body = code.replace(/import \{ z \} from "zod";/, 'declare const z: any;');
+    return (ts.transpileModule(body, {
+      reportDiagnostics: true,
+      compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
+    }).diagnostics ?? [])
+      .filter(d => d.category === ts.DiagnosticCategory.Error)
+      .map(d => ts.flattenDiagnosticMessageText(d.messageText, '\n'));
+  };
+
+  it('quotes keys that are not valid JS identifiers (kebab/digit-start/space)', () => {
+    const out = zodGen.generate(inferSchema({
+      'content-type': 'json', 'x-rate-limit': '5', '2fa_enabled': true, 'with space': 1,
+    }), 'Root');
+    expect(out).toContain('"content-type":');
+    expect(out).toContain('"x-rate-limit":');
+    expect(out).toContain('"2fa_enabled":');
+    expect(out).toContain('"with space":');
+  });
+
+  it('output with invalid-identifier keys still compiles (no syntax errors)', () => {
+    const out = zodGen.generate(inferSchema({
+      'content-type': 'json', 'x-rate-limit-remaining': '5', '2fa_enabled': true, 'user.name': 'a',
+    }), 'Root');
+    expect(syntaxErrors(out)).toEqual([]);
+  });
+
+  it('does not apply count/age heuristics to substring false positives', () => {
+    const out = zodGen.generate(inferSchema({
+      discount: 0.15, accountId: 7, page: 2, usage: 4.5,
+    }), 'Root');
+    // discount is a float → must NOT get .int(); none of these are counts/ages
+    expect(out).toContain('discount: z.number(),');
+    expect(out).not.toContain('discount: z.number().int');
+    expect(out).not.toMatch(/page:.*max\(150\)/);   // page must not be treated as age
+    expect(out).not.toMatch(/usage:.*\.int\(\)/);
+  });
+
+  it('still applies count/age heuristics to genuine whole-word matches', () => {
+    const out = zodGen.generate(inferSchema({
+      follower_count: 12, itemCount: 3, age: 30, userAge: 25,
+    }), 'Root');
+    expect(out).toContain('follower_count: z.number().int().min(0)');
+    expect(out).toContain('itemCount: z.number().int().min(0)');
+    expect(out).toContain('age: z.number().int().min(0).max(150)');
+    expect(out).toContain('userAge: z.number().int().min(0).max(150)');
+  });
+});
+
+describe('zodGen — semantic format polish (P3)', () => {
+  it('detects hex color by value (#RGB / #RRGGBB) → regex', () => {
+    const out = zodGen.generate(inferSchema({ bgColor: '#FF5733', short: '#abc' }), 'Root');
+    expect(out).toMatch(/bgColor: z\.string\(\)\.regex\(\/\^#/);
+    expect(out).toMatch(/short: z\.string\(\)\.regex\(\/\^#/);
+  });
+
+  it('does NOT apply color regex to named colors (value-driven, not name-driven)', () => {
+    // "red" is not a hex value → must stay a plain string, never get the hex regex
+    const out = zodGen.generate(inferSchema({ color: 'red', favoriteColor: 'blue' }), 'Root');
+    expect(out).not.toContain('regex(/^#');
+  });
+
+  it('constrains ISO country code keys to length(2), but not bare "country"', () => {
+    const out = zodGen.generate(inferSchema({
+      countryCode: 'US', country_code: 'JP', country: 'United States',
+    }), 'Root');
+    expect(out).toContain('countryCode: z.string().length(2)');
+    expect(out).toContain('country_code: z.string().length(2)');
+    expect(out).toContain('country: z.string()');
+    expect(out).not.toMatch(/country: z\.string\(\)\.length/);
+  });
+});
+
+describe('zodGen — Zod v4 output validity', () => {
+  it('emits z.union([z.ipv4(), z.ipv6()]) for IP fields, not the removed z.ip()', () => {
+    // Zod v4 removed z.string().ip() and has no z.ip() — emitting it crashes at runtime.
+    const out = zodGen.generate(inferSchema({ ip: '192.168.1.1', client_ip: '10.0.0.1' }), 'Root', { zodVersion: 'v4' });
+    expect(out).toContain('z.union([z.ipv4(), z.ipv6()])');
+    expect(out).not.toContain('z.ip()');
+  });
+
+  it('v3 mode still uses z.string().ip()', () => {
+    const out = zodGen.generate(inferSchema({ ip: '192.168.1.1' }), 'Root', { zodVersion: 'v3' });
+    expect(out).toContain('z.string().ip()');
+  });
+});
+
+describe('zodGen — single-sample enum softening (P2)', () => {
+  it('softens a single observed enum-keyword value to z.string()', () => {
+    const out = zodGen.generate(inferSchema({ status: 'active', role: 'admin', currency: 'USD' }), 'Root');
+    expect(out).toContain('status: z.string()');
+    expect(out).toContain('role: z.string()');
+    expect(out).toContain('currency: z.string()');
+    expect(out).not.toContain('z.literal(');
+  });
+
+  it('promotes to z.enum([...]) once multiple samples are aggregated', () => {
+    const out = zodGen.generate(inferSchema([{ status: 'active' }, { status: 'pending' }]), 'Root');
+    expect(out).toContain('z.enum(["active", "pending"])');
+    expect(out).not.toContain('z.literal(');
+  });
+
+  it('still emits z.literal for discriminated-union discriminators', () => {
+    const out = zodGen.generate(inferSchema([
+      { kind: 'circle', radius: 1 }, { kind: 'square', side: 2 },
+    ]), 'Root');
+    expect(out).toContain('z.discriminatedUnion("kind"');
+    expect(out).toContain('kind: z.literal("circle")');
+    expect(out).toContain('kind: z.literal("square")');
+  });
+});
+
+describe('zodGen — null-field name inference (P4)', () => {
+  it('recovers a base type from the name for null-in-sample fields', () => {
+    const out = zodGen.generate(inferSchema({
+      deletedAt: null, archivedAt: null, birthDate: null,
+      contactEmail: null, website: null,
+    }), 'Root');
+    expect(out).toContain('deletedAt: z.iso.datetime().nullable()');
+    expect(out).toContain('archivedAt: z.iso.datetime().nullable()');
+    expect(out).toContain('birthDate: z.iso.date().nullable()');
+    expect(out).toContain('contactEmail: z.email().nullable()');
+    expect(out).toContain('website: z.url().nullable()');
+  });
+
+  it('leaves truly-unknown null fields as z.any().nullable()', () => {
+    const out = zodGen.generate(inferSchema({ nickname: null, metadata: null }), 'Root');
+    expect(out).toContain('nickname: z.any().nullable()');
+    expect(out).toContain('metadata: z.any().nullable()');
+  });
+
+  it('does not mis-infer datetime from substring traps (update, seat)', () => {
+    const out = zodGen.generate(inferSchema({ update: null, seat: null }), 'Root');
+    expect(out).toContain('update: z.any().nullable()');
+    expect(out).toContain('seat: z.any().nullable()');
+    expect(out).not.toMatch(/(update|seat): z\.iso/);
   });
 });

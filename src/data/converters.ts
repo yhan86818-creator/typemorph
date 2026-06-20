@@ -1150,6 +1150,20 @@ export const converters: Converter[] = [
   },
   {
     "category": "Web & Frontend",
+    "slug": "typescript-to-zod",
+    "title": "TypeScript to Zod — Convert Interfaces to Zod Schemas Online",
+    "description": "Convert TypeScript interfaces and types to Zod schemas instantly in your browser. Handles unions, enums, optional fields, nested types, arrays and more. No install required.",
+    "h1": "TypeScript → Zod Schema Converter"
+  },
+  {
+    "category": "Web & Frontend",
+    "slug": "zod-v3-to-v4",
+    "title": "Zod v3 to v4 Migration Tool — Upgrade Your Schemas Online",
+    "description": "Automatically migrate Zod v3 schemas to Zod v4 syntax. Converts z.string().email() to z.email(), datetime to z.iso.datetime(), and all format validators in seconds.",
+    "h1": "Zod v3 → v4 Schema Migration Tool"
+  },
+  {
+    "category": "Web & Frontend",
     "slug": "json-to-typebox",
     "title": "Convert JSON to TypeBox Online",
     "description": "Generate high-performance TypeBox schemas from JSON.",

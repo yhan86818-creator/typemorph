@@ -123,7 +123,7 @@ function tokenizeCode(code: string, lang: string): React.ReactNode[] {
 
 export function VisualDemo() {
   const [inputJson, setInputJson] = useState(DEFAULT_JSON);
-  const [activeTab, setActiveTab] = useState('typescript');
+  const [activeTab, setActiveTab] = useState('zod');
   const [outputs, setOutputs] = useState<Record<string, string>>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [logStep, setLogStep] = useState(-1);

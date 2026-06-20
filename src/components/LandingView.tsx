@@ -85,17 +85,22 @@ export function LandingView({ onSelect }: LandingViewProps) {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-24"
         >
-          <h1 className="text-6xl md:text-8xl font-black tracking-tighter mb-10 text-slate-900 dark:text-white leading-[0.9]">
-            Build Faster.<br />
-            <span>Model Everything.</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 text-[11px] font-mono font-bold uppercase tracking-widest mb-8">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500" />
+            The most accurate JSON → Zod converter
+          </div>
+
+          <h1 className="text-6xl md:text-8xl font-black tracking-tighter mb-6 text-slate-900 dark:text-white leading-[0.9]">
+            JSON to Zod.<br />
+            Done right.
           </h1>
 
-          <VisualDemo />
-
-          <p className="text-lg text-slate-500 dark:text-slate-400 font-medium max-w-2xl mx-auto leading-relaxed">
-            Stop hand-writing TypeScript types from API responses. <br className="hidden md:block" />
-            Paste JSON and instantly get Zod schemas, TypeScript interfaces, database schemas — all in your browser.
+          <p className="text-lg text-slate-500 dark:text-slate-400 font-medium max-w-xl mx-auto leading-relaxed mb-10">
+            Other tools generate <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono">z.string()</code> for everything.
+            TypeMorph reads field names and generates <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-slate-700 dark:text-slate-200">z.email()</code>, <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-slate-700 dark:text-slate-200">z.uuid()</code>, <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-slate-700 dark:text-slate-200">.min(0).max(150)</code> — validators that actually work.
           </p>
+
+          <VisualDemo />
 
         </motion.div>
 
@@ -178,88 +183,34 @@ export function LandingView({ onSelect }: LandingViewProps) {
           </div>
         </div>
 
-        {/* B: AST Pipeline Visual */}
-        <div className="mb-40">
-          <div className="text-center mb-12">
-            <p className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-3">How it works</p>
-            <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
-              One inference. Every language.
-            </h2>
-            <p className="text-slate-500 dark:text-slate-400 font-medium mt-3 max-w-xl mx-auto">
-              TypeMorph runs a single AST pipeline in your browser — no backend, no round-trips. Your schema is inferred once and compiled to all 18 targets simultaneously.
-            </p>
-          </div>
-
-          <div className="relative flex flex-col md:flex-row items-center gap-4 md:gap-0 max-w-5xl mx-auto">
-            {/* Input */}
-            <div className="flex-shrink-0 w-full md:w-56 bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-              <div className="flex items-center gap-1.5 px-3 py-2 bg-slate-900 border-b border-slate-800">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-400/60" />
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/60" />
-                <span className="ml-2 text-[9px] text-slate-500 font-mono uppercase tracking-widest">Input</span>
-              </div>
-              <pre className="p-4 text-[10px] font-mono leading-5 text-slate-300">
-<span className="text-slate-500">{'{'}</span>{'\n'}
-{'  '}<span className="text-blue-300">"id"</span><span className="text-slate-500">:</span> <span className="text-amber-300">"uuid-…"</span><span className="text-slate-500">,</span>{'\n'}
-{'  '}<span className="text-blue-300">"email"</span><span className="text-slate-500">:</span> <span className="text-amber-300">"a@b.com"</span><span className="text-slate-500">,</span>{'\n'}
-{'  '}<span className="text-blue-300">"age"</span><span className="text-slate-500">:</span> <span className="text-emerald-400">28</span><span className="text-slate-500">,</span>{'\n'}
-{'  '}<span className="text-blue-300">"role"</span><span className="text-slate-500">:</span> <span className="text-amber-300">"admin"</span>{'\n'}
-<span className="text-slate-500">{'}'}</span>
-              </pre>
-            </div>
-
-            {/* Arrow + AST engine */}
-            <div className="flex flex-col items-center md:flex-1 gap-2 px-4">
-              <div className="hidden md:flex items-center w-full gap-0">
-                <div className="flex-1 h-px bg-gradient-to-r from-slate-700 to-slate-500" />
-                <div className="flex flex-col items-center mx-3">
-                  <div className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[9px] font-mono uppercase tracking-widest text-slate-500 dark:text-slate-400 whitespace-nowrap">inferSchema( )</div>
-                  <div className="mt-1 text-[9px] font-mono text-slate-400">↓ Schema AST</div>
+        {/* Zod v3 → v4 Migration Banner */}
+        <div className="mb-24">
+          <div className="relative rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.02] p-8">
+            <div className="flex flex-col md:flex-row md:items-center gap-6">
+              <div className="flex-1">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 text-[10px] font-mono font-bold uppercase tracking-widest mb-3 border border-slate-200 dark:border-white/10">
+                  New — Zod v4 released 2025
                 </div>
-                <div className="flex-1 h-px bg-gradient-to-r from-slate-500 to-blue-500" />
+                <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2">
+                  Migrating to Zod v4?
+                </h2>
+                <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed max-w-lg">
+                  Zod v4 moves <code className="text-xs bg-white dark:bg-slate-800 px-1 py-0.5 rounded font-mono">.email()</code>, <code className="text-xs bg-white dark:bg-slate-800 px-1 py-0.5 rounded font-mono">.uuid()</code>, <code className="text-xs bg-white dark:bg-slate-800 px-1 py-0.5 rounded font-mono">.datetime()</code> and 14 more validators to new top-level syntax. TypeMorph migrates your schemas automatically.
+                </p>
               </div>
-              <div className="md:hidden text-slate-400">↓</div>
-              <p className="text-[9px] font-mono uppercase tracking-widest text-slate-400 text-center">single inference · runs in your browser</p>
-            </div>
-
-            {/* Outputs grid */}
-            <div className="flex-shrink-0 w-full md:w-auto">
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="flex-shrink-0 flex flex-col gap-2 text-[11px] font-mono">
                 {[
-                  { lang: 'TypeScript', color: 'text-blue-400', dot: 'bg-blue-500' },
-                  { lang: 'Zod', color: 'text-emerald-400', dot: 'bg-emerald-500' },
-                  { lang: 'Go', color: 'text-cyan-400', dot: 'bg-cyan-500' },
-                  { lang: 'Rust', color: 'text-orange-400', dot: 'bg-orange-500' },
-                  { lang: 'Python', color: 'text-yellow-400', dot: 'bg-yellow-500' },
-                  { lang: 'Java', color: 'text-red-400', dot: 'bg-red-500' },
-                  { lang: 'Kotlin', color: 'text-purple-400', dot: 'bg-purple-500' },
-                  { lang: 'Swift', color: 'text-pink-400', dot: 'bg-pink-500' },
-                  { lang: 'C#', color: 'text-violet-400', dot: 'bg-violet-500' },
-                  { lang: 'Dart', color: 'text-sky-400', dot: 'bg-sky-500' },
-                  { lang: 'GraphQL', color: 'text-rose-400', dot: 'bg-rose-500' },
-                  { lang: 'Prisma', color: 'text-teal-400', dot: 'bg-teal-500' },
-                  { lang: 'Proto', color: 'text-indigo-400', dot: 'bg-indigo-500' },
-                  { lang: 'PHP', color: 'text-fuchsia-400', dot: 'bg-fuchsia-500' },
-                  { lang: 'JSON Schema', color: 'text-amber-400', dot: 'bg-amber-500' },
-                  { lang: 'Rust struct', color: 'text-orange-300', dot: 'bg-orange-400' },
-                  { lang: 'Mock JSON', color: 'text-slate-400', dot: 'bg-slate-500' },
-                  { lang: '+ Docs', color: 'text-slate-400', dot: 'bg-slate-600' },
-                ].map(({ lang, color, dot }) => (
-                  <div key={lang} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg">
-                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
-                    <span className={`text-[9px] font-mono font-bold ${color} whitespace-nowrap`}>{lang}</span>
+                  ['z.string().email()', 'z.email()'],
+                  ['z.string().uuid()', 'z.uuid()'],
+                  ['z.string().datetime()', 'z.iso.datetime()'],
+                ].map(([from, to]) => (
+                  <div key={from} className="flex items-center gap-2">
+                    <span className="text-slate-400 line-through">{from}</span>
+                    <ArrowRight size={10} className="text-slate-400" />
+                    <span className="text-slate-900 dark:text-white font-bold">{to}</span>
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-
-          {/* Privacy note under pipeline */}
-          <div className="mt-10 flex justify-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-mono text-slate-500 dark:text-slate-400">
-              <ShieldCheck size={12} className="text-emerald-500" />
-              Your schema never leaves your browser — not even the URL you import from (unless you opt in to the proxy)
             </div>
           </div>
         </div>
@@ -268,11 +219,10 @@ export function LandingView({ onSelect }: LandingViewProps) {
         <div className="space-y-40 mb-40">
           <div className="text-center max-w-2xl mx-auto">
             <h2 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900 dark:text-white leading-tight">
-              Four Pillars of{' '}
-              <span>Pure Schema Engineering</span>
+              Beyond Zod — every schema format
             </h2>
             <p className="text-lg text-slate-500 dark:text-slate-400 font-medium mt-4">
-              We cut out the clutter. These four premium workbenches solve 90% of your daily structural bottlenecks.
+              The same semantic intelligence that powers Zod output also compiles to 17 other targets — TypeScript, Go, Rust, Prisma, and more.
             </p>
           </div>
 

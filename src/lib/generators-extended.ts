@@ -14,6 +14,15 @@ const toCamelCase = (s: string) => {
 };
 const toScreamingSnake = (s: string) => toSnakeCase(s).toUpperCase();
 
+// Object keys / interface members / class properties that aren't valid JS
+// identifiers (kebab-case headers like "content-type", digit-leading "2fa",
+// keys with spaces/dots) must be quoted, or the generated TS fails to parse.
+// JSON.stringify yields a correctly-escaped double-quoted key for any string.
+// Valid for object literals, interface/type members, and (even decorated)
+// string-literal class property names.
+const safeKey = (name: string): string =>
+  /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) ? name : JSON.stringify(name);
+
 // トップレベルが配列（行の集合）の場合は要素オブジェクトのフィールドを解決する。
 // CSV / SQL INSERT / Markdown テーブルなどの主たる入力形状は「オブジェクトの配列」であり、
 // 以前は配列ルートに対して空を返していたため出力が空になっていた。
@@ -338,18 +347,19 @@ export const envValidatorGen = {
     if (!Object.keys(f).length) return '';
 
     const fieldToZod = (k: string, v: Schema): string => {
+      const key = safeKey(k);
       if (v.type === 'boolean') {
         // env vars are strings; coerce "true"/"false" to boolean
-        return `  ${k}: z.enum(["true", "false"]).transform(v => v === "true")`;
+        return `  ${key}: z.enum(["true", "false"]).transform(v => v === "true")`;
       }
       if (v.type === 'number') {
         const intPart = v.format === 'int' ? '.int()' : '';
-        return `  ${k}: z.coerce.number()${intPart}`;
+        return `  ${key}: z.coerce.number()${intPart}`;
       }
-      if (v.format === 'url') return `  ${k}: z.url()`;
-      if (v.format === 'email') return `  ${k}: z.email()`;
+      if (v.format === 'url') return `  ${key}: z.url()`;
+      if (v.format === 'email') return `  ${key}: z.email()`;
       const optPart = v.optional ? '.optional()' : '';
-      return `  ${k}: z.string()${optPart}`;
+      return `  ${key}: z.string()${optPart}`;
     };
 
     const lines = Object.entries(f).map(([k, v]) => fieldToZod(k, v));
@@ -841,7 +851,7 @@ export const mongooseGen = {
       const f = getFields(s);
       let res = '{\n';
       for (const [k, v] of Object.entries(f)) {
-        res += `${indent}  ${k}: `;
+        res += `${indent}  ${safeKey(k)}: `;
         if (v.type === 'object') {
           res += buildSchemaFields(v, indent + '  ', depth + 1) + ',\n';
         } else if (v.type === 'array') {
@@ -906,7 +916,7 @@ export const sequelizeGen = {
         typeStr = `DataTypes.ENUM(${v.enumValues.map(e => `'${e}'`).join(', ')})`;
       }
 
-      res += `  ${k}: {\n    type: ${typeStr},\n    allowNull: ${!!v.optional || !!v.nullable}\n  },\n`;
+      res += `  ${safeKey(k)}: {\n    type: ${typeStr},\n    allowNull: ${!!v.optional || !!v.nullable}\n  },\n`;
     }
     res += `}, {\n  sequelize,\n  modelName: '${modelName}',\n  tableName: '${toSnakeCase(name)}s',\n  timestamps: true\n});\n`;
     return res;
@@ -950,7 +960,7 @@ export const typeormGen = {
         colDecorator = colType ? `@Column('${colType}')` : `@Column()`;
       }
 
-      res += `  ${colDecorator}\n  ${k}${v.optional ? '?' : '!'}: ${typeStr}${v.nullable ? ' | null' : ''};\n\n`;
+      res += `  ${colDecorator}\n  ${safeKey(k)}${v.optional ? '?' : '!'}: ${typeStr}${v.nullable ? ' | null' : ''};\n\n`;
     }
     if (!f.createdAt && !f.created_at) {
       res += `  @CreateDateColumn()\n  createdAt!: Date;\n\n`;
@@ -1079,7 +1089,7 @@ export const drizzleGen = {
         }
       }
 
-      lines.push(`  ${k}: ${col}`);
+      lines.push(`  ${safeKey(k)}: ${col}`);
     }
 
     if (!hasCreatedAt) {
@@ -1129,7 +1139,7 @@ export const kyselyGen = {
       if (v.type === 'object' && v.fields && Object.keys(v.fields).length) {
         const subName = toPascalCase(k);
         const subFields = Object.entries(v.fields)
-          .map(([sk, sv]) => `  ${sk}: ${kyselyType(sk, sv)};`)
+          .map(([sk, sv]) => `  ${safeKey(sk)}: ${kyselyType(sk, sv)};`)
           .join('\n');
         subInterfaces.push(`export interface ${subName} {\n${subFields}\n}`);
         const pluralKey = toSnakeCase(k).endsWith('s') ? toSnakeCase(k) : `${toSnakeCase(k)}s`;
@@ -1139,7 +1149,7 @@ export const kyselyGen = {
       if (v.type === 'array' && v.itemType?.type === 'object' && v.itemType.fields) {
         const subName = toPascalCase(k.replace(/s$/, ''));
         const subFields = Object.entries(v.itemType.fields)
-          .map(([sk, sv]) => `  ${sk}: ${kyselyType(sk, sv)};`)
+          .map(([sk, sv]) => `  ${safeKey(sk)}: ${kyselyType(sk, sv)};`)
           .join('\n');
         subInterfaces.push(`export interface ${subName} {\n${subFields}\n}`);
         dbEntries.push(`  ${toSnakeCase(k)}: ${subName};`);
@@ -1154,7 +1164,7 @@ export const kyselyGen = {
     for (const [k, v] of Object.entries(f)) {
       const typeStr = kyselyType(k, v);
       const typeWithNull = v.optional ? `${typeStr} | null` : typeStr;
-      tableBody += `  ${k}: ${typeWithNull};\n`;
+      tableBody += `  ${safeKey(k)}: ${typeWithNull};\n`;
     }
     if (!f.createdAt && !f.created_at) tableBody += `  createdAt: Generated<string>;\n`;
     if (!f.updatedAt && !f.updated_at) tableBody += `  updatedAt: ColumnType<string, string | undefined, string>;\n`;
@@ -1213,7 +1223,7 @@ export const yupGen = {
           // 'any' type → yup.mixed() (yup.any() does not exist)
           yupType = v.type === 'any' ? 'yup.mixed()' : `yup.${v.type}()`;
         }
-        res += `  ${k}: ${yupType}${nullable}${required},\n`;
+        res += `  ${safeKey(k)}: ${yupType}${nullable}${required},\n`;
       }
       res += `});\n\n`;
 
@@ -1269,7 +1279,7 @@ export const joiGen = {
         } else {
           joiType = `Joi.${v.type}()`;
         }
-        res += `  ${k}: ${joiType}${nullable}${required},\n`;
+        res += `  ${safeKey(k)}: ${joiType}${nullable}${required},\n`;
       }
       res += `});\n\n`;
 
@@ -1329,7 +1339,7 @@ export const valibotGen = {
         if (v.optional) {
           valiType = `v.optional(${valiType})`;
         }
-        res += `  ${k}: ${valiType},\n`;
+        res += `  ${safeKey(k)}: ${valiType},\n`;
       }
       res += `});\n\n`;
 
@@ -1384,7 +1394,7 @@ export const superstructGen = {
         if (v.optional) {
           structType = `s.optional(${structType})`;
         }
-        res += `  ${k}: ${structType},\n`;
+        res += `  ${safeKey(k)}: ${structType},\n`;
       }
       res += `});\n\n`;
 
@@ -1423,7 +1433,7 @@ export const reactPropsGen = {
     let res = `import React from 'react';\n\n`;
     res += `export interface ${componentName}Props {\n`;
     for (const [k, v] of Object.entries(f)) {
-      res += `  ${k}${v.optional ? '?' : ''}: ${schemaToTsType(v)};\n`;
+      res += `  ${safeKey(k)}${v.optional ? '?' : ''}: ${schemaToTsType(v)};\n`;
     }
     res += `}\n\n`;
     res += `export const ${componentName}: React.FC<${componentName}Props> = (props) => {\n`;
@@ -1447,7 +1457,7 @@ export const reactContextGen = {
     let res = `import React, { createContext, useContext, useState, ReactNode } from 'react';\n\n`;
     res += `export interface ${contextName}State {\n`;
     for (const [k, v] of Object.entries(f)) {
-      res += `  ${k}${v.optional ? '?' : ''}: ${schemaToTsType(v)};\n`;
+      res += `  ${safeKey(k)}${v.optional ? '?' : ''}: ${schemaToTsType(v)};\n`;
     }
     res += `}\n\n`;
     res += `interface ${contextName}ContextType {\n  state: ${contextName}State;\n  updateState: (updates: Partial<${contextName}State>) => void;\n}\n\n`;
@@ -1471,7 +1481,7 @@ export const reduxSliceGen = {
     let res = `import { createSlice, PayloadAction } from '@reduxjs/toolkit';\n\n`;
     res += `export interface ${sliceName}State {\n`;
     for (const [k, v] of Object.entries(f)) {
-      res += `  ${k}${v.optional ? '?' : ''}: ${schemaToTsType(v)};\n`;
+      res += `  ${safeKey(k)}${v.optional ? '?' : ''}: ${schemaToTsType(v)};\n`;
     }
     res += `}\n\n`;
     res += `const initialState: ${sliceName}State = {\n`;
@@ -1481,7 +1491,7 @@ export const reduxSliceGen = {
       else if (v.type === 'boolean') dVal = 'false';
       else if (v.type === 'object') dVal = '{}';
       else if (v.type === 'array') dVal = '[]';
-      res += `  ${k}: ${dVal},\n`;
+      res += `  ${safeKey(k)}: ${dVal},\n`;
     }
     res += `};\n\n`;
     res += `export const ${snakeSlice}Slice = createSlice({\n`;
@@ -1513,7 +1523,7 @@ export const piniaStoreGen = {
     let res = `import { defineStore } from 'pinia';\n\n`;
     res += `export interface ${storeName}State {\n`;
     for (const [k, v] of Object.entries(f)) {
-      res += `  ${k}: ${tsType(v)};\n`;
+      res += `  ${safeKey(k)}: ${tsType(v)};\n`;
     }
     res += `}\n\n`;
     res += `export const use${storeName}Store = defineStore('${snakeStore}', {\n`;
@@ -1524,7 +1534,7 @@ export const piniaStoreGen = {
       else if (v.type === 'boolean') dVal = 'false';
       else if (v.type === 'object') dVal = '{}';
       else if (v.type === 'array') dVal = '[]';
-      res += `    ${k}: ${dVal},\n`;
+      res += `    ${safeKey(k)}: ${dVal},\n`;
     }
     res += `  }),\n`;
     res += `  actions: {\n`;
@@ -2044,7 +2054,7 @@ import { z } from 'zod';
 const ${entityName}Schema = z.object({
 ${fields.map(k => {
   const v = f[k];
-  return `  ${k}: ${fieldToZod(k, v)}${v.optional ? '.optional()' : ''}`;
+  return `  ${safeKey(k)}: ${fieldToZod(k, v)}${v.optional ? '.optional()' : ''}`;
 }).join(',\n')}
 });
 
@@ -2093,7 +2103,7 @@ export interface ${entityName} {
 ${fields.map(k => {
   const v = f[k];
   const tsType = v.type === 'number' ? 'number' : v.type === 'boolean' ? 'boolean' : 'string';
-  return `  ${k}${v.optional ? '?' : ''}: ${tsType};`;
+  return `  ${safeKey(k)}${v.optional ? '?' : ''}: ${tsType};`;
 }).join('\n')}
 }
 
@@ -2542,7 +2552,7 @@ export const llmValidatorGen = {
     const f = root.fields ?? {};
 
     const fields = Object.entries(f)
-      .map(([k, v]) => `  ${k}: ${aiFieldToZod(k, v, '  ', false)},`)
+      .map(([k, v]) => `  ${safeKey(k)}: ${aiFieldToZod(k, v, '  ', false)},`)
       .join('\n');
 
     return `import { z } from "zod";
@@ -2596,9 +2606,8 @@ export const mcpToolGen = {
     const fields = Object.keys(f);
 
     const params = fields.map(k =>
-      `    ${k}: ${aiFieldToZod(k, f[k], '    ')}.describe('${aiFieldDesc(k, f[k])}'),`
+      `    ${safeKey(k)}: ${aiFieldToZod(k, f[k], '    ')}.describe('${aiFieldDesc(k, f[k])}'),`
     ).join('\n');
-    const destructure = fields.join(', ');
 
     return `import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
@@ -2611,8 +2620,8 @@ server.tool(
   {
 ${params}
   },
-  async ({ ${destructure} }) => ({
-    content: [{ type: "text", text: JSON.stringify({ ${destructure} }) }]
+  async (args) => ({
+    content: [{ type: "text", text: JSON.stringify(args) }]
   })
 );
 
@@ -2717,7 +2726,7 @@ export const vercelAiToolGen = {
     const fields = Object.keys(f);
 
     const params = fields.map(k =>
-      `    ${k}: ${aiFieldToZod(k, f[k], '    ')}.describe('${aiFieldDesc(k, f[k])}'),`
+      `    ${safeKey(k)}: ${aiFieldToZod(k, f[k], '    ')}.describe('${aiFieldDesc(k, f[k])}'),`
     ).join('\n');
 
     return `import { tool } from "ai";

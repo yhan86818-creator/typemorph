@@ -1,0 +1,53 @@
+name: 'TypeMorph Schema Check'
+description: 'Grade schema quality, detect breaking changes, and convert schemas in CI'
+author: 'TypeMorph'
+branding:
+  icon: 'check-circle'
+  color: 'blue'
+
+inputs:
+  command:
+    description: 'Command to run: quality or diff'
+    required: true
+    default: 'quality'
+  file:
+    description: 'Path to schema file (quality)'
+    required: false
+  old-file:
+    description: 'Path to old schema file (diff)'
+    required: false
+  new-file:
+    description: 'Path to new schema file (diff)'
+    required: false
+  min-grade:
+    description: 'Minimum acceptable quality grade: A, B, C, D, or F'
+    required: false
+  schema:
+    description: 'Target a specific named schema in an OpenAPI/JSON Schema file'
+    required: false
+  breaking-only:
+    description: 'Only report breaking changes (diff)'
+    required: false
+    default: 'false'
+  post-comment:
+    description: 'Post results as a PR comment'
+    required: false
+    default: 'true'
+  token:
+    description: 'GitHub token for posting PR comments'
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  grade:
+    description: 'Worst schema quality grade (A–F)'
+  score:
+    description: 'Quality or compatibility score (0–100)'
+  breaking:
+    description: 'Number of breaking changes detected'
+  passed:
+    description: 'Whether the check passed (true/false)'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'

@@ -2,11 +2,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
 
+declare const __CLI_VERSION__: string;
+
 import { runEngine, inferSchema, parseYAML } from '../../src/lib/engine';
 import { isOpenAPISpec, parseOpenAPIComponents } from '../../src/lib/openapi-parser';
 import { isJSONSchema, parseJSONSchema } from '../../src/lib/jsonschema-parser';
 import { analyzeQuality } from '../../src/lib/quality';
 import { compareSchemaTypes, type SchemaDiff } from '../../src/lib/diff';
+import { generateSampleJson } from '../../src/lib/reverse';
 import type { Schema } from '../../src/lib/types';
 
 // ── terminal colors ──────────────────────────────────────────────────────────
@@ -42,17 +45,23 @@ function parseInput(text: string): { obj: any; raw: string } {
   process.exit(1);
 }
 
-function toSchema(text: string): Schema {
+// Returns all named schemas from the input (multi-schema for OpenAPI/JSON Schema)
+function toSchemas(text: string): { name: string; schema: Schema }[] {
   const { obj } = parseInput(text);
   if (isOpenAPISpec(obj)) {
     const schemas = parseOpenAPIComponents(obj);
-    return schemas[0]?.schema ?? inferSchema(obj);
+    return schemas.length > 0 ? schemas : [{ name: 'Root', schema: inferSchema(obj) }];
   }
   if (isJSONSchema(obj)) {
     const schemas = parseJSONSchema(obj);
-    return schemas[0]?.schema ?? inferSchema(obj);
+    return schemas.length > 0 ? schemas : [{ name: 'Root', schema: inferSchema(obj) }];
   }
-  return inferSchema(obj);
+  return [{ name: 'Root', schema: inferSchema(obj) }];
+}
+
+// Single-schema helper kept for convert command
+function toSchema(text: string): Schema {
+  return toSchemas(text)[0].schema;
 }
 
 // ── format list ──────────────────────────────────────────────────────────────
@@ -81,27 +90,46 @@ ${bold('typemorph')} — schema engineering CLI
 
 ${bold('USAGE')}
   typemorph <format> [file]           Convert schema to target format
+  typemorph <format> <f1> <f2> ...    Merge multiple files as samples of one schema
+  typemorph reverse  [file.ts]        Generate JSON sample from TypeScript interfaces
   typemorph quality  [file]           Grade schema quality (A–F)
   typemorph diff     <old> <new>      Detect breaking changes
   typemorph list                      Show all formats
 
 ${bold('OPTIONS')}
-  --root, -r <name>     Root class name (default: Root)
-  --breaking-only       Only show breaking changes  (diff)
+  --root, -r <name>     Root class name for convert (default: Root)
+  --samples             Treat a single array input as samples of one schema (convert)
+  --schema <name>       Target a specific named schema (OpenAPI/JSON Schema)
+  --min-grade <grade>   Fail (exit 1) if quality grade is below threshold (quality)
+  --breaking-only       Only show breaking changes (diff)
+  --json                Output results as JSON (quality, diff)
   --version, -v         Show version
   --help,    -h         Show this help
 
 ${bold('EXAMPLES')}
   cat schema.json | typemorph typescript
   typemorph zod       schema.json --root User
+  typemorph zod       r1.json r2.json r3.json     # merge samples → one schema
+  typemorph zod       responses.json --samples    # array = samples, not items
   typemorph go        schema.json > models.go
   typemorph quality   schema.json
+  typemorph quality   openapi.yaml              # grades all schemas
+  typemorph quality   openapi.yaml --min-grade B
+  typemorph quality   openapi.yaml --schema User
+  typemorph quality   openapi.yaml --json
   typemorph diff      v1.json v2.json
+  typemorph diff      v1.yaml v2.yaml           # diffs all matching schemas
+  typemorph diff      v1.yaml v2.yaml --schema User
   typemorph diff      v1.json v2.json --breaking-only
+  typemorph diff      v1.json v2.json --json
+  typemorph reverse   models.ts
+  cat types.ts | typemorph reverse
   typemorph list
 `;
 
-// ── grade coloring ───────────────────────────────────────────────────────────
+// ── grade helpers ────────────────────────────────────────────────────────────
+const GRADE_ORDER = ['A', 'B', 'C', 'D', 'F'];
+
 function gradeColor(grade: string, s: string) {
   if (grade === 'A') return green(s);
   if (grade === 'B') return cyan(s);
@@ -109,27 +137,81 @@ function gradeColor(grade: string, s: string) {
   return red(s);
 }
 
+function gradeBelowThreshold(grade: string, minGrade: string): boolean {
+  return GRADE_ORDER.indexOf(grade) > GRADE_ORDER.indexOf(minGrade);
+}
+
 // ── quality command ──────────────────────────────────────────────────────────
-function cmdQuality(text: string) {
-  const schema = toSchema(text);
-  const result = analyzeQuality(schema);
-  const { score, grade, issues, stats } = result;
+function cmdQuality(text: string, opts: { schema?: string; minGrade?: string; json?: boolean }) {
+  let named = toSchemas(text);
 
-  const gradeStr = gradeColor(grade, `${grade}  ${score}/100`);
-  console.log(`\n  ${bold('Schema Quality Score')}  ${gradeStr}\n`);
-  console.log(dim(`  Fields: ${stats.totalFields}  |  any: ${stats.anyFields}  |  optional: ${stats.optionalFields}  |  naming: ${stats.namingStyle}  |  depth: ${stats.maxDepth}`));
-
-  if (issues.length === 0) {
-    console.log(green('\n  ✓ No issues found'));
-  } else {
-    console.log();
-    for (const issue of issues) {
-      const prefix = issue.severity === 'error' ? red('✖') : issue.severity === 'warning' ? yellow('⚠') : dim('ℹ');
-      const loc = issue.path ? dim(` [${issue.path}]`) : '';
-      console.log(`  ${prefix}  ${issue.message}${loc}`);
+  if (opts.schema) {
+    const match = named.find(s => s.name.toLowerCase() === opts.schema!.toLowerCase());
+    if (!match) {
+      console.error(red(`Schema "${opts.schema}" not found. Available: ${named.map(s => s.name).join(', ')}`));
+      process.exit(1);
     }
+    named = [match];
   }
-  console.log();
+
+  const results = named.map(({ name, schema }) => ({ name, ...analyzeQuality(schema) }));
+
+  // worst = lowest grade (highest index in GRADE_ORDER), then lowest score
+  const worst = results.reduce((a, b) =>
+    GRADE_ORDER.indexOf(b.grade) > GRADE_ORDER.indexOf(a.grade) ||
+    (b.grade === a.grade && b.score < a.score) ? b : a
+  );
+
+  if (opts.json) {
+    process.stdout.write(JSON.stringify({
+      schemas: results.map(({ name, grade, score, issues, stats }) => ({ name, grade, score, issues, stats })),
+      worst: { name: worst.name, grade: worst.grade, score: worst.score },
+    }, null, 2) + '\n');
+  } else {
+    const multi = results.length > 1;
+    if (multi) {
+      console.log(`\n  ${bold('Schema Quality')}  ${dim(`(${results.length} schemas)`)}\n`);
+      const nameWidth = Math.max(...results.map(r => r.name.length));
+      for (const r of results) {
+        const gradeStr = gradeColor(r.grade, `${r.grade}  ${r.score}/100`);
+        const pad = r.name.padEnd(nameWidth);
+        const topIssue = r.issues[0] ? dim(`  — ${r.issues[0].message}`) : '';
+        console.log(`  ${bold(pad)}  ${gradeStr}${topIssue}`);
+      }
+      console.log();
+      if (results.length > 1) {
+        console.log(dim(`  Worst: ${worst.name}  ${worst.grade}  ${worst.score}/100`));
+      }
+    } else {
+      const r = results[0];
+      const gradeStr = gradeColor(r.grade, `${r.grade}  ${r.score}/100`);
+      console.log(`\n  ${bold('Schema Quality Score')}  ${gradeStr}\n`);
+      console.log(dim(`  Fields: ${r.stats.totalFields}  |  any: ${r.stats.anyFields}  |  optional: ${r.stats.optionalFields}  |  naming: ${r.stats.namingStyle}  |  depth: ${r.stats.maxDepth}`));
+    }
+
+    // issues for single schema, or all issues when --schema specified
+    const issueSource = !multi ? results[0] : null;
+    if (issueSource) {
+      if (issueSource.issues.length === 0) {
+        console.log(green('\n  ✓ No issues found'));
+      } else {
+        console.log();
+        for (const issue of issueSource.issues) {
+          const prefix = issue.severity === 'error' ? red('✖') : issue.severity === 'warning' ? yellow('⚠') : dim('ℹ');
+          const loc = issue.path ? dim(` [${issue.path}]`) : '';
+          console.log(`  ${prefix}  ${issue.message}${loc}`);
+        }
+      }
+    }
+    console.log();
+  }
+
+  if (opts.minGrade && gradeBelowThreshold(worst.grade, opts.minGrade)) {
+    if (!opts.json) {
+      console.error(red(`  ✖ ${worst.name}: Grade ${worst.grade} is below required minimum ${opts.minGrade}`));
+    }
+    process.exit(1);
+  }
 }
 
 // ── diff command ─────────────────────────────────────────────────────────────
@@ -139,39 +221,111 @@ function severityColor(d: SchemaDiff) {
   return dim(`ℹ  ${d.description}`);
 }
 
-function cmdDiff(oldText: string, newText: string, breakingOnly: boolean) {
-  const oldSchema = toSchema(oldText);
-  const newSchema = toSchema(newText);
-  const diffs = compareSchemaTypes(oldSchema, newSchema);
+interface DiffResult {
+  name: string;
+  score: number;
+  breaking: number;
+  warnings: number;
+  info: number;
+  diffs: SchemaDiff[];
+}
 
-  const filtered = breakingOnly ? diffs.filter(d => d.severity === 'error') : diffs;
-  const breaking = diffs.filter(d => d.severity === 'error').length;
-  const warnings = diffs.filter(d => d.severity === 'warning').length;
-  const score = Math.max(0, 100 - breaking * 15 - warnings * 5);
-  const scoreStr = score >= 90 ? green(`${score}/100`) : score >= 60 ? yellow(`${score}/100`) : red(`${score}/100`);
-
-  console.log(`\n  ${bold('Breaking Change Detector')}  Compatibility ${scoreStr}  ${dim(`(−15/breaking · −5/warning)`)}\n`);
-
-  if (filtered.length === 0) {
-    console.log(green('  ✓ No ' + (breakingOnly ? 'breaking ' : '') + 'changes detected'));
-  } else {
-    for (const d of filtered) {
-      const loc = d.path ? blue(`  ${d.path}`) : '';
-      console.log(`${loc}`);
-      console.log(`    ${severityColor(d)}`);
-    }
+function diffSchemas(
+  oldNamed: { name: string; schema: Schema }[],
+  newNamed: { name: string; schema: Schema }[],
+  opts: { schema?: string; breakingOnly: boolean },
+): DiffResult[] {
+  if (opts.schema) {
+    const lo = opts.schema.toLowerCase();
+    const oldMatch = oldNamed.find(s => s.name.toLowerCase() === lo);
+    const newMatch = newNamed.find(s => s.name.toLowerCase() === lo);
+    if (!oldMatch) { console.error(red(`Schema "${opts.schema}" not found in old file`)); process.exit(1); }
+    if (!newMatch) { console.error(red(`Schema "${opts.schema}" not found in new file`)); process.exit(1); }
+    return [buildDiffResult(opts.schema, oldMatch.schema, newMatch.schema, opts.breakingOnly)];
   }
 
-  console.log(dim(`\n  ${breaking} breaking  ·  ${warnings} warnings  ·  ${diffs.filter(d => d.severity === 'info').length} info\n`));
+  // When both sides have multiple named schemas: match by name
+  if (oldNamed.length > 1 || newNamed.length > 1) {
+    const oldMap = new Map(oldNamed.map(s => [s.name, s.schema]));
+    const newMap = new Map(newNamed.map(s => [s.name, s.schema]));
+    const names = [...new Set([...oldMap.keys(), ...newMap.keys()])];
+    return names.map(name => {
+      const oldSchema = oldMap.get(name);
+      const newSchema = newMap.get(name);
+      if (!oldSchema) return { name, score: 0, breaking: 1, warnings: 0, info: 0, diffs: [{ path: name, type: 'added' as const, severity: 'error' as const, description: `Schema "${name}" was added (new schema, existing consumers unaffected — but flag for review)` }] };
+      if (!newSchema) return { name, score: 0, breaking: 1, warnings: 0, info: 0, diffs: [{ path: name, type: 'removed' as const, severity: 'error' as const, description: `Schema "${name}" was removed. All consumers will break.` }] };
+      return buildDiffResult(name, oldSchema, newSchema, opts.breakingOnly);
+    });
+  }
 
-  if (breaking > 0) process.exit(1); // non-zero exit for CI
+  // Single schema on both sides
+  return [buildDiffResult(oldNamed[0].name, oldNamed[0].schema, newNamed[0].schema, opts.breakingOnly)];
+}
+
+function buildDiffResult(name: string, oldSchema: Schema, newSchema: Schema, breakingOnly: boolean): DiffResult {
+  const diffs = compareSchemaTypes(oldSchema, newSchema);
+  const breaking = diffs.filter(d => d.severity === 'error').length;
+  const warnings = diffs.filter(d => d.severity === 'warning').length;
+  const info = diffs.filter(d => d.severity === 'info').length;
+  const score = Math.max(0, 100 - breaking * 15 - warnings * 5);
+  const filtered = breakingOnly ? diffs.filter(d => d.severity === 'error') : diffs;
+  return { name, score, breaking, warnings, info, diffs: filtered };
+}
+
+function cmdDiff(oldText: string, newText: string, opts: { schema?: string; breakingOnly: boolean; json?: boolean }) {
+  const oldNamed = toSchemas(oldText);
+  const newNamed = toSchemas(newText);
+  const results = diffSchemas(oldNamed, newNamed, opts);
+
+  const totalBreaking = results.reduce((s, r) => s + r.breaking, 0);
+  const totalWarnings = results.reduce((s, r) => s + r.warnings, 0);
+  const totalInfo     = results.reduce((s, r) => s + r.info, 0);
+  const overallScore  = results.length === 1 ? results[0].score
+    : Math.max(0, 100 - totalBreaking * 15 - totalWarnings * 5);
+
+  if (opts.json) {
+    process.stdout.write(JSON.stringify({ score: overallScore, breaking: totalBreaking, warnings: totalWarnings, info: totalInfo, schemas: results }, null, 2) + '\n');
+  } else {
+    const scoreStr = overallScore >= 90 ? green(`${overallScore}/100`) : overallScore >= 60 ? yellow(`${overallScore}/100`) : red(`${overallScore}/100`);
+    const multi = results.length > 1;
+    const header = multi ? `${bold('Breaking Change Detector')}  ${dim(`(${results.length} schemas)`)}  Compatibility ${scoreStr}` : `${bold('Breaking Change Detector')}  Compatibility ${scoreStr}  ${dim('(−15/breaking · −5/warning)')}`;
+    console.log(`\n  ${header}\n`);
+
+    for (const r of results) {
+      if (multi) {
+        const tag = r.breaking > 0 ? red(`✖ ${r.breaking} breaking`) : r.warnings > 0 ? yellow(`⚠ ${r.warnings} warnings`) : green('✓ clean');
+        console.log(`  ${bold(r.name.padEnd(20))}  ${tag}`);
+        if (r.diffs.length > 0) {
+          for (const d of r.diffs) {
+            const loc = d.path ? blue(`    ${d.path}`) : '';
+            if (loc) console.log(loc);
+            console.log(`      ${severityColor(d)}`);
+          }
+          console.log();
+        }
+      } else {
+        if (r.diffs.length === 0) {
+          console.log(green('  ✓ No ' + (opts.breakingOnly ? 'breaking ' : '') + 'changes detected'));
+        } else {
+          for (const d of r.diffs) {
+            const loc = d.path ? blue(`  ${d.path}`) : '';
+            if (loc) console.log(loc);
+            console.log(`    ${severityColor(d)}`);
+          }
+        }
+      }
+    }
+
+    console.log(dim(`\n  ${totalBreaking} breaking  ·  ${totalWarnings} warnings  ·  ${totalInfo} info\n`));
+  }
+
+  if (totalBreaking > 0) process.exit(1);
 }
 
 // ── convert command ───────────────────────────────────────────────────────────
-function cmdConvert(format: string, text: string, root: string) {
-  const { obj } = parseInput(text);
+function cmdConvert(format: string, obj: any, root: string, samplesMode: boolean) {
   try {
-    const output = runEngine(obj, format, '', { rootName: root });
+    const output = runEngine(obj, format, '', { rootName: root, samplesMode });
     if (!output || output.startsWith('// Unsupported')) {
       console.error(red(`typemorph: unsupported format "${format}". Run \`typemorph list\` to see all formats.`));
       process.exit(1);
@@ -192,43 +346,79 @@ async function main() {
     return;
   }
   if (argv.includes('--version') || argv.includes('-v')) {
-    console.log('0.2.1');
+    console.log(__CLI_VERSION__);
     return;
   }
 
   const cmd = argv[0];
-
   if (cmd === 'list') { printList(); return; }
 
-  // root option
+  // shared flags
   const rootIdx = argv.findIndex(a => a === '--root' || a === '-r');
   const root = rootIdx !== -1 ? argv[rootIdx + 1] : 'Root';
+  const schemaIdx = argv.findIndex(a => a === '--schema');
+  const schemaFilter = schemaIdx !== -1 ? argv[schemaIdx + 1] : undefined;
+  const jsonOut = argv.includes('--json');
+
+  // ── reverse ──────────────────────────────────────────────────────────────
+  if (cmd === 'reverse') {
+    const file = argv.slice(1).find(a => !a.startsWith('-'));
+    const text = file ? readFile(file) : await readStdin();
+    const { json, error } = generateSampleJson(text);
+    if (error || !json) {
+      console.error(red(`typemorph reverse: ${error ?? 'No interfaces found'}`));
+      process.exit(1);
+    }
+    process.stdout.write(json + '\n');
+    return;
+  }
 
   // ── quality ──────────────────────────────────────────────────────────────
   if (cmd === 'quality') {
-    const file = argv.slice(1).find(a => !a.startsWith('-') && a !== root);
+    const minGradeIdx = argv.findIndex(a => a === '--min-grade');
+    const minGrade = minGradeIdx !== -1 ? argv[minGradeIdx + 1]?.toUpperCase() : undefined;
+    if (minGrade && !GRADE_ORDER.includes(minGrade)) {
+      console.error(red(`Invalid --min-grade "${minGrade}". Must be one of: ${GRADE_ORDER.join(', ')}`));
+      process.exit(1);
+    }
+    const flagValues = new Set([root, minGrade, schemaFilter].filter(Boolean));
+    const file = argv.slice(1).find(a => !a.startsWith('-') && !flagValues.has(a));
     const text = file ? readFile(file) : await readStdin();
-    cmdQuality(text);
+    cmdQuality(text, { schema: schemaFilter, minGrade, json: jsonOut });
     return;
   }
 
   // ── diff ─────────────────────────────────────────────────────────────────
   if (cmd === 'diff') {
-    const files = argv.slice(1).filter(a => !a.startsWith('-') && a !== root);
+    const flagValues = new Set([root, schemaFilter].filter(Boolean));
+    const files = argv.slice(1).filter(a => !a.startsWith('-') && !flagValues.has(a));
     if (files.length < 2) {
-      console.error(red('Usage: typemorph diff <old.json> <new.json>'));
+      console.error(red('Usage: typemorph diff <old.json> <new.json> [--schema <name>]'));
       process.exit(1);
     }
     const breakingOnly = argv.includes('--breaking-only');
-    cmdDiff(readFile(files[0]), readFile(files[1]), breakingOnly);
+    cmdDiff(readFile(files[0]), readFile(files[1]), { schema: schemaFilter, breakingOnly, json: jsonOut });
     return;
   }
 
   // ── convert ──────────────────────────────────────────────────────────────
   const format = cmd;
-  const file = argv.slice(1).find(a => !a.startsWith('-') && a !== root);
-  const text = file ? readFile(file) : await readStdin();
-  cmdConvert(format, text, root);
+  const flagValues = new Set([root, schemaFilter].filter(Boolean));
+  const files = argv.slice(1).filter(a => !a.startsWith('-') && !flagValues.has(a));
+
+  // Samples mode (F-8): multiple input files are N samples of ONE schema → merge them
+  // (widening enums, marking missing fields optional) and emit a single schema, not an
+  // array. Also triggered explicitly by --samples on a single array input.
+  if (files.length >= 2) {
+    const objs = files.map(f => parseInput(readFile(f)).obj);
+    cmdConvert(format, objs, root, true);
+    return;
+  }
+
+  const text = files[0] ? readFile(files[0]) : await readStdin();
+  const { obj } = parseInput(text);
+  const samplesMode = argv.includes('--samples') && Array.isArray(obj);
+  cmdConvert(format, obj, root, samplesMode);
 }
 
 main().catch(e => {

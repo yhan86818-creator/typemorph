@@ -69,6 +69,33 @@ describe('validate: TypeScript 系出力が構文的に正しい', () => {
   }
 });
 
+// ─── 敵対的キー回帰（不正識別子キーで全TS系が壊れていた）────────────────────
+// kebab-case ヘッダー / 数字始まり / スペース・ドット入りキーは有効なJS識別子では
+// ないため、引用なしで object key / interface member / class property に出力すると
+// 生成コードがコンパイル不能になっていた（全TS系ジェネレータ横断のバグ）。
+// INPUTS 本体に混ぜると Python など未修正ジェネレータを巻き込むので、TS系専用に分離。
+const ADVERSARIAL_TS_TARGETS = [
+  ...TS_TARGETS, 'nestjs-dto', 'effect-schema', 'vercel-ai-tool', 'mcp-tool', 'env-validator',
+];
+const ADVERSARIAL_KEYS = {
+  'content-type': 'application/json',
+  'x-rate-limit-remaining': '42',
+  '2fa_enabled': true,
+  'user.name': 'alice',
+  'with space': 1,
+};
+describe('validate: 不正識別子キーでもTS系出力がコンパイルできる', () => {
+  for (const target of ADVERSARIAL_TS_TARGETS) {
+    it(`${target} / adversarial keys`, () => {
+      const code = runEngine(ADVERSARIAL_KEYS, target, target, { rootName: 'Root' });
+      const errors = tsSyntaxErrors(code);
+      if (errors.length) {
+        throw new Error(`TS 構文エラー:\n${errors.join('\n')}\n--- 出力 ---\n${code.slice(0, 600)}`);
+      }
+    });
+  }
+});
+
 // ─── JSON Schema 検証（ajv） ─────────────────────────────────────────────────
 // format 値（uuid/int 等）は再帰的に除去してから compile する。
 // ここで見たいのは「スキーマが構造的に妥当か」であって format の正否ではない。

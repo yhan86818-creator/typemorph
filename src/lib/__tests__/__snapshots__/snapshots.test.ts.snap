@@ -1482,7 +1482,7 @@ export const profileSchema = z.object({
   user_id: z.string(),
   display_name: z.string().trim(),
   bio: z.any().nullable(),
-  website: z.any().nullable(),
+  website: z.url().nullable(),
   follower_count: z.number().int().min(0),
   is_verified: z.boolean(),
 });

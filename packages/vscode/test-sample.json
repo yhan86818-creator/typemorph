@@ -1,0 +1,37 @@
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "name": "Alice Wonderland",
+  "email": "alice@example.com",
+  "age": 28,
+  "year": 1996,
+  "month": 3,
+  "rating": 4.5,
+  "score": 87,
+  "price": 29.99,
+  "amount": 1500.00,
+  "count": 42,
+  "quantity": 3,
+  "latitude": 35.6895,
+  "longitude": 139.6917,
+  "avatar_url": "https://example.com/avatar.png",
+  "website": "https://alice.dev",
+  "is_active": true,
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-06-14T08:00:00Z",
+  "description": "A test user with many field types to exercise TypeMorph validators.",
+  "address": {
+    "street": "1-2-3 Shibuya",
+    "city": "Tokyo",
+    "country": "JP",
+    "zip_code": "150-0001"
+  },
+  "tags": ["developer", "beta-tester"],
+  "order": {
+    "order_id": "ORD-9999",
+    "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "product_id": "PROD-001",
+    "total_amount": 89.97,
+    "item_count": 3,
+    "status": "shipped"
+  }
+}

@@ -6,6 +6,7 @@
 import yaml from 'js-yaml';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { Schema } from './types';
+import { extractTypeGraph, splitMembers, type TypeNode } from './graph';
 
 // ---------------------------------------------------------------------------
 // YAML Parser — uses js-yaml for full spec compliance
@@ -468,14 +469,6 @@ export const parseOpenAPI = (input: string): Schema | null => {
 // TypeScript Interface / Type Parser
 // ---------------------------------------------------------------------------
 
-const mapSimpleTsTypeToSchema = (typeStr: string): Schema => {
-  if (typeStr === 'string') return { type: 'string' };
-  if (typeStr === 'number') return { type: 'number' };
-  if (typeStr === 'boolean') return { type: 'boolean' };
-  if (typeStr === 'Date') return { type: 'string', format: 'datetime' };
-  return { type: 'any' };
-};
-
 // ---------------------------------------------------------------------------
 // .env File Parser
 // ---------------------------------------------------------------------------
@@ -527,128 +520,270 @@ export const parseEnvFile = (str: string): Schema | null => {
   return result;
 };
 
-// Brace-aware interface body extractor: finds the matching } for the opening {
-function extractInterfaceBody(str: string): string | null {
-  const headerRe = /(?:export\s+)?(?:interface|type)\s+\w+(?:\s+extends\s+\w+)?\s*(?:=\s*)?\{/;
-  const headerMatch = str.match(headerRe);
-  if (!headerMatch || headerMatch.index === undefined) return null;
-  let i = headerMatch.index + headerMatch[0].length;
-  let depth = 1;
-  const start = i;
-  while (i < str.length && depth > 0) {
-    if (str[i] === '{') depth++;
-    else if (str[i] === '}') depth--;
+// Depth-aware splitter for TS type expressions (respects <>, (), [], {}).
+function splitTopLevelTs(str: string, sep: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let cur = '';
+  let i = 0;
+  while (i < str.length) {
+    const ch = str[i];
+    if (ch === '<' || ch === '(' || ch === '[' || ch === '{') depth++;
+    else if (ch === '>' || ch === ')' || ch === ']' || ch === '}') depth--;
+    else if (depth === 0 && str.slice(i, i + sep.length) === sep) {
+      parts.push(cur.trim());
+      cur = '';
+      i += sep.length;
+      continue;
+    }
+    cur += ch;
     i++;
   }
-  return depth === 0 ? str.slice(start, i - 1) : null;
+  if (cur.trim()) parts.push(cur.trim());
+  return parts;
 }
 
-// Collect one type expression from position i, respecting {} and <> depth
-function collectTypeStr(body: string, i: number): { typeStr: string; end: number } {
-  let typeStr = '';
-  let braceDepth = 0;
-  let angleDepth = 0;
-  while (i < body.length) {
-    const ch = body[i];
-    if (ch === '{') { braceDepth++; typeStr += ch; i++; }
-    else if (ch === '}') {
-      if (braceDepth === 0) break; // end of parent body
-      braceDepth--; typeStr += ch; i++;
-    }
-    else if (ch === '<') { angleDepth++; typeStr += ch; i++; }
-    else if (ch === '>') { angleDepth--; typeStr += ch; i++; }
-    else if ((ch === ';' || ch === ',') && braceDepth === 0 && angleDepth === 0) {
-      i++; break;
-    }
-    else { typeStr += ch; i++; }
-  }
-  return { typeStr: typeStr.trim().split('//')[0].trim(), end: i };
+// Shared context for the recursive TS→Schema resolution.
+interface TsParseCtx {
+  interfaces: Map<string, TypeNode>;
+  objectAliases: Map<string, string>;   // name → body between the braces
+  simpleAliases: Map<string, string>;   // name → right-hand-side type expression
+  enums: Map<string, string[] | null>;  // name → string values, or null for numeric/native
+  resolving: Set<string>;               // cycle guard for named types
 }
 
-// Convert a type string to Schema (recursive for inline objects)
-function tsTypeToSchema(typeStr: string): Schema {
-  // Inline object: { key: type; ... }
-  if (typeStr.startsWith('{') && typeStr.endsWith('}')) {
-    const nestedBody = typeStr.slice(1, -1);
-    return { type: 'object', fields: parseTsFields(nestedBody) };
+function tsObjectBodyToSchema(body: string, ctx: TsParseCtx, depth: number): Schema {
+  const fields: Record<string, Schema> = {};
+  let indexSig: string | undefined;
+  for (const member of splitMembers(body)) {
+    const idx = member.match(/^\[\s*\w+\s*:\s*(?:string|number|symbol)\s*\]\s*:\s*([\s\S]+)$/);
+    if (idx) { indexSig = idx[1].trim(); continue; }
+    const fm = member.match(/^(?:readonly\s+)?(['"]?[\w$]+['"]?)(\?)?\s*:\s*([\s\S]+)$/);
+    if (!fm) continue;
+    const name = fm[1].replace(/['"]/g, '');
+    const sub = tsTypeExprToSchema(fm[3].trim(), ctx, depth);
+    if (fm[2] === '?') sub.optional = true;
+    fields[name] = sub;
   }
-  if (typeStr === 'string') return { type: 'string' };
-  if (typeStr === 'number') return { type: 'number' };
-  if (typeStr === 'boolean') return { type: 'boolean' };
-  if (typeStr === 'Date') return { type: 'string', format: 'datetime' };
-  if (typeStr === 'null') return { type: 'any', nullable: true };
-  if (typeStr.endsWith('[]')) {
-    const inner = typeStr.slice(0, -2).trim();
-    return { type: 'array', itemType: mapSimpleTsTypeToSchema(inner) };
+  // Pure index signature → record. A mix of named fields + index signature keeps the
+  // named fields and drops the catchall (a single Schema can't carry both).
+  if (Object.keys(fields).length === 0 && indexSig) {
+    return { type: 'object', fields: {}, recordValueType: tsTypeExprToSchema(indexSig, ctx, depth) };
   }
-  if (typeStr.startsWith('Array<') && typeStr.endsWith('>')) {
-    const inner = typeStr.slice(6, -1).trim();
-    return { type: 'array', itemType: mapSimpleTsTypeToSchema(inner) };
+  return { type: 'object', fields };
+}
+
+function tsInterfaceToSchema(node: TypeNode, ctx: TsParseCtx, depth: number): Schema {
+  const fields: Record<string, Schema> = {};
+  // Inherited fields first so the interface's own fields win on name collision.
+  for (const parent of node.extendsList ?? []) {
+    const ps = resolveNamedTsType(parent, ctx, depth + 1);
+    if (ps.type === 'object' && ps.fields) Object.assign(fields, ps.fields);
   }
-  if (typeStr.includes('|')) {
-    const parts = typeStr.split('|').map(p => p.trim()).filter(Boolean);
-    const hasNull = parts.includes('null');
-    const hasUndefined = parts.includes('undefined');
-    const realParts = parts.filter(p => p !== 'null' && p !== 'undefined');
-    const primitiveMap: Record<string, string> = {
-      string: 'string', number: 'number', boolean: 'boolean', Date: 'datetime',
-    };
-    let s: Schema;
-    const isLiteralUnion = realParts.length > 0 && realParts.every(p => /^['"].*['"]$/.test(p));
-    if (isLiteralUnion) {
-      s = { type: 'string', enumValues: realParts.map(p => p.slice(1, -1)) };
-    } else if (realParts.length === 1) {
-      s = { ...mapSimpleTsTypeToSchema(realParts[0]) };
-    } else if (realParts.length > 1 && realParts.every(p => primitiveMap[p])) {
-      s = { type: 'union', unionTypes: realParts.map(p => primitiveMap[p]) };
-    } else {
-      s = { type: 'union' };
-    }
-    if (hasNull) s.nullable = true;
-    if (hasUndefined) s.optional = true;
+  for (const f of node.fields) {
+    const sub = tsTypeExprToSchema(f.type, ctx, depth + 1);
+    if (f.optional) sub.optional = true;
+    fields[f.name] = sub;
+  }
+  const obj: Schema = { type: 'object', fields };
+  if (node.indexSignature && node.fields.length === 0 && !node.extendsList?.length) {
+    obj.recordValueType = tsTypeExprToSchema(node.indexSignature, ctx, depth + 1);
+  }
+  return obj;
+}
+
+// Resolves a named reference (interface / type alias / enum) to a Schema. Object
+// results carry `_sharedTypeName` so the generators dedupe and emit one class.
+function resolveNamedTsType(name: string, ctx: TsParseCtx, depth: number): Schema {
+  if (ctx.enums.has(name)) {
+    const vals = ctx.enums.get(name);
+    return vals && vals.length ? { type: 'string', enumValues: vals } : { type: 'string' };
+  }
+  if (ctx.simpleAliases.has(name)) {
+    return tsTypeExprToSchema(ctx.simpleAliases.get(name)!, ctx, depth + 1);
+  }
+  if (ctx.objectAliases.has(name)) {
+    if (ctx.resolving.has(name)) return { type: 'object', fields: {}, _sharedTypeName: name };
+    ctx.resolving.add(name);
+    const s = tsObjectBodyToSchema(ctx.objectAliases.get(name)!, ctx, depth + 1);
+    ctx.resolving.delete(name);
+    s._sharedTypeName = name;
+    return s;
+  }
+  if (ctx.interfaces.has(name)) {
+    if (ctx.resolving.has(name)) return { type: 'object', fields: {}, _sharedTypeName: name };
+    ctx.resolving.add(name);
+    const s = tsInterfaceToSchema(ctx.interfaces.get(name)!, ctx, depth + 1);
+    ctx.resolving.delete(name);
+    s._sharedTypeName = name;
     return s;
   }
   return { type: 'any' };
 }
 
-// Parse fields from an interface body string (brace-aware)
-function parseTsFields(body: string): Record<string, Schema> {
-  const fields: Record<string, Schema> = {};
-  let i = 0;
-  while (i < body.length) {
-    // skip whitespace / separators
-    while (i < body.length && /[\s;,]/.test(body[i])) i++;
-    if (i >= body.length) break;
-    // skip line comments
-    if (body[i] === '/' && body[i + 1] === '/') {
-      while (i < body.length && body[i] !== '\n') i++;
-      continue;
+// Converts a TS type-expression string into a Schema. Mirrors ts-to-zod's typeToZod
+// so the main-editor path (TS → any target) matches the dedicated TS→Zod tab in
+// quality: extends, Record, enums, index signatures, tuples, nested objects (NEW-A).
+function tsTypeExprToSchema(typeStr: string, ctx: TsParseCtx, depth: number): Schema {
+  if (depth > 12) return { type: 'any' };
+  const t = typeStr.trim().replace(/;$/, '');
+
+  // Union (top-level |)
+  const unionParts = splitTopLevelTs(t, '|');
+  if (unionParts.length > 1) {
+    const hasNull = unionParts.some(m => m === 'null');
+    const hasUndef = unionParts.some(m => m === 'undefined');
+    const real = unionParts.filter(m => m !== 'null' && m !== 'undefined');
+    let s: Schema;
+    if (real.length && real.every(m => /^['"`].*['"`]$/.test(m))) {
+      s = { type: 'string', enumValues: real.map(m => m.replace(/^['"`]|['"`]$/g, '')) };
+    } else if (real.length === 1) {
+      s = { ...tsTypeExprToSchema(real[0], ctx, depth) };
+    } else if (real.length > 1) {
+      const subs = real.map(m => tsTypeExprToSchema(m, ctx, depth + 1));
+      s = subs.every(x => x.type === 'string' || x.type === 'number' || x.type === 'boolean')
+        ? { type: 'union', unionTypes: subs.map(x => x.type) }
+        : { type: 'union' };
+    } else {
+      s = { type: 'any' };
     }
-    // match: (readonly)? fieldName (?): (type)
-    const nameMatch = body.slice(i).match(/^(?:readonly\s+)?(['"]?\w+['"]?)\s*(\??)\s*:\s*/);
-    if (!nameMatch) { i++; continue; }
-    const fieldName = nameMatch[1].replace(/['"]/g, '');
-    const isOptional = nameMatch[2] === '?';
-    i += nameMatch[0].length;
-    const { typeStr, end } = collectTypeStr(body, i);
-    i = end;
-    if (!typeStr || !fieldName) continue;
-    const schema = tsTypeToSchema(typeStr);
-    if (isOptional) schema.optional = true;
-    fields[fieldName] = schema;
+    if (hasNull) s.nullable = true;
+    if (hasUndef) s.optional = true;
+    return s;
   }
-  return fields;
+
+  // Intersection (&) — merge object members best-effort
+  const interParts = splitTopLevelTs(t, '&');
+  if (interParts.length > 1) {
+    const merged: Record<string, Schema> = {};
+    for (const p of interParts) {
+      const ps = tsTypeExprToSchema(p, ctx, depth + 1);
+      if (ps.type === 'object' && ps.fields) Object.assign(merged, ps.fields);
+    }
+    return Object.keys(merged).length ? { type: 'object', fields: merged } : { type: 'any' };
+  }
+
+  // Primitives & literals
+  switch (t) {
+    case 'string': return { type: 'string' };
+    case 'number': case 'bigint': return { type: 'number' };
+    case 'boolean': case 'true': case 'false': return { type: 'boolean' };
+    case 'Date': return { type: 'string', format: 'datetime' };
+    case 'null': return { type: 'any', nullable: true };
+    case 'any': case 'unknown': case 'never': case 'void': case 'undefined': case 'symbol':
+      return { type: 'any' };
+  }
+  if (/^['"`].*['"`]$/.test(t)) return { type: 'string', enumValues: [t.replace(/^['"`]|['"`]$/g, '')] };
+  if (/^-?\d+(\.\d+)?$/.test(t)) return { type: 'number', format: Number.isInteger(Number(t)) ? 'int' : 'float' };
+
+  // Array: T[] / Array<T>
+  const arr1 = t.match(/^(.+)\[\]$/);
+  if (arr1) return { type: 'array', itemType: tsTypeExprToSchema(arr1[1].trim(), ctx, depth + 1) };
+  const arr2 = t.match(/^Array<([\s\S]+)>$/);
+  if (arr2) return { type: 'array', itemType: tsTypeExprToSchema(arr2[1].trim(), ctx, depth + 1) };
+
+  // Record<K, V>
+  const rec = t.match(/^Record<([\s\S]+)>$/);
+  if (rec) {
+    const args = splitTopLevelTs(rec[1], ',');
+    const valueExpr = args.slice(1).join(',').trim() || 'any';
+    return { type: 'object', fields: {}, recordValueType: tsTypeExprToSchema(valueExpr, ctx, depth + 1) };
+  }
+
+  // Pass-through type wrappers
+  const wrap = t.match(/^(?:Promise|Partial|Required|Readonly|NonNullable)<([\s\S]+)>$/);
+  if (wrap) return tsTypeExprToSchema(wrap[1].trim(), ctx, depth + 1);
+
+  // Tuple: [A, B, ...]
+  if (t.startsWith('[') && t.endsWith(']')) {
+    const parts = splitTopLevelTs(t.slice(1, -1), ',').map(m => tsTypeExprToSchema(m.trim(), ctx, depth + 1));
+    if (parts.length > 0) return { type: 'array', itemType: { type: 'any' }, tupleTypes: parts };
+    return { type: 'array', itemType: { type: 'any' } };
+  }
+
+  // Inline object literal
+  if (t.startsWith('{') && t.endsWith('}')) {
+    return tsObjectBodyToSchema(t.slice(1, -1), ctx, depth + 1);
+  }
+
+  // Named reference (interface / alias / enum)
+  return resolveNamedTsType(t, ctx, depth);
+}
+
+// Builds the parse context (interfaces / object aliases / simple aliases / enums).
+function buildTsParseCtx(tsCode: string): TsParseCtx {
+  const interfaces = new Map<string, TypeNode>();
+  for (const node of extractTypeGraph(tsCode).nodes) interfaces.set(node.id, node);
+
+  const objectAliases = new Map<string, string>();
+  const objRe = /(?:export\s+)?type\s+(\w+)\s*=\s*\{/g;
+  let m: RegExpExecArray | null;
+  while ((m = objRe.exec(tsCode)) !== null) {
+    let depth = 1;
+    let pos = m.index + m[0].length;
+    while (pos < tsCode.length && depth > 0) {
+      if (tsCode[pos] === '{') depth++;
+      else if (tsCode[pos] === '}') depth--;
+      pos++;
+    }
+    if (!objectAliases.has(m[1])) objectAliases.set(m[1], tsCode.slice(m.index + m[0].length, pos - 1));
+  }
+
+  const simpleAliases = new Map<string, string>();
+  const simpleRe = /(?:export\s+)?type\s+(\w+)\s*=\s*([^{<\n][^;\n]*?)\s*;/g;
+  while ((m = simpleRe.exec(tsCode)) !== null) {
+    if (!simpleAliases.has(m[1]) && !objectAliases.has(m[1])) simpleAliases.set(m[1], m[2].trim());
+  }
+
+  const enums = new Map<string, string[] | null>();
+  const enumRe = /(?:export\s+)?(?:const\s+)?enum\s+(\w+)\s*\{([^}]*)\}/g;
+  while ((m = enumRe.exec(tsCode)) !== null) {
+    const members = m[2].split(',').map(s => s.trim()).filter(Boolean);
+    const values = members.map(mem => {
+      const eq = mem.match(/^(\w+)\s*=\s*(.+)$/);
+      return eq ? eq[2].trim() : undefined;
+    });
+    const allStr = values.length > 0 && values.every(v => v && /^['"`].*['"`]$/.test(v));
+    enums.set(m[1], allStr ? values.map(v => v!.replace(/^['"`]|['"`]$/g, '')) : null);
+  }
+
+  return { interfaces, objectAliases, simpleAliases, enums, resolving: new Set() };
 }
 
 export const parseTypeScriptToSchema = (str: string): Schema | null => {
   try {
-    const body = extractInterfaceBody(str);
-    if (!body) return null;
-    const fields = parseTsFields(body);
-    if (Object.keys(fields).length === 0) return null;
-    const result: Schema = { type: 'object', fields };
-    (result as any)._isTypeMorphSchema = true;
-    return result;
+    const ctx = buildTsParseCtx(str);
+    const named: { name: string; kind: 'interface' | 'object' }[] = [
+      ...[...ctx.interfaces.keys()].map(n => ({ name: n, kind: 'interface' as const })),
+      ...[...ctx.objectAliases.keys()].map(n => ({ name: n, kind: 'object' as const })),
+    ];
+    if (named.length === 0) return null;
+
+    // The root is a named type that no other declaration references.
+    const referenced = new Set<string>();
+    const scanRefs = (body: string) => {
+      for (const tok of body.split(/[^A-Za-z0-9_$]+/)) {
+        if (tok && /^[A-Z]/.test(tok)) referenced.add(tok);
+      }
+    };
+    for (const node of ctx.interfaces.values()) {
+      for (const f of node.fields) scanRefs(f.type);
+      for (const p of node.extendsList ?? []) referenced.add(p);
+    }
+    for (const body of ctx.objectAliases.values()) scanRefs(body);
+
+    const root = named.find(n => !referenced.has(n.name)) ?? named[0];
+    const schema = root.kind === 'interface'
+      ? tsInterfaceToSchema(ctx.interfaces.get(root.name)!, ctx, 0)
+      : tsObjectBodyToSchema(ctx.objectAliases.get(root.name)!, ctx, 0);
+
+    if (schema.type !== 'object' || !schema.fields ||
+        (Object.keys(schema.fields).length === 0 && !schema.recordValueType)) {
+      return null;
+    }
+    delete schema._sharedTypeName; // the root is the top-level type, not a shared ref
+    (schema as any)._isTypeMorphSchema = true;
+    return schema;
   } catch {
     return null;
   }
@@ -696,6 +831,60 @@ function splitTopLevelCommas(str: string): string[] {
   return parts;
 }
 
+// Constraint/refinement methods preserved verbatim for round-trip (R4). Excludes
+// format-defining calls (.email/.url/.uuid/.datetime/.date/.ip/.int) — those are
+// already captured as `format` — and structural ones (.optional/.nullable/.nullish).
+const REFINEMENT_METHODS = new Set([
+  'min', 'max', 'length', 'gt', 'gte', 'lt', 'lte', 'positive', 'negative',
+  'nonnegative', 'nonpositive', 'multipleOf', 'step', 'finite', 'regex',
+  'includes', 'startsWith', 'endsWith', 'trim', 'toLowerCase', 'toUpperCase',
+  'default', 'catch', 'describe', 'brand', 'readonly',
+]);
+
+// Walks a method chain and returns the whitelisted refinement calls verbatim
+// (e.g. ".min(0)", '.regex(/^a$/)', '.describe("hi")'). String- and regex-literal
+// aware so parens/commas inside "..." or /.../ never desync the paren matching.
+function extractRefinements(str: string): string[] {
+  const out: string[] = [];
+  let i = 0;
+  while (i < str.length) {
+    const dot = str.indexOf('.', i);
+    if (dot === -1) break;
+    const mm = /^\.([a-zA-Z]+)\s*\(/.exec(str.slice(dot));
+    if (!mm) { i = dot + 1; continue; }
+    const name = mm[1];
+    let j = dot + mm[0].length; // index just after '('
+    let depth = 1;
+    let prev = '('; // previous significant char — distinguishes regex literal from divide
+    while (j < str.length && depth > 0) {
+      const c = str[j];
+      if (c === '"' || c === "'" || c === '`') {
+        const q = c; j++;
+        while (j < str.length && !(str[j] === q && str[j - 1] !== '\\')) j++;
+        j++; prev = 'x'; continue;
+      }
+      if (c === '/' && (prev === '(' || prev === ',')) {
+        j++;
+        while (j < str.length && !(str[j] === '/' && str[j - 1] !== '\\')) {
+          if (str[j] === '[') { j++; while (j < str.length && !(str[j] === ']' && str[j - 1] !== '\\')) j++; }
+          j++;
+        }
+        j++; // past closing '/'
+        while (j < str.length && /[a-z]/i.test(str[j])) j++; // flags
+        prev = 'x'; continue;
+      }
+      if (c === '(') { depth++; prev = '('; j++; continue; }
+      if (c === ')') { depth--; j++; if (depth === 0) break; prev = ')'; continue; }
+      if (c === ',') { prev = ','; j++; continue; }
+      if (!/\s/.test(c)) prev = 'x';
+      j++;
+    }
+    if (REFINEMENT_METHODS.has(name)) out.push(str.slice(dot, j));
+    i = j;
+  }
+  return out;
+}
+
 function parseZodTypeStr(typeStr: string): Schema {
   const s = typeStr.trim();
   const isOptional = /\.optional\(\)|\.nullish\(\)/.test(s);
@@ -718,7 +907,10 @@ function parseZodTypeStr(typeStr: string): Schema {
     const parenClose = findMatchingClose(s, parenOpen, '(', ')');
     const inner = parenClose > -1 ? s.slice(parenOpen + 1, parenClose).trim() : 'z.string()';
     const itemType = parseZodTypeStr(inner);
-    return { type: 'array', itemType, optional: isOptional || undefined };
+    // Outer array-level constraints (e.g. z.array(...).min(1)) — extract only the chain
+    // AFTER the array's closing paren so inner element refinements aren't double-counted.
+    const refinements = parenClose > -1 ? extractRefinements(s.slice(parenClose + 1)) : [];
+    return { type: 'array', itemType, optional: isOptional || undefined, ...(refinements.length ? { refinements } : {}) };
   }
 
   // z.enum([...]) or z.nativeEnum
@@ -733,38 +925,124 @@ function parseZodTypeStr(typeStr: string): Schema {
     return { type: 'string', enumValues: vals.length ? vals : undefined, optional: isOptional || undefined };
   }
 
-  // z.union([...]) or z.discriminatedUnion
+  // z.union([...]) or z.discriminatedUnion('key', [...])
   if (/^z\.(?:union|discriminatedUnion)\s*\(/.test(s)) {
+    const isDiscriminated = /^z\.discriminatedUnion/.test(s);
+    let discriminatorField: string | undefined;
+    if (isDiscriminated) {
+      const dm = s.match(/^z\.discriminatedUnion\s*\(\s*(['"`])(.+?)\1/);
+      if (dm) discriminatorField = dm[2];
+    }
+    const arrStart = s.indexOf('[');
+    if (arrStart > -1) {
+      const arrEnd = findMatchingClose(s, arrStart, '[', ']');
+      if (arrEnd > -1) {
+        const rawMembers = splitTopLevelCommas(s.slice(arrStart + 1, arrEnd))
+          .map(m => m.trim())
+          .filter(Boolean);
+
+        // z.null()/z.undefined() members express nullability, not a type variant
+        let memberNullable = false;
+        let memberOptional = false;
+        const parsed: Schema[] = [];
+        for (const m of rawMembers) {
+          if (/^z\.null\s*\(\s*\)/.test(m)) { memberNullable = true; continue; }
+          if (/^z\.undefined\s*\(\s*\)/.test(m)) { memberOptional = true; continue; }
+          parsed.push(parseZodTypeStr(m));
+        }
+
+        const finalize = (sc: Schema): Schema => {
+          if (isOptional || memberOptional) sc.optional = true;
+          if (memberNullable) sc.nullable = true;
+          return sc;
+        };
+
+        if (parsed.length === 0) return finalize({ type: 'any' });
+        if (parsed.length === 1) return finalize({ ...parsed[0] });
+
+        // All members are string literals / enums → merge into one enum (dedup)
+        if (parsed.every(p => p.enumValues && p.enumValues.length > 0)) {
+          const merged: string[] = [];
+          for (const p of parsed) for (const v of p.enumValues!) if (!merged.includes(v)) merged.push(v);
+          return finalize({ type: 'string', enumValues: merged });
+        }
+
+        // All members are objects → merge fields; fields absent in any variant become optional
+        if (parsed.every(p => p.type === 'object' && p.fields)) {
+          const mergedFields: Record<string, Schema> = {};
+          for (const p of parsed) {
+            for (const [k, v] of Object.entries(p.fields!)) {
+              if (!(k in mergedFields)) mergedFields[k] = { ...v };
+            }
+          }
+          for (const k of Object.keys(mergedFields)) {
+            if (!parsed.every(p => p.fields && k in p.fields)) mergedFields[k].optional = true;
+          }
+          const objSchema: Schema = { type: 'object', fields: mergedFields };
+          if (discriminatorField) objSchema.discriminatorField = discriminatorField;
+          return finalize(objSchema);
+        }
+
+        // Heterogeneous primitives → type-level union (preserve every member's type)
+        const typeNames: string[] = [];
+        for (const p of parsed) if (!typeNames.includes(p.type)) typeNames.push(p.type);
+        if (typeNames.length === 1) return finalize({ ...parsed[0] });
+        return finalize({ type: 'union', unionTypes: typeNames });
+      }
+    }
     return { type: 'any', optional: isOptional || undefined };
   }
 
-  // z.tuple([...])
+  // z.tuple([...]) — preserve each positional element type (R2)
   if (/^z\.tuple\s*\(/.test(s)) {
+    const arrStart = s.indexOf('[');
+    if (arrStart > -1) {
+      const arrEnd = findMatchingClose(s, arrStart, '[', ']');
+      if (arrEnd > -1) {
+        const elems = splitTopLevelCommas(s.slice(arrStart + 1, arrEnd)).map(m => m.trim()).filter(Boolean);
+        if (elems.length > 0) {
+          const tupleTypes = elems.map(e => parseZodTypeStr(e));
+          return { type: 'array', itemType: { type: 'any' }, tupleTypes, optional: isOptional || undefined };
+        }
+      }
+    }
     return { type: 'array', itemType: { type: 'any' }, optional: isOptional || undefined };
   }
 
-  // z.record(...)
+  // z.record(...) — preserve the value type (R3). v4: z.record(keyType, valueType); v3: z.record(valueType)
   if (/^z\.record\s*\(/.test(s)) {
+    const parenOpen = s.indexOf('(');
+    const parenClose = parenOpen > -1 ? findMatchingClose(s, parenOpen, '(', ')') : -1;
+    if (parenClose > -1) {
+      const args = splitTopLevelCommas(s.slice(parenOpen + 1, parenClose)).map(a => a.trim()).filter(Boolean);
+      const valueArg = args.length >= 2 ? args[1] : args[0];
+      if (valueArg) {
+        return { type: 'object', fields: {}, recordValueType: parseZodTypeStr(valueArg), optional: isOptional || undefined };
+      }
+    }
     return { type: 'object', fields: {}, optional: isOptional || undefined };
   }
 
   // Primitives
   const schema: Schema = { type: 'any' };
 
-  if (/z\.string\b|z\.email\b|z\.url\b|z\.uuid\b|z\.cuid\b|z\.ulid\b/.test(s)) {
+  if (/z\.string\b|z\.email\b|z\.url\b|z\.uuid\b|z\.cuid\b|z\.ulid\b|z\.ip\b|z\.iso\b/.test(s)) {
     schema.type = 'string';
     if (/\.email\(\)|z\.email\(\)/.test(s)) schema.format = 'email';
     else if (/\.uuid\(\)|z\.uuid\(\)/.test(s)) schema.format = 'uuid';
     else if (/\.url\(\)|z\.url\(\)/.test(s)) schema.format = 'url';
-    else if (/\.datetime\(\)/.test(s)) schema.format = 'datetime';
+    else if (/z\.iso\.datetime\(\)|\.datetime\(\)/.test(s)) schema.format = 'datetime';
+    else if (/z\.iso\.date\(\)/.test(s)) schema.format = 'date';
+    else if (/z\.iso\.time\(\)/.test(s)) schema.format = 'datetime';
+    else if (/z\.ip\(\)|\.ip\(\)/.test(s)) schema.format = 'ip';
     else if (/z\.cuid\(\)|z\.ulid\(\)/.test(s)) schema.format = 'uuid';
   } else if (/z\.number\b|z\.int\b|z\.float\b/.test(s)) {
     schema.type = 'number';
     if (/\.int\(\)/.test(s)) schema.format = 'int';
   } else if (/z\.boolean\b|z\.bool\b/.test(s)) {
     schema.type = 'boolean';
-  } else if (/z\.date\b/.test(s)) {
-    schema.type = 'string'; schema.format = 'datetime';
+  } else if (/z\.coerce\.date\b|z\.date\b/.test(s)) {
+    schema.type = 'string'; schema.format = 'date';
   } else if (/z\.null\(\)/.test(s)) {
     schema.type = 'any'; schema.nullable = true;
   } else if (/z\.any\(\)|z\.unknown\(\)/.test(s)) {
@@ -777,6 +1055,10 @@ function parseZodTypeStr(typeStr: string): Schema {
 
   if (isOptional) schema.optional = true;
   if (isNullable) schema.nullable = true;
+  // Preserve value-level constraints verbatim (R4). Primitives have no nesting, so
+  // extracting from the whole chain is unambiguous.
+  const refinements = extractRefinements(s);
+  if (refinements.length) schema.refinements = refinements;
   return schema;
 }
 

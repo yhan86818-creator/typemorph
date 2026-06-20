@@ -1,0 +1,39 @@
+name: Schema Quality Check
+
+on:
+  pull_request:
+    paths:
+      - '**.json'
+      - '**.yaml'
+      - '**.yml'
+
+jobs:
+  schema-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Single JSON/YAML schema
+      - name: Check schema quality
+        uses: yhan86818-creator/typemorph@v1
+        with:
+          command: quality
+          file: schema.json
+          min-grade: B
+
+      # OpenAPI file — grades all component schemas
+      - name: Check OpenAPI quality
+        uses: yhan86818-creator/typemorph@v1
+        with:
+          command: quality
+          file: openapi.yaml
+          min-grade: B
+
+      # Target a specific schema in an OpenAPI file
+      - name: Check User schema only
+        uses: yhan86818-creator/typemorph@v1
+        with:
+          command: quality
+          file: openapi.yaml
+          schema: User
+          min-grade: A

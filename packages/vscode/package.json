@@ -22,6 +22,10 @@
       {
         "command": "typemorph.quality",
         "title": "TypeMorph: Check Schema Quality"
+      },
+      {
+        "command": "typemorph.reverse",
+        "title": "TypeMorph: Generate JSON Sample from Interfaces"
       }
     ],
     "menus": {
@@ -35,11 +39,17 @@
           "command": "typemorph.quality",
           "when": "editorTextFocus",
           "group": "typemorph@2"
+        },
+        {
+          "command": "typemorph.reverse",
+          "when": "editorLangId == typescript",
+          "group": "typemorph@3"
         }
       ],
       "commandPalette": [
         { "command": "typemorph.convert" },
-        { "command": "typemorph.quality" }
+        { "command": "typemorph.quality" },
+        { "command": "typemorph.reverse" }
       ]
     },
     "keybindings": [

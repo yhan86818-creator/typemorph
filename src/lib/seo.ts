@@ -82,6 +82,10 @@ export const INDEXED_EN_SLUGS = new Set([
   'json-to-nestjs-dto',
   'json-to-effect-schema',
 
+  // Zod Ecosystem (first-mover, no competitor)
+  'zod-v3-to-v4',
+  'typescript-to-zod',
+
   // AI / LLM Tools (quality content added)
   'json-to-mcp-tool',
   'json-to-openai-function',

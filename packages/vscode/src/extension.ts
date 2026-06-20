@@ -7,6 +7,7 @@ import {
   isJSONSchema,  parseJSONSchema,
   OUTPUT_TARGETS,
   analyzeQuality,
+  generateSampleJson,
 } from 'typemorph-core';
 
 // ── Quick Pick items built from OUTPUT_TARGETS ────────────────────────────────
@@ -100,12 +101,31 @@ async function cmdQuality() {
   vscode.window.showInformationMessage(msg, { detail, modal: true });
 }
 
+async function cmdReverse() {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) { vscode.window.showErrorMessage('TypeMorph: Open a TypeScript file first.'); return; }
+
+  const sel  = editor.selection;
+  const text = editor.document.getText(sel.isEmpty ? undefined : sel).trim();
+  if (!text) { vscode.window.showErrorMessage('TypeMorph: No content selected.'); return; }
+
+  const { json, error } = generateSampleJson(text);
+  if (error || !json) {
+    vscode.window.showErrorMessage(`TypeMorph: ${error ?? 'No interfaces found.'}`);
+    return;
+  }
+
+  const doc = await vscode.workspace.openTextDocument({ content: json, language: 'json' });
+  await vscode.window.showTextDocument(doc, vscode.ViewColumn.Beside);
+}
+
 // ── Extension lifecycle ───────────────────────────────────────────────────────
 
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('typemorph.convert', cmdConvert),
     vscode.commands.registerCommand('typemorph.quality', cmdQuality),
+    vscode.commands.registerCommand('typemorph.reverse', cmdReverse),
   );
 }
 

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { CheckCircle, XCircle, ArrowLeft, ArrowRight } from 'lucide-react';
 import { alternatives } from '@/data/alternatives';
+import { AlternativeZodDemo } from '@/components/AlternativeZodDemo';
 
 export async function generateStaticParams() {
   return alternatives.map((a) => ({ slug: a.slug }));
@@ -93,6 +94,9 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
             </a>
           </div>
         </section>
+
+        {/* Live Zod demo — quicktype only */}
+        {alt.slug === 'quicktype' && <AlternativeZodDemo />}
 
         {/* Comparison table */}
         <section className="mb-14">
