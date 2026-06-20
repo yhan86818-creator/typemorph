@@ -141,6 +141,40 @@ describe('TypeMorph Engine', () => {
       expect(zodV3Result).toContain('history: z.array(z.coerce.date())');
     });
 
+    describe('inference presets (zod)', () => {
+      const json = {
+        email: 'u@e.com',
+        website: 'https://e.com',
+        created_at: '2024-01-01T00:00:00Z',
+        age: 30,
+      };
+
+      it('smart (default) fabricates name-based constraints and detects formats', () => {
+        const out = runEngine(json, 'zod');
+        expect(out).toContain('email: z.email()');
+        expect(out).toContain('website: z.url()');
+        expect(out).toContain('age: z.number().int().min(0).max(150)');
+      });
+
+      it('balanced keeps factual formats and .int() but drops fabricated constraints', () => {
+        const out = runEngine(json, 'zod', '', { inference: 'balanced' });
+        expect(out).toContain('email: z.email()');
+        expect(out).toContain('website: z.url()');
+        expect(out).toContain('age: z.number().int()');
+        expect(out).not.toContain('.min(0).max(150)');
+      });
+
+      it('minimal emits raw types only (no formats, no .int())', () => {
+        const out = runEngine(json, 'zod', '', { inference: 'minimal' });
+        expect(out).toContain('email: z.string()');
+        expect(out).toContain('website: z.string()');
+        expect(out).toContain('created_at: z.string()');
+        expect(out).toContain('age: z.number()');
+        expect(out).not.toContain('z.email()');
+        expect(out).not.toContain('.int()');
+      });
+    });
+
     it('should perform schema refactoring (flattening wrappers and extracting TimestampModel)', () => {
       const json = {
         user: {

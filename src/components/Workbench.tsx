@@ -607,6 +607,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     samplesMode: false,
     zodMode: 'strict' as 'loose' | 'strict' | 'enterprise',
     zodVersion: 'v4' as 'v3' | 'v4',
+    inference: 'smart' as 'smart' | 'balanced' | 'minimal',
     sharedPrefix: 'Shared',
     disabledUnifications: [] as string[],
     customTypeNames: {} as Record<string, string>,
@@ -2169,6 +2170,25 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                             }`}
                           >
                             {v}
+                          </button>
+                        ))}
+                      </div>
+                      <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 tracking-wider mt-1.5" title="How much the engine infers. Smart: detect formats + guess constraints from field names. Balanced: keep formats, drop name-based guesses. Minimal: raw types only.">Inference</span>
+                      <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 text-[10px] font-bold">
+                        {(['smart', 'balanced', 'minimal'] as const).map(p => (
+                          <button
+                            key={p}
+                            onClick={() => setGenSettings(s => ({...s, inference: p}))}
+                            title={p === 'smart' ? 'Detect formats (email/url/uuid) and infer constraints from field names (age → .min(0).max(150))'
+                              : p === 'balanced' ? 'Keep detected formats and .int(), but drop constraints guessed from field names'
+                              : 'Raw types only — z.string()/z.number(), no formats or guessed constraints'}
+                            className={`flex-1 py-1.5 capitalize transition-colors ${
+                              genSettings.inference === p
+                                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                            }`}
+                          >
+                            {p}
                           </button>
                         ))}
                       </div>

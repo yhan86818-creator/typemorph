@@ -267,8 +267,10 @@ const printZodASTTypeBase = (type: ASTType, cyclicClassRefs: Set<string>, option
       if (type.enumValues.length === 1) return 'z.string()';
       return `z.enum([${type.enumValues.map(ev => `"${ev}"`).join(', ')}])`;
     case 'date':
+      if (options.inference === 'minimal') return 'z.string()';
       return options.zodVersion === 'v3' ? 'z.coerce.date()' : 'z.iso.date()';
     case 'datetime':
+      if (options.inference === 'minimal') return 'z.string()';
       return options.zodVersion === 'v3' ? 'z.string().datetime()' : 'z.iso.datetime()';
     case 'classRef': {
       if (!type.classRefName) return 'z.any()';
@@ -295,6 +297,8 @@ const printZodASTTypeBase = (type: ASTType, cyclicClassRefs: Set<string>, option
     }
     case 'string':
       if (type.coerced) return 'z.coerce.string()';
+      // Minimal preset: emit the raw type and let the user add their own format refinements.
+      if (options.inference === 'minimal') return 'z.string()';
       if (type.format === 'email') return options.zodVersion === 'v3' ? 'z.string().email()' : 'z.email()';
       if (type.format === 'url') return options.zodVersion === 'v3' ? 'z.string().url()' : 'z.url()';
       if (type.format === 'uuid') return options.zodVersion === 'v3' ? 'z.string().uuid()' : 'z.uuid()';
@@ -360,13 +364,23 @@ export const zodGen = {
     const zEmail = isV3 ? 'z.string().email()' : 'z.email()';
     const zUrl = isV3 ? 'z.string().url()' : 'z.url()';
     const zUuid = isV3 ? 'z.string().uuid()' : 'z.uuid()';
+    // Inference preset (orthogonal to zodMode): how much the engine "guesses".
+    //  smart    — name-based constraint inference + format detection + structure (default)
+    //  balanced — drop fabricated name-based constraints; keep factual formats/.int()/structure
+    //  minimal  — raw types only (z.string()/z.number()), no formats, no structure extraction
+    const inference: 'smart' | 'balanced' | 'minimal' = options.inference ?? 'smart';
+    const inferConstraints = inference === 'smart';
+    const rawTypes = inference === 'minimal';
     const modeOptions = { ...options, zodMode: mode };
 
     // Pre-compute discriminated union schemas
     const discriminatedMap = findDiscriminatedSchemas(schema, toPascalCase(name));
 
     // 1. スキーマを AST へ一括コンパイル
-    const astClasses = schemaToAST(schema, toPascalCase(name), options);
+    const astOptions = inference === 'minimal'
+      ? { ...options, flattenWrappers: false, extractTimestamps: false }
+      : options;
+    const astClasses = schemaToAST(schema, toPascalCase(name), astOptions);
     let res = "";
 
     // 2. 各クラス（構造体）に対応する Zod スキーマを平坦に出力
@@ -450,39 +464,45 @@ export const zodGen = {
         // constraints win and must not be doubled up.
         if (!isLoose && !field.fieldType.refinements?.length) {
           if (field.fieldType.kind === 'number') {
-            if (k.includes('percent')) {
-              zType += '.min(0).max(100)';
-            } else if (k.includes('latitude') || k === 'lat' || k.endsWith('_lat')) {
-              zType += '.min(-90).max(90)';
-            } else if (k.includes('longitude') || k === 'lng' || k === 'lon' || k.endsWith('_lng') || k.endsWith('_lon')) {
-              zType += '.min(-180).max(180)';
-            } else if (k.includes('rating')) {
-              zType += '.min(0).max(5)';
-            } else if (k.includes('score')) {
-              zType += '.min(0).max(100)';
-            } else if (hasWord('age')) {
-              zType += '.int().min(0).max(150)';
-            } else if (k.includes('year')) {
-              zType += '.int().min(1900).max(2100)';
-            } else if (k.includes('month') && !k.includes('monthly')) {
-              zType += '.int().min(1).max(12)';
-            } else if (k === 'day' || k.endsWith('_day') || k.startsWith('day_')) {
-              zType += '.int().min(1).max(31)';
-            } else if (k.includes('hour')) {
-              zType += '.int().min(0).max(23)';
-            } else if (k.includes('minute') || k.includes('second')) {
-              zType += '.int().min(0).max(59)';
-            } else if (hasWord('count', 'quantity', 'qty')) {
-              zType += '.int().min(0)';
-            } else if (hasWord('price', 'amount', 'cost', 'fee', 'rank', 'total', 'subtotal')) {
-              zType += '.min(0)';
-            } else if (k === 'port' || k.endsWith('_port') || k === 'portnumber' || k === 'port_number') {
-              zType += '.int().min(1).max(65535)';
-            } else if (field.fieldType.format === 'int') {
+            if (inferConstraints) {
+              if (k.includes('percent')) {
+                zType += '.min(0).max(100)';
+              } else if (k.includes('latitude') || k === 'lat' || k.endsWith('_lat')) {
+                zType += '.min(-90).max(90)';
+              } else if (k.includes('longitude') || k === 'lng' || k === 'lon' || k.endsWith('_lng') || k.endsWith('_lon')) {
+                zType += '.min(-180).max(180)';
+              } else if (k.includes('rating')) {
+                zType += '.min(0).max(5)';
+              } else if (k.includes('score')) {
+                zType += '.min(0).max(100)';
+              } else if (hasWord('age')) {
+                zType += '.int().min(0).max(150)';
+              } else if (k.includes('year')) {
+                zType += '.int().min(1900).max(2100)';
+              } else if (k.includes('month') && !k.includes('monthly')) {
+                zType += '.int().min(1).max(12)';
+              } else if (k === 'day' || k.endsWith('_day') || k.startsWith('day_')) {
+                zType += '.int().min(1).max(31)';
+              } else if (k.includes('hour')) {
+                zType += '.int().min(0).max(23)';
+              } else if (k.includes('minute') || k.includes('second')) {
+                zType += '.int().min(0).max(59)';
+              } else if (hasWord('count', 'quantity', 'qty')) {
+                zType += '.int().min(0)';
+              } else if (hasWord('price', 'amount', 'cost', 'fee', 'rank', 'total', 'subtotal')) {
+                zType += '.min(0)';
+              } else if (k === 'port' || k.endsWith('_port') || k === 'portnumber' || k === 'port_number') {
+                zType += '.int().min(1).max(65535)';
+              } else if (field.fieldType.format === 'int') {
+                zType += '.int()';
+              }
+            } else if (!rawTypes && field.fieldType.format === 'int') {
+              // Balanced: .int() reflects the real value type, so keep it even though
+              // fabricated name-based constraints are disabled. Minimal drops it too.
               zType += '.int()';
             }
           }
-          if (field.fieldType.kind === 'string' && !field.fieldType.format) {
+          if (inferConstraints && field.fieldType.kind === 'string' && !field.fieldType.format) {
             if (k.includes('email')) zType = zEmail;
             else if (k.includes('url') || k.includes('link') || k.includes('website')) zType = zUrl;
             else if (k.includes('uuid') || ((k.endsWith('_id') || /Id$/.test(displayName) || /ID$/.test(displayName)) && field.fieldType.format === 'uuid')) zType = zUuid;
@@ -508,7 +528,7 @@ export const zodGen = {
           // type, but the NAME often does — recover a meaningful base type so common
           // nullable columns (deletedAt, archivedAt, lastLoginAt …) aren't left as a
           // useless z.any().nullable(). Falls through to z.any() when no hint matches.
-          if (field.fieldType.kind === 'any' && field.isNullable) {
+          if (inferConstraints && field.fieldType.kind === 'any' && field.isNullable) {
             const lastWord = words[words.length - 1];
             if (lastWord === 'at' || hasWord('timestamp', 'datetime')) zType = isV3 ? 'z.string().datetime()' : 'z.iso.datetime()';
             else if (hasWord('date')) zType = isV3 ? 'z.coerce.date()' : 'z.iso.date()';
