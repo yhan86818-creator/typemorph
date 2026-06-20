@@ -7,18 +7,18 @@
 [![npm](https://img.shields.io/npm/v/typemorph-cli?style=for-the-badge&logo=npm&color=CB3837)](https://www.npmjs.com/package/typemorph-cli)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
 
-Paste any JSON, YAML, OpenAPI spec, or JSON Schema — TypeMorph infers the schema and converts it to 160+ output formats, entirely inside your browser.
+Paste any JSON, YAML, OpenAPI spec, or JSON Schema — TypeMorph infers the schema and converts it across 160+ converters covering 17 fully-tested core formats (plus more in beta), entirely inside your browser.
 
 ---
 
 ## Features
 
-- **160+ output formats** — TypeScript, Zod, Go, Rust, Python, Java, Kotlin, Swift, C#, Dart, PHP, GraphQL, Prisma, Protobuf, SQL, Mermaid, and more
+- **160+ converters** — across 17 fully-tested core targets (TypeScript, Zod, Go, Rust, Python, Java, Kotlin, Swift, C#, Dart, PHP, GraphQL, Prisma, Protobuf, SQL, Mermaid) plus additional scaffold/beta targets
 - **Schema Quality Score** — A–F grading with field-level feedback
 - **Breaking Change Detector** — semantic diff between two schema versions with severity scoring
 - **VS Code Extension** — convert schemas without leaving your editor (`Ctrl+Shift+T`)
 - **CLI** — `typemorph-cli` on npm for scripting and CI pipelines
-- **100% local** — no server, no upload endpoint, no cloud processing
+- **Local-first conversion** — all schema inference and code generation run in your browser; your data is never uploaded unless you explicitly click Share
 
 ---
 
@@ -27,10 +27,10 @@ Paste any JSON, YAML, OpenAPI spec, or JSON Schema — TypeMorph infers the sche
 ```
 Input (JSON / YAML / SQL / OpenAPI / TypeScript)
   └─► inferSchema()  →  Schema AST
-        └─► generators  →  TypeScript, Zod, Go, Rust, Python … (18 targets)
+        └─► generators  →  TypeScript, Zod, Go, Rust, Python … (17 core targets + beta)
 ```
 
-All parsing and code generation runs in your browser via a single AST pipeline. Your schema never leaves your machine.
+All parsing and code generation runs in your browser via a single AST pipeline. Your schema never leaves your machine unless you explicitly use the Share feature (which uploads a compressed copy so the link can be opened elsewhere).
 
 ---
 

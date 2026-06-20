@@ -1,19 +1,19 @@
 {
   "huge.json": {
     "default": {
-      "durationMs": 8,
+      "durationMs": 9,
       "fields": 14,
       "anyCount": 0,
       "enumCount": 0
     },
     "shallow_max3": {
-      "durationMs": 12,
+      "durationMs": 3,
       "fields": 11,
       "anyCount": 4,
       "enumCount": 0
     },
     "enum_min4": {
-      "durationMs": 5,
+      "durationMs": 7,
       "fields": 14,
       "anyCount": 0,
       "enumCount": 0
@@ -97,7 +97,7 @@
   },
   "small.json": {
     "default": {
-      "durationMs": 1,
+      "durationMs": 0,
       "fields": 8,
       "anyCount": 0,
       "enumCount": 0
@@ -121,7 +121,7 @@
       "enumCount": 0
     },
     "include_meta": {
-      "durationMs": 0,
+      "durationMs": 1,
       "fields": 8,
       "anyCount": 0,
       "enumCount": 0

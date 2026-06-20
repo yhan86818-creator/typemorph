@@ -14,7 +14,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Custom ignores:
     ".wrangler/**",
-    "dist/**",
+    "**/dist/**",      // generated bundles: cli/dist, packages/*/dist, dist
     "scripts/**",
     "server/**",
   ]),
