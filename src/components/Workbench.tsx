@@ -38,6 +38,7 @@ import { History as HistoryIcon, FolderOpen } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getWorkbenchEditorText, WorkbenchOutputStatus } from './workbench-utils';
 import { resolveSlugTarget, monacoLanguageForTarget, OUTPUT_TARGETS } from '@/lib/targets';
+import { lintZod, type ZodLintDiagnostic } from '@/lib/zod-linter';
 import { User } from '@supabase/supabase-js';
 import SuperBatchModal from './SuperBatchModal';
 import { loadLibrary, saveToLibrary, deleteFromLibrary, renameInLibrary, autoName, type LibraryEntry } from '@/lib/schemaLibrary';
@@ -384,6 +385,11 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
   const [library, setLibrary] = useState<LibraryEntry[]>([]);
   const [isEnvInput, setIsEnvInput] = useState(false);
   const [isZodReverseMode, setIsZodReverseMode] = useState(false);
+  // Semantic Zod lint runs only when the input is a Zod schema (reverse mode).
+  const lintDiagnostics = useMemo<ZodLintDiagnostic[]>(
+    () => (isZodReverseMode ? lintZod(input) : []),
+    [input, isZodReverseMode],
+  );
   const [envDiffInput, setEnvDiffInput] = useState('');
   const envDiffEntries = useMemo((): EnvDiffEntry[] | null => {
     if (!isEnvInput || !jsonData || !envDiffInput.trim()) return null;
@@ -1443,6 +1449,9 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
   const slugTarget = resolveSlugTarget(slug);
 
   const baseMainTabs = [
+    ...(isZodReverseMode ? [
+      { id: 'lint', label: lintDiagnostics.length ? `⚠ Lint (${lintDiagnostics.length})` : '✓ Lint' },
+    ] : []),
     ...(isEnvInput ? [
       { id: 'env-validator', label: 'Env Validator' },
       { id: 'env-diff', label: 'Env Diff' },
@@ -2240,7 +2249,47 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
             )}
           </AnimatePresence>
 
-          {outputTab === 'reverse' ? (
+          {outputTab === 'lint' ? (
+            <div className="w-full h-full overflow-auto bg-white dark:bg-[#0A0A0A] p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-slate-600 dark:text-slate-300">Zod Lint</span>
+                <span className="text-[10px] font-mono text-slate-400">
+                  semantic · {lintDiagnostics.length} issue{lintDiagnostics.length === 1 ? '' : 's'}
+                </span>
+              </div>
+              {lintDiagnostics.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="text-3xl mb-3">✓</div>
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-200">No issues found</p>
+                  <p className="text-[11px] text-slate-400 mt-1 max-w-xs">
+                    Field names, formats, and modifiers all look idiomatic.
+                  </p>
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {lintDiagnostics.map((d, i) => (
+                    <li
+                      key={`${d.line}-${d.rule}-${i}`}
+                      className={`rounded-xl border p-3 ${d.severity === 'warning' ? 'border-amber-200 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/20' : 'border-slate-200 dark:border-white/10 bg-slate-50/60 dark:bg-white/5'}`}
+                    >
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded ${d.severity === 'warning' ? 'bg-amber-200/70 dark:bg-amber-800/40 text-amber-800 dark:text-amber-300' : 'bg-slate-200/70 dark:bg-white/10 text-slate-600 dark:text-slate-300'}`}>
+                          {d.severity}
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-400">line {d.line}</span>
+                        <span className="text-[10px] font-mono text-slate-400">·</span>
+                        <span className="text-[10px] font-mono text-slate-400">{d.rule}</span>
+                      </div>
+                      <p className="text-[12px] text-slate-700 dark:text-slate-200 mb-2 leading-snug">{d.message}</p>
+                      <code className="block text-[11px] font-mono bg-white dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-emerald-700 dark:text-emerald-400 overflow-x-auto">
+                        {d.suggestion}
+                      </code>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : outputTab === 'reverse' ? (
             <div className="w-full h-full overflow-auto bg-white dark:bg-[#0A0A0A]">
               <ReverseView
                 tsSeed={outputs['typescript'] || undefined}
