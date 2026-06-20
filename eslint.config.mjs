@@ -20,7 +20,20 @@ const eslintConfig = defineConfig([
   ]),
   {
     rules: {
-      "@typescript-eslint/no-explicit-any": "off"
+      "@typescript-eslint/no-explicit-any": "off",
+      // Mount-time init (window.location / localStorage reads, one-shot UI
+      // banners) must run in an effect for SSR safety — these are intentional,
+      // not cascading-render bugs. Keep as a warning, not a CI-blocking error.
+      "react-hooks/set-state-in-effect": "warn"
+    }
+  },
+  {
+    // Test files legitimately use require() for mocking and @ts-nocheck/@ts-* to
+    // exercise compile failures. Don't lint-block on those here.
+    files: ["**/*.test.{ts,tsx,js,jsx}", "**/__tests__/**"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+      "@typescript-eslint/ban-ts-comment": "off"
     }
   }
 ]);

@@ -1166,13 +1166,12 @@ export const inferSchemaAsync = async (json: any, options: InferOptions = {}) =>
       const dynamicLoad = async (p: string) => {
         try {
           // Prevent some bundlers from statically analyzing this import
-          // @ts-ignore
           const m = await import(/* webpackIgnore: true */ p);
           return (m && (m.runInferenceInWorker ? m : (m.default || m)));
         } catch (e) {
           if (typeof require !== 'undefined') {
             try {
-              // eslint-disable-next-line @typescript-eslint/no-var-requires
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
               const m = require(p);
               return m;
             } catch (e2) {

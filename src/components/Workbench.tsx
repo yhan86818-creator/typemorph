@@ -2991,7 +2991,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
               Unlock TypeMorph
             </h2>
             <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-6 font-sans">
-              You've reached your free daily limit. Upgrade to <b>TypeMorph Pro</b> to unlock unlimited conversions, bulk folder processing, and local file sync.
+              You&apos;ve reached your free daily limit. Upgrade to <b>TypeMorph Pro</b> to unlock unlimited conversions, bulk folder processing, and local file sync.
             </p>
 
             <div className="w-full flex flex-col gap-3">
