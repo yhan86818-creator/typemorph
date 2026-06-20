@@ -62,6 +62,7 @@ export const convertToASTType = (v: Schema, parentClassPrefix: string, fieldKey:
 
   const lit = v.literalValue !== undefined ? { literalValue: v.literalValue } : {};
   const coerced = v.coerced ? { coerced: true } : {};
+  const raw = v.rawZodType ? { rawZodType: v.rawZodType } : {};
 
   if (v.type === 'string') {
     if (v.enumValues) {
@@ -69,7 +70,7 @@ export const convertToASTType = (v: Schema, parentClassPrefix: string, fieldKey:
     }
     if (v.format === 'date') return { kind: 'date', format: 'date', ...refs };
     if (v.format === 'datetime') return { kind: 'datetime', format: 'datetime', ...refs };
-    return { kind: 'string', format: v.format, ...coerced, ...refs };
+    return { kind: 'string', format: v.format, ...coerced, ...raw, ...refs };
   }
   
   if (v.type === 'object') {

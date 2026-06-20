@@ -287,6 +287,69 @@ describe('parseZodToSchema', () => {
     it('does NOT drop a coerced number to z.any()', () => {
       expect(rt('z.coerce.number()')).not.toContain('z.any()');
     });
+
+    it('keeps .int() on a coerced number with refinements', () => {
+      expect(rt('z.coerce.number().int().min(0).max(120)'))
+        .toContain('f: z.coerce.number().int().min(0).max(120)');
+    });
+  });
+
+  // Found via real-data round-trip: an explicit .int() (stored as format, not a
+  // refinement) was dropped whenever the number also carried .min/.max, because the
+  // name-inference block that re-emits it is skipped once refinements are present.
+  describe('.int() preservation with refinements', () => {
+    const rt = (inner: string) => zodGen.generate(parseZodToSchema(`z.object({ f: ${inner} })`)!, 'Root');
+
+    it('keeps .int() alongside .min/.max', () => {
+      expect(rt('z.number().int().min(0).max(120)')).toContain('f: z.number().int().min(0).max(120)');
+    });
+
+    it('does not duplicate .int() when no refinements exist', () => {
+      const out = rt('z.number().int()');
+      expect(out).toContain('f: z.number().int()');
+      expect(out).not.toContain('.int().int()');
+    });
+  });
+
+  // R7 regression: z.nativeEnum(X) previously fell through to z.any(), losing the type.
+  // When X is defined in the same input we resolve its values; otherwise we preserve
+  // the expression verbatim so the Zod round-trip stays lossless.
+  describe('z.nativeEnum (R7)', () => {
+    it('resolves a same-input string enum to its values', () => {
+      const input = `enum Role { Admin = "admin", User = "user" }\nconst S = z.object({ role: z.nativeEnum(Role) })`;
+      const f = parseZodToSchema(input)?.fields?.role;
+      expect(f?.type).toBe('string');
+      expect(f?.enumValues).toEqual(['admin', 'user']);
+    });
+
+    it('resolves a same-input `as const` object', () => {
+      const input = `const Color = { Red: "red", Blue: "blue" } as const;\nconst S = z.object({ c: z.nativeEnum(Color) })`;
+      expect(parseZodToSchema(input)?.fields?.c?.enumValues).toEqual(['red', 'blue']);
+    });
+
+    it('resolves the v4 z.enum(Identifier) form', () => {
+      const input = `enum Status { Open = "open", Closed = "closed" }\nconst S = z.object({ s: z.enum(Status) })`;
+      expect(parseZodToSchema(input)?.fields?.s?.enumValues).toEqual(['open', 'closed']);
+    });
+
+    it('round-trips a resolved nativeEnum to z.enum([...])', () => {
+      const input = `enum Role { Admin = "admin", User = "user" }\nconst S = z.object({ role: z.nativeEnum(Role) })`;
+      expect(zodGen.generate(parseZodToSchema(input)!, 'Root')).toContain('role: z.enum(["admin", "user"])');
+    });
+
+    it('preserves an unresolvable nativeEnum verbatim (no z.any() drop)', () => {
+      const f = parseZodToSchema('z.object({ role: z.nativeEnum(Role) })')?.fields?.role;
+      expect(f?.type).toBe('string');
+      expect(f?.rawZodType).toBe('z.nativeEnum(Role)');
+      const out = zodGen.generate(parseZodToSchema('z.object({ role: z.nativeEnum(Role) })')!, 'Root');
+      expect(out).toContain('role: z.nativeEnum(Role)');
+      expect(out).not.toContain('z.any()');
+    });
+
+    it('keeps .optional() on an unresolvable nativeEnum', () => {
+      const out = zodGen.generate(parseZodToSchema('z.object({ role: z.nativeEnum(Role).optional() })')!, 'Root');
+      expect(out).toContain('role: z.nativeEnum(Role).optional()');
+    });
   });
 
   describe('z.array', () => {

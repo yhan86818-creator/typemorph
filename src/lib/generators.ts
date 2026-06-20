@@ -241,6 +241,8 @@ const printZodASTType = (type: ASTType, cyclicClassRefs: Set<string>, options: a
   return type.refinements?.length ? base + type.refinements.join('') : base;
 };
 const printZodASTTypeBase = (type: ASTType, cyclicClassRefs: Set<string>, options: any = {}): string => {
+  // Verbatim Zod expression (e.g. unresolvable z.nativeEnum) — re-emit exactly.
+  if (type.rawZodType) return type.rawZodType;
   // Parsed z.literal(...) — re-emit the exact value rather than widening to the base type.
   if (type.literalValue !== undefined) {
     const v = type.literalValue;
@@ -514,6 +516,15 @@ export const zodGen = {
             else if (k.includes('email')) zType = zEmail;
             else if (k.includes('url') || k.includes('link') || k.includes('website')) zType = zUrl;
           }
+        }
+
+        // An explicit .int() is captured as format (not a refinement), so the guarded
+        // name-inference block above skips it whenever other refinements are present.
+        // Re-insert it after the number constructor (before refinements) so a parsed
+        // z.number().int().min(0) / z.coerce.number().int() doesn't silently lose .int().
+        if (field.fieldType.kind === 'number' && field.fieldType.format === 'int'
+            && field.fieldType.refinements?.length && !zType.includes('.int(')) {
+          zType = zType.replace(/^(z\.(?:coerce\.)?number\(\))/, '$1.int()');
         }
 
         let fieldExpr = `${zType}${isNull}${isOpt}`;

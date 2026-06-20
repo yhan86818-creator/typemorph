@@ -49,6 +49,12 @@ export interface Schema {
    * coercion; other generators ignore it and use the base `type`.
    */
   coerced?: boolean;
+  /**
+   * Verbatim Zod expression to re-emit on the Zod path when the type can't be
+   * represented structurally (e.g. an unresolvable `z.nativeEnum(Role)` whose enum
+   * lives in another file). Non-Zod generators ignore it and fall back to `type`.
+   */
+  rawZodType?: string;
   _structureHash?: string;
   _sharedTypeName?: string;
   /** Optional runtime metadata produced by the inference engine (when enabled) */
@@ -99,5 +105,6 @@ export interface ASTType {
   refinements?: string[];        // Raw Zod constraint suffixes preserved for round-trip (R4)
   literalValue?: string | number | boolean; // Set from z.literal(...) — Zod path re-emits z.literal()
   coerced?: boolean;             // Set from z.coerce.<type>() — Zod path re-emits z.coerce
+  rawZodType?: string;           // Verbatim Zod expr (unresolvable z.nativeEnum) — Zod path re-emits as-is
   format?: 'email' | 'url' | 'uuid' | 'datetime' | 'date' | 'int' | 'float' | 'text' | 'color' | 'ip'; // matches Schema.format
 }

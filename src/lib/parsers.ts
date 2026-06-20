@@ -885,6 +885,39 @@ function extractRefinements(str: string): string[] {
   return out;
 }
 
+// Registry of TS enum / `as const` object values found in the same input, so
+// z.nativeEnum(X) / z.enum(X) can resolve X's values. Set per parseZodToSchema call.
+let nativeEnumRegistry: Map<string, string[]> = new Map();
+
+// Scans TS source for string-valued enum definitions resolvable by z.nativeEnum(X):
+//   enum X { A = "a", B = "b" }   and   const X = { A: "a", B: "b" } as const
+function scanEnumDefinitions(input: string): Map<string, string[]> {
+  const reg = new Map<string, string[]>();
+  let m: RegExpExecArray | null;
+
+  const enumRe = /enum\s+(\w+)\s*\{([^}]*)\}/g;
+  while ((m = enumRe.exec(input))) {
+    const vals: string[] = [];
+    for (const member of m[2].split(',')) {
+      const mm = member.match(/\w+\s*=\s*(['"`])(.*?)\1/);
+      if (mm) vals.push(mm[2]);
+    }
+    if (vals.length) reg.set(m[1], vals);
+  }
+
+  const constRe = /const\s+(\w+)\s*=\s*\{([^}]*)\}\s*as\s+const/g;
+  while ((m = constRe.exec(input))) {
+    const vals: string[] = [];
+    for (const member of m[2].split(',')) {
+      const mm = member.match(/\w+\s*:\s*(['"`])(.*?)\1/);
+      if (mm) vals.push(mm[2]);
+    }
+    if (vals.length) reg.set(m[1], vals);
+  }
+
+  return reg;
+}
+
 function parseZodTypeStr(typeStr: string): Schema {
   const s = typeStr.trim();
   const isOptional = /\.optional\(\)|\.nullish\(\)/.test(s);
@@ -911,6 +944,24 @@ function parseZodTypeStr(typeStr: string): Schema {
     // AFTER the array's closing paren so inner element refinements aren't double-counted.
     const refinements = parenClose > -1 ? extractRefinements(s.slice(parenClose + 1)) : [];
     return { type: 'array', itemType, optional: isOptional || undefined, ...(refinements.length ? { refinements } : {}) };
+  }
+
+  // z.nativeEnum(X) / z.enum(X) referencing a TS enum or `as const` object (not an array).
+  // z.enum([...]) starts with '[', so the [A-Za-z_$] lookahead disambiguates.
+  if (/^z\.(?:nativeEnum|enum)\s*\(\s*[A-Za-z_$]/.test(s)) {
+    const nm = s.match(/^z\.(?:nativeEnum|enum)\s*\(\s*([A-Za-z_$][\w$]*)/);
+    const enumName = nm?.[1];
+    const resolved = enumName ? nativeEnumRegistry.get(enumName) : undefined;
+    if (resolved && resolved.length) {
+      return { type: 'string', enumValues: resolved, optional: isOptional || undefined };
+    }
+    // Unresolvable (enum defined in another file) — keep the exact expression so the
+    // Zod round-trip is lossless; other languages degrade to the string base type.
+    return {
+      type: 'string',
+      rawZodType: enumName ? `z.nativeEnum(${enumName})` : s,
+      optional: isOptional || undefined,
+    };
   }
 
   // z.enum([...]) or z.nativeEnum
@@ -1032,6 +1083,7 @@ function parseZodTypeStr(typeStr: string): Schema {
     schema.type = coerceBase[1] === 'string' ? 'string'
       : coerceBase[1] === 'boolean' ? 'boolean'
       : 'number';
+    if (schema.type === 'number' && /\.int\(\)/.test(s)) schema.format = 'int';
   } else if (/z\.string\b|z\.email\b|z\.url\b|z\.uuid\b|z\.cuid\b|z\.ulid\b|z\.ip\b|z\.iso\b/.test(s)) {
     schema.type = 'string';
     if (/\.email\(\)|z\.email\(\)/.test(s)) schema.format = 'email';
@@ -1096,6 +1148,7 @@ function parseZodFields(body: string, fields: Record<string, Schema>): void {
 
 export const parseZodToSchema = (input: string): Schema | null => {
   try {
+    nativeEnumRegistry = scanEnumDefinitions(input);
     const trimmed = input.trim();
     // Allow: z.object({...}), const x = z.object({...}), export const x = z.object({...})
     if (!trimmed.includes('z.object(') && !trimmed.includes('z.array(') && !trimmed.includes('z.string(')
@@ -1116,5 +1169,7 @@ export const parseZodToSchema = (input: string): Schema | null => {
     return schema;
   } catch {
     return null;
+  } finally {
+    nativeEnumRegistry = new Map();
   }
 };
