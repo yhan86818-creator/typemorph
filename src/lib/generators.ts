@@ -667,7 +667,11 @@ export const pythonGen = {
     const astClasses = schemaToAST(schema, toPascalCase(name), options);
     let res = "";
 
-    for (const cls of astClasses) {
+    // Python evaluates class-body annotations eagerly, so a parent that
+    // references a nested model defined later raises NameError at import time.
+    // Emit dependencies (child models) first — same topological order Zod uses.
+    const { sorted: sortedClasses } = topoSortForZod(astClasses);
+    for (const cls of sortedClasses) {
       const baseClass = getBaseClass(cls) ?? 'BaseModel';
 
       res += `class ${cls.name}(${baseClass}):\n`;

@@ -868,11 +868,9 @@ exports[`Tier1 generators — NESTED (object + array) > python 1`] = `
 from pydantic import BaseModel
 from typing import Optional, List
 
-class Project(BaseModel):
-    project: str
-    owner: SharedOwner
-    tags: List[str]
-    collaborators: List[SharedOwner]
+class SharedOwnerAddress(BaseModel):
+    city: str
+    zip: str
 
 class SharedOwner(BaseModel):
     id: str
@@ -880,9 +878,11 @@ class SharedOwner(BaseModel):
     address: Optional[SharedOwnerAddress] = None
     role: Optional[str] = None
 
-class SharedOwnerAddress(BaseModel):
-    city: str
-    zip: str"
+class Project(BaseModel):
+    project: str
+    owner: SharedOwner
+    tags: List[str]
+    collaborators: List[SharedOwner]"
 `;
 
 exports[`Tier1 generators — NESTED (object + array) > rust 1`] = `
