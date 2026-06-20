@@ -1026,7 +1026,13 @@ function parseZodTypeStr(typeStr: string): Schema {
   // Primitives
   const schema: Schema = { type: 'any' };
 
-  if (/z\.string\b|z\.email\b|z\.url\b|z\.uuid\b|z\.cuid\b|z\.ulid\b|z\.ip\b|z\.iso\b/.test(s)) {
+  const coerceBase = s.match(/z\.coerce\.(string|number|boolean|bigint)\b/);
+  if (coerceBase) {
+    schema.coerced = true;
+    schema.type = coerceBase[1] === 'string' ? 'string'
+      : coerceBase[1] === 'boolean' ? 'boolean'
+      : 'number';
+  } else if (/z\.string\b|z\.email\b|z\.url\b|z\.uuid\b|z\.cuid\b|z\.ulid\b|z\.ip\b|z\.iso\b/.test(s)) {
     schema.type = 'string';
     if (/\.email\(\)|z\.email\(\)/.test(s)) schema.format = 'email';
     else if (/\.uuid\(\)|z\.uuid\(\)/.test(s)) schema.format = 'uuid';
@@ -1048,9 +1054,23 @@ function parseZodTypeStr(typeStr: string): Schema {
   } else if (/z\.any\(\)|z\.unknown\(\)/.test(s)) {
     schema.type = 'any';
   } else if (/z\.literal\(/.test(s)) {
-    const litMatch = s.match(/z\.literal\s*\(\s*(['"`])(.+?)\1\s*\)/);
-    schema.type = 'string';
-    if (litMatch) schema.enumValues = [litMatch[2]];
+    const strLit = s.match(/z\.literal\s*\(\s*(['"`])([\s\S]*?)\1\s*\)/);
+    const numLit = s.match(/z\.literal\s*\(\s*(-?\d+(?:\.\d+)?)\s*\)/);
+    const boolLit = s.match(/z\.literal\s*\(\s*(true|false)\s*\)/);
+    if (strLit) {
+      schema.type = 'string';
+      schema.literalValue = strLit[2];
+      // Keep enumValues for non-Zod generators (TS emits "user" via the single-value enum path).
+      schema.enumValues = [strLit[2]];
+    } else if (numLit) {
+      schema.type = 'number';
+      schema.literalValue = parseFloat(numLit[1]);
+    } else if (boolLit) {
+      schema.type = 'boolean';
+      schema.literalValue = boolLit[1] === 'true';
+    } else {
+      schema.type = 'string';
+    }
   }
 
   if (isOptional) schema.optional = true;

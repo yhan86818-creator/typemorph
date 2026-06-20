@@ -38,6 +38,17 @@ export interface Schema {
    * round-trip (paste Zod → convert) never silently drops constraints (R4).
    */
   refinements?: string[];
+  /**
+   * Literal value captured from a parsed `z.literal(...)`. `type` holds the base
+   * type (string/number/boolean) so non-Zod generators degrade to that base, while
+   * the Zod generator re-emits `z.literal(value)` instead of silently widening.
+   */
+  literalValue?: string | number | boolean;
+  /**
+   * Set when the source used `z.coerce.<type>()`. The Zod generator re-emits the
+   * coercion; other generators ignore it and use the base `type`.
+   */
+  coerced?: boolean;
   _structureHash?: string;
   _sharedTypeName?: string;
   /** Optional runtime metadata produced by the inference engine (when enabled) */
@@ -86,5 +97,7 @@ export interface ASTType {
   recordValueType?: ASTType;     // Used when kind is 'record' (key is always string)
   tupleTypes?: ASTType[];        // Used when kind is 'tuple'
   refinements?: string[];        // Raw Zod constraint suffixes preserved for round-trip (R4)
+  literalValue?: string | number | boolean; // Set from z.literal(...) — Zod path re-emits z.literal()
+  coerced?: boolean;             // Set from z.coerce.<type>() — Zod path re-emits z.coerce
   format?: 'email' | 'url' | 'uuid' | 'datetime' | 'date' | 'int' | 'float' | 'text' | 'color' | 'ip'; // matches Schema.format
 }

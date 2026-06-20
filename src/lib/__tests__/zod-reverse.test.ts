@@ -214,6 +214,81 @@ describe('parseZodToSchema', () => {
     });
   });
 
+  // R5 regression: z.literal(...) previously widened to z.string()/z.any(), silently
+  // dropping the literal value (z.literal("user") → z.string(), z.literal(42) → z.string()).
+  describe('z.literal (R5: value preserved)', () => {
+    const rt = (inner: string) => zodGen.generate(parseZodToSchema(`z.object({ f: ${inner} })`)!, 'Root');
+
+    it('captures a string literal value', () => {
+      const f = parseZodToSchema('z.object({ f: z.literal("user") })')?.fields?.f;
+      expect(f?.type).toBe('string');
+      expect(f?.literalValue).toBe('user');
+    });
+
+    it('captures a numeric literal value', () => {
+      const f = parseZodToSchema('z.object({ f: z.literal(42) })')?.fields?.f;
+      expect(f?.type).toBe('number');
+      expect(f?.literalValue).toBe(42);
+    });
+
+    it('captures a boolean literal value', () => {
+      const f = parseZodToSchema('z.object({ f: z.literal(true) })')?.fields?.f;
+      expect(f?.type).toBe('boolean');
+      expect(f?.literalValue).toBe(true);
+    });
+
+    it('round-trips a string literal back to z.literal("user")', () => {
+      expect(rt('z.literal("user")')).toContain('f: z.literal("user")');
+    });
+
+    it('round-trips a numeric literal back to z.literal(42)', () => {
+      expect(rt('z.literal(42)')).toContain('f: z.literal(42)');
+    });
+
+    it('round-trips a boolean literal back to z.literal(true)', () => {
+      expect(rt('z.literal(true)')).toContain('f: z.literal(true)');
+    });
+
+    it('does NOT widen an explicit literal to z.string()', () => {
+      expect(rt('z.literal("user")')).not.toContain('f: z.string()');
+    });
+
+    // P2 heuristic must still hold: an INFERRED single-value enum (no literalValue)
+    // stays widened, since one JSON sample is weak evidence for a closed literal.
+    it('still widens an inferred single-value enum to z.string()', () => {
+      const out = zodGen.generate({ type: 'object', fields: { f: { type: 'string', enumValues: ['active'] } } } as any, 'Root');
+      expect(out).toContain('f: z.string()');
+    });
+  });
+
+  // R6 regression: z.coerce.<type>() previously fell through to z.any(), losing the
+  // base type entirely (z.coerce.number() → z.any()).
+  describe('z.coerce (R6: base type preserved)', () => {
+    const rt = (inner: string) => zodGen.generate(parseZodToSchema(`z.object({ f: ${inner} })`)!, 'Root');
+
+    it('captures z.coerce.number() base type and flag', () => {
+      const f = parseZodToSchema('z.object({ f: z.coerce.number() })')?.fields?.f;
+      expect(f?.type).toBe('number');
+      expect(f?.coerced).toBe(true);
+    });
+
+    it('round-trips z.coerce.number()', () => {
+      expect(rt('z.coerce.number()')).toContain('f: z.coerce.number()');
+    });
+
+    it('round-trips z.coerce.string()', () => {
+      expect(rt('z.coerce.string()')).toContain('f: z.coerce.string()');
+    });
+
+    it('round-trips z.coerce.boolean()', () => {
+      expect(rt('z.coerce.boolean()')).toContain('f: z.coerce.boolean()');
+    });
+
+    it('does NOT drop a coerced number to z.any()', () => {
+      expect(rt('z.coerce.number()')).not.toContain('z.any()');
+    });
+  });
+
   describe('z.array', () => {
     it('parses z.array(z.string())', () => {
       const s = parseZodToSchema('const x = z.object({ tags: z.array(z.string()) })');

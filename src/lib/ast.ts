@@ -60,13 +60,16 @@ export const convertToASTType = (v: Schema, parentClassPrefix: string, fieldKey:
     };
   }
 
+  const lit = v.literalValue !== undefined ? { literalValue: v.literalValue } : {};
+  const coerced = v.coerced ? { coerced: true } : {};
+
   if (v.type === 'string') {
     if (v.enumValues) {
-      return { kind: 'enum', enumValues: v.enumValues, ...refs };
+      return { kind: 'enum', enumValues: v.enumValues, ...lit, ...refs };
     }
     if (v.format === 'date') return { kind: 'date', format: 'date', ...refs };
     if (v.format === 'datetime') return { kind: 'datetime', format: 'datetime', ...refs };
-    return { kind: 'string', format: v.format, ...refs };
+    return { kind: 'string', format: v.format, ...coerced, ...refs };
   }
   
   if (v.type === 'object') {
@@ -115,7 +118,7 @@ export const convertToASTType = (v: Schema, parentClassPrefix: string, fieldKey:
     union: 'union',
   };
   const kind: ASTTypeKind = primitiveMap[v.type] ?? 'any';
-  return { kind, format: v.format, ...refs };
+  return { kind, format: v.format, ...lit, ...coerced, ...refs };
 };
 
 // スキーマ・リファクタリングエンジン (AST 最適化)

@@ -241,6 +241,11 @@ const printZodASTType = (type: ASTType, cyclicClassRefs: Set<string>, options: a
   return type.refinements?.length ? base + type.refinements.join('') : base;
 };
 const printZodASTTypeBase = (type: ASTType, cyclicClassRefs: Set<string>, options: any = {}): string => {
+  // Parsed z.literal(...) — re-emit the exact value rather than widening to the base type.
+  if (type.literalValue !== undefined) {
+    const v = type.literalValue;
+    return `z.literal(${typeof v === 'string' ? JSON.stringify(v) : v})`;
+  }
   switch (type.kind) {
     case 'union': {
       if (!type.unionTypes || type.unionTypes.length === 0) return 'z.any()';
@@ -287,14 +292,17 @@ const printZodASTTypeBase = (type: ASTType, cyclicClassRefs: Set<string>, option
       return `z.tuple([${items.join(', ')}])`;
     }
     case 'string':
+      if (type.coerced) return 'z.coerce.string()';
       if (type.format === 'email') return options.zodVersion === 'v3' ? 'z.string().email()' : 'z.email()';
       if (type.format === 'url') return options.zodVersion === 'v3' ? 'z.string().url()' : 'z.url()';
       if (type.format === 'uuid') return options.zodVersion === 'v3' ? 'z.string().uuid()' : 'z.uuid()';
       if (type.format === 'color') return 'z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/)';
       return 'z.string()';
     case 'number':
+      if (type.coerced) return 'z.coerce.number()';
       return options.zodMode === 'loose' ? 'z.coerce.number()' : 'z.number()';
     case 'boolean':
+      if (type.coerced) return 'z.coerce.boolean()';
       return 'z.boolean()';
     default:
       return 'z.any()';
