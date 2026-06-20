@@ -1776,7 +1776,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                     Drag & Drop Schema File
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-300 max-w-xs mx-auto font-sans">
-                    Supports JSON, XML, YAML, SQL, .env or cURL format. Click to browse local files.
+                    Supports JSON, OpenAPI, JSON Schema, TypeScript, YAML, SQL, .env or cURL. Click to browse local files.
                   </p>
                 </div>
               </div>

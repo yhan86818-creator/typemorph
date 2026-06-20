@@ -85,6 +85,8 @@ export const INDEXED_EN_SLUGS = new Set([
   // Zod Ecosystem (first-mover, no competitor)
   'zod-v3-to-v4',
   'typescript-to-zod',
+  'openapi-to-zod',
+  'zod-to-openapi',
 
   // AI / LLM Tools (quality content added)
   'json-to-mcp-tool',

@@ -1086,6 +1086,20 @@ export const converters: Converter[] = [
     "h1": "Zod to JSON Schema Generator"
   },
   {
+    "category": "Web & Frontend",
+    "slug": "openapi-to-zod",
+    "title": "Convert OpenAPI to Zod Online",
+    "description": "Paste any OpenAPI 3.x spec and get type-safe Zod schemas instantly. All components emitted, formats preserved.",
+    "h1": "OpenAPI to Zod Converter"
+  },
+  {
+    "category": "Web & Frontend",
+    "slug": "zod-to-openapi",
+    "title": "Convert Zod to OpenAPI Online",
+    "description": "Generate OpenAPI 3.0 YAML from Zod schemas. Formats, enums, and nested objects fully supported.",
+    "h1": "Zod to OpenAPI Generator"
+  },
+  {
     "category": "Database",
     "slug": "sql-to-csv",
     "title": "Convert SQL Result to CSV",
