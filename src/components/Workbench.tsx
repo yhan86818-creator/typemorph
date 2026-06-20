@@ -831,10 +831,11 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
           const decompressed = LZString.decompressFromEncodedURIComponent(compressed);
           if (decompressed) {
             try {
-              const { input: savedInput, tab } = JSON.parse(decompressed);
+              const { input: savedInput, tab, settings } = JSON.parse(decompressed);
               setTimeout(() => {
                 setInput(savedInput);
                 if (tab) setOutputTab(tab);
+                if (settings) setGenSettings(prev => ({ ...prev, ...settings }));
               }, 0);
             } catch {
               setTimeout(() => setInput(decompressed), 0);
@@ -870,9 +871,10 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
         const decompressed = LZString.decompressFromEncodedURIComponent(data.compressed_data);
         if (decompressed) {
           try {
-            const { input: savedInput, tab } = JSON.parse(decompressed);
+            const { input: savedInput, tab, settings } = JSON.parse(decompressed);
             setInput(savedInput);
             if (tab) setOutputTab(tab);
+            if (settings) setGenSettings(prev => ({ ...prev, ...settings }));
           } catch {
             setInput(decompressed);
           }
@@ -891,6 +893,12 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
 
   // Load settings
   useEffect(() => {
+    // A shared link (#data= / ?share=) carries its own settings — let those win so the
+    // recipient sees the exact output the sender configured, not their own saved prefs.
+    if (typeof window !== 'undefined') {
+      const h = window.location.hash;
+      if (h.startsWith('#data=') || new URLSearchParams(window.location.search).has('share')) return;
+    }
     const saved = localStorage.getItem('typemorph_gen_settings');
     if (saved) {
       try {
@@ -1357,7 +1365,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     }
     setIsSharing(true);
     try {
-      const payload = JSON.stringify({ input, tab: outputTab });
+      const payload = JSON.stringify({ input, tab: outputTab, settings: genSettings });
       const compressed = LZString.compressToEncodedURIComponent(payload);
       const candidateUrl = `${window.location.origin}${window.location.pathname}#data=${compressed}`;
 
