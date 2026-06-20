@@ -46,13 +46,18 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const converter = converters.find((c) => c.slug === slug);
   const seo = getConverterSeo(slug, 'en');
 
+  // Slugs without hand-written content HTML render generic fallback copy.
+  // Keep those out of the index (noindex,follow) until real content lands —
+  // adding the HTML file later flips them back to indexable automatically.
+  const hasContent = fs.existsSync(path.join(process.cwd(), 'src', 'data', 'content', `${slug}.html`));
+
   return {
     title: converter?.title || 'Developer Converter Tool',
     description: converter?.description || 'Secure local-first developer utility.',
     alternates: {
       canonical: seo.canonical,
     },
-    robots: seo.robots,
+    robots: hasContent ? seo.robots : { index: false, follow: true },
     openGraph: {
       title: converter?.title,
       description: converter?.description,
@@ -69,12 +74,12 @@ export default async function ConverterPage({ params }: { params: Promise<{ slug
 
   if (!converter) return notFound();
 
+  // Content HTML is optional: missing slugs fall back to generated copy and are
+  // noindexed via generateMetadata, so a missing file is expected, not an error.
   let fileContent = '';
-  try {
-    const contentPath = path.join(process.cwd(), 'src', 'data', 'content', `${slug}.html`);
+  const contentPath = path.join(process.cwd(), 'src', 'data', 'content', `${slug}.html`);
+  if (fs.existsSync(contentPath)) {
     fileContent = fs.readFileSync(contentPath, 'utf8');
-  } catch (e) {
-    console.error(`Content not found for ${slug}`);
   }
 
   const jsonLd = {

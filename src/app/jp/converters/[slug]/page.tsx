@@ -72,12 +72,12 @@ export default async function JapaneseConverterPage({ params }: { params: Promis
 
   if (!converter) return notFound();
 
+  // JP converter pages are already noindex (see generateMetadata), and content
+  // HTML is optional — a missing file just renders fallback copy, not an error.
   let fileContent = '';
-  try {
-    const contentPath = path.join(process.cwd(), 'src', 'data', 'content', 'jp', `${slug}.html`);
+  const contentPath = path.join(process.cwd(), 'src', 'data', 'content', 'jp', `${slug}.html`);
+  if (fs.existsSync(contentPath)) {
     fileContent = fs.readFileSync(contentPath, 'utf8');
-  } catch (e) {
-    console.error(`Japanese content not found for ${slug}`);
   }
 
   // Safe fallback content generator (Build-time only)
