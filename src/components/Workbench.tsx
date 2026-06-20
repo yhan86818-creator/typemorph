@@ -624,6 +624,9 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
   const [previousJsonData, setPreviousJsonData] = useState<any>(null);
   const [schemaDiffs, setSchemaDiffs] = useState<SchemaDiff[]>([]);
   const baselineJsonRef = useRef<any>(null);
+  // Tracks whether the previous parse was already in Zod reverse mode, so we only
+  // auto-switch tabs when ENTERING reverse mode — not on every keystroke afterwards.
+  const wasReverseRef = useRef(false);
 
 
   const acceptNewBaseline = () => {
@@ -920,21 +923,26 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     localStorage.setItem('typemorph_gen_settings', JSON.stringify(genSettings));
   }, [genSettings]);
 
-  // Count how many Zod fields got constraints guessed from their NAME (e.g. age →
-  // .min(0).max(150)). We diff the Smart output against Balanced (which keeps factual
-  // formats/.int() but drops name-based guesses): each differing line is one such field.
-  // Surfaced as a badge so users know when the engine is guessing and can dial it back.
-  const inferredGuessCount = useMemo(() => {
-    if (!jsonData || genSettings.inference !== 'smart') return 0;
+  // Which Zod fields got constraints guessed from their NAME (e.g. age → .min(0).max(150)).
+  // We diff the Smart output against Balanced (which keeps factual formats/.int() but drops
+  // name-based guesses): each differing line is one such field. Captured per-field so the UI
+  // can explain exactly what was guessed, not just how many.
+  const inferredGuesses = useMemo(() => {
+    if (!jsonData || genSettings.inference !== 'smart') return [] as { field: string; smart: string; balanced: string }[];
     try {
-      const smart = String(runEngine(jsonData, 'zod', slug, genSettings));
-      const balanced = String(runEngine(jsonData, 'zod', slug, { ...genSettings, inference: 'balanced' }));
-      if (smart === balanced) return 0;
-      const a = smart.split('\n'), b = balanced.split('\n');
-      let n = 0;
-      for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) n++;
-      return n;
-    } catch { return 0; }
+      const a = String(runEngine(jsonData, 'zod', slug, genSettings)).split('\n');
+      const b = String(runEngine(jsonData, 'zod', slug, { ...genSettings, inference: 'balanced' })).split('\n');
+      const out: { field: string; smart: string; balanced: string }[] = [];
+      for (let i = 0; i < Math.min(a.length, b.length); i++) {
+        if (a[i] === b[i]) continue;
+        const sm = a[i].trim().replace(/,$/, '');
+        const bl = b[i].trim().replace(/,$/, '');
+        const colon = sm.indexOf(':');
+        const field = colon > -1 ? sm.slice(0, colon).trim().replace(/^['"`]|['"`]$/g, '') : sm;
+        out.push({ field, smart: colon > -1 ? sm.slice(colon + 1).trim() : sm, balanced: bl.includes(':') ? bl.slice(bl.indexOf(':') + 1).trim() : bl });
+      }
+      return out;
+    } catch { return [] as { field: string; smart: string; balanced: string }[]; }
   }, [jsonData, genSettings, slug]);
 
   useEffect(() => {
@@ -1150,13 +1158,19 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
           jsonObj = zodRes;
           success = true;
           setIsZodReverseMode(true);
-          // Auto-open Lint when the pasted schema has issues; otherwise fall back
-          // to mock (the previous default) so a clean schema isn't interrupted.
-          setOutputTab(lintZod(trimmed).length > 0 ? 'lint' : 'mock');
+          // Only when ENTERING reverse mode (not on later edits): jump to Lint if the
+          // schema has issues. A clean schema keeps the user's current tab instead of
+          // being yanked to Mock, so they see the conversion they were looking at.
+          if (!wasReverseRef.current && lintZod(trimmed).length > 0 && outputTabRef.current !== 'lint') {
+            setOutputTab('lint');
+          }
+          wasReverseRef.current = true;
         } else if (isZodInput) {
           setIsZodReverseMode(false);
+          wasReverseRef.current = false;
         } else {
           setIsZodReverseMode(false);
+          wasReverseRef.current = false;
         }
         const tsRes = (!jsonObj && (trimmed.includes('interface ') || trimmed.includes('type '))) ? parseTypeScriptToSchema(trimmed) : null;
         if (tsRes) {
@@ -2088,16 +2102,6 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
               </button>
             </div>
 
-            {outputTab === 'zod' && inferredGuessCount > 0 && (
-              <button
-                onClick={() => setShowGenSettings(true)}
-                title={`${inferredGuessCount} constraint${inferredGuessCount > 1 ? 's' : ''} guessed from field names (e.g. age → .min().max()). Click to switch to Balanced/Minimal in Inference settings.`}
-                className="flex items-center gap-1 shrink-0 px-2 h-7 rounded-lg text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-all"
-              >
-                <Zap size={10} />
-                {inferredGuessCount} inferred
-              </button>
-            )}
             <button
               onClick={handleSmartShare}
               disabled={isSharing}
@@ -2490,7 +2494,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
               )}
               
               {/* Explainable Logic - Interactive Architect Panel */}
-              {genSettings.showExplainableLogic && !['json', 'ui', 'mock', 'doc', 'graph'].includes(outputTab) && decisions.length > 0 && (
+              {genSettings.showExplainableLogic && !['json', 'ui', 'mock', 'doc', 'graph'].includes(outputTab) && (decisions.length > 0 || (outputTab === 'zod' && inferredGuesses.length > 0)) && (
                 <div className="bg-slate-50/50 dark:bg-slate-950/40 border-b border-slate-200 dark:border-slate-900/90 px-4 py-2 transition-all">
                   <div className="flex items-center justify-between">
                     <button 
@@ -2500,7 +2504,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                       <span className="flex items-center justify-center w-4 h-4 rounded bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500">
                         <Lightbulb size={10} className="text-slate-400 dark:text-slate-500" />
                       </span>
-                      <span className="font-mono text-[10px] text-slate-500 dark:text-slate-400">Explainable logic ({decisions.length})</span>
+                      <span className="font-mono text-[10px] text-slate-500 dark:text-slate-400">Explainable logic ({decisions.length + (outputTab === 'zod' ? inferredGuesses.length : 0)})</span>
                     </button>
                     <button 
                       onClick={() => setShowDecisions(!showDecisions)}
@@ -2659,6 +2663,34 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                           </div>
                         );
                       })}
+                      {outputTab === 'zod' && inferredGuesses.map((g, gi) => (
+                        <div
+                          key={`inferred-${gi}`}
+                          className="p-2.5 rounded-lg border bg-white/80 dark:bg-[#0F0F0F]/30 border-amber-200/60 dark:border-amber-900/40 hover:border-amber-300 dark:hover:border-amber-800 transition-all flex flex-col justify-between group"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <span className="text-[10px] font-medium text-slate-600 dark:text-slate-300 font-mono">{g.field}</span>
+                              <span className="text-[7px] font-mono px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300">Inference</span>
+                            </div>
+                            <p className="text-[10px] leading-snug mb-1 font-mono break-all text-amber-700 dark:text-amber-300">
+                              {g.smart}
+                            </p>
+                            <p className="text-[9px] text-slate-400 dark:text-slate-500 leading-snug font-sans">
+                              Guessed from the field name, not your data. Balanced: <span className="font-mono">{g.balanced}</span>
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 mt-auto pt-1.5 border-t border-amber-100 dark:border-amber-900/30 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => setGenSettings(s => ({ ...s, inference: 'balanced' }))}
+                              title="Drop all name-based guesses (switch the Inference preset to Balanced)"
+                              className="text-[10px] font-mono font-bold text-amber-700 dark:text-amber-300 border border-amber-250 dark:border-amber-900/60 hover:bg-amber-600 hover:text-white dark:hover:bg-amber-600 dark:hover:text-white px-2 py-1 rounded transition-colors"
+                            >
+                              Drop guesses
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
