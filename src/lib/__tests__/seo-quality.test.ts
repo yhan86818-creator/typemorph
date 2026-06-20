@@ -4,8 +4,11 @@ import path from 'path';
 import { INDEXED_EN_SLUGS, INDEXED_JP_SLUGS } from '../seo';
 
 describe('SEO Index Quality Enforcement', () => {
-  const manualEnDir = path.join(process.cwd(), 'scripts', 'manual_content', 'en');
-  const manualJpDir = path.join(process.cwd(), 'scripts', 'manual_content', 'jp');
+  // Check the directory the converter page actually SERVES (src/data/content),
+  // not a parallel hand-kept copy. Guarding a dir the page never reads lets a
+  // thin/garbage served page pass the gate while a pristine copy sits unused.
+  const manualEnDir = path.join(process.cwd(), 'src', 'data', 'content');
+  const manualJpDir = path.join(process.cwd(), 'src', 'data', 'content', 'jp');
 
   it('enforces that every indexed English slug has a high-quality manual content page', () => {
     expect(INDEXED_EN_SLUGS.size).toBeGreaterThan(0);

@@ -33,8 +33,9 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
   const [licenseKey, setLicenseKey] = useState("");
   const [selectedSlug, setSelectedSlug] = useState(initialSlug || 'json-to-typescript');
   // slug が約束する出力形式を初期タブに設定する。
+  // zod-lint は専用 Lint タブに直接着地させる（resolveSlugTarget は 'zod' を返すため明示）。
   // 解決できない（runEngine 未対応の）slug は 'typescript' にフォールバック。
-  const getInitialTab = (s: string) => resolveSlugTarget(s)?.key ?? 'typescript';
+  const getInitialTab = (s: string) => s === 'zod-lint' ? 'lint' : (resolveSlugTarget(s)?.key ?? 'typescript');
   const [outputTab, setOutputTab] = useState(getInitialTab(initialSlug || 'json-to-typescript'));
   const [isVerifying, setIsVerifying] = useState(false);
   const [vMsg, setVMsg] = useState({ type: '', text: '' });

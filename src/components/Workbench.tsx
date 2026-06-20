@@ -39,6 +39,7 @@ import { supabase } from '@/lib/supabase';
 import { getWorkbenchEditorText, WorkbenchOutputStatus } from './workbench-utils';
 import { resolveSlugTarget, monacoLanguageForTarget, OUTPUT_TARGETS } from '@/lib/targets';
 import { lintZod, type ZodLintDiagnostic } from '@/lib/zod-linter';
+import { ZOD_LINT_PRESET } from '@/lib/zod-lint-preset';
 import { User } from '@supabase/supabase-js';
 import SuperBatchModal from './SuperBatchModal';
 import { loadLibrary, saveToLibrary, deleteFromLibrary, renameInLibrary, autoName, type LibraryEntry } from '@/lib/schemaLibrary';
@@ -67,19 +68,6 @@ interface WorkbenchProps {
   onEmptyChange?: (isEmpty: boolean) => void;
   onEditorError?: (error: string | null) => void;
 }
-
-const ZOD_LINT_PRESET = `// Paste your Zod schema below — the linter checks it instantly.
-// This sample shows the rules in action:
-const userSchema = z.object({
-  id:          z.string().uuid(),
-  email:       z.string(),
-  avatar_url:  z.string(),
-  website:     z.string().url(),
-  createdAt:   z.string(),
-  updatedAt:   z.string().datetime(),
-  bio:         z.string().optional().nullable(),
-  metadata:    z.any(),
-});`;
 
 const ENV_PRESET = `# App config
 DATABASE_URL=postgresql://user:pass@localhost:5432/mydb
@@ -401,7 +389,10 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
   const [history, setHistory] = useState<any[]>([]);
   const [library, setLibrary] = useState<LibraryEntry[]>([]);
   const [isEnvInput, setIsEnvInput] = useState(false);
-  const [isZodReverseMode, setIsZodReverseMode] = useState(false);
+  // Seed reverse mode for the dedicated /zod-lint page so the Lint tab renders
+  // on the first paint (the preset is known-Zod). processInput re-affirms it
+  // ~300ms later; without this seed the page briefly shows the Zod output tab.
+  const [isZodReverseMode, setIsZodReverseMode] = useState(slug === 'zod-lint');
   // Semantic Zod lint runs only when the input is a Zod schema (reverse mode).
   const lintDiagnostics = useMemo<ZodLintDiagnostic[]>(
     () => (isZodReverseMode ? lintZod(input) : []),
