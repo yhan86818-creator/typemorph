@@ -352,6 +352,40 @@ describe('parseZodToSchema', () => {
     });
   });
 
+  // R8 regression: intersections previously dropped every member but the first
+  // (.and kept only the base object; z.intersection produced z.any()).
+  describe('intersection (R8: fields merged)', () => {
+    it('merges A.and(B) object fields', () => {
+      const f = parseZodToSchema('z.object({ a: z.string() }).and(z.object({ b: z.number() }))');
+      expect(f?.type).toBe('object');
+      expect(f?.fields?.a?.type).toBe('string');
+      expect(f?.fields?.b?.type).toBe('number');
+    });
+
+    it('merges z.intersection(A, B)', () => {
+      const f = parseZodToSchema('z.intersection(z.object({ a: z.string() }), z.object({ b: z.number() }))');
+      expect(f?.fields?.a?.type).toBe('string');
+      expect(f?.fields?.b?.type).toBe('number');
+    });
+
+    it('merges a chained .and().and()', () => {
+      const f = parseZodToSchema('z.object({ base: z.string() }).and(z.object({ x: z.number() })).and(z.object({ y: z.boolean() }))');
+      expect(Object.keys(f?.fields ?? {})).toEqual(['base', 'x', 'y']);
+    });
+
+    it('merges an intersection nested inside a field', () => {
+      const wrap = parseZodToSchema('z.object({ wrap: z.object({ a: z.string() }).and(z.object({ b: z.number() })) })')?.fields?.wrap;
+      expect(wrap?.fields?.a?.type).toBe('string');
+      expect(wrap?.fields?.b?.type).toBe('number');
+    });
+
+    it('round-trips an intersection back to a single merged z.object', () => {
+      const out = zodGen.generate(parseZodToSchema('z.object({ a: z.string() }).and(z.object({ b: z.number() }))')!, 'Root');
+      expect(out).toContain('a: z.string()');
+      expect(out).toContain('b: z.number()');
+    });
+  });
+
   describe('z.array', () => {
     it('parses z.array(z.string())', () => {
       const s = parseZodToSchema('const x = z.object({ tags: z.array(z.string()) })');

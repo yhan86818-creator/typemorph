@@ -918,10 +918,69 @@ function scanEnumDefinitions(input: string): Map<string, string[]> {
   return reg;
 }
 
+// Splits an intersection chain `BASE.and(X).and(Y)` into [BASE, X, Y] at top-level
+// `.and(` boundaries (string- and bracket-depth aware). Returns null when there's no
+// top-level `.and(`. Trailing chains (.optional() etc.) are handled by the caller's
+// global optional/nullable detection.
+function splitTopLevelAnd(s: string): string[] | null {
+  const args: string[] = [];
+  let depth = 0, i = 0, firstAnd = -1;
+  while (i < s.length) {
+    const c = s[i];
+    if (c === '"' || c === "'" || c === '`') {
+      const q = c; i++;
+      while (i < s.length && !(s[i] === q && s[i - 1] !== '\\')) i++;
+      i++; continue;
+    }
+    if (c === '(' || c === '{' || c === '[') { depth++; i++; continue; }
+    if (c === ')' || c === '}' || c === ']') { depth--; i++; continue; }
+    if (depth === 0 && s.startsWith('.and(', i)) {
+      if (firstAnd === -1) firstAnd = i;
+      const open = i + 4;
+      const close = findMatchingClose(s, open, '(', ')');
+      if (close === -1) return null;
+      args.push(s.slice(open + 1, close).trim());
+      i = close + 1; continue;
+    }
+    i++;
+  }
+  if (firstAnd === -1) return null;
+  return [s.slice(0, firstAnd).trim(), ...args];
+}
+
+// Merges intersection members. All object members' fields combine and stay required
+// (unlike unions, where a field absent from a variant becomes optional).
+function mergeIntersection(parts: Schema[], isOptional: boolean, isNullable: boolean): Schema {
+  const objs = parts.filter(p => p.type === 'object' && p.fields);
+  if (objs.length === 0) {
+    const first = parts.find(p => p.type !== 'any') ?? parts[0] ?? { type: 'any' as const };
+    return { ...first, optional: isOptional || first.optional || undefined, nullable: isNullable || first.nullable || undefined };
+  }
+  const fields: Record<string, Schema> = {};
+  for (const o of objs) for (const [k, v] of Object.entries(o.fields!)) fields[k] = v;
+  return { type: 'object', fields, optional: isOptional || undefined, nullable: isNullable || undefined };
+}
+
 function parseZodTypeStr(typeStr: string): Schema {
   const s = typeStr.trim();
   const isOptional = /\.optional\(\)|\.nullish\(\)/.test(s);
   const isNullable = /\.nullable\(\)|\.nullish\(\)/.test(s);
+
+  // Intersection via method chain: A.and(B).and(C) — merge before z.object() matches A.
+  const andParts = splitTopLevelAnd(s);
+  if (andParts) {
+    return mergeIntersection(andParts.map(p => parseZodTypeStr(p)), isOptional, isNullable);
+  }
+
+  // Intersection via z.intersection(A, B) — merge both members' fields.
+  if (/^z\.intersection\s*\(/.test(s)) {
+    const open = s.indexOf('(');
+    const close = open > -1 ? findMatchingClose(s, open, '(', ')') : -1;
+    if (close > -1) {
+      const args = splitTopLevelCommas(s.slice(open + 1, close)).map(a => a.trim()).filter(Boolean);
+      if (args.length) return mergeIntersection(args.map(a => parseZodTypeStr(a)), isOptional, isNullable);
+    }
+  }
 
   // z.object({...})
   if (/^z\.object\s*\(/.test(s)) {
