@@ -66,6 +66,20 @@ function withFormat(chain: string, hint: FieldFormatHint): string {
 // Captures the field name and the type chain.
 const FIELD_RE = /^\s*['"`]?([A-Za-z_$][\w$]*)['"`]?\s*:\s*(z\..+?)[,;]?\s*$/;
 
+/**
+ * Whether the source packs multiple fields onto one physical line
+ * (`z.object({ a: z.string(), b: z.string() })`). The line-based scanner can't
+ * analyze these, so it would silently return no diagnostics — a false sense of
+ * "clean". Callers should surface a "format one field per line" hint instead of
+ * "no issues found" when this is true and lintZod came back empty.
+ */
+export function looksLikeCompactSchema(source: string): boolean {
+  return source.split('\n').some(line => {
+    const fields = line.match(/[A-Za-z_$][\w$]*\s*:\s*z\./g);
+    return fields !== null && fields.length >= 2;
+  });
+}
+
 export function lintZod(source: string): ZodLintDiagnostic[] {
   const diagnostics: ZodLintDiagnostic[] = [];
   const lines = source.split('\n');

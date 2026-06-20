@@ -9,7 +9,7 @@
  * via the `obj` helper rather than cramming a whole object onto one line.
  */
 import { describe, it, expect } from 'vitest';
-import { lintZod, type ZodLintDiagnostic } from '../zod-linter';
+import { lintZod, looksLikeCompactSchema, type ZodLintDiagnostic } from '../zod-linter';
 import { hintFormatFromFieldName } from '../field-format-hints';
 
 /** Build a formatted z.object({...}) from one-field-per-line entries. */
@@ -41,6 +41,27 @@ describe('hintFormatFromFieldName', () => {
     expect(hintFormatFromFieldName('seat')).toBeNull();     // ends in "at" but not a timestamp
     expect(hintFormatFromFieldName('format')).toBeNull();
     expect(hintFormatFromFieldName('count')).toBeNull();
+  });
+});
+
+describe('looksLikeCompactSchema (single-line guard)', () => {
+  it('flags a single line packing multiple fields', () => {
+    expect(looksLikeCompactSchema('z.object({ email: z.string(), name: z.string() })')).toBe(true);
+    expect(looksLikeCompactSchema('z.object({ a: z.string(), b: z.number(), c: z.boolean() })')).toBe(true);
+  });
+
+  it('does not flag a properly formatted multi-line schema', () => {
+    expect(looksLikeCompactSchema(obj('email: z.string(),', 'name: z.string(),'))).toBe(false);
+  });
+
+  it('does not flag a single-field one-liner (nothing lost — one field still scans)', () => {
+    expect(looksLikeCompactSchema('email: z.string()')).toBe(false);
+  });
+
+  it('lintZod is silent on a compact schema, so the guard is what surfaces it', () => {
+    const compact = 'z.object({ email: z.string(), avatarUrl: z.string() })';
+    expect(lintZod(compact)).toEqual([]);          // line-based scanner finds nothing
+    expect(looksLikeCompactSchema(compact)).toBe(true); // ...but the guard catches it
   });
 });
 

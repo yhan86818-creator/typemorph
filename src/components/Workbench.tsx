@@ -38,7 +38,7 @@ import { History as HistoryIcon, FolderOpen } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getWorkbenchEditorText, WorkbenchOutputStatus } from './workbench-utils';
 import { resolveSlugTarget, monacoLanguageForTarget, OUTPUT_TARGETS } from '@/lib/targets';
-import { lintZod, type ZodLintDiagnostic } from '@/lib/zod-linter';
+import { lintZod, looksLikeCompactSchema, type ZodLintDiagnostic } from '@/lib/zod-linter';
 import { ZOD_LINT_PRESET } from '@/lib/zod-lint-preset';
 import { User } from '@supabase/supabase-js';
 import SuperBatchModal from './SuperBatchModal';
@@ -2268,13 +2268,23 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                 </span>
               </div>
               {lintDiagnostics.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center">
-                  <div className="text-3xl mb-3">✓</div>
-                  <p className="text-sm font-bold text-slate-700 dark:text-slate-200">No issues found</p>
-                  <p className="text-[11px] text-slate-400 mt-1 max-w-xs">
-                    Field names, formats, and modifiers all look idiomatic.
-                  </p>
-                </div>
+                looksLikeCompactSchema(input) ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-center">
+                    <div className="text-3xl mb-3">↵</div>
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Format one field per line to lint</p>
+                    <p className="text-[11px] text-slate-400 mt-1 max-w-xs">
+                      The linter reads schemas line by line. This one has multiple fields on a single line, so it can&apos;t be analyzed — put each field on its own line and the checks will run.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-20 text-center">
+                    <div className="text-3xl mb-3">✓</div>
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">No issues found</p>
+                    <p className="text-[11px] text-slate-400 mt-1 max-w-xs">
+                      Field names, formats, and modifiers all look idiomatic.
+                    </p>
+                  </div>
+                )
               ) : (
                 <ul className="space-y-2">
                   {lintDiagnostics.map((d, i) => (
