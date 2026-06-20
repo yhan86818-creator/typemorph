@@ -1116,7 +1116,9 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
           jsonObj = zodRes;
           success = true;
           setIsZodReverseMode(true);
-          setOutputTab('mock');
+          // Auto-open Lint when the pasted schema has issues; otherwise fall back
+          // to mock (the previous default) so a clean schema isn't interrupted.
+          setOutputTab(lintZod(trimmed).length > 0 ? 'lint' : 'mock');
         } else if (isZodInput) {
           setIsZodReverseMode(false);
         } else {
