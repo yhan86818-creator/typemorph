@@ -1052,13 +1052,6 @@ export const converters: Converter[] = [
   },
   {
     "category": "Web & Frontend",
-    "slug": "typescript-to-zod",
-    "title": "Convert TypeScript to Zod Online",
-    "description": "Generate runtime Zod schemas from your TypeScript interfaces.",
-    "h1": "TypeScript to Zod Generator"
-  },
-  {
-    "category": "Web & Frontend",
     "slug": "typescript-to-json-schema",
     "title": "Convert TypeScript to JSON Schema",
     "description": "Generate standard JSON Schema from TypeScript types.",
@@ -1098,6 +1091,13 @@ export const converters: Converter[] = [
     "title": "Convert Zod to OpenAPI Online",
     "description": "Generate OpenAPI 3.0 YAML from Zod schemas. Formats, enums, and nested objects fully supported.",
     "h1": "Zod to OpenAPI Generator"
+  },
+  {
+    "category": "Web & Frontend",
+    "slug": "zod-lint",
+    "title": "Zod Schema Linter — Catch Missing .email(), .uuid(), .url() and More",
+    "description": "Semantic Zod linter that detects field names implying a format you forgot to declare. Paste your schema and get instant, actionable fixes.",
+    "h1": "Zod Schema Linter"
   },
   {
     "category": "Database",

@@ -87,6 +87,7 @@ export const INDEXED_EN_SLUGS = new Set([
   'typescript-to-zod',
   'openapi-to-zod',
   'zod-to-openapi',
+  'zod-lint',
 
   // AI / LLM Tools (quality content added)
   'json-to-mcp-tool',
@@ -96,7 +97,6 @@ export const INDEXED_EN_SLUGS = new Set([
   // High-Demand Conversions (quality content added)
   'json-to-csharp-class',
   'yaml-to-json',
-  'json-to-pydantic',
   'json-to-graphql-type',
   'json-to-yup',
   'json-to-react-props',

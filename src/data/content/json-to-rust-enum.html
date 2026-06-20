@@ -1,5 +1,5 @@
-<h2>JSON to Rust: Generating Structs and Enums with Serde</h2>
-<p>Rust's <code>serde</code> crate is the standard for JSON serialization and deserialization. For most JSON payloads the output is a <strong>struct</strong> with <code>#[derive(Serialize, Deserialize)]</code> — but when your API returns a discriminated union (different shapes under one key), you need a <strong>Rust enum</strong> with serde's <code>#[serde(tag)]</code>. This page covers both: generating the initial struct from a JSON sample and converting it to a proper enum when the data model calls for one.</p>
+<h2>JSON to Rust Enum: Tagged Unions, Discriminated Variants, and Serde</h2>
+<p>When your API returns different object shapes on the same endpoint — a <code>type</code> field that determines the rest of the structure — you need a <strong>Rust enum</strong>, not a struct. Serde handles this with three representation modes: <code>#[serde(tag)]</code> for internally tagged unions, <code>#[serde(tag, content)]</code> for adjacently tagged, and <code>#[serde(untagged)]</code> for shape-based inference. The generator outputs a struct from your JSON sample — this page shows how to evolve that into the correct enum representation for your API's discriminant pattern.</p>
 
 <h3>Live Example: API Response to Rust Struct</h3>
 <pre><code>// Input JSON

@@ -1,0 +1,161 @@
+<h2>Zod to OpenAPI: Generate API Documentation from Your Validation Schemas</h2>
+<p>If you're already using Zod to validate your API inputs and outputs, you have everything needed to generate an OpenAPI spec — without writing YAML by hand. TypeMorph reads your Zod schema and emits a complete OpenAPI 3.0 document with typed properties, format annotations, required arrays, and nested object schemas. Your Zod schema becomes the source of truth for both runtime validation and API documentation.</p>
+
+<h3>Live Example: Zod Schema to OpenAPI YAML</h3>
+<pre><code>// Input: Zod schema
+import { z } from 'zod';
+
+const userSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  age: z.number().int().min(0).max(150),
+  role: z.enum(['admin', 'editor', 'viewer']),
+  address: z.object({
+    city: z.string(),
+    country: z.string(),
+  }).optional(),
+});
+
+// Generated OpenAPI 3.0 YAML
+openapi: 3.0.0
+info:
+  title: Generated API
+  version: 1.0.0
+components:
+  schemas:
+    Address:
+      type: object
+      required:
+        - city
+        - country
+      properties:
+        city:
+          type: string
+        country:
+          type: string
+    Root:
+      type: object
+      required:
+        - id
+        - email
+        - age
+        - role
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        age:
+          type: integer
+          minimum: 0
+          maximum: 150
+        role:
+          type: string
+          enum:
+            - admin
+            - editor
+            - viewer
+        address:
+          $ref: '#/components/schemas/Address'
+</code></pre>
+
+<h3>Why Generate OpenAPI from Zod?</h3>
+<p>Maintaining a separate YAML spec alongside Zod schemas creates drift — the spec gets stale, types fall out of sync. Generating OpenAPI from Zod keeps a single source of truth: your validators. This works especially well with tRPC and Next.js App Router projects where Zod schemas are already the authoritative contract.</p>
+<pre><code>// Typical workflow: Zod is already there, generate docs from it
+// 1. Define schema once (for validation AND documentation)
+const createUserInput = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  role: z.enum(['admin', 'user']).default('user'),
+});
+
+// 2. Use for runtime validation
+app.post('/users', (req) => {
+  const data = createUserInput.parse(req.body);
+  // ...
+});
+
+// 3. Paste into TypeMorph → Zod tab → OpenAPI output
+// → Drop the YAML into Swagger UI, Redocly, or Stoplight
+</code></pre>
+
+<h3>Zod to OpenAPI Type Mapping</h3>
+<pre><code>// Zod → OpenAPI 3.0
+z.string()           → type: string
+z.string().email()   → type: string, format: email
+z.string().url()     → type: string, format: uri
+z.string().uuid()    → type: string, format: uuid
+z.string().datetime()→ type: string, format: date-time
+z.number()           → type: number
+z.number().int()     → type: integer
+z.number().min(n)    → type: number, minimum: n
+z.number().max(n)    → type: number, maximum: n
+z.boolean()          → type: boolean
+z.array(z.string())  → type: array, items: { type: string }
+z.enum(["a","b"])    → type: string, enum: [a, b]
+z.object({...})      → type: object, properties: {...}
+.optional()          → field removed from required[]
+.nullable()          → nullable: true
+</code></pre>
+
+<h3>Nested Objects and Named Schemas</h3>
+<p>TypeMorph extracts nested object types into separate named schemas under <code>components/schemas</code>, with <code>$ref</code> references connecting them — the same structure OpenAPI tools like Swagger UI and Redocly expect:</p>
+<pre><code>// Input with nested objects
+const orderSchema = z.object({
+  id: z.string().uuid(),
+  items: z.array(z.object({
+    productId: z.string().uuid(),
+    quantity: z.number().int().min(1),
+    price: z.number(),
+  })),
+  shipping: z.object({
+    address: z.string(),
+    estimatedDays: z.number().int(),
+  }),
+});
+
+// Output: items and shipping become named components
+components:
+  schemas:
+    Items:
+      type: object
+      required: [productId, quantity, price]
+      properties:
+        productId: { type: string, format: uuid }
+        quantity:  { type: integer, minimum: 1 }
+        price:     { type: number }
+    Shipping:
+      type: object
+      required: [address, estimatedDays]
+      properties:
+        address:       { type: string }
+        estimatedDays: { type: integer }
+    Root:
+      type: object
+      required: [id, items, shipping]
+      properties:
+        id:       { type: string, format: uuid }
+        items:    { type: array, items: { $ref: '#/components/schemas/Items' } }
+        shipping: { $ref: '#/components/schemas/Shipping' }
+</code></pre>
+
+<h3>Using Generated OpenAPI with Documentation Tools</h3>
+<pre><code># Drop the generated YAML into any OpenAPI-compatible tool:
+
+# Swagger UI (Docker)
+docker run -p 8080:8080 \
+  -e SWAGGER_JSON_URL=https://your-api.com/openapi.yaml \
+  swaggerapi/swagger-ui
+
+# Redocly CLI — generate static HTML docs
+npx @redocly/cli build-docs openapi.yaml --output docs/index.html
+
+# Stoplight Studio — paste or import the YAML directly
+
+# Next.js: serve the generated spec at /api/openapi
+// app/api/openapi/route.ts
+import spec from '@/openapi.yaml';
+export const GET = () => Response.json(spec);
+</code></pre>

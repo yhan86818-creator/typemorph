@@ -68,6 +68,19 @@ interface WorkbenchProps {
   onEditorError?: (error: string | null) => void;
 }
 
+const ZOD_LINT_PRESET = `// Paste your Zod schema below — the linter checks it instantly.
+// This sample shows the rules in action:
+const userSchema = z.object({
+  id:          z.string().uuid(),
+  email:       z.string(),
+  avatar_url:  z.string(),
+  website:     z.string().url(),
+  createdAt:   z.string(),
+  updatedAt:   z.string().datetime(),
+  bio:         z.string().optional().nullable(),
+  metadata:    z.any(),
+});`;
+
 const ENV_PRESET = `# App config
 DATABASE_URL=postgresql://user:pass@localhost:5432/mydb
 REDIS_URL=redis://localhost:6379
@@ -271,7 +284,11 @@ function safeStringify(obj: unknown, indent?: number): string {
 
 export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setShowLicenseModal, trialCount = 3, setTrialCount, user, onCursorChange, onEmptyChange, onEditorError }: WorkbenchProps) {
   const monaco = useMonaco();
-  const [input, setInput] = useState(slug === 'json-to-typescript' ? (typeof PRESETS[1].data === 'string' ? PRESETS[1].data : JSON.stringify(PRESETS[1].data, null, 2)) : '');
+  const [input, setInput] = useState(
+    slug === 'zod-lint'           ? ZOD_LINT_PRESET :
+    slug === 'json-to-typescript' ? (typeof PRESETS[1].data === 'string' ? PRESETS[1].data : JSON.stringify(PRESETS[1].data, null, 2)) :
+    ''
+  );
   const inputModelUriRef = useRef<string | null>(null);
 
   useEffect(() => {
