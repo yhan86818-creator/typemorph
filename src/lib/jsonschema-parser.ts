@@ -1,10 +1,29 @@
 import { Schema } from './types';
 
+const JSON_SCHEMA_TYPES = new Set(['object', 'string', 'number', 'integer', 'boolean', 'array', 'null']);
+
 export function isJSONSchema(obj: unknown): boolean {
   if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return false;
   const o = obj as Record<string, unknown>;
+
+  // Explicit dialect marker.
   const s = String(o.$schema ?? '');
-  return s.includes('json-schema.org') || /^https?:\/\/.*\/schema/.test(s);
+  if (s.includes('json-schema.org') || /^https?:\/\/.*\/schema/.test(s)) return true;
+
+  // Structural detection for bare schemas (no $schema field — the common case).
+  // Require a JSON-Schema `type` keyword alongside a schema-shaped companion so that
+  // plain data objects that merely contain a "type" field aren't misread as schemas.
+  const hasSchemaType = typeof o.type === 'string' && JSON_SCHEMA_TYPES.has(o.type);
+  const hasProps = typeof o.properties === 'object' && o.properties !== null && !Array.isArray(o.properties);
+  const hasItems = typeof o.items === 'object' && o.items !== null;
+  if (hasSchemaType && (hasProps || hasItems)) return true;
+
+  // Schema-only top-level keywords rarely seen in plain data.
+  if ((o.$defs !== undefined || o.definitions !== undefined) && hasProps) return true;
+  if (typeof o.$ref === 'string' && o.$ref.startsWith('#/')) return true;
+  if (Array.isArray(o.allOf) || Array.isArray(o.anyOf) || Array.isArray(o.oneOf)) return true;
+
+  return false;
 }
 
 export function parseJSONSchema(root: Record<string, any>): { name: string; schema: Schema }[] {

@@ -397,6 +397,16 @@ test('isJSONSchema does NOT flag regular JSON or OpenAPI as JSON Schema', () => 
   expect(isJSONSchema(null)).toBe(false);
 });
 
+test('isJSONSchema detects bare schemas without a $schema field', () => {
+  // The common case: a JSON Schema pasted without the $schema dialect marker.
+  expect(isJSONSchema({ type: 'object', properties: { id: { type: 'string' } } })).toBe(true);
+  expect(isJSONSchema({ type: 'array', items: { type: 'string' } })).toBe(true);
+  expect(isJSONSchema({ allOf: [{ type: 'object', properties: {} }] })).toBe(true);
+  // Plain data that merely contains a "type" / "properties" field must NOT be flagged.
+  expect(isJSONSchema({ type: 'user', name: 'Alice', age: 30 })).toBe(false);
+  expect(isJSONSchema({ id: 1, properties: 'main st' })).toBe(false);
+});
+
 test('parseJSONSchema parses root schema with title', () => {
   const schema = {
     $schema: 'http://json-schema.org/draft-07/schema#',
