@@ -920,6 +920,23 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     localStorage.setItem('typemorph_gen_settings', JSON.stringify(genSettings));
   }, [genSettings]);
 
+  // Count how many Zod fields got constraints guessed from their NAME (e.g. age →
+  // .min(0).max(150)). We diff the Smart output against Balanced (which keeps factual
+  // formats/.int() but drops name-based guesses): each differing line is one such field.
+  // Surfaced as a badge so users know when the engine is guessing and can dial it back.
+  const inferredGuessCount = useMemo(() => {
+    if (!jsonData || genSettings.inference !== 'smart') return 0;
+    try {
+      const smart = String(runEngine(jsonData, 'zod', slug, genSettings));
+      const balanced = String(runEngine(jsonData, 'zod', slug, { ...genSettings, inference: 'balanced' }));
+      if (smart === balanced) return 0;
+      const a = smart.split('\n'), b = balanced.split('\n');
+      let n = 0;
+      for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) n++;
+      return n;
+    } catch { return 0; }
+  }, [jsonData, genSettings, slug]);
+
   useEffect(() => {
     if (jsonData) {
       const list = getDecisions(jsonData, genSettings);
@@ -2071,7 +2088,17 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
               </button>
             </div>
 
-            <button 
+            {outputTab === 'zod' && inferredGuessCount > 0 && (
+              <button
+                onClick={() => setShowGenSettings(true)}
+                title={`${inferredGuessCount} constraint${inferredGuessCount > 1 ? 's' : ''} guessed from field names (e.g. age → .min().max()). Click to switch to Balanced/Minimal in Inference settings.`}
+                className="flex items-center gap-1 shrink-0 px-2 h-7 rounded-lg text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-all"
+              >
+                <Zap size={10} />
+                {inferredGuessCount} inferred
+              </button>
+            )}
+            <button
               onClick={handleSmartShare}
               disabled={isSharing}
               className="flex items-center justify-center text-slate-500 dark:text-slate-300 w-9 h-9 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all disabled:opacity-50"
