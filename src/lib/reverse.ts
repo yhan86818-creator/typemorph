@@ -1,4 +1,4 @@
-import { extractTypeGraph, type TypeNode } from './graph';
+import { extractTypeGraph, splitMembers, type TypeNode } from './graph';
 
 type JsonVal = null | boolean | number | string | JsonVal[] | { [k: string]: JsonVal };
 
@@ -95,7 +95,32 @@ function parseType(
     return buildFromNode(nodeMap.get(t)!, nodeMap, new Set([...visited, t]), depth + 1);
   }
 
+  // Inline object literal: { city: string; zip: number }
+  if (t.startsWith('{') && t.endsWith('}')) {
+    return parseInlineObject(t.slice(1, -1), nodeMap, visited, depth + 1);
+  }
+
   return null;
+}
+
+/** Builds a sample object from an inline object-literal body (braces already stripped). */
+function parseInlineObject(
+  body: string,
+  nodeMap: Map<string, TypeNode>,
+  visited: Set<string>,
+  depth: number
+): { [k: string]: JsonVal } {
+  if (depth > 6) return {};
+  const result: { [k: string]: JsonVal } = {};
+  for (const member of splitMembers(body)) {
+    // skip index signatures: [key: string]: V
+    if (/^\[/.test(member)) continue;
+    const m = member.match(/^(?:readonly\s+)?(\w+)(\?)?\s*:\s*([\s\S]+)$/);
+    if (!m) continue;
+    const [, fieldName, , rawType] = m;
+    result[fieldName] = parseType(rawType.replace(/[;,]\s*$/, '').trim(), fieldName, nodeMap, visited, depth);
+  }
+  return result;
 }
 
 function buildFromNode(
@@ -111,18 +136,71 @@ function buildFromNode(
   return result;
 }
 
+/**
+ * Extracts object-literal type aliases (`type X = { ... }`) as TypeNodes.
+ * extractTypeGraph only handles `interface` declarations, so without this a file
+ * of only `type` aliases yields "No interfaces found" and alias references inside
+ * interfaces resolve to null.
+ */
+function extractObjectTypeAliases(tsCode: string): TypeNode[] {
+  const nodes: TypeNode[] = [];
+  const headerRe = /(?:export\s+)?type\s+(\w+)\s*=\s*\{/g;
+  let hm: RegExpExecArray | null;
+  while ((hm = headerRe.exec(tsCode)) !== null) {
+    let depth = 1;
+    let pos = hm.index + hm[0].length;
+    while (pos < tsCode.length && depth > 0) {
+      const ch = tsCode[pos++];
+      if (ch === '{') depth++;
+      else if (ch === '}') depth--;
+    }
+    const body = tsCode.slice(hm.index + hm[0].length, pos - 1);
+    const fields: TypeNode['fields'] = [];
+    for (const member of splitMembers(body)) {
+      if (/^\[/.test(member)) continue; // index signature
+      const fm = member.match(/^(?:readonly\s+)?(\w+)(\?)?\s*:\s*([\s\S]+)$/);
+      if (!fm) continue;
+      fields.push({ name: fm[1], type: fm[3].replace(/[;,]\s*$/, '').trim(), optional: fm[2] === '?' });
+    }
+    nodes.push({ id: hm[1], label: hm[1], fields, isRoot: false });
+  }
+  return nodes;
+}
+
+/** Capitalized type tokens referenced by a field type (arrays/unions/generics). */
+function refTokens(type: string): string[] {
+  return type
+    .replace(/\[\]/g, '')
+    .split(/[|&,\s<>]+/)
+    .map(t => t.trim())
+    .filter(t => t.length > 0 && /^[A-Z]/.test(t));
+}
+
 export function generateSampleJson(tsCode: string): { json: string; error?: string } {
   try {
     const graph = extractTypeGraph(tsCode);
-    if (graph.nodes.length === 0) {
+    const aliasNodes = extractObjectTypeAliases(tsCode).filter(
+      a => !graph.nodes.some(n => n.id === a.id)
+    );
+    const allNodes = [...graph.nodes, ...aliasNodes];
+    if (allNodes.length === 0) {
       return {
         json: '',
-        error: 'No TypeScript interfaces found.\n\nExample:\n\ninterface User {\n  user_id: string;\n  name: string;\n  email: string;\n  age: number;\n}',
+        error: 'No TypeScript interfaces or object type aliases found.\n\nExample:\n\ninterface User {\n  user_id: string;\n  name: string;\n  email: string;\n  age: number;\n}',
       };
     }
-    const nodeMap = new Map<string, TypeNode>(graph.nodes.map(n => [n.id, n]));
-    const roots = graph.nodes.filter(n => n.isRoot);
-    const target = roots.length > 0 ? roots[0] : graph.nodes[0];
+    const nodeMap = new Map<string, TypeNode>(allNodes.map(n => [n.id, n]));
+    // Recompute roots across interfaces + aliases (a node referenced by another is not a root).
+    const referenced = new Set<string>();
+    for (const node of allNodes) {
+      for (const field of node.fields) {
+        for (const token of refTokens(field.type)) {
+          if (nodeMap.has(token) && token !== node.id) referenced.add(token);
+        }
+      }
+    }
+    const roots = allNodes.filter(n => !referenced.has(n.id));
+    const target = roots.length > 0 ? roots[0] : allNodes[0];
     const sample = buildFromNode(target, nodeMap, new Set([target.id]), 0);
     return { json: JSON.stringify(sample, null, 2) };
   } catch (e) {
