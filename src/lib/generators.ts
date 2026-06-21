@@ -1292,11 +1292,17 @@ export const prismaGen = {
 
         if (field.fieldType.kind === 'classRef') {
           // Embedded object → Json. Proper @relation requires bidirectional back-references
-          // in the target model, which cannot be auto-derived from a single JSON sample.
+          // in the target model, which cannot be auto-derived from a single JSON sample. The
+          // shape is captured by model <classRefName>; the comment links the two so the standalone
+          // model is not mistaken for dead schema (normalize to a relation for a separate table).
+          const child = astClasses.find(c => c.name === field.fieldType.classRefName);
+          if (child) res += `  /// embedded as Json — see model ${child.name} for the shape\n`;
           res += `  ${prismaName} Json${opt}${mapTag}\n`;
         } else if (isArray && field.fieldType.itemType?.kind === 'classRef') {
           // Array of embedded objects → Json. One-to-many @relation requires a back-reference
           // field in the target model pointing to this model — not auto-derivable from JSON.
+          const child = astClasses.find(c => c.name === field.fieldType.itemType!.classRefName);
+          if (child) res += `  /// embedded as Json — see model ${child.name} for the element shape\n`;
           res += `  ${prismaName} Json${mapTag}\n`;
         } else {
           res += `  ${prismaName} ${prismaType}${opt}${idTag}${mapTag}\n`;
