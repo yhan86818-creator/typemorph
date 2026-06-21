@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import ts from 'typescript';
-import { swiftGen, kotlinGen, zodGen, protoGen, gqlGen, tsGen, goGen, rustGen, jsonSchemaGen, mockGen, prismaGen, javaGen, uiGen, docGen, csharpGen, phpGen, nestjsDtoGen, effectSchemaGen, typeGuardGen } from './generators';
+import { swiftGen, kotlinGen, zodGen, protoGen, gqlGen, tsGen, goGen, rustGen, jsonSchemaGen, mockGen, prismaGen, javaGen, uiGen, docGen, csharpGen, phpGen, dartGen, nestjsDtoGen, effectSchemaGen, typeGuardGen } from './generators';
 import { llmValidatorGen } from './generators-extended';
 import { inferSchema } from './engine';
 import { parseTypeScriptToSchema } from './parsers';
@@ -1232,6 +1232,111 @@ describe('zodGen — adversarial key & name regressions', () => {
     expect(out).toContain('itemCount: z.number().int().min(0)');
     expect(out).toContain('age: z.number().int().min(0).max(150)');
     expect(out).toContain('userAge: z.number().int().min(0).max(150)');
+  });
+});
+
+// Regression: invalid-identifier JSON keys (kebab "content-type", leading-digit
+// "2fa_enabled", dotted/header keys) must be folded to a valid identifier in EVERY
+// typed-language target — not just Go/Python — with the wire name preserved via the
+// language's rename mechanism. Before this fix, Rust/Java/C#/Swift/Kotlin/PHP/Dart/
+// GraphQL/Protobuf/Prisma all emitted non-compiling code like `pub content-type`.
+describe('typed targets — invalid-identifier key sanitization', () => {
+  const SAMPLE = { 'content-type': 'application/json', '2fa_enabled': true, 'x-trace': 'abc', userId: 'u1', first_name: 'Jane' };
+  const schema = () => inferSchema(SAMPLE);
+
+  it('Rust: folds + serde rename, no bare hyphen/leading-digit identifiers', () => {
+    const out = rustGen.generate(schema(), 'Root');
+    expect(out).toContain('pub content_type: String');
+    expect(out).toContain('#[serde(rename = "content-type")]');
+    expect(out).toContain('pub x_trace: String');
+    expect(out).toMatch(/pub _?2?fa?_?enabled|pub _2fa_enabled: bool/);
+    expect(out).not.toMatch(/pub [a-z0-9_]*-/);      // no hyphen in any identifier
+    expect(out).not.toMatch(/pub 2/);                // no leading-digit identifier
+  });
+
+  it('Java: folds + @JsonProperty', () => {
+    const out = javaGen.generate(schema(), 'Root');
+    expect(out).toContain('private String contentType');
+    expect(out).toContain('@JsonProperty("content-type")');
+    expect(out).toContain('private String xTrace');
+    expect(out).not.toMatch(/private \w+ [a-zA-Z]*-/);
+    expect(out).not.toMatch(/private \w+ 2/);
+  });
+
+  it('C#: folds + [JsonPropertyName] + using import', () => {
+    const out = csharpGen.generate(schema(), 'Root');
+    expect(out).toContain('public string ContentType');
+    expect(out).toContain('[JsonPropertyName("content-type")]');
+    expect(out).toContain('using System.Text.Json.Serialization;');
+    expect(out).not.toMatch(/public \w+\??\s+[A-Za-z]*-/);
+    expect(out).not.toMatch(/public \w+\??\s+2/);
+  });
+
+  it('Swift: folds + CodingKeys mapping', () => {
+    const out = swiftGen.generate(schema(), 'Root');
+    expect(out).toContain('let contentType: String');
+    expect(out).toContain('case contentType = "content-type"');
+    expect(out).not.toMatch(/let [A-Za-z]*-/);
+    expect(out).not.toMatch(/let 2/);
+  });
+
+  it('Kotlin: folds + @SerialName', () => {
+    const out = kotlinGen.generate(schema(), 'Root');
+    expect(out).toContain('val contentType: String');
+    expect(out).toContain('@SerialName("content-type")');
+    expect(out).not.toMatch(/val [A-Za-z]*-/);
+    expect(out).not.toMatch(/val 2/);
+  });
+
+  it('PHP: folds property + getters/setters', () => {
+    const out = phpGen.generate(schema(), 'Root');
+    expect(out).toContain('$contentType');
+    expect(out).toContain('getContentType');
+    expect(out).not.toContain('$content-type');
+    expect(out).not.toContain('get2fa');
+    expect(out).not.toContain('$2fa');
+  });
+
+  it('Dart: folds + @JsonKey, leading-digit gets letter prefix (not private _)', () => {
+    const out = dartGen.generate(schema(), 'Root');
+    expect(out).toContain('final String contentType');
+    expect(out).toContain("@JsonKey(name: 'content-type')");
+    expect(out).not.toMatch(/final \w+\??\s+[A-Za-z]*-/);
+    expect(out).not.toMatch(/final \w+\??\s+2/);
+    expect(out).not.toMatch(/final \w+\??\s+_2/);    // no library-private field
+  });
+
+  it('GraphQL: folds field names (no hyphen/leading-digit)', () => {
+    const out = gqlGen.generate(schema(), 'Root');
+    expect(out).toContain('content_type: String!');
+    expect(out).not.toMatch(/^\s+[A-Za-z_]*-[A-Za-z]*:/m);
+    expect(out).not.toMatch(/^\s+2\w*:/m);
+  });
+
+  it('Protobuf: folds + [json_name]', () => {
+    const out = protoGen.generate(schema(), 'Root');
+    expect(out).toContain('string content_type = 1 [json_name = "content-type"]');
+    expect(out).not.toMatch(/ [A-Za-z_]*-[A-Za-z]* = \d/);
+    expect(out).not.toMatch(/ 2\w* = \d/);
+  });
+
+  it('Prisma: folds + @map, leading-digit starts with a letter', () => {
+    const out = prismaGen.generate(schema(), 'Root');
+    expect(out).toContain('contentType String @map("content-type")');
+    expect(out).toContain('@map("2fa_enabled")');
+    expect(out).not.toMatch(/^\s+[A-Za-z]*-\w* /m);
+    expect(out).not.toMatch(/^\s+2\w* /m);
+  });
+
+  it('valid identifiers gain no rename noise (snapshot stability)', () => {
+    // Keys that are already valid in a given target must NOT acquire a rename annotation.
+    // (Rust snake-cases camelCase, so userId→user_id legitimately renames there — excluded.)
+    const valid = inferSchema({ userId: 'u1', first_name: 'Jane', age: 30 });
+    expect(javaGen.generate(valid, 'Root')).not.toContain('@JsonProperty("userId")');
+    expect(javaGen.generate(valid, 'Root')).not.toContain('@JsonProperty("age")');
+    expect(csharpGen.generate(valid, 'Root')).not.toContain('[JsonPropertyName(');
+    expect(dartGen.generate(valid, 'Root')).not.toContain('@JsonKey');
+    expect(prismaGen.generate(valid, 'Root')).not.toContain('@map');
   });
 });
 

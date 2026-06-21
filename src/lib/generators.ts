@@ -31,6 +31,28 @@ const toPyFieldName = (k: string): string => {
   return n;
 };
 
+// Split an arbitrary JSON key into alphanumeric word parts, folding out any
+// separator a target language can't use in an identifier ('-', '.', spaces, '/').
+// Shared by every language-specific field-name sanitizer below.
+const identWordParts = (k: string): string[] => k.split(/[^A-Za-z0-9]+/).filter(Boolean);
+
+// Fold a key into a single identifier in the requested case style. Used only for
+// keys that are NOT already a valid identifier in the target language, so that
+// valid keys keep their historical output (snapshot-stable). Leading-digit fixing
+// is left to each caller because the legal prefix differs per language.
+const foldIdent = (k: string, style: 'camel' | 'pascal' | 'snake'): string => {
+  const parts = identWordParts(k);
+  if (parts.length === 0) return style === 'snake' ? 'field' : 'Field';
+  if (style === 'snake') return parts.join('_').toLowerCase();
+  return parts
+    .map((p, i) =>
+      style === 'camel' && i === 0
+        ? p.charAt(0).toLowerCase() + p.slice(1)
+        : p.charAt(0).toUpperCase() + p.slice(1)
+    )
+    .join('');
+};
+
 // annotations から継承元クラス名を取り出すヘルパー
 const getBaseClass = (cls: ASTClass): string | null => {
   const ann = cls.annotations?.find(a => a.startsWith('extends '));
@@ -630,10 +652,26 @@ const printDartASTType = (type: any): string => {
   }
 };
 
+// Valid Dart field identifier. The wire name is preserved via @JsonKey(name: ...)
+// when the key had to be folded (hyphen/leading-digit keys are illegal in Dart).
+// A leading underscore would make the field library-private (unserializable), so
+// a leading-digit key gets a letter prefix instead.
+const toDartFieldName = (k: string): string => {
+  if (/^[A-Za-z$][A-Za-z0-9_$]*$/.test(k)) return k;
+  let n = foldIdent(k, 'camel');
+  if (/^[0-9]/.test(n)) n = 'f' + n.charAt(0).toUpperCase() + n.slice(1);
+  return n;
+};
+
 export const dartGen = {
   generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
     const astClasses = schemaToAST(schema, toPascalCase(name), options);
-    let res = "";
+
+    const anyRenamed = astClasses.some(cls =>
+      cls.fields.some(f => toDartFieldName(f.name) !== f.name));
+    let res = anyRenamed
+      ? "import 'package:json_annotation/json_annotation.dart';\n\n"
+      : "";
 
     for (const cls of astClasses) {
       const baseClass = getBaseClass(cls);
@@ -644,12 +682,14 @@ export const dartGen = {
         const isNullable = field.isOptional || field.isNullable;
         let dartType = printDartASTType(field.fieldType);
         if (isNullable && dartType !== 'dynamic') dartType += '?';
-        res += `  final ${dartType} ${field.name};\n`;
+        const dartName = toDartFieldName(field.name);
+        if (dartName !== field.name) res += `  @JsonKey(name: '${field.name}')\n`;
+        res += `  final ${dartType} ${dartName};\n`;
       }
       res += `\n  ${cls.name}({\n`;
       for (const field of cls.fields) {
         const isNullable = field.isOptional || field.isNullable;
-        res += `    ${isNullable ? '' : 'required '}this.${field.name},\n`;
+        res += `    ${isNullable ? '' : 'required '}this.${toDartFieldName(field.name)},\n`;
       }
       res += `  });\n`;
       res += `}\n\n`;
@@ -673,6 +713,16 @@ const printPhpASTType = (type: any): string => {
   }
 };
 
+// Valid PHP property identifier ([A-Za-z_]\w*). Keys with '-'/'.' or a leading
+// digit are illegal as PHP property names; the original JSON key is noted in a
+// trailing comment (PHP has no built-in serialization-alias attribute).
+const toPhpFieldName = (k: string): string => {
+  if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(k)) return k;
+  let n = foldIdent(k, 'camel');
+  if (/^[0-9]/.test(n)) n = '_' + n;
+  return n;
+};
+
 export const phpGen = {
   generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
     const astClasses = schemaToAST(schema, toPascalCase(name), options);
@@ -691,7 +741,9 @@ export const phpGen = {
         // `mixed` already includes null — `?mixed` is a PHP 8 fatal error
         const nullable = (field.isOptional || field.isNullable) && phpType !== 'mixed' ? '?' : '';
         const defaultVal = (field.isOptional || field.isNullable) ? ' = null' : '';
-        res += `        private ${nullable}${phpType} $${field.name}${defaultVal},\n`;
+        const phpName = toPhpFieldName(field.name);
+        const wireNote = phpName !== field.name ? ` // json: "${field.name}"` : '';
+        res += `        private ${nullable}${phpType} $${phpName}${defaultVal},${wireNote}\n`;
       }
       res += `    ) {}\n`;
 
@@ -699,9 +751,10 @@ export const phpGen = {
       for (const field of cls.fields) {
         const phpType = printPhpASTType(field.fieldType);
         const nullable = (field.isOptional || field.isNullable) && phpType !== 'mixed' ? '?' : '';
-        const cap = field.name.charAt(0).toUpperCase() + field.name.slice(1);
-        res += `\n    public function get${cap}(): ${nullable}${phpType} { return $this->${field.name}; }\n`;
-        res += `    public function set${cap}(${nullable}${phpType} $${field.name}): void { $this->${field.name} = $${field.name}; }\n`;
+        const phpName = toPhpFieldName(field.name);
+        const cap = phpName.charAt(0).toUpperCase() + phpName.slice(1);
+        res += `\n    public function get${cap}(): ${nullable}${phpType} { return $this->${phpName}; }\n`;
+        res += `    public function set${cap}(${nullable}${phpType} $${phpName}): void { $this->${phpName} = $${phpName}; }\n`;
       }
 
       res += `}\n\n`;
@@ -788,10 +841,26 @@ const printProtoASTType = (type: any): string => {
   }
 };
 
+// Valid proto3 field identifier ([A-Za-z_]\w*). Already-valid keys are kept raw
+// (snapshot-stable); folded keys carry the wire name via [json_name = "..."].
+const toProtoFieldName = (k: string): string => {
+  if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(k)) return k;
+  let n = foldIdent(k, 'snake');
+  if (/^[0-9]/.test(n)) n = '_' + n;
+  return n;
+};
+
 export const protoGen = {
   generate: (schema: Schema, name: string = 'Message', options: any = {}): string => {
     const astClasses = schemaToAST(schema, toPascalCase(name), options);
     let res = "";
+
+    const protoFieldLine = (f: { name: string; fieldType: any }, idx: number): string => {
+      const protoType = printProtoASTType(f.fieldType);
+      const protoName = toProtoFieldName(f.name);
+      const jsonName = protoName !== f.name ? ` [json_name = "${f.name}"]` : '';
+      return `  ${protoType} ${protoName} = ${idx}${jsonName};\n`;
+    };
 
     for (const cls of astClasses) {
       res += `message ${cls.name} {\n`;
@@ -804,17 +873,11 @@ export const protoGen = {
       if (baseClass) {
         const baseCls = astClasses.find(c => c.name === baseClass);
         if (baseCls) {
-          for (const f of baseCls.fields) {
-            const protoType = printProtoASTType(f.fieldType);
-            res += `  ${protoType} ${f.name} = ${i++};\n`;
-          }
+          for (const f of baseCls.fields) res += protoFieldLine(f, i++);
         }
       }
 
-      for (const field of cls.fields) {
-        const protoType = printProtoASTType(field.fieldType);
-        res += `  ${protoType} ${field.name} = ${i++};\n`;
-      }
+      for (const field of cls.fields) res += protoFieldLine(field, i++);
       res += `}\n\n`;
     }
     return res;
@@ -840,6 +903,24 @@ const printGqlASTType = (type: any): string => {
   }
 };
 
+// Valid GraphQL field name (/[_A-Za-z][_0-9A-Za-z]*/). SDL has no field-alias
+// syntax, so a folded key is annotated with a comment recording the wire name.
+const toGqlFieldName = (k: string): string => {
+  if (/^[_A-Za-z][_0-9A-Za-z]*$/.test(k)) return k;
+  let n = identWordParts(k).join('_');
+  if (!n) n = 'field';
+  if (/^[0-9]/.test(n)) n = '_' + n;
+  return n;
+};
+
+const gqlFieldLine = (field: { name: string; fieldType: any; isOptional?: boolean; isNullable?: boolean }): string => {
+  const gqlType = printGqlASTType(field.fieldType);
+  const bang = (field.isOptional || field.isNullable) ? '' : '!';
+  const gqlName = toGqlFieldName(field.name);
+  const note = gqlName !== field.name ? ` # json: "${field.name}"` : '';
+  return `  ${gqlName}: ${gqlType}${bang}${note}\n`;
+};
+
 export const gqlGen = {
   generate: (schema: Schema, name: string = 'Type', options: any = {}): string => {
     const astClasses = schemaToAST(schema, toPascalCase(name), options);
@@ -855,19 +936,11 @@ export const gqlGen = {
       if (baseClass) {
         const baseCls = astClasses.find(c => c.name === baseClass);
         if (baseCls) {
-          for (const f of baseCls.fields) {
-            const gqlType = printGqlASTType(f.fieldType);
-            const bang = (f.isOptional || f.isNullable) ? '' : '!';
-            res += `  ${f.name}: ${gqlType}${bang}\n`;
-          }
+          for (const f of baseCls.fields) res += gqlFieldLine(f);
         }
       }
 
-      for (const field of cls.fields) {
-        const gqlType = printGqlASTType(field.fieldType);
-        const bang = (field.isOptional || field.isNullable) ? '' : '!';
-        res += `  ${field.name}: ${gqlType}${bang}\n`;
-      }
+      for (const field of cls.fields) res += gqlFieldLine(field);
       res += `}\n\n`;
     }
     return res;
@@ -883,6 +956,18 @@ const toSnakeCase = (str: string): string => {
 
 const RUST_RESERVED = new Set(['type', 'struct', 'enum', 'match', 'use', 'mod', 'fn', 'let', 'pub', 'impl', 'trait', 'for', 'loop', 'while', 'if', 'else', 'return', 'break', 'continue', 'as', 'async', 'await', 'const', 'crate', 'dyn', 'extern', 'false', 'true', 'in', 'move', 'mut', 'ref', 'self', 'Self', 'static', 'super', 'unsafe', 'where']);
 const escapeRust = (s: string) => RUST_RESERVED.has(s) ? `r#${s}` : s;
+
+// Valid Rust snake_case field identifier. toSnakeCase only handles camelCase
+// boundaries, so keys with '-'/'.' or a leading digit ("content-type",
+// "2fa_enabled") fall through to separator folding. The original key survives
+// via #[serde(rename = ...)] emitted by the caller when the name changes.
+const toRustFieldName = (k: string): string => {
+  const snake = toSnakeCase(k);
+  if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(snake)) return escapeRust(snake);
+  let n = foldIdent(k, 'snake');
+  if (/^[0-9]/.test(n)) n = '_' + n;
+  return escapeRust(n);
+};
 
 const printRustASTType = (type: ASTType): string => {
   switch (type.kind) {
@@ -935,7 +1020,7 @@ export const rustGen = {
         if (field.isOptional || field.isNullable) {
           rustType = `Option<${rustType}>`;
         }
-        const snakeFieldName = escapeRust(toSnakeCase(field.name));
+        const snakeFieldName = toRustFieldName(field.name);
 
         if (snakeFieldName !== field.name) {
           res += `  #[serde(rename = "${field.name}")]\n`;
@@ -1018,8 +1103,17 @@ let res = usesTime
 const toJavaClassName = (n: string) =>
   n.split(/[_\s-]+/).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('');
 
-const toJavaFieldName = (k: string) =>
-  k.replace(/_([a-zA-Z0-9])/g, (_, c) => c.toUpperCase());
+const toJavaFieldName = (k: string): string => {
+  const camel = k.replace(/_([a-zA-Z0-9])/g, (_, c) => c.toUpperCase());
+  // Already a valid Java/Swift/Kotlin identifier → keep historical output.
+  if (/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(camel)) return camel;
+  // Otherwise fold separators ("content-type" → "contentType") and guard a
+  // leading digit ("2fa_enabled" → "_2faEnabled"); the wire name is preserved
+  // by the caller's rename annotation (@JsonProperty / CodingKeys / @SerialName).
+  let n = foldIdent(k, 'camel');
+  if (/^[0-9]/.test(n)) n = '_' + n;
+  return n;
+};
 
 const isJavaMoney = (k: string) =>
   ['price','amount','cost','fee','total','subtotal','balance','payment'].some(w => k.toLowerCase().includes(w));
@@ -1147,6 +1241,15 @@ const printPrismaASTType = (type: ASTType): string => {
   }
 };
 
+// Valid Prisma field identifier (must start with a letter). Hyphen/dot/leading-
+// digit keys are illegal; the wire column name is preserved via @map("...").
+const toPrismaFieldName = (k: string): string => {
+  if (/^[A-Za-z][A-Za-z0-9_]*$/.test(k)) return k;
+  let n = foldIdent(k, 'camel');
+  if (/^[0-9]/.test(n)) n = 'f' + n.charAt(0).toUpperCase() + n.slice(1);
+  return n;
+};
+
 export const prismaGen = {
   generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
     const astClasses = schemaToAST(schema, toPascalCase(name), options);
@@ -1154,7 +1257,7 @@ export const prismaGen = {
 
     for (const cls of astClasses) {
       res += `model ${cls.name} {\n`;
-      
+
       const hasExplicitId = cls.fields.some(f => f.name === 'id');
       if (!hasExplicitId) {
         res += `  id String @id @default(uuid())\n`;
@@ -1168,7 +1271,9 @@ export const prismaGen = {
           for (const f of baseCls.fields) {
             const prismaType = printPrismaASTType(f.fieldType);
             const idTag = f.name === 'id' ? ' @id' : '';
-            res += `  ${f.name} ${prismaType}${idTag}\n`;
+            const fName = toPrismaFieldName(f.name);
+            const mapTag = fName !== f.name ? ` @map("${f.name}")` : '';
+            res += `  ${fName} ${prismaType}${idTag}${mapTag}\n`;
           }
         }
       }
@@ -1182,17 +1287,19 @@ export const prismaGen = {
         const customKey2 = `${cls.name}.${field.name}`;
         const displayName2 = (options.customFieldNames as Record<string, string>)?.[customKey2] ?? field.name;
         const idTag = displayName2 === 'id' ? ' @id' : '';
-        
+        const prismaName = toPrismaFieldName(displayName2);
+        const mapTag = prismaName !== displayName2 ? ` @map("${displayName2}")` : '';
+
         if (field.fieldType.kind === 'classRef') {
           // Embedded object → Json. Proper @relation requires bidirectional back-references
           // in the target model, which cannot be auto-derived from a single JSON sample.
-          res += `  ${displayName2} Json${opt}\n`;
+          res += `  ${prismaName} Json${opt}${mapTag}\n`;
         } else if (isArray && field.fieldType.itemType?.kind === 'classRef') {
           // Array of embedded objects → Json. One-to-many @relation requires a back-reference
           // field in the target model pointing to this model — not auto-derivable from JSON.
-          res += `  ${displayName2} Json\n`;
+          res += `  ${prismaName} Json${mapTag}\n`;
         } else {
-          res += `  ${displayName2} ${prismaType}${opt}${idTag}\n`;
+          res += `  ${prismaName} ${prismaType}${opt}${idTag}${mapTag}\n`;
 
           // Cross-reference: only add @relation when the FK field has uuid format, which is
           // a strong signal it is a real foreign key rather than an unrelated string label.
@@ -1207,7 +1314,7 @@ export const prismaGen = {
               const suffixMatches = astClasses.filter(c => c.name !== cls.name && c.name.endsWith(refClass));
               const refModel = exactModel ?? (suffixMatches.length === 1 ? suffixMatches[0] : null);
               if (refModel) {
-                res += `  ${relName} ${refModel.name}? @relation(fields: [${displayName2}], references: [id])\n`;
+                res += `  ${relName} ${refModel.name}? @relation(fields: [${prismaName}], references: [id])\n`;
               }
             }
           }
@@ -1341,11 +1448,23 @@ const printCsharpASTType = (type: ASTType): string => {
   }
 };
 
+// Valid C# PascalCase property identifier. toPascalCase only folds '_'/'^',
+// so keys with '-'/'.' or a leading digit need separator folding; the wire name
+// is preserved via [JsonPropertyName(...)] when the property is renamed.
+const toCsharpFieldName = (k: string): string => {
+  const pascal = toPascalCase(k);
+  if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(pascal)) return pascal;
+  let n = foldIdent(k, 'pascal');
+  if (/^[0-9]/.test(n)) n = '_' + n;
+  return n;
+};
+
 export const csharpGen = {
   generate: (schema: Schema, name: string = 'Root', options: any = {}): string => {
     const astClasses = schemaToAST(schema, toPascalCase(name), options);
     let body = "";
     let hasRequired = false;
+    let hasJsonName = false;
 
     for (const cls of astClasses) {
       const baseClass = getBaseClass(cls);
@@ -1359,11 +1478,21 @@ export const csharpGen = {
           hasRequired = true;
           body += `    [Required]\n`;
         }
-        body += `    public ${csType}${nullable} ${toPascalCase(field.name)} { get; set; }\n`;
+        const csName = toCsharpFieldName(field.name);
+        // Only emit the wire-name attribute when the key was an invalid C#
+        // identifier that had to be folded (keeps PascalCase-from-camelCase output stable).
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(toPascalCase(field.name))) {
+          hasJsonName = true;
+          body += `    [JsonPropertyName("${field.name}")]\n`;
+        }
+        body += `    public ${csType}${nullable} ${csName} { get; set; }\n`;
       }
       body += `}\n\n`;
     }
-    const header = hasRequired ? 'using System.ComponentModel.DataAnnotations;\n\n' : '';
+    let header = '';
+    if (hasRequired) header += 'using System.ComponentModel.DataAnnotations;\n';
+    if (hasJsonName) header += 'using System.Text.Json.Serialization;\n';
+    if (header) header += '\n';
     return header + body;
   }
 };
