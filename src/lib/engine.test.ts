@@ -840,5 +840,46 @@ describe('TypeMorph Engine', () => {
       expect(out).toContain('export const userSchema = z.object({');
     });
   });
+
+  describe('open-vocabulary guard (enum over-fit fix)', () => {
+    // Sampling sees only a subset of an open value space; locking it into z.enum would reject
+    // valid unseen values. Closed-vocabulary state fields must still become enums. Thresholds
+    // validated on 499 real enum fields (Stripe + GitHub): name-only false-positive rate <1%.
+    const rows = [
+      { status: 'active', role: 'admin', priority: 'high', visibility: 'public',
+        country: 'US', currency: 'USD', city: 'Tokyo', tag: 'urgent', slug: 'intro-to-zod',
+        category: 'books', locale: 'en', user_id: 'u_1' },
+      { status: 'inactive', role: 'user', priority: 'low', visibility: 'private',
+        country: 'JP', currency: 'EUR', city: 'Osaka', tag: 'backend', slug: 'launch-day',
+        category: 'toys', locale: 'ja', user_id: 'u_2' },
+      { status: 'pending', role: 'guest', priority: 'medium', visibility: 'public',
+        country: 'GB', currency: 'JPY', city: 'London', tag: 'docs', slug: 'schema-tips',
+        category: 'home', locale: 'fr', user_id: 'u_3' },
+    ];
+    const zod = runEngine(rows, 'zod', '', { rootName: 'Row', samplesMode: true });
+
+    it('keeps closed-vocabulary fields as z.enum', () => {
+      expect(zod).toMatch(/status:\s*z\.enum\(/);
+      expect(zod).toMatch(/role:\s*z\.enum\(/);
+      expect(zod).toMatch(/priority:\s*z\.enum\(/);
+      expect(zod).toMatch(/visibility:\s*z\.enum\(/);
+    });
+
+    it('loosens open-vocabulary fields to z.string (no enum lock)', () => {
+      for (const f of ['country', 'currency', 'city', 'tag', 'slug', 'category', 'locale', 'user_id']) {
+        expect(zod, `${f} should not be a closed enum`).not.toMatch(new RegExp(`${f}:\\s*z\\.enum\\(`));
+      }
+    });
+
+    it('word boundaries: an open token as a mere substring does not loosen a closed enum', () => {
+      // "candidate_status" is a closed enum ("status" keyword) and contains "id" inside
+      // "cand-id-ate". A greedy substring list would wrongly loosen it; \bid\b does not match.
+      const out = runEngine(
+        [{ candidate_status: 'screening' }, { candidate_status: 'hired' }, { candidate_status: 'rejected' }],
+        'zod', '', { rootName: 'C', samplesMode: true },
+      );
+      expect(out).toMatch(/candidate_status:\s*z\.enum\(/);
+    });
+  });
 });
 

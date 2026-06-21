@@ -1079,7 +1079,7 @@ public class OrderItem {
     @Min(0)
     private BigDecimal amount;
     @NotNull
-    private String currency; // enum: "USD", "JPY", "EUR"
+    private String currency;
 }"
 `;
 
@@ -1203,7 +1203,7 @@ export interface OrderItem {
   order_id: string;
   status: "pending" | "shipped" | "delivered";
   amount: number;
-  currency: "USD" | "JPY" | "EUR";
+  currency: string;
 }"
 `;
 
@@ -1216,7 +1216,7 @@ export const orderItemSchema = z.object({
   order_id: z.string(),
   status: z.enum(["pending", "shipped", "delivered"]),
   amount: z.number().min(0),
-  currency: z.enum(["USD", "JPY", "EUR"]),
+  currency: z.string(),
 });
 export type OrderItem = z.infer<typeof orderItemSchema>;
 
@@ -3215,7 +3215,7 @@ exports[`edge cases > amount+currency の隣接コンテキスト補正 → amou
  */
 export interface Payment {
   amount: number;
-  currency: "USD";
+  currency: string;
   note: string;
 }"
 `;

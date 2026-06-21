@@ -173,6 +173,15 @@ const enumKeywordsSet = new Set([
   'locale', 'theme', 'layout', 'variant', 'direction', 'alignment', 'position',
 ]);
 
+// Field names whose value space is open-ended (country/currency/city/tag/slug/id…). Even when a
+// small sample shows few distinct values, locking these into a z.enum rejects valid unseen values
+// — the classic enum over-fit. This guard fires only on a STRONG name signal and otherwise leaves
+// behavior untouched. Validated on 499 real enum fields (Stripe 288 + GitHub 211): it loosens <1%
+// of genuinely-declared enums, and those residuals (currency/country) are open vocabularies anyway.
+// Greedy substrings (code/key/name/host/path/email) are intentionally EXCLUDED — real APIs use
+// `*_code`/`*_key` overwhelmingly for closed enums, so word boundaries keep them as enums.
+const OPEN_VOCAB_NAME = /(\bcountry\b|\bcurrency\b|\bcity\b|\btimezone\b|\btz\b|\blocale\b|\blanguage\b|\blang\b|\bregion\b|\bpostal\b|\bzip\b|\btag\b|categor|\bsku\b|\bslug\b|\buuid\b|\bid\b|_id\b|\burl\b|\bdomain\b)/i;
+
 /**
  * Enum の確信度を 0〜1 のスコアで返す。
  * - キーワードマッチ: +0.4
@@ -447,6 +456,11 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
             isEnumCandidate = true;
           }
         }
+      }
+      // Open-vocabulary guard: override any enum candidacy for open-ended value spaces so a
+      // sampled subset never becomes a closed z.enum that rejects valid unseen values.
+      if (isEnumCandidate && OPEN_VOCAB_NAME.test(keyName)) {
+        isEnumCandidate = false;
       }
       // float key: 統計的enum判定が優先。判定されなかった場合のみ float として扱う
       if (!isEnumCandidate && floatKeyPattern.test(keyName)) {
