@@ -96,8 +96,8 @@ export function LandingView({ onSelect }: LandingViewProps) {
           </h1>
 
           <p className="text-lg text-slate-500 dark:text-slate-400 font-medium max-w-xl mx-auto leading-relaxed mb-10">
-            Other tools generate <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono">z.string()</code> for everything.
-            TypeMorph reads field names and generates <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-slate-700 dark:text-slate-200">z.email()</code>, <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-slate-700 dark:text-slate-200">z.uuid()</code>, <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-slate-700 dark:text-slate-200">.min(0).max(150)</code> — validators that actually work.
+            Most tools dump <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono">z.string()</code> for every field.
+            TypeMorph detects real formats — <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-slate-700 dark:text-slate-200">z.email()</code>, <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-slate-700 dark:text-slate-200">z.uuid()</code>, <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-slate-700 dark:text-slate-200">z.iso.datetime()</code> — extracts shared types, and explains every inference so you can keep or drop it. Deterministic, rule-based, 100% local. A schema you can trust as your starting point.
           </p>
 
           <VisualDemo />
