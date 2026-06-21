@@ -96,6 +96,37 @@ describe('validate: 不正識別子キーでもTS系出力がコンパイルで�
   }
 });
 
+// Go/Python はフィールド名を引用できないので、サニタイズ＋元名をタグ/alias で保持する。
+// 以前は content-type → `Content-type`（無効）、2fa_enabled → 数字始まりの無効識別子を吐いていた。
+describe('validate: Go 出力が不正識別子キーで壊れない', () => {
+  it('go / adversarial keys → 有効な Go 識別子 + json タグで元キー保持', () => {
+    const code = runEngine(ADVERSARIAL_KEYS, 'go', 'go', { rootName: 'Root' });
+    const fieldLines = code.split('\n').filter((l: string) => /`json:/.test(l));
+    expect(fieldLines.length).toBe(Object.keys(ADVERSARIAL_KEYS).length);
+    for (const line of fieldLines) {
+      const ident = line.trim().split(/\s+/)[0];
+      expect(ident).toMatch(/^[A-Za-z_][A-Za-z0-9_]*$/);
+    }
+    for (const key of Object.keys(ADVERSARIAL_KEYS)) {
+      expect(code).toContain(`json:"${key}`);
+    }
+  });
+});
+
+describe('validate: Python 出力が不正識別子キーで壊れない', () => {
+  it('python / adversarial keys → 有効な識別子 + Field(alias=) で元キー保持', () => {
+    const code = runEngine(ADVERSARIAL_KEYS, 'python', 'python', { rootName: 'Root' });
+    const fieldLines = code.split('\n').filter((l: string) => /^ {4}\w/.test(l));
+    for (const line of fieldLines) {
+      const ident = line.trim().split(':')[0];
+      expect(ident).toMatch(/^[A-Za-z_][A-Za-z0-9_]*$/);
+    }
+    for (const key of Object.keys(ADVERSARIAL_KEYS)) {
+      expect(code).toContain(`alias=${JSON.stringify(key)}`);
+    }
+  });
+});
+
 // ─── JSON Schema 検証（ajv） ─────────────────────────────────────────────────
 // format 値（uuid/int 等）は再帰的に除去してから compile する。
 // ここで見たいのは「スキーマが構造的に妥当か」であって format の正否ではない。
@@ -168,4 +199,10 @@ describe.runIf(hasPython)('validate: Python 出力が py_compile を通る', () 
       });
     }
   }
+  it('python / adversarial keys', () => {
+    const code = runEngine(ADVERSARIAL_KEYS, 'python', 'python', { rootName: 'Root' });
+    const file = join(dir, 'python_adversarial.py');
+    writeFileSync(file, code);
+    expect(() => execSync(`python -m py_compile "${file}"`, { stdio: 'pipe' })).not.toThrow();
+  });
 });

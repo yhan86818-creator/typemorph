@@ -3,6 +3,34 @@ import { schemaToAST, rootArrayItemClassName, convertToASTType } from './ast';
 
 const toPascalCase = (str: string) => str.replace(/(^\w|_\w)/g, m => m.replace(/_/, '').toUpperCase());
 
+// Go exported field identifier: PascalCase across any separator, never starting
+// with a digit. Unlike toPascalCase this also folds out '-', '.', spaces, etc.,
+// so keys like "content-type" / "2fa_enabled" produce valid Go (the original key
+// is preserved in the struct tag, so JSON marshalling is unaffected).
+const toGoFieldName = (k: string): string => {
+  const parts = k.split(/[^A-Za-z0-9]+/).filter(Boolean);
+  let n = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+  if (!n) n = 'Field';
+  if (/^[0-9]/.test(n)) n = 'F' + n;
+  return n;
+};
+
+const PY_KEYWORDS = new Set([
+  'False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await', 'break',
+  'class', 'continue', 'def', 'del', 'elif', 'else', 'except', 'finally', 'for',
+  'from', 'global', 'if', 'import', 'in', 'is', 'lambda', 'nonlocal', 'not', 'or',
+  'pass', 'raise', 'return', 'try', 'while', 'with', 'yield', 'match', 'case',
+]);
+
+// Valid Python identifier for a field; the original key is carried via the
+// pydantic Field(alias=...) so the wire name survives.
+const toPyFieldName = (k: string): string => {
+  let n = k.replace(/[^A-Za-z0-9_]/g, '_');
+  if (!/^[A-Za-z_]/.test(n)) n = 'f_' + n;
+  if (PY_KEYWORDS.has(n)) n = `${n}_`;
+  return n;
+};
+
 // annotations から継承元クラス名を取り出すヘルパー
 const getBaseClass = (cls: ASTClass): string | null => {
   const ann = cls.annotations?.find(a => a.startsWith('extends '));
@@ -718,12 +746,22 @@ export const pythonGen = {
         res += `    pass\n\n`;
         continue;
       }
+      const usedPyNames = new Set<string>();
       for (const field of cls.fields) {
-        let pyType = printPythonASTType(field.fieldType);
-        if (field.isOptional || field.isNullable) {
-          pyType = `Optional[${pyType}] = None`;
+        const pyType = printPythonASTType(field.fieldType);
+        const isOpt = field.isOptional || field.isNullable;
+        let pyName = toPyFieldName(field.name);
+        while (usedPyNames.has(pyName)) pyName += '_';
+        usedPyNames.add(pyName);
+        const needsAlias = pyName !== field.name;
+        if (isOpt) {
+          const dflt = needsAlias ? `Field(default=None, alias=${JSON.stringify(field.name)})` : 'None';
+          res += `    ${pyName}: Optional[${pyType}] = ${dflt}\n`;
+        } else if (needsAlias) {
+          res += `    ${pyName}: ${pyType} = Field(alias=${JSON.stringify(field.name)})\n`;
+        } else {
+          res += `    ${pyName}: ${pyType}\n`;
         }
-        res += `    ${field.name}: ${pyType}\n`;
       }
       res += `\n`;
     }
@@ -960,12 +998,15 @@ let res = usesTime
         res += `  ${baseStruct}\n`;
       }
 
+      const usedGoNames = new Set<string>();
       for (const field of cls.fields) {
         let goType = printGoASTType(field.fieldType);
         if (field.isNullable || field.isOptional) goType = `*${goType}`;
-        const pascalFieldName = toPascalCase(field.name);
+        let goFieldName = toGoFieldName(field.name);
+        while (usedGoNames.has(goFieldName)) goFieldName += '_';
+        usedGoNames.add(goFieldName);
         const omitEmpty = (field.isOptional || field.isNullable) ? ',omitempty' : '';
-        res += `  ${pascalFieldName} ${goType} \`json:"${field.name}${omitEmpty}"\`\n`;
+        res += `  ${goFieldName} ${goType} \`json:"${field.name}${omitEmpty}"\`\n`;
       }
       res += `}\n\n`;
     }

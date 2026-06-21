@@ -1273,7 +1273,9 @@ export const runEngine = (json: any, lang: string, slug: string = "", options: a
       if (/\bOptional\[/.test(body)) typingNeeded.push('Optional');
       if (/\bList\[/.test(body)) typingNeeded.push('List');
       if (/\bAny\b/.test(body)) typingNeeded.push('Any');
-      let imports = `from pydantic import BaseModel\n`;
+      let imports = /\bField\(/.test(body)
+        ? `from pydantic import BaseModel, Field\n`
+        : `from pydantic import BaseModel\n`;
       if (typingNeeded.length) imports += `from typing import ${typingNeeded.join(', ')}\n`;
       if (/:\s*datetime\b/.test(body)) imports += `from datetime import datetime\n`;
       const pfx = isOAComp ? '' : `${imports}\n`;
