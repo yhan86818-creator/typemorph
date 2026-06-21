@@ -94,7 +94,8 @@ export const alternatives: Alternative[] = [
     },
     table: [
       { feature: 'JSON → TypeScript', typemorph: true, competitor: true },
-      { feature: 'JSON → Zod', typemorph: true, competitor: false },
+      { feature: 'JSON → Zod', typemorph: true, competitor: true },
+      { feature: 'Zod with semantic validators (email/age/uuid)', typemorph: true, competitor: false },
       { feature: 'JSON → Go', typemorph: true, competitor: true },
       { feature: 'JSON → Rust', typemorph: true, competitor: true },
       { feature: 'JSON → Python', typemorph: true, competitor: true },
