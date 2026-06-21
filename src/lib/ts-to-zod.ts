@@ -1,5 +1,136 @@
 import { extractTypeGraph, splitMembers, type TypeNode } from './graph';
 
+/**
+ * Constraints parsed from a field's JSDoc block. Only whitelisted `@`-tags are
+ * recognised so arbitrary comment text can never inject into the output.
+ */
+interface JsdocConstraints {
+  min?: number;
+  max?: number;
+  int?: boolean;
+  positive?: boolean;
+  negative?: boolean;
+  format?: 'email' | 'url' | 'uuid';
+  regex?: string;
+  description?: string;
+}
+
+// Field-name → constraints for the current tsToZod() call. Module-level because
+// typeToZod/parseObjectMembers/nodeToZod recurse and threading it through every
+// signature would be noisy; JS is single-threaded so each synchronous call owns it.
+let jsdocMap: Map<string, JsdocConstraints> = new Map();
+
+/** Parses the inner text of a `/** … *​/` block into whitelisted constraints. */
+function parseJsdoc(raw: string): JsdocConstraints {
+  const c: JsdocConstraints = {};
+  const text = raw
+    .split('\n')
+    .map(l => l.replace(/^\s*\*+\s?/, '').trim())
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+  const num = (tag: string): number | undefined => {
+    const m = text.match(new RegExp(`@${tag}\\b\\s+(-?\\d+(?:\\.\\d+)?)`));
+    return m ? parseFloat(m[1]) : undefined;
+  };
+  const has = (tag: string) => new RegExp(`@${tag}\\b`).test(text);
+
+  const min = num('min'); if (min !== undefined) c.min = min;
+  const max = num('max'); if (max !== undefined) c.max = max;
+  if (has('int')) c.int = true;
+  if (has('positive')) c.positive = true;
+  if (has('negative')) c.negative = true;
+
+  // @email / @url / @uuid, or @format email|url|uuid
+  if (has('email')) c.format = 'email';
+  else if (has('url')) c.format = 'url';
+  else if (has('uuid')) c.format = 'uuid';
+  const fmt = text.match(/@format\s+(email|url|uuid)\b/);
+  if (fmt) c.format = fmt[1] as JsdocConstraints['format'];
+
+  // @pattern / @regex — validate via RegExp so only real patterns pass through
+  const pat = text.match(/@(?:pattern|regex)\s+(.+?)(?:\s+@|$)/);
+  if (pat) {
+    const src = pat[1].trim().replace(/^\/|\/$/g, '');
+    try { new RegExp(src); c.regex = src; } catch { /* drop invalid pattern */ }
+  }
+
+  // @description "...", else leading free text before the first @tag
+  const desc = text.match(/@description\s+(.+?)(?:\s+@|$)/);
+  if (desc) {
+    c.description = desc[1].trim().replace(/^["']|["']$/g, '');
+  } else {
+    const lead = text.match(/^([^@]+?)(?:\s+@|$)/);
+    if (lead && lead[1].trim()) c.description = lead[1].trim();
+  }
+
+  return c;
+}
+
+/**
+ * Builds the field-name → constraints map from raw TS. Comments are stripped by
+ * splitMembers before fields are parsed, so JSDoc must be read here from source.
+ *
+ * Constraints are keyed by field name (the parsing path discards positions), so a
+ * name that occurs on more than one field anywhere in the file is dropped — this
+ * prevents a JSDoc'd field from leaking its constraints onto an unrelated
+ * same-named field that the user never annotated. Conservative by design.
+ */
+function buildJsdocMap(tsCode: string): Map<string, JsdocConstraints> {
+  const map = new Map<string, JsdocConstraints>();
+  const re = /\/\*\*([\s\S]*?)\*\/\s*(?:readonly\s+)?(\w+)\??\s*:/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(tsCode)) !== null) {
+    const c = parseJsdoc(m[1]);
+    if (Object.keys(c).length === 0) continue;
+    const name = m[2];
+    if (!map.has(name)) map.set(name, c);
+  }
+  if (map.size === 0) return map;
+
+  // Count every field declaration (comments stripped so JSDoc text can't inflate
+  // counts) and drop any annotated name that is not globally unique.
+  const noComments = tsCode.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+  const counts = new Map<string, number>();
+  const fieldRe = /(?:^|[{;,\n])\s*(?:readonly\s+)?(\w+)\??\s*:/g;
+  let fm: RegExpExecArray | null;
+  while ((fm = fieldRe.exec(noComments)) !== null) {
+    counts.set(fm[1], (counts.get(fm[1]) ?? 0) + 1);
+  }
+  for (const name of [...map.keys()]) {
+    if ((counts.get(name) ?? 0) > 1) map.delete(name);
+  }
+  return map;
+}
+
+/**
+ * Applies parsed JSDoc constraints to a base Zod expression. Numeric/string
+ * refinements only attach to bare `z.string()` / `z.number()` bases; everything
+ * else receives only `.describe()`. Format tags use the chained `.email()` form,
+ * which is valid in both Zod v3 and v4.
+ */
+function applyJsdoc(zod: string, c: JsdocConstraints | undefined): string {
+  if (!c) return zod;
+  let out = zod;
+  if (out === 'z.string()') {
+    if (c.format === 'email') out += '.email()';
+    else if (c.format === 'url') out += '.url()';
+    else if (c.format === 'uuid') out += '.uuid()';
+    if (c.min !== undefined) out += `.min(${c.min})`;
+    if (c.max !== undefined) out += `.max(${c.max})`;
+    if (c.regex) out += `.regex(/${c.regex.replace(/\//g, '\\/')}/)`;
+  } else if (out === 'z.number()') {
+    if (c.int) out += '.int()';
+    if (c.positive) out += '.positive()';
+    if (c.negative) out += '.negative()';
+    if (c.min !== undefined) out += `.min(${c.min})`;
+    if (c.max !== undefined) out += `.max(${c.max})`;
+  }
+  if (c.description) out += `.describe(${JSON.stringify(c.description)})`;
+  return out;
+}
+
 function splitTopLevel(str: string, sep: string): string[] {
   const parts: string[] = [];
   let depth = 0;
@@ -152,6 +283,7 @@ function parseObjectMembers(
     if (!fm) continue;
     const [, name, optional, rawType] = fm;
     let zod = typeToZod(rawType.trim(), nodeMap, depth);
+    zod = applyJsdoc(zod, jsdocMap.get(name));
     if (optional === '?' && !zod.endsWith('.optional()') && !zod.endsWith('.nullish()')) {
       zod += '.optional()';
     }
@@ -164,6 +296,7 @@ function nodeToZod(node: TypeNode, nodeMap: Map<string, string>): string {
   const schemaName = `${node.id}Schema`;
   const fieldLines = node.fields.map(f => {
     let zod = typeToZod(f.type, nodeMap);
+    zod = applyJsdoc(zod, jsdocMap.get(f.name));
     if (f.optional && !zod.endsWith('.optional()') && !zod.endsWith('.nullish()')) {
       zod += '.optional()';
     }
@@ -346,6 +479,7 @@ export interface TsToZodResult {
 
 export function tsToZod(tsCode: string): TsToZodResult {
   try {
+    jsdocMap = buildJsdocMap(tsCode);
     const graph = extractTypeGraph(tsCode);
 
     // Build nodeMap: interfaceName → schemaRefName (e.g. "User" → "UserSchema")

@@ -142,4 +142,80 @@ enum Role { Admin = 'admin' }`).output;
       expect(out.indexOf('RoleSchema =')).toBeLessThan(out.indexOf('USchema ='));
     });
   });
+
+  describe('JSDoc constraint annotations (NEW-B)', () => {
+    it('applies numeric @min/@max to z.number()', () => {
+      const out = tsToZod(`interface P { /** @min 0 @max 100 */ pct: number; }`).output;
+      expect(out).toContain('pct: z.number().min(0).max(100)');
+    });
+
+    it('applies @int / @positive / @negative to z.number()', () => {
+      const out = tsToZod(`interface P { /** @int @positive */ stock: number; }`).output;
+      expect(out).toContain('stock: z.number().int().positive()');
+    });
+
+    it('applies @email / @url / @uuid to z.string() using v3/v4-safe chained form', () => {
+      const out = tsToZod(`interface P {
+        /** @email */ a: string;
+        /** @url */ b: string;
+        /** @uuid */ c: string;
+      }`).output;
+      expect(out).toContain('a: z.string().email()');
+      expect(out).toContain('b: z.string().url()');
+      expect(out).toContain('c: z.string().uuid()');
+    });
+
+    it('applies @min/@max to z.string() as length and validates @pattern', () => {
+      const out = tsToZod(`interface P {
+        /** @min 2 @max 8 */ name: string;
+        /** @pattern ^[A-Z]{3}$ */ code: string;
+      }`).output;
+      expect(out).toContain('name: z.string().min(2).max(8)');
+      expect(out).toContain('code: z.string().regex(/^[A-Z]{3}$/)');
+    });
+
+    it('escapes slashes in @pattern so the regex literal stays well-formed', () => {
+      const out = tsToZod(`interface P { /** @pattern a/b */ path: string; }`).output;
+      expect(out).toContain('z.string().regex(/a\\/b/)');
+    });
+
+    it('drops invalid @pattern instead of emitting broken code', () => {
+      const out = tsToZod(`interface P { /** @pattern [unterminated */ code: string; }`).output;
+      expect(out).toContain('code: z.string()');
+      expect(out).not.toContain('.regex(');
+    });
+
+    it('turns leading free text into .describe()', () => {
+      const out = tsToZod(`interface P { /** The display title @min 1 */ title: string; }`).output;
+      expect(out).toContain('.describe("The display title")');
+      expect(out).toContain('.min(1)');
+    });
+
+    it('only describes non-string/number bases (ignores numeric/format tags)', () => {
+      const out = tsToZod(`interface P {
+        /** @min 0 */ items: string[];
+        /** @email */ flag: boolean;
+      }`).output;
+      expect(out).toContain('items: z.array(z.string())');
+      expect(out).toContain('flag: z.boolean()');
+      expect(out).not.toContain('items: z.array(z.string()).min');
+    });
+
+    it('does NOT leak a constraint onto an unrelated same-named field', () => {
+      const out = tsToZod(`interface A { /** @max 5 */ rating: number; }
+interface B { rating: number; }`).output;
+      // 'rating' is not globally unique → annotation is dropped entirely
+      expect(out).not.toContain('.max(5)');
+    });
+
+    it('keeps constraints before .optional() on optional fields', () => {
+      const out = tsToZod(`interface P { /** @min 1 */ code?: string; }`).output;
+      expect(out).toContain('code: z.string().min(1).optional()');
+    });
+
+    it('applies constraints inside object type aliases too', () => {
+      const out = tsToZod(`type Cfg = { /** @min 0 @max 1 */ ratio: number; };`).output;
+      expect(out).toContain('ratio: z.number().min(0).max(1)');
+    });
+  });
 });
