@@ -1,1 +1,131 @@
-<h1>Dev Diary: ZOD to JSON SCHEMA</h1><h2>Why 'Local-First' is the Only Way</h2><p>If you're pasting sensitive payloads into some server-side converter, you're asking for trouble. No logs, no data harvesting, no nonsense—just <strong>ZOD to JSON SCHEMA</strong> on your own machine. Sending your internal API specs to a third-party server is a SOC2 nightmare waiting to happen. No server, no risk—that is the TypeMorph promise for <strong>ZOD to JSON SCHEMA</strong>. Privacy-first <strong>ZOD to JSON SCHEMA</strong> is non-negotiable in 2026. Your proprietary schemas stay on your hard drive where they belong. It's faster, it's private, and it ensures that your sensitive infrastructure definitions never leak. Zero-latency <strong>ZOD to JSON SCHEMA</strong> with zero-server risk. I built this specifically because I didn't want to leak my client's <strong>ZOD</strong> schemas. TypeMorph is strictly local; it runs in your browser's JS engine.</p><h2>Technical Deep-Dive: ZOD Mapping</h2><p>By offloading the grunt work to a local tool, you reduce the risk of sync errors. Modern dev stacks require strict typing, which is exactly why this ZOD to JSON SCHEMA utility exists. Using Zod alongside your JSON SCHEMA definitions provides a bulletproof defense against bad data. Always ensure that your JSON SCHEMA implementation supports validation logic for malformed inputs. Handling ZOD schemas often results in runtime exceptions if you aren't careful. I've found that hand-coding interfaces takes up nearly 40% of the initial sprint time. The main hurdle in JSON SCHEMA generation is ensuring that nested objects are mapped with 100% precision. The performance of ZOD parsing varies by engine, but your JSON SCHEMA structures should remain flat.</p><h2>Stop Wasting Time on ZOD</h2><p>Seriously. Every minute spent on manual <strong>ZOD to JSON SCHEMA</strong> is a minute you aren't shipping features. Get the code, do a quick audit, and get back to work. TypeMorph is about velocity, not boilerplate.</p><h2>Frequently Asked Questions</h2><p><strong>Is my ZOD data saved?</strong> No. Everything happens in the browser's JS memory; nothing is transmitted.<br><br><strong>How does it handle snake_case?</strong> It maintains the input structure to ensure API compatibility.<br><br><strong>Does this tool support nested ZOD?</strong> Yes, the recursive inference engine handles deep object trees effortlessly.<br><br><strong>What about undefineds?</strong> The generator intelligently infers optionality to keep your code clean.<br><br><strong>Can I customize the JSON SCHEMA output?</strong> Currently, it follows standard idiomatic naming conventions.<br><br><strong>Is this suitable for production projects?</strong> Absolutely. It's built to streamline professional development workflows.</p><h2>The Real Problem with ZOD to JSON SCHEMA</h2><p>Honestly, manually converting <strong>ZOD</strong> to <strong>JSON SCHEMA</strong> is a waste of your engineering time. I've seen too many bugs grow from simple mapping errors. This tool handles the grunt work locally, so you don't have to.</p><h2>A Pro Tip for JSON SCHEMA Integration</h2><p>Don't just take the generated <strong>JSON SCHEMA</strong> code as gospel. Don't let manual field mapping slow down your sprint. Move fast, but don't break your <strong>JSON SCHEMA</strong> implementation. Automation is a tool, not a replacement for your brain when generating <strong>JSON SCHEMA</strong>. Use this to skip the boilerplate, but always perform a final audit. Checking for 'Date' vs 'String' mismatches is where you'll find the most value after the <strong>ZOD to JSON SCHEMA</strong> process. Consistency is king in <strong>ZOD</strong> transformations. Always test your generated schemas against edge-case <strong>ZOD</strong> samples. Use this to handle the 95% of the <strong>ZOD</strong> mapping, then do a quick manual check. Structural integrity starts with a good <strong>ZOD to JSON SCHEMA</strong> workflow.</p><h2>Done.</h2><p>Life is too short for manual mapping. - TypeMorph Team</p>
+<h2>Zod to JSON Schema: Make Your Validators Interoperable</h2>
+<p>Zod is a TypeScript-runtime validator — its schemas live in your code and can't be read by tools that speak the cross-language standard, JSON Schema. Converting Zod to JSON Schema unlocks the rest of the ecosystem: OpenAPI documents, form generators, contract tests, validators in other languages, and LLM structured outputs. This converter turns a Zod schema into a JSON Schema document you can hand to any of them. It's a faithful, mechanical translation you can read line by line — a starting point you keep refining, not a black box.</p>
+
+<h3>Live Example</h3>
+<pre><code>// Input: Zod schema
+import { z } from 'zod';
+
+const UserSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  age: z.number().int().min(0).max(120),
+  role: z.enum(['admin', 'user', 'guest']),
+  bio: z.string().nullable(),
+  tags: z.array(z.string()).max(10),
+});
+
+// Output: JSON Schema (draft 2020-12)
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id":    { "type": "string", "format": "uuid" },
+    "email": { "type": "string", "format": "email" },
+    "age":   { "type": "integer", "minimum": 0, "maximum": 120 },
+    "role":  { "type": "string", "enum": ["admin", "user", "guest"] },
+    "bio":   { "type": ["string", "null"] },
+    "tags":  { "type": "array", "items": { "type": "string" }, "maxItems": 10 }
+  },
+  "required": ["id", "email", "age", "role", "bio", "tags"]
+}
+</code></pre>
+
+<h3>z.toJSONSchema(), the npm Library, and This Tool</h3>
+<p>There are three common routes, and it's worth knowing which fits:</p>
+<ul>
+  <li><strong>Zod v4 built-in:</strong> <code>z.toJSONSchema(schema)</code> ships in the core library — the right call if you're already on v4 and want it in your own runtime.</li>
+  <li><strong>zod-to-json-schema (npm):</strong> the mature package for Zod v3 projects, with options for target draft and <code>$ref</code> strategy.</li>
+  <li><strong>This converter:</strong> in-browser, nothing uploaded, and it sits next to TypeScript / OpenAPI / mock output so you can move a schema between representations in one place — useful for a quick draft or when you don't want to wire a build step.</li>
+</ul>
+<p>For a permanent, in-code pipeline, prefer the built-in or the npm library. For exploration, drafting, and privacy-sensitive payloads, do it here.</p>
+
+<h3>How Constraints Map</h3>
+<p>Unlike a TypeScript type, JSON Schema <em>can</em> express runtime constraints, so far more of the Zod schema survives:</p>
+<ul>
+  <li><code>z.string().min(3).max(20)</code> → <code>"minLength": 3, "maxLength": 20</code></li>
+  <li><code>z.string().email()</code> / <code>.uuid()</code> / <code>.url()</code> → <code>"format": "email" | "uuid" | "uri"</code></li>
+  <li><code>z.string().regex(re)</code> → <code>"pattern": "..."</code></li>
+  <li><code>z.number().int()</code> → <code>"type": "integer"</code>; <code>.min(0)</code> → <code>"minimum": 0</code></li>
+  <li><code>z.array(T).min(1).max(10)</code> → <code>"minItems": 1, "maxItems": 10</code></li>
+  <li><code>z.enum([...])</code> → <code>"enum": [...]</code>; <code>z.literal(x)</code> → <code>"const": x</code></li>
+  <li><code>.optional()</code> → omitted from <code>required</code>; <code>.nullable()</code> → <code>"type": ["T", "null"]</code></li>
+  <li><code>.describe('...')</code> → <code>"description": "..."</code>; <code>.default(v)</code> → <code>"default": v</code></li>
+</ul>
+
+<h3>Shared Types Become $defs + $ref</h3>
+<p>Reused sub-schemas are emitted once under <code>$defs</code> and referenced, keeping the document DRY and matching how OpenAPI's <code>components/schemas</code> works:</p>
+<pre><code>const AddressSchema = z.object({ city: z.string(), zip: z.string() });
+const OrderSchema = z.object({
+  billing: AddressSchema,
+  shipping: AddressSchema,
+});
+
+// →
+{
+  "type": "object",
+  "properties": {
+    "billing":  { "$ref": "#/$defs/Address" },
+    "shipping": { "$ref": "#/$defs/Address" }
+  },
+  "required": ["billing", "shipping"],
+  "$defs": {
+    "Address": {
+      "type": "object",
+      "properties": { "city": { "type": "string" }, "zip": { "type": "string" } },
+      "required": ["city", "zip"]
+    }
+  }
+}
+</code></pre>
+
+<h3>Unions, Discriminated Unions, and null</h3>
+<pre><code>z.union([z.string(), z.number()])
+// → { "anyOf": [ { "type": "string" }, { "type": "number" } ] }
+
+z.discriminatedUnion('type', [A, B])
+// → { "oneOf": [ ...A, ...B ] }   (the discriminator stays a const on each branch)
+
+z.string().nullable()
+// → { "type": ["string", "null"] }
+</code></pre>
+
+<h3>Use Case: LLM Structured Outputs</h3>
+<p>OpenAI and Anthropic tool/function calling expect a JSON Schema for the arguments. If you already validate with Zod, convert it instead of hand-writing the schema twice:</p>
+<pre><code>const ExtractSchema = z.object({
+  sentiment: z.enum(['positive', 'neutral', 'negative']),
+  score: z.number().min(0).max(1),
+  topics: z.array(z.string()),
+});
+
+// Feed the converted JSON Schema as the tool's parameters,
+// then validate the model's response back through ExtractSchema.
+// One Zod schema drives both the request contract and the runtime check.
+</code></pre>
+<p>Note: providers in "strict" mode reject some keywords (e.g. they may require <code>additionalProperties: false</code> and disallow certain formats). Treat the output as a draft and trim it to the provider's accepted subset.</p>
+
+<h3>Draft Versions</h3>
+<p>JSON Schema has incompatible dialects. <strong>Draft-07</strong> is the most widely supported by older tooling. <strong>2020-12</strong> aligns with OpenAPI 3.1 and is the modern default. The biggest practical differences: <code>$defs</code> (2020-12) vs <code>definitions</code> (draft-07), and how <code>nullable</code> and tuples are expressed. Pick the draft your consumer expects — emitting 2020-12 into a draft-07 validator is a common source of silent mismatches.</p>
+
+<h3>What Doesn't Translate</h3>
+<ul>
+  <li><strong><code>.transform()</code> / <code>.pipe()</code>:</strong> JSON Schema validates, it doesn't transform. Transforms are dropped — keep them in Zod.</li>
+  <li><strong>Custom <code>.refine()</code> logic:</strong> arbitrary predicates have no declarative equivalent; they can't be represented and are omitted.</li>
+  <li><strong>Custom error messages:</strong> Zod's per-rule messages don't map to standard JSON Schema and are lost.</li>
+</ul>
+<p>Because of these, a converted schema validates the <em>shape and declarative constraints</em>, not your transform/refine logic. Zod remains the source of truth for anything procedural.</p>
+
+<h3>FAQ</h3>
+<p><strong>Q: draft-07 or 2020-12?</strong><br>
+A: Match the consumer. Use 2020-12 for OpenAPI 3.1 and modern validators; draft-07 for older tooling that doesn't understand <code>$defs</code> or 2020-12 keywords.</p>
+
+<p><strong>Q: Why is a <code>.refine()</code> rule missing from the output?</strong><br>
+A: Custom refinements are arbitrary code with no JSON Schema equivalent, so they're dropped. Declarative rules (<code>min</code>, <code>max</code>, <code>regex</code>, <code>email</code>) do convert. Keep procedural checks in Zod.</p>
+
+<p><strong>Q: Can I use this for OpenAPI?</strong><br>
+A: Yes — OpenAPI 3.1's schema objects <em>are</em> JSON Schema 2020-12. Drop the converted schema into <code>components/schemas</code>. (TypeMorph also has a direct Zod → OpenAPI path.)</p>
+
+<p><strong>Q: How are optional vs nullable handled?</strong><br>
+A: <code>.optional()</code> removes the key from <code>required</code>; <code>.nullable()</code> adds <code>"null"</code> to the type. <code>.nullish()</code> does both.</p>
+
+<p><strong>Q: Is my schema uploaded anywhere?</strong><br>
+A: No. The conversion runs entirely in your browser — nothing is sent to a server.</p>

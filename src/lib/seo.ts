@@ -87,6 +87,8 @@ export const INDEXED_EN_SLUGS = new Set([
   'typescript-to-zod',
   'openapi-to-zod',
   'zod-to-openapi',
+  'zod-to-typescript',
+  'zod-to-json-schema',
   'zod-lint',
 
   // AI / LLM Tools (quality content added)

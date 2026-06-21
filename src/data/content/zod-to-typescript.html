@@ -1,1 +1,142 @@
-<h1>Dev Diary: ZOD to TYPESCRIPT</h1><h2>A Pro Tip for TYPESCRIPT Integration</h2><p>Automation is a tool, not a replacement for your brain when generating <strong>TYPESCRIPT</strong>. Structural integrity starts with a good <strong>ZOD to TYPESCRIPT</strong> workflow. Use this to handle the 95% of the <strong>ZOD</strong> mapping, then do a quick manual check. Are those IDs actually numbers? Should that optional field be a required one? Use this to skip the boilerplate, but always perform a final audit. Checking for 'Date' vs 'String' mismatches is where you'll find the most value after the <strong>ZOD to TYPESCRIPT</strong> process. Always test your generated schemas against edge-case <strong>ZOD</strong> samples. A two-minute review of the <strong>TYPESCRIPT</strong> output saves you a headache in production. Don't just take the generated <strong>TYPESCRIPT</strong> code as gospel. Use this as a starting point, then review the edge cases and check nullability.</p><h2>Technical Deep-Dive: ZOD Mapping</h2><p>The performance of ZOD parsing varies by engine, but your TYPESCRIPT structures should remain modular. Modern dev stacks require strict typing, which is exactly why this ZOD to TYPESCRIPT utility exists. Using Runtypes alongside your TYPESCRIPT definitions provides a robust defense against bad data. I've found that boilerplate generation takes up nearly 50% of the initial sprint time. By offloading the grunt work to a local tool, you reduce the risk of typos. Always ensure that your TYPESCRIPT implementation supports deserialization for edge-case payloads. The critical point in TYPESCRIPT generation is ensuring that optional arrays are mapped with 100% precision. Handling ZOD schemas often results in type mismatches if you aren't careful.</p><h2>Stop Wasting Time on ZOD</h2><p>Seriously. Every minute spent on manual <strong>ZOD to TYPESCRIPT</strong> is a minute you aren't shipping features. Get the code, do a quick audit, and get back to work. TypeMorph is about velocity, not boilerplate.</p><h2>The Real Problem with ZOD to TYPESCRIPT</h2><p>Look, I'm a developer, not a typist. Manually mapping <strong>ZOD</strong> to <strong>TYPESCRIPT</strong> is a waste of a good brain. I built this engine to stop the bleeding. It's local, it's fast, and it just works.</p><h2>Frequently Asked Questions</h2><p><strong>Is my ZOD data saved?</strong> No. Everything happens in the browser's JS memory; nothing is transmitted.<br><br><strong>Is this suitable for commercial projects?</strong> Absolutely. It's built to streamline professional development workflows.<br><br><strong>What about nulls?</strong> The generator detects optionality to keep your code clean.<br><br><strong>Can I customize the TYPESCRIPT output?</strong> Currently, it follows highly-optimized naming conventions.<br><br><strong>Does this tool support nested ZOD?</strong> Yes, the recursive inference engine handles deep object trees effortlessly.<br><br><strong>How does it handle camelCase?</strong> It maintains the source formatting to ensure API compatibility.</p><h2>Why 'Local-First' is the Only Way</h2><p>Server-side conversion is a security hole that many <strong>ZOD</strong> users overlook. I don't trust random websites with my <strong>ZOD</strong> data. Period. I built this specifically because I didn't want to leak my client's <strong>ZOD</strong> schemas. Sending your internal API specs to a third-party server is a SOC2 nightmare waiting to happen. If you're pasting sensitive payloads into some server-side converter, you're asking for trouble. This tool uses your machine's CPU to do the work, ensuring <strong>TYPESCRIPT</strong> safety. Your data, your machine, your rules. No exceptions. Local processing means your <strong>ZOD</strong> never touches our cloud. TypeMorph is a zero-trust utility for your <strong>TYPESCRIPT</strong> needs. It satisfies GDPR and company security policies by simply never seeing your data.</p><h2>Done.</h2><p>Life is too short for manual mapping. - TypeMorph Team</p>
+<h2>Zod to TypeScript: Extract Standalone Types From Your Schemas</h2>
+<p>If you already have Zod schemas, the usual way to get a TypeScript type is <code>z.infer&lt;typeof Schema&gt;</code>. But that keeps a hard dependency on Zod and on the schema's runtime value. Sometimes you want the <em>plain</em> type instead — a standalone <code>interface</code> or <code>type</code> with no <code>import { z }</code> attached: for a published package's <code>.d.ts</code>, for a type-only consumer, for documentation, or to hand the shape to a codegen step that never runs Zod. This converter reads a Zod schema and emits the equivalent TypeScript. It is a high-quality starting point — every mapping is mechanical and visible, so you can read exactly what each line became and adjust it.</p>
+
+<h3>Live Example</h3>
+<pre><code>// Input: Zod schema
+import { z } from 'zod';
+
+const AddressSchema = z.object({
+  street: z.string(),
+  city: z.string(),
+  zip: z.string().optional(),
+});
+
+const UserSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1),
+  age: z.number().int(),
+  role: z.enum(['admin', 'user', 'guest']),
+  address: AddressSchema,
+  bio: z.string().nullable(),
+  nickname: z.string().nullish(),
+  tags: z.array(z.string()),
+});
+
+// Output: standalone TypeScript — no Zod import needed
+interface Address {
+  street: string;
+  city: string;
+  zip?: string;
+}
+
+interface User {
+  id: string;
+  name: string;
+  age: number;
+  role: 'admin' | 'user' | 'guest';
+  address: Address;
+  bio: string | null;
+  nickname?: string | null;
+  tags: string[];
+}
+</code></pre>
+
+<h3>z.infer vs. an Extracted Type — When to Use Which</h3>
+<p>These solve different problems:</p>
+<pre><code>// z.infer — derives the type from the schema VALUE.
+// Requires the schema (and Zod) to exist at the point of use.
+type User = z.infer&lt;typeof UserSchema&gt;;
+
+// Extracted type — a standalone declaration with no runtime tie.
+// Use when the consumer must NOT depend on Zod, or when you only
+// ship types (a library's public .d.ts, a shared types package).
+interface User { /* ... */ }
+</code></pre>
+<p>Rule of thumb: inside the app that owns the schema, prefer <code>z.infer</code> so the type can never drift from the validator. When you need to <em>publish</em> or <em>share</em> the shape beyond that boundary, extract a standalone type.</p>
+
+<h3>Input vs. Output Types — the Transform Gotcha</h3>
+<p>A Zod schema can describe two different shapes when it transforms, coerces, or defaults a value. <code>z.infer</code> is an alias for <code>z.output</code> — the shape <em>after</em> parsing. The shape you pass <em>in</em> is <code>z.input</code>.</p>
+<pre><code>const Schema = z.object({
+  // input: string, output: Date
+  createdAt: z.string().datetime().transform(s =&gt; new Date(s)),
+  // input: optional, output: always present (default applied)
+  role: z.string().default('user'),
+  // input: string | number, output: number
+  count: z.coerce.number(),
+});
+
+type Input  = z.input&lt;typeof Schema&gt;;
+//  { createdAt: string; role?: string; count: string | number }
+type Output = z.output&lt;typeof Schema&gt;;
+//  { createdAt: Date; role: string; count: number }
+</code></pre>
+<p>When you extract types, decide which side you mean: the <strong>input</strong> type for request bodies/forms (what a caller sends), the <strong>output</strong> type for what your code receives after validation. Mixing them up is the most common source of "the types look wrong" confusion.</p>
+
+<h3>How Each Construct Maps</h3>
+<ul>
+  <li><code>z.string()</code>, <code>z.number()</code>, <code>z.boolean()</code> → <code>string</code>, <code>number</code>, <code>boolean</code></li>
+  <li><code>.optional()</code> → <code>field?: T</code> (key may be absent)</li>
+  <li><code>.nullable()</code> → <code>T | null</code> (present, may be null)</li>
+  <li><code>.nullish()</code> → <code>field?: T | null</code> (absent or null)</li>
+  <li><code>z.enum([...])</code> → a string-literal union</li>
+  <li><code>z.literal('x')</code> → <code>'x'</code></li>
+  <li><code>z.array(T)</code> → <code>T[]</code>; <code>z.record(K, V)</code> → <code>Record&lt;K, V&gt;</code></li>
+  <li><code>z.object({...})</code> → an <code>interface</code> (nested objects become their own named interfaces)</li>
+  <li><code>z.union([...])</code> → <code>A | B</code>; <code>z.discriminatedUnion('type', [...])</code> → a discriminated union</li>
+  <li><code>z.tuple([...])</code> → <code>[A, B]</code></li>
+</ul>
+
+<h3>What Does NOT Survive the Trip — by Design</h3>
+<p>TypeScript types describe <em>shape</em>, not <em>runtime constraints</em>. So refinements that live only at runtime have no type-level equivalent and are intentionally dropped:</p>
+<pre><code>z.string().min(3).max(20).regex(/^[a-z]+$/)
+// → just: string   (min/max/regex are runtime checks, not types)
+
+z.number().int().positive()
+// → just: number   ('integer' and 'positive' aren't TS types)
+
+z.string().refine(isValidIban)
+// → just: string   (custom refinements can't be expressed in a type)
+</code></pre>
+<p>This is correct, not lossy: those rules belong on the Zod schema, which stays the source of truth for validation. If you need the constraint enforced, keep validating with Zod and use the extracted type only for shape. Branded types (<code>z.string().brand('Email')</code>) are the one way to carry a distinction into the type system.</p>
+
+<h3>Discriminated Unions</h3>
+<pre><code>// Input
+const Event = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('click'), x: z.number(), y: z.number() }),
+  z.object({ type: z.literal('key'), key: z.string() }),
+]);
+
+// Output
+type Event =
+  | { type: 'click'; x: number; y: number }
+  | { type: 'key'; key: string };
+
+// Narrowing works exactly as with hand-written unions
+function handle(e: Event) {
+  if (e.type === 'click') console.log(e.x, e.y);
+}
+</code></pre>
+
+<h3>Common Pitfalls</h3>
+<ul>
+  <li><strong>Assuming the type enforces validation:</strong> a <code>User</code> interface won't reject <code>age: -5</code>. Keep the Zod schema for runtime checks; the type is shape only.</li>
+  <li><strong>Picking the wrong side of a transform:</strong> if a field is <code>z.coerce.number()</code>, the request body is a <em>string</em>. Use <code>z.input</code> for the inbound type.</li>
+  <li><strong>Recursive schemas:</strong> a self-referential schema needs an explicit type plus <code>z.lazy()</code>. Define the interface first, then annotate the schema with it.</li>
+  <li><strong>Flattening nested objects:</strong> prefer extracting named sub-interfaces (<code>Address</code>, <code>Contact</code>) over one giant inline type — easier to reuse and read.</li>
+</ul>
+
+<h3>FAQ</h3>
+<p><strong>Q: Why not just use <code>z.infer</code> everywhere?</strong><br>
+A: Inside the code that owns the schema, do. Extract standalone types when a consumer must not depend on Zod — a published package's public types, a shared <code>types</code> package, or input to a tool that doesn't run Zod.</p>
+
+<p><strong>Q: My extracted type doesn't match what I send to the API. Why?</strong><br>
+A: You're likely looking at the output type while sending the input shape. Transforms, <code>.default()</code>, and <code>z.coerce</code> make <code>z.input</code> and <code>z.output</code> differ. Use the input side for request payloads.</p>
+
+<p><strong>Q: Where did my <code>.min()</code> / <code>.email()</code> rules go?</strong><br>
+A: They're runtime constraints with no TypeScript equivalent, so they don't appear in the type. They remain enforced by the Zod schema. Use <code>.brand()</code> if you want to carry a nominal distinction (e.g. an <code>Email</code> branded string) into the type system.</p>
+
+<p><strong>Q: Does this handle recursive or mutually-referential schemas?</strong><br>
+A: Mechanical extraction covers the common cases. Recursive shapes need an explicit interface plus <code>z.lazy()</code> on the schema side — treat the output as a scaffold and wire the recursion by hand.</p>
+
+<p><strong>Q: Is anything uploaded?</strong><br>
+A: No. Conversion runs entirely in your browser — your schemas never leave the machine.</p>
