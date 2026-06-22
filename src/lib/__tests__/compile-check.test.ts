@@ -770,3 +770,125 @@ describe('Semantic accuracy — field type inference', () => {
     expect(out).toMatch(/score.*nullable/);
   });
 });
+
+// ── Edge-case corpus — broad structural coverage through the TS + Zod compile gate ──
+//
+// The 3 hand-made fixtures above (ORDER/UNION/TREE) miss whole structural shapes —
+// which is exactly how the discriminated-union / record codegen bugs shipped. This
+// corpus exercises the shapes that have historically broken codegen and a wider net
+// of edge structures, then compiles them with the REAL toolchain (tsc for TS + Zod —
+// always runnable, and the flagship targets). Batched into one tsc invocation per
+// language for speed; on failure tsc names the offending fixture file.
+//
+// TODO(corpus-crosslang): extend this corpus to the compiled targets (go/rust/…) in
+// compiler-check.yml. TS+Zod is the 80/20; cross-language corpus is a follow-up.
+const EDGE_CORPUS: { name: string; json: any; rootName: string }[] = [
+  // Discriminated union with NESTED OBJECT fields (regression: dangling classRef).
+  { name: 'DuNested', rootName: 'Shape', json: [
+    { type: 'circle', center: { x: 1, y: 2 }, radius: 5 },
+    { type: 'circle', center: { x: 3, y: 4 }, radius: 6 },
+    { type: 'rect', topLeft: { x: 0, y: 0 }, width: 10, height: 20 },
+    { type: 'rect', topLeft: { x: 5, y: 5 }, width: 1, height: 2 },
+  ] },
+  // Discriminated union with NON-IDENTIFIER discriminator values (regression: invalid ids).
+  { name: 'DuUnsafeDiscriminator', rootName: 'Event', json: [
+    { event_type: 'page-view', url: 'https://x/a', dwell: 1 },
+    { event_type: 'page-view', url: 'https://x/b', dwell: 2 },
+    { event_type: 'click', target: 'btn', x: 1 },
+    { event_type: 'click', target: 'lnk', x: 2 },
+  ] },
+  // Top-level dynamic-keyed map (regression: root type dropped).
+  { name: 'TopLevelRecord', rootName: 'Users', json: {
+    user_1: { name: 'a', email: 'a@x.com' },
+    user_2: { name: 'b', email: 'b@x.com' },
+  } },
+  // Record whose values are themselves records.
+  { name: 'NestedRecord', rootName: 'Config', json: {
+    feature_flags: { flag_1: true, flag_2: false, flag_3: true },
+    quotas: { tier_1: 100, tier_2: 200 },
+  } },
+  // Deep nesting.
+  { name: 'DeepNesting', rootName: 'Deep', json: {
+    a: { b: { c: { d: { e: { f: 'leaf', n: 1 } } } } },
+  } },
+  // Heterogeneous primitive array (tuple) + array of objects.
+  { name: 'MixedArrays', rootName: 'Mixed', json: {
+    coord: ['lat', 35.6, true],
+    points: [{ x: 1, y: 2 }, { x: 3, y: 4 }],
+  } },
+  // Kebab / header-style / leading-digit / unicode / spaced keys (safeKey path).
+  { name: 'AwkwardKeys', rootName: 'Headers', json: {
+    'content-type': 'application/json',
+    'x-api-key': 'secret',
+    '2fa_enabled': true,
+    'ユーザー名': 'taro',
+    'has space': 1,
+  } },
+  // Null-heavy (any / nullable inference).
+  { name: 'NullHeavy', rootName: 'Nullable', json: {
+    id: '1', deleted_at: null, archived_at: null, last_login_at: null, note: null,
+  } },
+  // Small enums vs open vocabulary (must not over-fit country into z.enum).
+  { name: 'Enums', rootName: 'Rows', json: [
+    { status: 'active', role: 'admin', country: 'US' },
+    { status: 'inactive', role: 'user', country: 'JP' },
+    { status: 'pending', role: 'guest', country: 'GB' },
+    { status: 'active', role: 'user', country: 'FR' },
+  ] },
+  // Empty structures.
+  { name: 'EmptyStructures', rootName: 'Empties', json: {
+    obj: {}, arr: [], str: '', nested: { also_empty: {} },
+  } },
+  // Self-referential tree (z.lazy / recursive type path).
+  { name: 'RecursiveTree', rootName: 'Node', json: {
+    id: '1', label: 'root', children: [{ id: '2', label: 'c', children: [] }],
+  } },
+  // Large array → array sampling path.
+  { name: 'LargeArray', rootName: 'Logs', json:
+    Array.from({ length: 1200 }, (_, i) => ({ seq: i, level: i % 3 === 0 ? 'info' : 'warn', msg: 'm' + i })) },
+];
+
+describe('Edge-case corpus — TypeScript compile gate', () => {
+  it('every corpus fixture generates TypeScript that tsc accepts', () => {
+    const dir = join(tmpdir(), `typemorph-ts-corpus-${Date.now()}`);
+    mkdirSync(dir, { recursive: true });
+    const files: string[] = [];
+    try {
+      for (const { name, json, rootName } of EDGE_CORPUS) {
+        const out = runEngine(json, 'typescript', '', { rootName });
+        const f = join(dir, `${name}.ts`);
+        writeFileSync(f, out, 'utf8');
+        files.push(f);
+      }
+      execSync(
+        `npx tsc --noEmit --strict --target ES2020 --moduleResolution node ${files.map(f => `"${f}"`).join(' ')}`,
+        { stdio: 'pipe', timeout: 120000, cwd: PROJECT_ROOT }
+      );
+    } finally {
+      try { rmSync(dir, { recursive: true, force: true }); } catch {}
+    }
+  }, 120000);
+});
+
+describe('Edge-case corpus — Zod compile gate', () => {
+  it('every corpus fixture generates Zod that tsc accepts (real zod types)', () => {
+    // Under PROJECT_ROOT so tsc resolves node_modules/zod.
+    const dir = join(PROJECT_ROOT, `.tmp-zod-corpus-${Date.now()}`);
+    mkdirSync(dir, { recursive: true });
+    const files: string[] = [];
+    try {
+      for (const { name, json, rootName } of EDGE_CORPUS) {
+        const out = runEngine(json, 'zod', '', { rootName });
+        const f = join(dir, `${name}.ts`);
+        writeFileSync(f, out, 'utf8');
+        files.push(f);
+      }
+      execSync(
+        `npx tsc --noEmit --strict --target ES2020 --module esnext --moduleResolution bundler --esModuleInterop ${files.map(f => `"${f}"`).join(' ')}`,
+        { stdio: 'pipe', timeout: 120000, cwd: PROJECT_ROOT }
+      );
+    } finally {
+      try { rmSync(dir, { recursive: true, force: true }); } catch {}
+    }
+  }, 120000);
+});
