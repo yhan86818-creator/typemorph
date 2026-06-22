@@ -45,6 +45,7 @@ import SuperBatchModal from './SuperBatchModal';
 import { loadLibrary, saveToLibrary, deleteFromLibrary, renameInLibrary, autoName, type LibraryEntry } from '@/lib/schemaLibrary';
 import dynamic from 'next/dynamic';
 import { SmartDiffView } from '@/components/SmartDiffView';
+import { ValidateOutputView } from '@/components/ValidateOutputView';
 import { TypeDriftView } from '@/components/TypeDriftView';
 import { FullStackArchitectView } from '@/components/FullStackArchitectView';
 import { sqlToMermaidERGen } from '@/lib/generators-extended';
@@ -327,7 +328,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
   }, [isLeftCollapsed, leftWidth]);
 
   useEffect(() => {
-    const isFullscreenTab = outputTab === 'architect' || outputTab === 'diff' || outputTab === 'type-drift' || outputTab === 'zod-migrate' || outputTab === 'ts-to-zod';
+    const isFullscreenTab = outputTab === 'architect' || outputTab === 'diff' || outputTab === 'type-drift' || outputTab === 'zod-migrate' || outputTab === 'ts-to-zod' || outputTab === 'validate';
     if (isFullscreenTab) {
       if (!isLeftCollapsed) {
         setIsLeftCollapsed(true);
@@ -460,7 +461,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
     csharp: 'cs', protobuf: 'proto', graphql: 'graphql', sql: 'sql',
     jsonschema: 'schema.json', mock: 'json', json: 'json', er: 'mmd', doc: 'md',
   };
-  const VISUAL_TABS = new Set(['graph', 'impact', 'reverse', 'diff', 'type-drift', 'architect', 'ui', 'saved', 'env-diff', 'zod-migrate', 'ts-to-zod']);
+  const VISUAL_TABS = new Set(['graph', 'impact', 'reverse', 'diff', 'type-drift', 'architect', 'ui', 'saved', 'env-diff', 'zod-migrate', 'ts-to-zod', 'validate']);
 
   const handleDownload = () => {
     const content = outputs[outputTab];
@@ -1526,6 +1527,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
       { id: 'diff', label: 'Diff' },
     ] : []),
     { id: 'ts-to-zod', label: 'TS → Zod' },
+    { id: 'validate', label: '✓ Validate' },
     { id: 'java', label: 'Java' },
     { id: 'csharp', label: 'C#' },
     { id: 'dart', label: 'Dart' },
@@ -2858,6 +2860,10 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
               ) : outputTab === 'ts-to-zod' ? (
                 <div className="flex-1 min-h-0 overflow-hidden">
                   <TsToZodView />
+                </div>
+              ) : outputTab === 'validate' ? (
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <ValidateOutputView />
                 </div>
               ) : outputTab === 'diff' ? (
                 <div className="flex-1 min-h-0 overflow-hidden">

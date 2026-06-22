@@ -1,6 +1,6 @@
 {
   "name": "typemorph-cli",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "description": "Schema engineering CLI — convert JSON/YAML/SQL/OpenAPI to 160+ typed code formats, grade schema quality, and detect breaking changes.",
   "keywords": [
     "json",
@@ -15,7 +15,11 @@
     "prisma",
     "quality",
     "diff",
-    "breaking-changes"
+    "breaking-changes",
+    "validate",
+    "validation",
+    "llm",
+    "structured-output"
   ],
   "homepage": "https://typemorph.dev",
   "repository": {

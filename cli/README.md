@@ -110,6 +110,45 @@ typemorph diff v1.json v2.json --breaking-only
 |------|-------------|
 | `--breaking-only` | Only show breaking changes (severity: error) |
 
+### `typemorph validate <schema> <outputs>`
+
+Validate real JSON outputs (LLM structured output, API responses) against a Zod schema. Reports per-record pass/fail with human-readable diagnosis. Exits with code 1 if any output fails — useful in CI. 100% local: nothing is uploaded.
+
+```bash
+# Validate a batch of logged outputs against your schema
+typemorph validate schema.ts responses.jsonl
+
+# No schema yet? Infer one from known-good outputs
+typemorph validate --infer good-responses.jsonl --out schema.ts
+```
+
+```
+  TypeMorph validate  10 outputs
+
+  ✓ 8 passed   ✗ 2 failed
+
+  ✗ output #3
+      "confidence": expected number, got string ("0.92")
+        → model returned a quoted number → use z.coerce.number()
+  ✗ output #7
+      missing required field "sources" (expected string[])
+
+  wrong type ×1  ·  missing field ×1
+```
+
+`<schema>` is a Zod source file (`.ts`/`.js`) or a JSON Schema. `<outputs>` is a JSON array, a single JSON object, or `.jsonl` (one object per line).
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--infer` | Infer a Zod schema from the outputs instead of validating |
+| `--out <file>` | Write the inferred schema to a file (with `--infer`) |
+| `--strict` | Treat warnings (extra fields, enum/format drift) as failures |
+| `--format <fmt>` | Report format: `pretty` (default), `json`, or `github` (PR-comment markdown) |
+
+Structural + advisory: it checks types, required fields, nulls, and shapes, and flags enum/format drift as warnings (never hard-failing an unknown value). A fast safety net — not a replacement for the Zod schema you own.
+
 ### `typemorph list`
 
 Print all available output formats.

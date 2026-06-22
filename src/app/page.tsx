@@ -66,6 +66,18 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
   }, []);
 
   useEffect(() => {
+    // Deep-link from landing pages: /?app=<tab> opens the Workbench on that tab
+    // (e.g. /?app=validate from the LLM Output Validator landing page).
+    try {
+      const tab = new URLSearchParams(window.location.search).get('app');
+      if (tab) {
+        setView('app');
+        setOutputTab(tab);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
     setTimeout(() => {
       setMounted(true);
       if (localStorage.getItem('typemorph_pro') === 'true') setIsPro(true);

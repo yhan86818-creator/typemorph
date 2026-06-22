@@ -78,6 +78,45 @@ const computeItemName = (arraySchema: Schema, parentName: string): string => {
   return toPascalCase(parentName + 'Item');
 };
 
+// A discriminated-union variant is emitted field-by-field via convertToASTType, but its
+// nested object / array-of-object / record-of-object fields become classRef references
+// (`${VariantName}_${field}`) that the DU emit paths (ts/zod/type-guard) never actually
+// declare — producing a dangling reference that breaks the generated code. Detect that so
+// callers can gracefully fall back to the (valid) merged object schema instead.
+const schemaNeedsNestedClass = (s: Schema | undefined): boolean => {
+  if (!s) return false;
+  if (s.type === 'object') {
+    if (s.recordValueType) return schemaNeedsNestedClass(s.recordValueType);
+    return !!s.fields && Object.keys(s.fields).length > 0;
+  }
+  if (s.type === 'array') return schemaNeedsNestedClass(s.itemType);
+  return false;
+};
+const variantsHaveNestedClass = (variants: Record<string, Schema>): boolean =>
+  Object.values(variants).some(v =>
+    v.type === 'object' && v.fields
+      ? Object.values(v.fields).some(schemaNeedsNestedClass)
+      : false
+  );
+
+// Identifier-safe PascalCase suffixes for discriminated-union variants, derived from the
+// discriminator VALUES (e.g. "page-view" → "PageView"). foldIdent folds out characters that
+// are illegal in identifiers; a uniqueness guard keeps two values that fold to the same token
+// (e.g. "page-view" / "page_view") from colliding into duplicate declarations.
+const duVariantSuffixes = (values: string[]): Map<string, string> => {
+  const used = new Set<string>();
+  const map = new Map<string, string>();
+  for (const v of values) {
+    const base = foldIdent(v, 'pascal');
+    let s = base;
+    let n = 2;
+    while (used.has(s)) s = `${base}${n++}`;
+    used.add(s);
+    map.set(v, s);
+  }
+  return map;
+};
+
 const findDiscriminatedSchemas = (
   schema: Schema,
   rootName: string
@@ -88,6 +127,13 @@ const findDiscriminatedSchemas = (
   const register = (arraySchema: Schema, parentName: string) => {
     const it = arraySchema.itemType;
     if (it?.discriminatorField && it?.discriminatedVariants) {
+      // Graceful degradation: a variant carrying a nested object/array-of-object/record-of-object
+      // field would reference classes the DU emit path never declares. Skip DU detection so the
+      // generator falls back to the merged object schema (which schemaToAST does emit fully).
+      // TODO(du-nested): a full fix would emit the nested variant classes (running each variant
+      // through the AST pipeline with collision-safe naming) so the discriminated union survives.
+      // Deferred until nested-object discriminated unions prove to be a real input pattern.
+      if (variantsHaveNestedClass(it.discriminatedVariants)) return;
       result.set(computeItemName(arraySchema, parentName), {
         discriminatorField: it.discriminatorField,
         variants: it.discriminatedVariants,
@@ -165,6 +211,20 @@ export const tsGen = {
           const itemAst = convertToASTType(schema.itemType, name, 'Item');
           res += `export type ${toPascalCase(name)} = ${printASTType(itemAst)}[];\n\n`;
         }
+      } else if (schema.type === 'object' && schema.recordValueType) {
+        // トップレベルが動的キー・マップ(record)の場合は Record<string, V> を出力。
+        // これが無いと値型(RootValue)だけが孤立し、ルート型そのものが欠落する。
+        const rootPascal = toPascalCase(name);
+        const rv = schema.recordValueType;
+        let valStr: string;
+        if (rv.type === 'object' && rv.fields) {
+          // schemaToAST が emit する値クラス名(resolveNameCollisions と同じ PascalCase 化)に揃える
+          const raw = rv._sharedTypeName ?? `${rootPascal}_Value`;
+          valStr = raw.includes('_') ? raw.split('_').map(p => toPascalCase(p)).join('') : toPascalCase(raw);
+        } else {
+          valStr = printASTType(convertToASTType(rv, rootPascal, 'Value'));
+        }
+        res += `export type ${rootPascal} = Record<string, ${valStr}>;\n\n`;
       }
     }
 
@@ -173,13 +233,13 @@ export const tsGen = {
       const du = discriminatedMap.get(cls.name);
       if (du) {
         // Discriminated union: emit one interface per variant + a union type alias
+        const suffixMap = duVariantSuffixes(Object.keys(du.variants));
         for (const [value, variantSchema] of Object.entries(du.variants)) {
-          const suffix = toPascalCase(value);
-          const variantInterfaceName = `${cls.name}${suffix}`;
+          const variantInterfaceName = `${cls.name}${suffixMap.get(value)!}`;
           res += `export interface ${variantInterfaceName} {\n`;
           for (const [fk, fv] of Object.entries(variantSchema.fields ?? {})) {
             if (fk === du.discriminatorField) {
-              res += `  ${safeKey(fk)}: "${value}";\n`;
+              res += `  ${safeKey(fk)}: ${JSON.stringify(value)};\n`;
             } else {
               const fvAst = convertToASTType(fv, variantInterfaceName, fk);
               const tsType = printASTType(fvAst);
@@ -190,7 +250,7 @@ export const tsGen = {
           }
           res += `}\n\n`;
         }
-        const variantNames = Object.keys(du.variants).map(v => `${cls.name}${toPascalCase(v)}`);
+        const variantNames = Object.keys(du.variants).map(v => `${cls.name}${suffixMap.get(v)!}`);
         res += `export type ${cls.name} = ${variantNames.join(' | ')};\n\n`;
         continue;
       }
@@ -439,9 +499,10 @@ export const zodGen = {
       const du = discriminatedMap.get(cls.name);
       if (du) {
         // Discriminated union: emit z.literal() per variant + z.discriminatedUnion()
+        const suffixMap = duVariantSuffixes(Object.keys(du.variants));
         const variantSchemaVarNames: string[] = [];
         for (const [value, variantSchema] of Object.entries(du.variants)) {
-          const suffix = toPascalCase(value);
+          const suffix = suffixMap.get(value)!;
           const variantCamel = toCamelCase(cls.name) + suffix;
           const variantPascal = cls.name + suffix;
           variantSchemaVarNames.push(`${variantCamel}Schema`);
@@ -449,7 +510,7 @@ export const zodGen = {
           res += `export const ${variantCamel}Schema = z.object({\n`;
           for (const [fk, fv] of Object.entries(variantSchema.fields ?? {})) {
             if (fk === du.discriminatorField) {
-              res += `  ${safeKey(fk)}: z.literal("${value}"),\n`;
+              res += `  ${safeKey(fk)}: z.literal(${JSON.stringify(value)}),\n`;
             } else {
               const fvAst = convertToASTType(fv, variantPascal, fk);
               let zType = printZodASTType(fvAst, cyclicClassRefs, modeOptions);
@@ -622,6 +683,23 @@ export const zodGen = {
       const rootPascal = toPascalCase(name);
       const rootCamel = toCamelCase(rootPascal);
       res += `export const ${rootCamel}Schema = z.array(${toCamelCase(itemName)}Schema);\n`;
+      res += `export type ${rootPascal} = z.infer<typeof ${rootCamel}Schema>;\n\n`;
+    }
+
+    // トップレベルが動的キー・マップ(record)の場合は z.record エイリアスを出力。
+    // これが無いと値型(RootValue)だけが孤立し、ルート型そのものが欠落する。
+    // TODO(root-record): the same top-level-record gap exists in the other generators
+    // (go/python/rust/java/…) which still emit only the value type. Fixed here for the
+    // flagship zod/ts targets; extend to the rest if a user hits it.
+    if (schema.type === 'object' && schema.recordValueType) {
+      const rootPascal = toPascalCase(name);
+      const rootCamel = toCamelCase(rootPascal);
+      const valAst = convertToASTType(schema.recordValueType, rootPascal, 'Value');
+      const valExpr = printZodASTType(valAst, cyclicClassRefs, modeOptions);
+      const recExpr = options.zodVersion === 'v3'
+        ? `z.record(${valExpr})`
+        : `z.record(z.string(), ${valExpr})`;
+      res += `export const ${rootCamel}Schema = ${recExpr};\n`;
       res += `export type ${rootPascal} = z.infer<typeof ${rootCamel}Schema>;\n\n`;
     }
 
@@ -2046,9 +2124,9 @@ export const typeGuardGen = {
     for (const cls of astClasses) {
       const du = discriminatedMap.get(cls.name);
       if (du) {
+        const suffixMap = duVariantSuffixes(Object.keys(du.variants));
         for (const [value, variantSchema] of Object.entries(du.variants)) {
-          const suffix = toPascalCase(value);
-          const variantName = `${cls.name}${suffix}`;
+          const variantName = `${cls.name}${suffixMap.get(value)!}`;
           const variantFields = Object.entries(variantSchema.fields ?? {}).map(([fk, fv]) => {
             if (fk === du.discriminatorField) {
               return { name: fk, fieldType: { kind: 'enum' as const, enumValues: [value] }, isOptional: false, isNullable: false };
@@ -2057,7 +2135,7 @@ export const typeGuardGen = {
           });
           emitGuard(variantName, variantFields);
         }
-        const variantChecks = Object.keys(du.variants).map(v => `is${cls.name}${toPascalCase(v)}(obj)`);
+        const variantChecks = Object.keys(du.variants).map(v => `is${cls.name}${suffixMap.get(v)!}(obj)`);
         lines.push(`export function is${cls.name}(obj: unknown): obj is ${cls.name} {`);
         lines.push(`  return ${variantChecks.join(' || ')};`);
         lines.push(`}`);

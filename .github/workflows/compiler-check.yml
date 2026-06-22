@@ -10,9 +10,20 @@ name: Compiler Verification
 on:
   push:
     branches: [ "main", "master" ]
+    # Generated output depends on the whole inference→AST→generator pipeline, not just
+    # the generator files. A bug in ast.ts / engine.ts / recursive.ts / a parser changes
+    # what every language emits, so they must trigger the cross-language compile check too.
     paths:
       - 'src/lib/generators.ts'
       - 'src/lib/generators-extended.ts'
+      - 'src/lib/ast.ts'
+      - 'src/lib/engine.ts'
+      - 'src/lib/recursive.ts'
+      - 'src/lib/types.ts'
+      - 'src/lib/parsers.ts'
+      - 'src/lib/openapi-parser.ts'
+      - 'src/lib/jsonschema-parser.ts'
+      - 'src/lib/field-format-hints.ts'
       - 'src/lib/__tests__/compile-check.test.ts'
       - '.github/workflows/compiler-check.yml'
   pull_request:
@@ -20,6 +31,14 @@ on:
     paths:
       - 'src/lib/generators.ts'
       - 'src/lib/generators-extended.ts'
+      - 'src/lib/ast.ts'
+      - 'src/lib/engine.ts'
+      - 'src/lib/recursive.ts'
+      - 'src/lib/types.ts'
+      - 'src/lib/parsers.ts'
+      - 'src/lib/openapi-parser.ts'
+      - 'src/lib/jsonschema-parser.ts'
+      - 'src/lib/field-format-hints.ts'
       - 'src/lib/__tests__/compile-check.test.ts'
       - '.github/workflows/compiler-check.yml'
 
