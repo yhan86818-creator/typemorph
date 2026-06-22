@@ -219,11 +219,78 @@ export function LandingView({ onSelect }: LandingViewProps) {
         <div className="space-y-40 mb-40">
           <div className="text-center max-w-2xl mx-auto">
             <h2 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900 dark:text-white leading-tight">
-              Beyond Zod — every schema format
+              A workbench, not a converter
             </h2>
             <p className="text-lg text-slate-500 dark:text-slate-400 font-medium mt-4">
-              The same semantic intelligence that powers Zod output also compiles to 17 other targets — TypeScript, Go, Rust, Prisma, and more.
+              Generate the schema, validate real LLM &amp; API output against it, then reuse the same semantic inference across 18 targets — all 100% local.
             </p>
+          </div>
+
+          {/* Pillar 0: LLM Output Validator (NEW — featured first) */}
+          <div className="grid md:grid-cols-12 gap-12 items-center">
+            <div className="md:col-span-5 space-y-6">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-widest border border-emerald-200 dark:border-emerald-500/20">
+                New
+              </div>
+              <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                Validate LLM output <br />
+                <span>before it breaks prod.</span>
+              </h3>
+              <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                Bump the model and your JSON quietly changes shape — a number comes back as a string, a required field goes missing in 2 of 10 calls. Paste your OpenAI / Claude / Gemini outputs and TypeMorph shows exactly what drifted, or infers a Zod schema from a few good responses. No API keys. Your data never leaves your machine.
+              </p>
+              <ul className="space-y-3 font-semibold text-slate-600 dark:text-slate-300">
+                <li className="flex items-center gap-3 text-sm">
+                  <CheckCircle2 size={16} className="text-slate-900 dark:text-white" />
+                  Per-record pass/fail with human-readable diagnosis
+                </li>
+                <li className="flex items-center gap-3 text-sm">
+                  <CheckCircle2 size={16} className="text-slate-900 dark:text-white" />
+                  Infer a schema from known-good outputs — zero setup
+                </li>
+              </ul>
+              <a
+                href="/tools/llm-output-validator"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-black bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-80 transition-opacity"
+              >
+                Try the validator <ChevronRight size={14} />
+              </a>
+            </div>
+            <div className="md:col-span-7 relative group">
+              <div className="relative p-[1px] bg-gradient-to-br from-emerald-300/40 via-slate-200/20 to-slate-300/10 dark:from-emerald-600/30 dark:via-slate-700/20 dark:to-slate-800/10 rounded-2xl shadow-2xl shadow-black/10 dark:shadow-black/40 overflow-hidden">
+                <div className="rounded-2xl overflow-hidden bg-slate-950 font-mono text-xs leading-relaxed">
+                  <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800">
+                    <div className="text-[11px] font-semibold text-slate-200">LLM Output Validator</div>
+                    <div className="text-[10px] font-mono">
+                      <span className="text-emerald-400">8 pass</span>
+                      <span className="text-slate-600"> / </span>
+                      <span className="text-red-400">2 fail</span>
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-2.5 text-[10px] leading-5">
+                    <div className="text-[11px]">
+                      <span className="text-emerald-400 font-bold">✓ 8 passed</span>
+                      <span className="text-slate-600">   </span>
+                      <span className="text-red-400 font-bold">✗ 2 failed</span>
+                      <span className="text-slate-600"> of 10</span>
+                    </div>
+                    <div>
+                      <div className="text-red-400">✗ output #3</div>
+                      <div className="text-slate-300 pl-4">&quot;confidence&quot;: expected number, got string (&quot;0.92&quot;)</div>
+                      <div className="text-slate-500 pl-4">→ use z.coerce.number()</div>
+                    </div>
+                    <div>
+                      <div className="text-red-400">✗ output #7</div>
+                      <div className="text-slate-300 pl-4">missing required field &quot;sources&quot; (expected string[])</div>
+                      <div className="text-amber-400 pl-4">⚠ unexpected field &quot;reasoning&quot; appeared</div>
+                    </div>
+                    <div className="pt-1 text-slate-600 border-t border-slate-800">
+                      wrong type ×1 · missing field ×1 · extra field ×1
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Pillar 1: Multi-Language Output */}
