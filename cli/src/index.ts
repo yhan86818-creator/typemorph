@@ -10,6 +10,8 @@ import { isJSONSchema, parseJSONSchema } from '../../src/lib/jsonschema-parser';
 import { analyzeQuality } from '../../src/lib/quality';
 import { compareSchemaTypes, type SchemaDiff } from '../../src/lib/diff';
 import { generateSampleJson } from '../../src/lib/reverse';
+import { parseZodToSchema } from '../../src/lib/parsers';
+import { validateOutputs, inferExpectedSchema, type OutputIssue } from '../../src/lib/validate';
 import type { Schema } from '../../src/lib/types';
 
 // ── terminal colors ──────────────────────────────────────────────────────────
@@ -94,14 +96,20 @@ ${bold('USAGE')}
   typemorph reverse  [file.ts]        Generate JSON sample from TypeScript interfaces
   typemorph quality  [file]           Grade schema quality (A–F)
   typemorph diff     <old> <new>      Detect breaking changes
+  typemorph validate <schema> <out>   Validate LLM/API JSON output against a Zod schema
+  typemorph validate --infer <out>    Infer a Zod schema from known-good outputs
   typemorph list                      Show all formats
 
 ${bold('OPTIONS')}
-  --root, -r <name>     Root class name for convert (default: Root)
+  --root, -r <name>     Root class name for convert / infer (default: Root)
   --samples             Treat a single array input as samples of one schema (convert)
   --schema <name>       Target a specific named schema (OpenAPI/JSON Schema)
   --min-grade <grade>   Fail (exit 1) if quality grade is below threshold (quality)
   --breaking-only       Only show breaking changes (diff)
+  --infer               Infer a schema from good outputs instead of validating (validate)
+  --strict              Treat warnings (extra fields, drift) as failures (validate)
+  --out <file>          Write inferred schema to a file (validate --infer)
+  --format <fmt>        Report format: pretty | json | github (validate)
   --json                Output results as JSON (quality, diff)
   --version, -v         Show version
   --help,    -h         Show this help
@@ -122,6 +130,9 @@ ${bold('EXAMPLES')}
   typemorph diff      v1.yaml v2.yaml --schema User
   typemorph diff      v1.json v2.json --breaking-only
   typemorph diff      v1.json v2.json --json
+  typemorph validate  schema.ts responses.jsonl
+  typemorph validate  schema.ts outputs.json --strict --format github
+  typemorph validate  --infer good-outputs.jsonl --out schema.ts
   typemorph reverse   models.ts
   cat types.ts | typemorph reverse
   typemorph list
@@ -322,6 +333,94 @@ function cmdDiff(oldText: string, newText: string, opts: { schema?: string; brea
   if (totalBreaking > 0) process.exit(1);
 }
 
+// ── validate command ─────────────────────────────────────────────────────────
+// Load the *expected* schema: a Zod source (.ts/.js or anything containing `z.`)
+// goes through the reverse parser; otherwise treat as JSON Schema / sample JSON.
+function loadExpectedSchema(file: string): Schema {
+  const text = readFile(file);
+  const looksZod = /\.(ts|js|mts|cts)$/i.test(file) || /\bz\s*\./.test(text);
+  if (looksZod) {
+    const schema = parseZodToSchema(text);
+    if (!schema) {
+      console.error(red(`typemorph validate: could not parse a Zod schema from "${file}"`));
+      process.exit(1);
+    }
+    return schema;
+  }
+  return toSchema(text);
+}
+
+// Read output records: .jsonl = one JSON object per line; otherwise a JSON array
+// (each element is a record) or a single JSON object.
+function readRecords(file: string): unknown[] {
+  const text = readFile(file);
+  if (/\.jsonl$/i.test(file)) {
+    return text.split('\n').map(l => l.trim()).filter(Boolean).map((line, i) => {
+      try { return JSON.parse(line); }
+      catch { console.error(red(`typemorph validate: ${file} line ${i + 1} is not valid JSON`)); process.exit(1); }
+    });
+  }
+  const { obj } = parseInput(text);
+  return Array.isArray(obj) ? obj : [obj];
+}
+
+function cmdValidate(expected: Schema, records: unknown[], opts: { strict: boolean; format: string }) {
+  const report = validateOutputs(expected, records, { strict: opts.strict });
+
+  if (opts.format === 'json') {
+    process.stdout.write(JSON.stringify(report, null, 2) + '\n');
+  } else if (opts.format === 'github') {
+    const lines: string[] = [];
+    lines.push(`## TypeMorph · LLM output validation`);
+    lines.push('');
+    lines.push(`**${report.passed} / ${report.total} passed**${report.failed ? ` · ${report.failed} failed` : ''}`);
+    if (report.issues.length > 0) {
+      lines.push('');
+      lines.push('| output | field | problem |');
+      lines.push('|---|---|---|');
+      for (const it of report.issues) {
+        const icon = it.severity === 'error' ? '🔴' : '🟡';
+        lines.push(`| #${it.recordIndex} | \`${it.path || 'root'}\` | ${icon} ${it.message.replace(/\|/g, '\\|')} |`);
+      }
+    }
+    if (report.summary.length > 0) {
+      lines.push('');
+      lines.push(report.summary.map(s => `${s.label} ×${s.count}`).join(' · '));
+    }
+    process.stdout.write(lines.join('\n') + '\n');
+  } else {
+    console.log(`\n  ${bold('TypeMorph validate')}  ${dim(`${report.total} output${report.total === 1 ? '' : 's'}`)}\n`);
+    const passStr = report.passed > 0 ? green(`✓ ${report.passed} passed`) : dim('✓ 0 passed');
+    const failStr = report.failed > 0 ? red(`✗ ${report.failed} failed`) : dim('✗ 0 failed');
+    console.log(`  ${passStr}   ${failStr}\n`);
+
+    const byRecord = new Map<number, OutputIssue[]>();
+    for (const it of report.issues) {
+      if (!byRecord.has(it.recordIndex)) byRecord.set(it.recordIndex, []);
+      byRecord.get(it.recordIndex)!.push(it);
+    }
+    for (const [idx, issues] of [...byRecord.entries()].sort((a, b) => a[0] - b[0])) {
+      const hasError = issues.some(i => i.severity === 'error');
+      console.log(`  ${hasError ? red('✗') : yellow('⚠')} output #${idx}`);
+      for (const it of issues) {
+        const body = it.severity === 'error' ? red(it.message) : yellow(it.message);
+        console.log(`      ${body}`);
+        if (it.fix) console.log(`        ${dim('→ ' + it.fix)}`);
+      }
+    }
+    if (report.summary.length > 0) {
+      console.log(dim(`\n  ${report.summary.map(s => `${s.label} ×${s.count}`).join('  ·  ')}`));
+    }
+    if (report.failed > 0) {
+      console.log(dim(`  ${report.failed} of ${report.total} outputs would fail a strict parser.\n`));
+    } else {
+      console.log(green(`  ✓ all outputs conform\n`));
+    }
+  }
+
+  if (!report.ok) process.exit(1);
+}
+
 // ── convert command ───────────────────────────────────────────────────────────
 function cmdConvert(format: string, obj: any, root: string, samplesMode: boolean) {
   try {
@@ -398,6 +497,48 @@ async function main() {
     }
     const breakingOnly = argv.includes('--breaking-only');
     cmdDiff(readFile(files[0]), readFile(files[1]), { schema: schemaFilter, breakingOnly, json: jsonOut });
+    return;
+  }
+
+  // ── validate ───────────────────────────────────────────────────────────────
+  if (cmd === 'validate') {
+    const infer = argv.includes('--infer');
+    const strict = argv.includes('--strict');
+    const fmtIdx = argv.findIndex(a => a === '--format');
+    const format = fmtIdx !== -1 ? (argv[fmtIdx + 1] ?? 'pretty') : 'pretty';
+    if (!['pretty', 'json', 'github'].includes(format)) {
+      console.error(red(`Invalid --format "${format}". Must be one of: pretty, json, github`));
+      process.exit(1);
+    }
+    const outIdx = argv.findIndex(a => a === '--out');
+    const outFile = outIdx !== -1 ? argv[outIdx + 1] : undefined;
+
+    const flagValues = new Set([root, schemaFilter, format, outFile].filter(Boolean));
+    const files = argv.slice(1).filter(a => !a.startsWith('-') && !flagValues.has(a));
+
+    if (infer) {
+      if (files.length < 1) {
+        console.error(red('Usage: typemorph validate --infer <good-outputs.jsonl> [--out schema.ts]'));
+        process.exit(1);
+      }
+      const records = readRecords(files[0]);
+      const zod = runEngine(records, 'zod', '', { rootName: root, samplesMode: true });
+      if (outFile) {
+        fs.writeFileSync(path.resolve(outFile), zod);
+        console.error(green(`✓ wrote inferred schema to ${outFile}`));
+      } else {
+        process.stdout.write(zod);
+      }
+      return;
+    }
+
+    if (files.length < 2) {
+      console.error(red('Usage: typemorph validate <schema.ts> <outputs.jsonl> [--strict] [--format github]'));
+      process.exit(1);
+    }
+    const expected = loadExpectedSchema(files[0]);
+    const records = readRecords(files[1]);
+    cmdValidate(expected, records, { strict, format });
     return;
   }
 
