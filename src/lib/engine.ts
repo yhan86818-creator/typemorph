@@ -296,6 +296,12 @@ const isDynamicRecordKeys = (keys: string[]): boolean => {
   return false;
 };
 
+// Strict ISO validators that mirror exactly what the Zod generator emits, so format
+// detection never tags a value with a validator that would then reject it (see the
+// self-consistency gate in inferSchema's string branch).
+const STRICT_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;                          // z.iso.date()
+const STRICT_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/; // z.iso.datetime()
+
 export const inferSchema = (val: any, keyName?: string, depth: number = 0, allowedEnumKeys?: Set<string>, options?: InferOptions): Schema => {
   const maxDepth = options?.maxDepth ?? MAX_DEPTH;
   const addMeta = (s: Schema, reason: string, info?: any): Schema => {
@@ -412,15 +418,16 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
     const isVersionKey = /version|semver|release/i.test(keyName ?? '');
 
     if (!isVersionKey) {
-      // Pure YYYY-MM-DD date format (hyphen)
-      if (/^\d{4}-\d{2}-\d{2}$/.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: 'string', format: 'date' }, 'format:date');
-      // Pure YYYY/MM/DD date format (slash) — must have $ anchor to avoid matching datetimes
-      if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: 'string', format: 'date' }, 'format:date');
-
-      // Datetime detection: require explicit time component (HH:MM) to avoid classifying
-      // plain slash-dates like "2024/01/01" as datetime
-      if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}[ T]\d{2}:\d{2}/.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: 'string', format: 'datetime' }, 'format:datetime');
-      if (/^\d/.test(val) && val.includes('T') && !isNaN(Date.parse(val)) && val.length > 7) return addMeta({ type: 'string', format: 'datetime' }, 'format:datetime');
+      // Self-consistency gate: only tag date/datetime when the value matches the EXACT
+      // validator the generator emits, so a schema never rejects its own sample. The Zod
+      // targets accept only strict ISO-UTC:
+      //   z.iso.date()     → "YYYY-MM-DD"
+      //   z.iso.datetime() → "YYYY-MM-DDTHH:MM:SS(.fff)?Z"  (seconds + 'Z' required)
+      // Date/time-ish values that aren't strictly that — slash dates ("2024/01/01"),
+      // minute-precision ("2026-06-23T00:00"), no-Z or numeric-offset datetimes
+      // ("…T00:00:00+09:00") — stay plain strings instead of getting a rejecting validator.
+      if (STRICT_DATE_RE.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: 'string', format: 'date' }, 'format:date');
+      if (STRICT_DATETIME_RE.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: 'string', format: 'datetime' }, 'format:datetime');
     }
 
     // インテリジェントな Enum 候補推論

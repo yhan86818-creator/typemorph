@@ -34,10 +34,12 @@ describe('inferSchema: date vs datetime detection', () => {
     expect(s.fields!.d.format).toBe('date');
   });
 
-  it('YYYY/MM/DD → format: date (not datetime)', () => {
-    // Bug: no $ anchor would classify this as datetime
+  it('YYYY/MM/DD → NOT date (z.iso.date() only accepts hyphenated ISO)', () => {
+    // Self-consistency: z.iso.date() rejects slash dates, so we must not tag it 'date'
+    // (that would generate a validator that rejects the value it was inferred from).
     const s = inferSchema({ d: '2024/01/15' });
-    expect(s.fields!.d.format).toBe('date');
+    expect(s.fields!.d.format).toBeUndefined();
+    expect(s.fields!.d.type).toBe('string');
   });
 
   it('YYYY-MM-DDTHH:MM:SSZ → format: datetime', () => {
@@ -45,14 +47,18 @@ describe('inferSchema: date vs datetime detection', () => {
     expect(s.fields!.d.format).toBe('datetime');
   });
 
-  it('YYYY-MM-DD HH:MM:SS → format: datetime (space separator)', () => {
+  it('YYYY-MM-DD HH:MM:SS (space, no Z) → NOT datetime (z.iso.datetime() needs T + Z)', () => {
+    // z.iso.datetime() requires a 'T' separator and trailing 'Z'; a space-separated,
+    // timezone-less value would be rejected, so it stays a plain string.
     const s = inferSchema({ d: '2024-01-15 10:30:00' });
-    expect(s.fields!.d.format).toBe('datetime');
+    expect(s.fields!.d.format).toBeUndefined();
+    expect(s.fields!.d.type).toBe('string');
   });
 
-  it('YYYY/MM/DD HH:MM → format: datetime (slash + space)', () => {
+  it('YYYY/MM/DD HH:MM (slash + space) → NOT datetime', () => {
     const s = inferSchema({ d: '2024/01/15 10:30' });
-    expect(s.fields!.d.format).toBe('datetime');
+    expect(s.fields!.d.format).toBeUndefined();
+    expect(s.fields!.d.type).toBe('string');
   });
 
   it('random string starting with 4 digits is NOT a date', () => {
