@@ -20,7 +20,7 @@ import { inferSchema } from './engine';
 import type { Schema } from './types';
 
 export type IssueSeverity = 'error' | 'warning';
-export type IssueCode = 'missing' | 'type' | 'null' | 'enum' | 'format' | 'extra';
+export type IssueCode = 'missing' | 'type' | 'null' | 'enum' | 'format' | 'extra' | 'range';
 
 export interface OutputIssue {
   /** Index of the record this issue belongs to (0-based). */
@@ -73,13 +73,36 @@ function looksNumeric(s: string): boolean {
   return s.trim() !== '' && !Number.isNaN(Number(s));
 }
 
+// Calendar validity: shape must be YYYY-MM-DD *and* a real day (no 2026-13-45,
+// no Feb 30). Guards against month/day rollover that a regex alone misses.
+function isCalendarDate(s: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return false;
+  const y = +m[1], mo = +m[2], d = +m[3];
+  if (mo < 1 || mo > 12) return false;
+  const lastDay = new Date(y, mo, 0).getDate(); // day 0 of next month = last of this
+  return d >= 1 && d <= lastDay;
+}
+
+// Active ISO-4217 alphabetic currency codes (+ common funds/metals). Used as a
+// dictionary so any real currency passes while typos/symbols ("US$") get flagged.
+const ISO_4217 = new Set<string>(
+  ('AED AFN ALL AMD ANG AOA ARS AUD AWG AZN BAM BBD BDT BGN BHD BIF BMD BND BOB BRL BSD BTN BWP ' +
+   'BYN BZD CAD CDF CHF CLP CNY COP CRC CUP CVE CZK DJF DKK DOP DZD EGP ERN ETB EUR FJD FKP GBP ' +
+   'GEL GHS GIP GMD GNF GTQ GYD HKD HNL HTG HUF IDR ILS INR IQD IRR ISK JMD JOD JPY KES KGS KHR ' +
+   'KMF KPW KRW KWD KYD KZT LAK LBP LKR LRD LSL LYD MAD MDL MGA MKD MMK MNT MOP MRU MUR MVR MWK ' +
+   'MXN MYR MZN NAD NGN NIO NOK NPR NZD OMR PAB PEN PGK PHP PKR PLN PYG QAR RON RSD RUB RWF SAR ' +
+   'SBD SCR SDG SEK SGD SHP SLE SOS SRD SSP STN SVC SYP SZL THB TJS TMT TND TOP TRY TTD TWD TZS ' +
+   'UAH UGX USD UYU UZS VED VES VND VUV WST XAF XCD XOF XPF YER ZAR ZMW ZWL').split(' '),
+);
+
 // Light, warning-only format checks. Heuristic by design — never hard-fail.
 const FORMAT_CHECK: Record<string, (s: string) => boolean> = {
   uuid: s => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s),
   email: s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s),
   url: s => /^https?:\/\/\S+$/i.test(s),
-  datetime: s => /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s),
-  date: s => /^\d{4}-\d{2}-\d{2}$/.test(s),
+  datetime: s => /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s) && isCalendarDate(s.slice(0, 10)),
+  date: s => isCalendarDate(s),
   ip: s => /^(\d{1,3}\.){3}\d{1,3}$|:/.test(s),
 };
 
@@ -194,6 +217,13 @@ function walk(
           message: `${q(path)}: not a valid ${expected.format} (${preview(value)})`,
         });
       }
+      // currency-code drift — warning only (dictionary check)
+      if (expected.isCurrencyCode && !ISO_4217.has(value)) {
+        out.push({
+          recordIndex, path, code: 'enum', severity: 'warning',
+          message: `${q(path)}: ${preview(value)} is not a valid ISO-4217 currency code`,
+        });
+      }
       return;
     }
 
@@ -205,6 +235,25 @@ function walk(
           message: `${q(path)}: expected number, got ${jsType(value)} (${preview(value)})`,
           fix: numericString ? 'model returned a quoted number → use z.coerce.number()' : undefined,
         });
+        return;
+      }
+      // Conservative numeric outliers — warning only, never hard-fail. Two signals
+      // we trust: a sign flip (all samples were ≥0), and an extreme >100× outlier.
+      // Deliberately NOT min/max-bounded: that over-fits small samples (the enum
+      // over-fit lesson) and would flag legitimately large values.
+      const st = expected.numericStats;
+      if (st) {
+        if (st.allNonNegative && value < 0) {
+          out.push({
+            recordIndex, path, code: 'range', severity: 'warning',
+            message: `${q(path)}: negative value ${value} but every sampled value was ≥ 0`,
+          });
+        } else if (st.max > 0 && value > st.max * 100) {
+          out.push({
+            recordIndex, path, code: 'range', severity: 'warning',
+            message: `${q(path)}: ${value} is >100× the largest sampled value (${st.max}) — likely an off-by-unit error`,
+          });
+        }
       }
       return;
     }
@@ -245,6 +294,7 @@ const CODE_LABELS: Record<IssueCode, string> = {
   enum: 'unexpected enum value',
   format: 'format drift',
   extra: 'extra field',
+  range: 'numeric range/sign outlier',
 };
 
 // ── public API ──────────────────────────────────────────────────────────────
@@ -299,6 +349,50 @@ export function validateOutputs(
  */
 export function inferExpectedSchema(records: unknown[]): Schema {
   const inferred = inferSchema(records);
-  if (inferred.type === 'array' && inferred.itemType) return inferred.itemType;
-  return inferred;
+  const itemSchema = inferred.type === 'array' && inferred.itemType ? inferred.itemType : inferred;
+  // Post-pass: attach observed numeric stats onto the (shared) number nodes so
+  // validateOutputs can do sign/outlier checks. Core inference stays untouched.
+  attachNumericStats(itemSchema, records);
+  return itemSchema;
+}
+
+/** Collect observed numbers per schema node, then record sign/max on each node. */
+function attachNumericStats(itemSchema: Schema, records: unknown[]): void {
+  const buckets = new Map<Schema, number[]>();
+  const strBuckets = new Map<Schema, string[]>();
+  const gather = (schema: Schema, value: unknown): void => {
+    if (value === null || value === undefined) return;
+    switch (schema.type) {
+      case 'number':
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          const arr = buckets.get(schema); if (arr) arr.push(value); else buckets.set(schema, [value]);
+        }
+        return;
+      case 'string':
+        if (typeof value === 'string') {
+          const arr = strBuckets.get(schema); if (arr) arr.push(value); else strBuckets.set(schema, [value]);
+        }
+        return;
+      case 'object': {
+        if (typeof value !== 'object' || Array.isArray(value)) return;
+        const fields = schema.fields ?? {};
+        for (const k of Object.keys(fields)) gather(fields[k], (value as Record<string, unknown>)[k]);
+        return;
+      }
+      case 'array':
+        if (Array.isArray(value) && schema.itemType) for (const el of value) gather(schema.itemType, el);
+        return;
+    }
+  };
+  for (const rec of records) gather(itemSchema, rec);
+  for (const [node, nums] of buckets) {
+    if (nums.length === 0) continue;
+    node.numericStats = { allNonNegative: nums.every(n => n >= 0), max: Math.max(...nums) };
+  }
+  // Currency-code detection: every sampled value is a real ISO-4217 code (≥2 samples).
+  // Dictionary-based, not statistical enum — so unseen real currencies still pass.
+  for (const [node, vals] of strBuckets) {
+    if (node.enumValues && node.enumValues.length > 0) continue; // enum already guards it
+    if (vals.length >= 2 && vals.every(v => ISO_4217.has(v))) node.isCurrencyCode = true;
+  }
 }

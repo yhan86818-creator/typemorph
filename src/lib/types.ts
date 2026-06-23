@@ -10,6 +10,16 @@ export interface Schema {
   /** True when the value was explicitly null in at least one sample */
   nullable?: boolean;
   /**
+   * Inferred numeric distribution from sample data, used by validateOutputs for
+   * conservative sign/outlier checks (warning-level only). Not used for codegen.
+   */
+  numericStats?: { allNonNegative: boolean; max: number };
+  /**
+   * Set when a string field's sampled values are all valid ISO-4217 currency
+   * codes → validateOutputs warns on values outside the ISO dictionary (e.g. "US$").
+   */
+  isCurrencyCode?: boolean;
+  /**
    * Set when a string field appears to have a closed set of specific literal values.
    * e.g. ["active", "inactive", "pending"]
    */
