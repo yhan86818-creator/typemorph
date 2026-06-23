@@ -128,6 +128,16 @@ export const convertToASTType = (v: Schema, parentClassPrefix: string, fieldKey:
   return { kind, format: v.format, ...lit, ...coerced, ...refs };
 };
 
+// A single-field object is only a "redundant wrapper" worth flattening when its key is a
+// generic envelope word (e.g. `{ data: User }`). A single-field object whose key is real
+// data — e.g. a one-entry map like `{ "scarlet-violet": Sprite }` — must NOT be flattened:
+// doing so drops the key and yields a schema that rejects the very data it came from.
+const GENERIC_WRAPPER_KEYS = new Set([
+  'data', 'result', 'results', 'payload', 'response', 'body', 'content',
+  'attributes', 'wrapper', 'value', 'item', 'object', 'record',
+]);
+const isGenericWrapperKey = (key: string): boolean => GENERIC_WRAPPER_KEYS.has(key.toLowerCase());
+
 // スキーマ・リファクタリングエンジン (AST 最適化)
 export const optimizeAST = (
   classes: ASTClass[],
@@ -196,7 +206,7 @@ export const optimizeAST = (
         
         if (cls.fields.length === 1) {
           const singleField = cls.fields[0];
-          if (singleField.fieldType.kind === 'classRef') {
+          if (singleField.fieldType.kind === 'classRef' && isGenericWrapperKey(singleField.name)) {
             const targetClassName = singleField.fieldType.classRefName;
             if (!targetClassName) continue;
             
