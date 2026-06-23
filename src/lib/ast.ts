@@ -1,6 +1,12 @@
 import { Schema, SchemaType, ASTClass, ASTField, ASTType, ASTTypeKind } from './types';
 
-const toPascalCase = (str: string) => str.replace(/(^\w|_\w)/g, m => m.replace(/_/, '').toUpperCase());
+// Fold to PascalCase across ANY non-identifier separator ('-', '.', space, etc.),
+// not just '_', so hyphenated keys (e.g. "x-y", "generation-i") can't leak into
+// emitted class/type names. Valid identifiers and underscore keys are unchanged,
+// keeping existing snapshots stable. Mirrors toPascalCase in generators.ts/recursive.ts.
+const toPascalCase = (str: string) =>
+  str.split(/[^A-Za-z0-9$]+/).filter(Boolean)
+    .map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
 
 // ASTType が特定のクラス名を参照しているか（配列要素も再帰的に確認）
 const astTypeRefersTo = (type: ASTType | undefined, name: string): boolean => {

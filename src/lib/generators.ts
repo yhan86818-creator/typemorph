@@ -1,7 +1,13 @@
 import { Schema, ASTType, ASTClass } from './types';
 import { schemaToAST, rootArrayItemClassName, convertToASTType } from './ast';
 
-const toPascalCase = (str: string) => str.replace(/(^\w|_\w)/g, m => m.replace(/_/, '').toUpperCase());
+// PascalCase folding across ANY non-identifier separator ('-', '.', space, etc.),
+// not just '_'. Keys like "x-y" or "generation-i" must not leak hyphens into emitted
+// schema/type names (e.g. `sharedX-yOtherSchema` → syntax error). For valid identifiers
+// and underscore keys the result is unchanged, so existing snapshots stay stable.
+const toPascalCase = (str: string) =>
+  str.split(/[^A-Za-z0-9$]+/).filter(Boolean)
+    .map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
 
 // Go exported field identifier: PascalCase across any separator, never starting
 // with a digit. Unlike toPascalCase this also folds out '-', '.', spaces, etc.,
@@ -620,8 +626,13 @@ export const zodGen = {
             // Zod v4 REMOVED z.string().ip() and has no z.ip() — it crashes at runtime.
             // v4 splits into z.ipv4()/z.ipv6(); accept either via a union. v3 keeps .ip().
             else if (k === 'ip' || k.includes('ip_address') || k.includes('ipaddress') || k === 'remote_ip' || k === 'client_ip' || k === 'server_ip') zType = isV3 ? 'z.string().ip()' : 'z.union([z.ipv4(), z.ipv6()])';
-            else if (k.includes('phone') || k === 'tel' || k === 'telephone' || k.endsWith('_tel') || k.startsWith('tel_')) zType = 'z.string().regex(/^\\+?[\\d\\s\\-\\.\\(\\)]{7,15}$/)';
-            else if (k.includes('password') || k.includes('passwd')) zType = 'z.string().min(8)';
+            // Loose phone sanity check: digits + common separators, plus letters so
+            // extensions ("...x56442") and vanity / noisy numbers ("(068) Q45-2052",
+            // "1-800-FLOWERS") aren't rejected. A strict format here only produces
+            // false negatives on the real data it was inferred from.
+            else if (k.includes('phone') || k === 'tel' || k === 'telephone' || k.endsWith('_tel') || k.startsWith('tel_')) zType = 'z.string().regex(/^\\+?[\\dA-Za-z\\s\\-.()#*]{5,}$/)';
+            // Password length is intentionally NOT constrained: real sample passwords are
+            // routinely <8 chars, so a name-based .min(8) would reject the inferred data.
             else if (k === 'zip' || k === 'zipcode' || k === 'zip_code' || k === 'postal_code' || k === 'postcode') zType = 'z.string().regex(/^[A-Z0-9][A-Z0-9\\s\\-]{1,8}[A-Z0-9]$/i)';
             else if (k === 'semver') zType = 'z.string().regex(/^\\d+\\.\\d+(\\.\\d+)?(-[\\w.]+)?(\\+[\\w.]+)?$/)';
             else if (k.includes('slug')) zType = 'z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)';
@@ -1563,9 +1574,11 @@ export const csharpGen = {
           body += `    [Required]\n`;
         }
         const csName = toCsharpFieldName(field.name);
-        // Only emit the wire-name attribute when the key was an invalid C#
-        // identifier that had to be folded (keeps PascalCase-from-camelCase output stable).
-        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(toPascalCase(field.name))) {
+        // Only emit the wire-name attribute when the key itself was an invalid C#
+        // identifier that had to be folded (keeps PascalCase-from-camelCase output
+        // stable). Test the original key directly — not toPascalCase(key), which now
+        // folds hyphens away and would otherwise hide that a rename happened.
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(field.name)) {
           hasJsonName = true;
           body += `    [JsonPropertyName("${field.name}")]\n`;
         }

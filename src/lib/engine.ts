@@ -398,7 +398,10 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
     if (val === '') return addMeta({ type: 'string', format: 'text' }, 'empty_string');
 
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) return addMeta({ type: 'string', format: 'uuid' }, 'format:uuid');
-    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return addMeta({ type: 'string', format: 'email' }, 'format:email');
+    // Mirror z.email()'s strictness so loose @-strings (e.g. ssh urls like
+    // "git@github.com:owner/repo.git") aren't tagged email and then rejected by the
+    // generated z.email() — a schema must accept the value it was inferred from.
+    if (/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(val)) return addMeta({ type: 'string', format: 'email' }, 'format:email');
     // Hex color (#RGB / #RRGGBB) — value-driven so named colors ("red") stay plain strings
     if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(val)) return addMeta({ type: 'string', format: 'color' }, 'format:color');
     if (/^https?:\/\/[^\s]+$/.test(val) && val.includes('{')) return addMeta({ type: 'string', format: 'text' }, 'format:url-template');
@@ -439,8 +442,23 @@ export const inferSchema = (val: any, keyName?: string, depth: number = 0, allow
       //   - relative paths ("/api/v1/...") — z.url() requires absolute URL with protocol
       //   - custom URI schemes ("spotify:track:abc", "mailto:...") — not HTTP URLs
       const hasNonHttpScheme = /^[a-z][a-z0-9+.-]*:/.test(val) && !/^https?:\/\//.test(val);
+      //   - scp-style ssh urls ("git@github.com:owner/repo.git") — match url-ish keys like
+      //     "ssh_url" but are neither http(s) URLs (z.url() throws) nor emails; keep plain.
+      if (urlKeyPattern.test(keyName) && /^[A-Za-z0-9._-]+@[A-Za-z0-9._-]+:(?!\/)/.test(val)) {
+        return addMeta({ type: 'string', format: 'text' }, 'format:text:ssh-url');
+      }
       if (urlKeyPattern.test(keyName) && !val.startsWith('/') && !hasNonHttpScheme && val.includes('{')) return addMeta({ type: 'string', format: 'text' }, 'format:url-template:keyname');
       if (urlKeyPattern.test(keyName) && !val.startsWith('/') && !hasNonHttpScheme) return addMeta({ type: 'string', format: 'url' }, 'format:url:keyname');
+
+      // "website"/"homepage" keys routinely hold bare domains ("hildegard.org") that
+      // z.url() rejects — unlike avatar/image/src which carry real URLs. Tag url only when
+      // the value is an absolute http(s) URL; otherwise keep it a plain string (format
+      // 'text' also blocks generator-side key-name re-inference) so the schema accepts the
+      // very value it was inferred from. (Real http(s) websites are already caught by the
+      // value-based url check above before reaching here.)
+      if (/website|homepage/i.test(keyName) && !val.startsWith('/') && !hasNonHttpScheme) {
+        return addMeta({ type: 'string', format: 'text' }, 'format:text:website-nonurl');
+      }
 
       if (allowedEnumKeys) {
         // 統計判定情報が存在する場合はそれを利用
@@ -820,6 +838,13 @@ interface IsomorphicGroup {
   semanticName: string;
 }
 
+// Convert an arbitrary key/path fragment into a valid JS identifier fragment.
+// Splits on any non-identifier char (hyphen, space, dot, etc.) and camel-joins,
+// so keys like `x-y` or `generation-i` can't leak into emitted variable names
+// (e.g. `sharedX-yOtherSchema` → syntax error).
+const toSafeIdent = (s: string): string =>
+  s.replace(/[^A-Za-z0-9_$]+([A-Za-z0-9_$])?/g, (_m, c) => (c ? c.toUpperCase() : ''));
+
 const buildIsomorphicGroups = (
   nodes: { schema: Schema; parentKey: string }[],
   options: { sharedPrefix?: string; minMatchRatio?: number; maxTypeMismatches?: number; minFieldsForIsomorphic?: number; customTypeNames?: Record<string, string>; disabledUnifications?: string[] } = {}
@@ -879,6 +904,7 @@ const buildIsomorphicGroups = (
       semanticName = prefix ? `${prefix}${camelKey}` : camelKey;
     }
 
+    semanticName = toSafeIdent(semanticName);
     let finalName = semanticName;
     while (sharedNames.has(finalName)) finalName = `${semanticName}${counter++}`;
     sharedNames.add(finalName);
