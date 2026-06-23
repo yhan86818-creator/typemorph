@@ -53,3 +53,6 @@ deploy_debug*.txt
 *vitest_out.txt
 test_bug.js
 _check*.mts
+
+# transient temp modules from real-data round-trip test
+src/lib/__tests__/.tmp_realdata_*.mjs
