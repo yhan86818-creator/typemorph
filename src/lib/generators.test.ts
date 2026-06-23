@@ -428,11 +428,12 @@ describe('generators', () => {
       expect(result).toContain('z.number().min(0).max(100)');
     });
 
-    it('should add .min(0).max(100) for percentage field', () => {
+    it('adds .min(0) but NOT .max(100) for percentage (real %s exceed 100: ROI, growth)', () => {
       const json = { percentage: 75.5 };
       const schema = inferSchema(json);
       const result = zodGen.generate(schema, 'Root');
-      expect(result).toContain('z.number().min(0).max(100)');
+      expect(result).toContain('percentage: z.number().min(0)');
+      expect(result).not.toContain('.max(100)');
     });
 
     it('should add .int().min(1900).max(2100) for year field', () => {

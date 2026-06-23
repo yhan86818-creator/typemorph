@@ -582,8 +582,18 @@ export const zodGen = {
         if (!isLoose && !field.fieldType.refinements?.length) {
           if (field.fieldType.kind === 'number') {
             if (inferConstraints) {
-              if (k.includes('percent')) {
-                zType += '.min(0).max(100)';
+              // Signed quantities — changes / deltas / diffs — can be negative, and a
+              // percentage OF a change can sit well outside 0–100 (e.g. -49% or +94506%).
+              // Name-based non-negative / 0–100 range guesses would reject that real data,
+              // so skip them and keep only the factual .int() when the value is integral.
+              const isSignedDelta = /change|delta|diff|growth|variance|deviation|pnl/i.test(k);
+              if (isSignedDelta) {
+                if (field.fieldType.format === 'int') zType += '.int()';
+              } else if (k.includes('percent')) {
+                // Percentages routinely exceed 100 in real APIs (ROI, growth, markup,
+                // multi-core CPU), so don't cap at 100 — that rejects valid data. Keep the
+                // non-negative floor; signed change/delta %s are handled by isSignedDelta above.
+                zType += '.min(0)';
               } else if (k.includes('latitude') || k === 'lat' || k.endsWith('_lat')) {
                 zType += '.min(-90).max(90)';
               } else if (k.includes('longitude') || k === 'lng' || k === 'lon' || k.endsWith('_lng') || k.endsWith('_lon')) {
