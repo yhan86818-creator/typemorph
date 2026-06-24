@@ -1,6 +1,6 @@
 # typemorph-cli
 
-Schema engineering CLI — convert JSON, YAML, SQL, and OpenAPI to 40+ typed code formats, grade schema quality, and detect breaking changes between API versions.
+**Convert JSON to Zod, TypeScript, Go, and 40+ more — with real type inference.** Most converters dump every field to `z.string()`. typemorph reads your actual JSON and detects emails, UUIDs, URLs, datetimes, enums, and `int` vs `float` — then converts to any language, grades schema quality, and catches breaking API changes in CI.
 
 [![npm](https://img.shields.io/npm/v/typemorph-cli)](https://www.npmjs.com/package/typemorph-cli)
 [![npm downloads](https://img.shields.io/npm/dm/typemorph-cli)](https://www.npmjs.com/package/typemorph-cli)
@@ -8,6 +8,14 @@ Schema engineering CLI — convert JSON, YAML, SQL, and OpenAPI to 40+ typed cod
 [![license](https://img.shields.io/npm/l/typemorph-cli)](LICENSE)
 
 **Web UI:** [typemorph.dev](https://typemorph.dev)
+
+---
+
+## Why typemorph-cli
+
+- **Real inference, not `z.string()`** — detects `email`, `uuid`, `url`, `datetime`, enums, and `int` vs `float` from your real JSON, plus shared and nested types.
+- **One input → 40+ outputs** — JSON / YAML / SQL / OpenAPI / JSON Schema → Zod, TypeScript, Go, Rust, Prisma, Drizzle, and more.
+- **CI-ready & 100% local** — `diff` blocks breaking API changes; `validate` checks real LLM/API outputs against your schema. Nothing is uploaded.
 
 ---
 

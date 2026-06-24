@@ -1,7 +1,7 @@
 {
   "name": "typemorph-cli",
-  "version": "0.4.0",
-  "description": "Schema engineering CLI — convert JSON/YAML/SQL/OpenAPI to 160+ typed code formats, grade schema quality, and detect breaking changes.",
+  "version": "0.4.1",
+  "description": "Convert JSON to Zod, TypeScript, Go & 40+ formats with real type inference (detects email/uuid/url/datetime/enum/int) — plus schema quality grading and breaking-change detection.",
   "keywords": [
     "json",
     "typescript",
@@ -19,7 +19,13 @@
     "validate",
     "validation",
     "llm",
-    "structured-output"
+    "structured-output",
+    "json-to-zod",
+    "json-to-typescript",
+    "json-to-go",
+    "openapi-to-zod",
+    "json-schema-to-zod",
+    "zod-schema-generator"
   ],
   "homepage": "https://typemorph.dev",
   "repository": {
