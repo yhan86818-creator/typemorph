@@ -19,7 +19,29 @@ export interface Alternative {
   table: ComparisonRow[];
   typemorphStrengths: string[];
   competitorStrengths: string[];
+  /** Optional real before/after code comparison on the same sample input. */
+  codeDiff?: {
+    competitorLabel: string;
+    competitorCode: string;
+    typemorphCode: string;
+    note?: string;
+  };
+  /** Optional FAQ entries — rendered with FAQPage JSON-LD for rich results. */
+  faqs?: { q: string; a: string }[];
 }
+
+// Real TypeMorph output for the shared sample (a typical API user object).
+const TYPEMORPH_DIFF = `// TypeMorph — formats inferred from the actual values
+export const userSchema = z.object({
+  id: z.uuid(),
+  email: z.email(),
+  website: z.url(),
+  created_at: z.iso.datetime(),
+  age: z.number().int().min(0).max(150),
+});`;
+
+const DIFF_NOTE =
+  'Same JSON input. The formats (uuid / email / url / datetime) are read from the values — facts. The numeric range on age is a name-based guess you can turn off.';
 
 export const alternatives: Alternative[] = [
   {
@@ -75,6 +97,20 @@ export const alternatives: Alternative[] = [
       'JSON-LD transformations (compact, expand, flatten, normalize)',
       'TOML ↔ JSON ↔ YAML conversions',
     ],
+    faqs: [
+      {
+        q: 'transform.tools vs TypeMorph for JSON to Zod — which should I use?',
+        a: 'Use transform.tools for frontend asset transforms (SVG→JSX, HTML→JSX, CSS→Tailwind). For JSON/OpenAPI → Zod, TypeScript, Go, or Prisma with real format inference, use TypeMorph.',
+      },
+      {
+        q: 'Does transform.tools infer email, UUID, or URL formats for Zod?',
+        a: 'transform.tools focuses on format-to-format transforms rather than semantic inference. TypeMorph detects email/uuid/url/datetime from the actual values and outputs the matching Zod validators.',
+      },
+      {
+        q: 'Are both tools free and browser-based?',
+        a: 'Yes. Both are free and run in your browser. TypeMorph additionally ships a CLI (typemorph-cli) and a VS Code extension.',
+      },
+    ],
   },
   {
     slug: 'quicktype',
@@ -128,6 +164,38 @@ export const alternatives: Alternative[] = [
       'Long-established tool with a large user base and community resources',
       'CLI available via npm (quicktype package)',
     ],
+    codeDiff: {
+      competitorLabel: 'quicktype  (-l typescript-zod)',
+      competitorCode: `export const SampleSchema = z.object({
+  id: z.string(),
+  email: z.string(),
+  website: z.string(),
+  created_at: z.coerce.date(), // catches the date
+  age: z.number(),
+});`,
+      typemorphCode: TYPEMORPH_DIFF,
+      note:
+        'quicktype catches the date but leaves the UUID, email, and URL as z.string() and age as a plain z.number(). ' +
+        DIFF_NOTE,
+    },
+    faqs: [
+      {
+        q: 'Does quicktype detect email, UUID, or URL formats in its Zod output?',
+        a: 'No. quicktype detects dates (z.coerce.date()) but emits z.string() for emails, UUIDs, and URLs. TypeMorph reads the values and outputs z.email(), z.uuid(), and z.url().',
+      },
+      {
+        q: 'What is a good quicktype alternative for Zod with format validators?',
+        a: 'TypeMorph generates Zod with semantic validators (email/uuid/url/datetime) inferred from your data, plus int-vs-float detection, from the same JSON, OpenAPI, or JSON Schema input.',
+      },
+      {
+        q: 'Does quicktype output Prisma or Drizzle schemas?',
+        a: 'No. quicktype targets programming languages. TypeMorph also outputs database and ORM schemas like Prisma, Drizzle, Kysely, and Mongoose.',
+      },
+      {
+        q: 'Is TypeMorph free like quicktype?',
+        a: 'Yes. The TypeMorph web app is free and runs 100% in your browser, and typemorph-cli is free on npm.',
+      },
+    ],
   },
   {
     slug: 'json-to-zod',
@@ -177,6 +245,38 @@ export const alternatives: Alternative[] = [
       'A tiny, zero-dependency library you can import and call programmatically inside your own JS/TS code',
       'Open source (MIT) with simple, predictable output',
       'Fine for a quick rough scaffold when you intend to refine the schema by hand anyway',
+    ],
+    codeDiff: {
+      competitorLabel: 'json-to-zod',
+      competitorCode: `const user = z.object({
+  id: z.string(),
+  email: z.string(),
+  website: z.string(),
+  created_at: z.string(),
+  age: z.number(),
+});`,
+      typemorphCode: TYPEMORPH_DIFF,
+      note:
+        'json-to-zod infers only basic types — the UUID, email, URL, and timestamp all become z.string(). ' +
+        DIFF_NOTE,
+    },
+    faqs: [
+      {
+        q: 'Is there a json-to-zod alternative that detects email and UUID formats?',
+        a: 'Yes. TypeMorph reads your JSON values and outputs z.email(), z.uuid(), z.url(), and z.iso.datetime() where json-to-zod emits plain z.string().',
+      },
+      {
+        q: 'Does json-to-zod support Zod v4?',
+        a: 'json-to-zod is effectively unmaintained (last published years ago) and predates Zod v4. TypeMorph outputs current Zod v4 syntax such as z.email() and z.iso.datetime().',
+      },
+      {
+        q: 'Can I use TypeMorph from the command line like json-to-zod?',
+        a: 'Yes — install typemorph-cli from npm and run "typemorph zod response.json". It also runs in CI for breaking-change detection and output validation.',
+      },
+      {
+        q: 'Is TypeMorph free and local?',
+        a: 'Yes. The web app is free and converts 100% in your browser — your JSON never leaves the tab.',
+      },
     ],
   },
 ];

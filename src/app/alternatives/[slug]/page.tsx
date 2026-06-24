@@ -95,6 +95,34 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
           </div>
         </section>
 
+        {/* Real before/after code diff */}
+        {alt.codeDiff && (
+          <section className="mb-14">
+            <h2 className="text-2xl font-black tracking-tight text-slate-900 mb-6">Same JSON, different Zod</h2>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+                <p className="px-5 py-3 text-[11px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100">
+                  {alt.codeDiff.competitorLabel}
+                </p>
+                <pre className="p-5 text-xs leading-relaxed overflow-x-auto text-slate-700">
+                  <code>{alt.codeDiff.competitorCode}</code>
+                </pre>
+              </div>
+              <div className="rounded-2xl border-2 border-blue-200 bg-blue-50/40 overflow-hidden">
+                <p className="px-5 py-3 text-[11px] font-black uppercase tracking-widest text-blue-500 border-b border-blue-100">
+                  TypeMorph
+                </p>
+                <pre className="p-5 text-xs leading-relaxed overflow-x-auto text-slate-900">
+                  <code>{alt.codeDiff.typemorphCode}</code>
+                </pre>
+              </div>
+            </div>
+            {alt.codeDiff.note && (
+              <p className="text-sm text-slate-500 mt-4 leading-relaxed">{alt.codeDiff.note}</p>
+            )}
+          </section>
+        )}
+
         {/* Live Zod demo — quicktype only */}
         {alt.slug === 'quicktype' && <AlternativeZodDemo />}
 
@@ -156,6 +184,35 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
             </ul>
           </div>
         </section>
+
+        {/* FAQ + FAQPage structured data for rich results */}
+        {alt.faqs && alt.faqs.length > 0 && (
+          <section className="mb-14">
+            <h2 className="text-2xl font-black tracking-tight text-slate-900 mb-6">Frequently asked</h2>
+            <div className="space-y-4">
+              {alt.faqs.map((f, i) => (
+                <div key={i} className="rounded-2xl border border-slate-200 bg-white p-6">
+                  <p className="font-bold text-slate-900 mb-2">{f.q}</p>
+                  <p className="text-slate-600 leading-relaxed">{f.a}</p>
+                </div>
+              ))}
+            </div>
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{
+                __html: JSON.stringify({
+                  '@context': 'https://schema.org',
+                  '@type': 'FAQPage',
+                  mainEntity: alt.faqs.map((f) => ({
+                    '@type': 'Question',
+                    name: f.q,
+                    acceptedAnswer: { '@type': 'Answer', text: f.a },
+                  })),
+                }),
+              }}
+            />
+          </section>
+        )}
 
         {/* CTA */}
         <footer className="p-8 rounded-3xl bg-slate-900 text-white flex flex-col md:flex-row items-center justify-between gap-6">
