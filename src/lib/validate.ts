@@ -237,23 +237,18 @@ function walk(
         });
         return;
       }
-      // Conservative numeric outliers — warning only, never hard-fail. Two signals
-      // we trust: a sign flip (all samples were ≥0), and an extreme >100× outlier.
-      // Deliberately NOT min/max-bounded: that over-fits small samples (the enum
-      // over-fit lesson) and would flag legitimately large values.
+      // Conservative numeric outlier — warning only, never hard-fail. The only
+      // signal we trust is an extreme >100× jump above the largest sampled value
+      // (a classic off-by-unit / decimal-shift bug). Deliberately NOT min/max- or
+      // sign-bounded: a sign flip looks like an error but is usually a legitimate
+      // credit note / refund / adjustment (measured: 0 real catches, FP on every
+      // negative invoice), and min/max over-fits small samples (the enum lesson).
       const st = expected.numericStats;
-      if (st) {
-        if (st.allNonNegative && value < 0) {
-          out.push({
-            recordIndex, path, code: 'range', severity: 'warning',
-            message: `${q(path)}: negative value ${value} but every sampled value was ≥ 0`,
-          });
-        } else if (st.max > 0 && value > st.max * 100) {
-          out.push({
-            recordIndex, path, code: 'range', severity: 'warning',
-            message: `${q(path)}: ${value} is >100× the largest sampled value (${st.max}) — likely an off-by-unit error`,
-          });
-        }
+      if (st && st.max > 0 && value > st.max * 100) {
+        out.push({
+          recordIndex, path, code: 'range', severity: 'warning',
+          message: `${q(path)}: ${value} is >100× the largest sampled value (${st.max}) — likely an off-by-unit error`,
+        });
       }
       return;
     }
@@ -387,7 +382,7 @@ function attachNumericStats(itemSchema: Schema, records: unknown[]): void {
   for (const rec of records) gather(itemSchema, rec);
   for (const [node, nums] of buckets) {
     if (nums.length === 0) continue;
-    node.numericStats = { allNonNegative: nums.every(n => n >= 0), max: Math.max(...nums) };
+    node.numericStats = { max: Math.max(...nums) };
   }
   // Currency-code detection: every sampled value is a real ISO-4217 code (≥2 samples).
   // Dictionary-based, not statistical enum — so unseen real currencies still pass.

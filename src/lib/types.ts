@@ -11,9 +11,9 @@ export interface Schema {
   nullable?: boolean;
   /**
    * Inferred numeric distribution from sample data, used by validateOutputs for
-   * conservative sign/outlier checks (warning-level only). Not used for codegen.
+   * a conservative >100× outlier check (warning-level only). Not used for codegen.
    */
-  numericStats?: { allNonNegative: boolean; max: number };
+  numericStats?: { max: number };
   /**
    * Set when a string field's sampled values are all valid ISO-4217 currency
    * codes → validateOutputs warns on values outside the ISO dictionary (e.g. "US$").
