@@ -129,4 +129,54 @@ export const alternatives: Alternative[] = [
       'CLI available via npm (quicktype package)',
     ],
   },
+  {
+    slug: 'json-to-zod',
+    competitor: 'json-to-zod',
+    competitorUrl: 'https://www.npmjs.com/package/json-to-zod',
+    title: 'TypeMorph vs json-to-zod — JSON to Zod Converter Comparison',
+    description:
+      'A json-to-zod alternative that detects formats. json-to-zod infers only basic types; TypeMorph reads your real JSON and adds .email(), .uuid(), .url(), datetimes, and enums. Honest comparison.',
+    h1: 'TypeMorph vs json-to-zod',
+    intro:
+      'json-to-zod is a popular minimal library for turning a JSON object into a Zod schema. It infers basic types (string, number, boolean, arrays, nested objects) but stops there — emails, UUIDs, URLs, datetimes, and enums all come out as plain z.string(). It is also effectively unmaintained (last published years ago). TypeMorph reads the same JSON and infers the semantic formats and constraints. Here is an honest comparison.',
+    verdict: {
+      useTypemorph:
+        'You want Zod that already detects emails, UUIDs, URLs, datetimes, int-vs-float, and enums from your real JSON — plus TypeScript, Go, Prisma, OpenAPI/JSON Schema input, a schema quality score, breaking-change detection, and a maintained CLI.',
+      useCompetitor:
+        'You only need a tiny, zero-dependency function to call inside your own code for a rough JSON→Zod scaffold, and you are happy adding .email()/.uuid()/enum refinements by hand afterward.',
+    },
+    table: [
+      { feature: 'JSON → Zod', typemorph: true, competitor: true },
+      { feature: 'Nested objects & arrays', typemorph: true, competitor: true },
+      { feature: 'Detects email → z.email()', typemorph: true, competitor: false },
+      { feature: 'Detects uuid → z.uuid()', typemorph: true, competitor: false },
+      { feature: 'Detects url → z.url()', typemorph: true, competitor: false },
+      { feature: 'Detects datetime → z.iso.datetime()', typemorph: true, competitor: false },
+      { feature: 'Infers enums from repeated values', typemorph: true, competitor: false },
+      { feature: 'int vs float & numeric ranges', typemorph: true, competitor: false },
+      { feature: 'Shared type extraction (.extend())', typemorph: true, competitor: false },
+      { feature: 'Zod v4 output', typemorph: true, competitor: false },
+      { feature: 'OpenAPI / JSON Schema input', typemorph: true, competitor: false },
+      { feature: 'Other outputs (TypeScript, Go, Prisma…)', typemorph: '160+', competitor: 'Zod only' },
+      { feature: 'Schema Quality Score (A–F)', typemorph: true, competitor: false },
+      { feature: 'Breaking Change Detector', typemorph: true, competitor: false },
+      { feature: 'CLI tool (npm)', typemorph: true, competitor: false },
+      { feature: 'Web UI (no install)', typemorph: true, competitor: 'npm library' },
+      { feature: 'Actively maintained', typemorph: true, competitor: false },
+      { feature: 'Free & open to use', typemorph: true, competitor: true },
+    ],
+    typemorphStrengths: [
+      'Detects semantic formats from real data — email → .email(), uuid → .uuid(), url → .url(), ISO datetimes, and enums from repeated values, where json-to-zod emits plain z.string()',
+      'Distinguishes int vs float and infers numeric ranges (e.g. latitude → .min(-90).max(90))',
+      'Extracts shared/nested types with .extend() inheritance instead of repeating inline shapes',
+      'Outputs 160+ formats beyond Zod — TypeScript, Go, Rust, Prisma, Drizzle, and more from the same JSON',
+      'Accepts OpenAPI and JSON Schema as input, not just raw JSON',
+      'Maintained, with a Schema Quality Score, Breaking Change Detector, VS Code extension, and a CLI (typemorph-cli) for CI',
+    ],
+    competitorStrengths: [
+      'A tiny, zero-dependency library you can import and call programmatically inside your own JS/TS code',
+      'Open source (MIT) with simple, predictable output',
+      'Fine for a quick rough scaffold when you intend to refine the schema by hand anyway',
+    ],
+  },
 ];
