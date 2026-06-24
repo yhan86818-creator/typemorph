@@ -17,10 +17,10 @@
  */
 
 import { inferSchema } from './engine';
-import type { Schema } from './types';
+import type { Schema, ArithIdentity, ArithTermRef } from './types';
 
 export type IssueSeverity = 'error' | 'warning';
-export type IssueCode = 'missing' | 'type' | 'null' | 'enum' | 'format' | 'extra' | 'range';
+export type IssueCode = 'missing' | 'type' | 'null' | 'enum' | 'format' | 'extra' | 'range' | 'arith';
 
 export interface OutputIssue {
   /** Index of the record this issue belongs to (0-based). */
@@ -171,6 +171,14 @@ function walk(
           });
         }
       }
+
+      // Arithmetic consistency — warning only. Each identity was auto-derived from
+      // the good samples and held across all of them; a violation here means the
+      // numbers in THIS record don't add up (off-by-unit / decimal shift / typo'd
+      // total). Any missing/non-numeric operand → skip silently (never a FP).
+      if (expected.arithIdentities) {
+        for (const id of expected.arithIdentities) checkIdentity(id, obj, path, recordIndex, out);
+      }
       return;
     }
 
@@ -267,6 +275,82 @@ function walk(
   }
 }
 
+// Rounding slack so legitimate cent-rounding never trips an identity: the larger
+// of 2 cents and 0.5% of the expected magnitude. A fixed epsilon, not a fitted
+// parameter — there is no per-dataset threshold to over-fit.
+function arithTolerance(expected: number): number {
+  return Math.max(0.02, Math.abs(expected) * 0.005);
+}
+
+/** Resolve one identity term to a number, or null if any operand is missing/non-numeric. */
+function evalTerm(obj: Record<string, unknown>, ref: ArithTermRef): number | null {
+  if (ref.kind === 'field') {
+    const v = obj[ref.key];
+    return typeof v === 'number' && Number.isFinite(v) ? v : null;
+  }
+  // colsum: Σ obj[key][i][itemKey]
+  const arr = obj[ref.key];
+  if (!Array.isArray(arr)) return null;
+  let sum = 0;
+  for (const el of arr) {
+    if (el === null || typeof el !== 'object') return null;
+    const v = (el as Record<string, unknown>)[ref.itemKey!];
+    if (typeof v !== 'number' || !Number.isFinite(v)) return null;
+    sum += v;
+  }
+  return sum;
+}
+
+function describeTerm(ref: ArithTermRef): string {
+  return ref.kind === 'field' ? ref.key : `Σ ${ref.key}[].${ref.itemKey}`;
+}
+
+function checkIdentity(
+  id: ArithIdentity, obj: Record<string, unknown>, path: string, recordIndex: number, out: OutputIssue[],
+): void {
+  const targetVal = obj[id.target];
+  if (typeof targetVal !== 'number' || !Number.isFinite(targetVal)) return; // can't check → no FP
+  const childPath = path ? `${path}.${id.target}` : id.target;
+
+  if (id.kind === 'sum') {
+    let sum = 0; const vals: number[] = [];
+    for (const ref of id.addends!) {
+      const v = evalTerm(obj, ref);
+      if (v === null) return; // missing operand → skip
+      sum += v; vals.push(v);
+    }
+    if (Math.abs(targetVal - sum) > arithTolerance(targetVal)) {
+      const formula = id.addends!.map(describeTerm).join(' + ');
+      // Show the numeric breakdown only when there are ≥2 addends (otherwise it
+      // just restates the single value).
+      const detail = id.addends!.length > 1 ? ` (${vals.map(round).join(' + ')} = ${round(sum)})` : ` (= ${round(sum)})`;
+      out.push({
+        recordIndex, path: childPath, code: 'arith', severity: 'warning',
+        message: `${q(childPath)}: ${targetVal} ≠ ${formula}${detail} — off by ${round(targetVal - sum)}`,
+      });
+    }
+    return;
+  }
+
+  // product
+  let prod = 1; const parts: string[] = [];
+  for (const key of id.factors!) {
+    const v = obj[key];
+    if (typeof v !== 'number' || !Number.isFinite(v)) return;
+    prod *= v; parts.push(`${key}=${v}`);
+  }
+  if (Math.abs(targetVal - prod) > arithTolerance(targetVal)) {
+    out.push({
+      recordIndex, path: childPath, code: 'arith', severity: 'warning',
+      message: `${q(childPath)}: ${targetVal} ≠ ${id.factors!.join(' × ')} (${parts.join(' × ')} = ${round(prod)})`,
+    });
+  }
+}
+
+function round(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 function q(path: string): string {
   return path ? `"${path}"` : 'root';
 }
@@ -290,6 +374,7 @@ const CODE_LABELS: Record<IssueCode, string> = {
   format: 'format drift',
   extra: 'extra field',
   range: 'numeric range/sign outlier',
+  arith: 'arithmetic inconsistency',
 };
 
 // ── public API ──────────────────────────────────────────────────────────────
@@ -348,7 +433,145 @@ export function inferExpectedSchema(records: unknown[]): Schema {
   // Post-pass: attach observed numeric stats onto the (shared) number nodes so
   // validateOutputs can do sign/outlier checks. Core inference stays untouched.
   attachNumericStats(itemSchema, records);
+  // Post-pass: derive arithmetic identities (total ≈ subtotal + tax, amount ≈
+  // qty × unit_price) that hold across every sample. Core inference stays untouched.
+  attachArithIdentities(itemSchema, records);
   return itemSchema;
+}
+
+// ── arithmetic-identity discovery ────────────────────────────────────────────
+// For every object schema node, collect the concrete object values that landed
+// there across the bootstrap corpus, then derive sum/product identities among
+// their numeric fields that hold on EVERY sample (within rounding tolerance).
+// Deterministic and self-disabling: if no clean identity holds (hidden fees,
+// locale rounding, missing operands), nothing is attached → no check → no FP.
+function attachArithIdentities(itemSchema: Schema, records: unknown[]): void {
+  const samples = new Map<Schema, Record<string, unknown>[]>();
+  const collect = (schema: Schema, value: unknown): void => {
+    if (value === null || value === undefined) return;
+    if (schema.type === 'object') {
+      if (typeof value !== 'object' || Array.isArray(value)) return;
+      const obj = value as Record<string, unknown>;
+      const arr = samples.get(schema); if (arr) arr.push(obj); else samples.set(schema, [obj]);
+      const fields = schema.fields ?? {};
+      for (const k of Object.keys(fields)) collect(fields[k], obj[k]);
+    } else if (schema.type === 'array' && schema.itemType && Array.isArray(value)) {
+      for (const el of value) collect(schema.itemType, el);
+    }
+  };
+  for (const rec of records) collect(itemSchema, rec);
+
+  for (const [node, objs] of samples) {
+    if (objs.length < 3) continue; // too few to trust
+    const ids = deriveIdentities(node, objs);
+    if (ids.length > 0) node.arithIdentities = ids;
+  }
+}
+
+const MAX_TERMS = 8; // combinatorial guard on subset search (2^8)
+
+function deriveIdentities(node: Schema, objs: Record<string, unknown>[]): ArithIdentity[] {
+  const fields = node.fields ?? {};
+  const numericKeys = Object.keys(fields).filter(k => fields[k].type === 'number');
+  if (numericKeys.length === 0) return [];
+
+  // Candidate addend terms: each direct numeric field, plus the column-sum of each
+  // numeric field inside an array-of-objects child.
+  const terms: ArithTermRef[] = numericKeys.map(key => ({ kind: 'field' as const, key }));
+  for (const key of Object.keys(fields)) {
+    const f = fields[key];
+    if (f.type !== 'array' || !f.itemType || f.itemType.type !== 'object') continue;
+    const itemFields = f.itemType.fields ?? {};
+    for (const ik of Object.keys(itemFields)) {
+      if (itemFields[ik].type === 'number') terms.push({ kind: 'colsum', key, itemKey: ik });
+    }
+  }
+  if (terms.length > MAX_TERMS) return [];
+
+  const ids: ArithIdentity[] = [];
+  for (const target of numericKeys) {
+    const sum = findSumIdentity(target, terms, objs);
+    if (sum) { ids.push(sum); continue; }
+    const product = findProductIdentity(target, numericKeys, objs);
+    if (product) ids.push(product);
+  }
+  return ids;
+}
+
+// Smallest subset of `terms` (excluding the target's own field) whose sum equals
+// `target` on every sample. Non-triviality: a pure-field sum needs ≥2 addends, or
+// must include a colsum — this rejects coincidental single-field aliasing.
+function findSumIdentity(
+  target: string, terms: ArithTermRef[], objs: Record<string, unknown>[],
+): ArithIdentity | null {
+  const pool = terms.filter(t => !(t.kind === 'field' && t.key === target));
+  const n = pool.length;
+  if (n === 0) return null;
+  // Enumerate subsets by increasing size so the simplest identity wins.
+  const subsets: number[][] = [];
+  for (let mask = 1; mask < (1 << n); mask++) {
+    const idx: number[] = [];
+    for (let i = 0; i < n; i++) if (mask & (1 << i)) idx.push(i);
+    subsets.push(idx);
+  }
+  subsets.sort((a, b) => a.length - b.length);
+
+  for (const idx of subsets) {
+    const subset = idx.map(i => pool[i]);
+    const hasColsum = subset.some(t => t.kind === 'colsum');
+    if (subset.length < 2 && !hasColsum) continue; // non-triviality guard
+    if (holdsSum(target, subset, objs)) return { kind: 'sum', target, addends: subset };
+  }
+  return null;
+}
+
+function holdsSum(target: string, subset: ArithTermRef[], objs: Record<string, unknown>[]): boolean {
+  let sawVariation = false;
+  let prev: number | undefined;
+  for (const obj of objs) {
+    const tv = obj[target];
+    if (typeof tv !== 'number' || !Number.isFinite(tv)) return false;
+    let s = 0;
+    for (const ref of subset) {
+      const v = evalTerm(obj, ref);
+      if (v === null) return false;
+      s += v;
+    }
+    if (Math.abs(tv - s) > arithTolerance(tv)) return false;
+    if (prev !== undefined && tv !== prev) sawVariation = true;
+    prev = tv;
+  }
+  return sawVariation; // reject all-constant (e.g. every total 0) — vacuous identity
+}
+
+// target ≈ a × b for two distinct direct numeric fields, on every sample.
+function findProductIdentity(
+  target: string, numericKeys: string[], objs: Record<string, unknown>[],
+): ArithIdentity | null {
+  const others = numericKeys.filter(k => k !== target);
+  for (let i = 0; i < others.length; i++) {
+    for (let j = i + 1; j < others.length; j++) {
+      const a = others[i], b = others[j];
+      if (holdsProduct(target, a, b, objs)) return { kind: 'product', target, factors: [a, b] };
+    }
+  }
+  return null;
+}
+
+function holdsProduct(target: string, a: string, b: string, objs: Record<string, unknown>[]): boolean {
+  let sawNonUnit = false; // require at least one sample where neither factor is 1 (avoid amount≡price aliasing)
+  let prev: number | undefined;
+  let sawVariation = false;
+  for (const obj of objs) {
+    const tv = obj[target], av = obj[a], bv = obj[b];
+    if ([tv, av, bv].some(v => typeof v !== 'number' || !Number.isFinite(v as number))) return false;
+    const t = tv as number, x = av as number, y = bv as number;
+    if (Math.abs(t - x * y) > arithTolerance(t)) return false;
+    if (x !== 1 && y !== 1) sawNonUnit = true;
+    if (prev !== undefined && t !== prev) sawVariation = true;
+    prev = t;
+  }
+  return sawNonUnit && sawVariation;
 }
 
 /** Collect observed numbers per schema node, then record sign/max on each node. */

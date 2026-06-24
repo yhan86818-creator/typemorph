@@ -1,5 +1,28 @@
 export type SchemaType = 'string' | 'number' | 'boolean' | 'object' | 'array' | 'any' | 'union';
 
+/**
+ * Reference to one numeric term in an arithmetic identity, relative to an object:
+ *  - 'field':  a direct numeric child field (value = obj[key])
+ *  - 'colsum': the sum of a numeric field across an array-of-objects child
+ *              (value = Σ obj[key][i][itemKey]) — e.g. Σ line_items[].amount
+ */
+export interface ArithTermRef {
+  kind: 'field' | 'colsum';
+  key: string;
+  itemKey?: string;
+}
+
+export interface ArithIdentity {
+  /** 'sum': target ≈ Σ addends.  'product': target ≈ factors[0] × factors[1] × … */
+  kind: 'sum' | 'product';
+  /** Direct numeric child field this identity predicts. */
+  target: string;
+  /** Terms summed, for kind 'sum'. */
+  addends?: ArithTermRef[];
+  /** Direct numeric child field keys multiplied, for kind 'product'. */
+  factors?: string[];
+}
+
 export interface Schema {
   type: SchemaType;
   format?: 'email' | 'url' | 'uuid' | 'datetime' | 'date' | 'int' | 'float' | 'text' | 'color' | 'ip';
@@ -19,6 +42,14 @@ export interface Schema {
    * codes → validateOutputs warns on values outside the ISO dictionary (e.g. "US$").
    */
   isCurrencyCode?: boolean;
+  /**
+   * Arithmetic consistency identities auto-derived from the bootstrap samples that
+   * held across EVERY good record (warning-level, deterministic — no learned
+   * threshold, only a fixed rounding tolerance). Attached to an object node; relate
+   * its sibling numeric fields (e.g. total ≈ subtotal + tax, amount ≈ qty × unit_price).
+   * See validateOutputs. Not used for codegen.
+   */
+  arithIdentities?: ArithIdentity[];
   /**
    * Set when a string field appears to have a closed set of specific literal values.
    * e.g. ["active", "inactive", "pending"]
