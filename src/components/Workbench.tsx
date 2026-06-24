@@ -1630,12 +1630,13 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
         {/* Presets and History Chips */}
         <div className="flex flex-col gap-2 mb-3">
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-            <span className="flex items-center gap-1 text-[10px] font-mono uppercase text-slate-500 dark:text-slate-350 tracking-wider shrink-0 font-bold">
-              <Zap size={10} className="text-slate-400" /> Presets:
+            <span className="text-[10px] uppercase text-slate-500 dark:text-slate-500 shrink-0 font-semibold" style={{ letterSpacing: '0.08em' }}>
+              Presets
             </span>
+            <span className="w-px h-3.5 bg-slate-200 dark:bg-[#21262d] shrink-0 mx-0.5" />
             <button
               onClick={() => { setInput(ENV_PRESET); resetBaseline(ENV_PRESET); }}
-              className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 transition-all shrink-0"
+              className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white transition-all shrink-0"
             >
               .env
             </button>
@@ -1654,8 +1655,8 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
             const filteredHistory = history.filter(h => h.content.trim() !== input.trim());
             return filteredHistory.length > 0 && (
               <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-                <span className="flex items-center gap-1 text-[10px] font-mono uppercase text-slate-500 dark:text-slate-350 tracking-wider shrink-0 font-bold">
-                  Recent:
+                <span className="text-[10px] uppercase text-slate-500 dark:text-slate-500 shrink-0 font-semibold" style={{ letterSpacing: '0.08em' }}>
+                  Recent
                 </span>
                 {filteredHistory.map((h, i) => (
                   <button 
@@ -2148,13 +2149,13 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
                   setShowToast(false);
                 }, 2000);
               }}
-              className="text-xs font-bold text-slate-950 dark:text-white px-4 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shrink-0"
+              className="text-xs font-semibold text-white dark:text-black bg-slate-900 dark:bg-white px-3.5 py-1.5 rounded-md hover:opacity-90 transition-opacity shrink-0"
             >
               {isCopied ? 'Copied' : 'Copy'}
             </button>
           </div>
         </div>
-        <div className="flex-1 bg-white dark:bg-[#0F0F0F]/50 backdrop-blur-md rounded-xl shadow-xl dark:shadow-black/40 border border-slate-200 dark:border-[#222222]/50 overflow-hidden relative group">
+        <div className="flex-1 bg-white dark:bg-[#0d1117] rounded-lg border border-slate-200 dark:border-[#21262d] overflow-hidden relative group">
           
           <AnimatePresence>
             {showGenSettings && (
