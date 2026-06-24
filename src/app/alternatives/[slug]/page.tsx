@@ -60,9 +60,19 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
         </nav>
 
         <header className="mb-12">
-          <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-slate-900 mb-6 leading-tight">
+          <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-slate-900 mb-4 leading-tight">
             {alt.h1}
           </h1>
+          {alt.updated && (
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-5">
+              Updated <time dateTime={alt.updated}>{alt.updated}</time>
+            </p>
+          )}
+          {alt.directAnswer && (
+            <p className="text-lg text-slate-800 font-semibold leading-relaxed max-w-2xl mb-5 border-l-4 border-blue-500 pl-5">
+              {alt.directAnswer}
+            </p>
+          )}
           <p className="text-lg text-slate-600 leading-relaxed max-w-2xl">{alt.intro}</p>
         </header>
 

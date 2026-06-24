@@ -28,6 +28,10 @@ export interface Alternative {
   };
   /** Optional FAQ entries — rendered with FAQPage JSON-LD for rich results. */
   faqs?: { q: string; a: string }[];
+  /** A 1–2 sentence direct answer — inverted-pyramid lead for AI-search extraction. */
+  directAnswer?: string;
+  /** ISO date (YYYY-MM-DD) shown as "Updated …" for recency / E-E-A-T. */
+  updated?: string;
 }
 
 // Real TypeMorph output for the shared sample (a typical API user object).
@@ -52,6 +56,9 @@ export const alternatives: Alternative[] = [
     description:
       'Side-by-side comparison of TypeMorph and transform.tools for schema and code conversion. See which tool fits your workflow.',
     h1: 'TypeMorph vs transform.tools',
+    updated: '2026-06-24',
+    directAnswer:
+      'Use transform.tools for frontend asset transforms (SVG / HTML / CSS → JSX, Pug, Tailwind) and TypeMorph for JSON / OpenAPI → Zod, TypeScript, Go, or Prisma with real format inference. They solve different problems, so the right choice depends on what you are converting.',
     intro:
       'Both TypeMorph and transform.tools are free, browser-based conversion tools for developers. They overlap in JSON→TypeScript and JSON→Zod conversions, but target different workflows. Here is an honest comparison.',
     verdict: {
@@ -120,6 +127,9 @@ export const alternatives: Alternative[] = [
     description:
       'Comparing TypeMorph and quicktype for converting JSON to TypeScript, Zod, Go, Rust, and more. Side-by-side feature breakdown.',
     h1: 'TypeMorph vs quicktype',
+    updated: '2026-06-24',
+    directAnswer:
+      'TypeMorph is a quicktype alternative focused on Zod quality: it detects email, UUID, and URL formats that quicktype outputs as z.string() (quicktype does catch dates), and it also generates Prisma, Drizzle, and other database schemas quicktype does not. quicktype still wins on raw language coverage such as Objective-C and Elm.',
     intro:
       'quicktype is a well-established JSON-to-types converter supporting many output languages. TypeMorph takes a schema-engineering angle with quality scoring, breaking change detection, and a CLI. Here is an honest breakdown of where each tool excels.',
     verdict: {
@@ -205,6 +215,9 @@ export const alternatives: Alternative[] = [
     description:
       'A json-to-zod alternative that detects formats. json-to-zod infers only basic types; TypeMorph reads your real JSON and adds .email(), .uuid(), .url(), datetimes, and enums. Honest comparison.',
     h1: 'TypeMorph vs json-to-zod',
+    updated: '2026-06-24',
+    directAnswer:
+      'Yes — TypeMorph is a json-to-zod alternative that detects formats. It reads your JSON and outputs z.email(), z.uuid(), z.url(), and z.iso.datetime() where json-to-zod emits plain z.string(), and it is actively maintained with current Zod v4 output. json-to-zod remains a fine tiny library for a rough scaffold you will refine by hand.',
     intro:
       'json-to-zod is a popular minimal library for turning a JSON object into a Zod schema. It infers basic types (string, number, boolean, arrays, nested objects) but stops there — emails, UUIDs, URLs, datetimes, and enums all come out as plain z.string(). It is also effectively unmaintained (last published years ago). TypeMorph reads the same JSON and infers the semantic formats and constraints. Here is an honest comparison.',
     verdict: {
