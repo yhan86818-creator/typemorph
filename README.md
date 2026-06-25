@@ -9,6 +9,8 @@
 [![npm](https://img.shields.io/npm/v/typemorph-cli?style=for-the-badge&logo=npm&color=CB3837)](https://www.npmjs.com/package/typemorph-cli)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
 
+![TypeMorph — paste JSON, get Zod with real type inference](https://raw.githubusercontent.com/yhan86818-creator/typemorph/main/public/readme-screenshot.png)
+
 ---
 
 ## What makes TypeMorph different
