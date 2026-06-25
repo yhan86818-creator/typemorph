@@ -2696,7 +2696,7 @@ export const openAiFunctionGen = {
       else if (v.format === 'uuid' || /Id$/.test(k) || /ID$/.test(k) || kl.endsWith('_id')) s.format = 'uuid';
       else if (v.format === 'url' || kl.includes('url') || kl.includes('link')) s.format = 'uri';
       else if (v.format === 'datetime') s.format = 'date-time';
-      else if (kl.includes('password') || kl.includes('passwd')) s.minLength = 8;
+      // (no name-based password minLength: real sample passwords are often <8 chars)
       return s;
     };
 

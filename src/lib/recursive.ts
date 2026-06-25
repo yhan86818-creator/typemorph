@@ -1,9 +1,11 @@
 import { Schema } from './types';
 
 // Mirrors the toPascalCase in ast.ts/generators.ts so _sharedTypeName is always
-// in PascalCase, matching the class names schemaToAST produces.
+// in PascalCase, matching the class names schemaToAST produces. Folds across any
+// non-identifier separator ('-', '.', space) so hyphenated keys don't leak.
 function toPascalCase(str: string): string {
-  return str.replace(/(^\w|_\w)/g, m => m.replace(/_/, '').toUpperCase());
+  return str.split(/[^A-Za-z0-9$]+/).filter(Boolean)
+    .map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
 }
 
 function objectFieldNames(s: Schema): string[] | null {

@@ -428,11 +428,12 @@ describe('generators', () => {
       expect(result).toContain('z.number().min(0).max(100)');
     });
 
-    it('should add .min(0).max(100) for percentage field', () => {
+    it('adds .min(0) but NOT .max(100) for percentage (real %s exceed 100: ROI, growth)', () => {
       const json = { percentage: 75.5 };
       const schema = inferSchema(json);
       const result = zodGen.generate(schema, 'Root');
-      expect(result).toContain('z.number().min(0).max(100)');
+      expect(result).toContain('percentage: z.number().min(0)');
+      expect(result).not.toContain('.max(100)');
     });
 
     it('should add .int().min(1900).max(2100) for year field', () => {
@@ -505,12 +506,13 @@ describe('generators', () => {
       expect(result).toContain("z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)");
     });
 
-    it('should add .min(8) for password field', () => {
+    it('does NOT add name-based .min(8) for password (real passwords are often <8 chars)', () => {
       const json = { password: 'secret123' };
       const schema = inferSchema(json);
       if (schema.fields?.password) schema.fields.password.format = undefined;
       const result = zodGen.generate(schema, 'Root');
-      expect(result).toContain('z.string().min(8)');
+      expect(result).toContain('password: z.string()');
+      expect(result).not.toContain('.min(8)');
     });
 
     it('should NOT add .min(1) for long-text fields like description', () => {

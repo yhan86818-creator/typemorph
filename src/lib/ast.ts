@@ -1,6 +1,12 @@
 import { Schema, SchemaType, ASTClass, ASTField, ASTType, ASTTypeKind } from './types';
 
-const toPascalCase = (str: string) => str.replace(/(^\w|_\w)/g, m => m.replace(/_/, '').toUpperCase());
+// Fold to PascalCase across ANY non-identifier separator ('-', '.', space, etc.),
+// not just '_', so hyphenated keys (e.g. "x-y", "generation-i") can't leak into
+// emitted class/type names. Valid identifiers and underscore keys are unchanged,
+// keeping existing snapshots stable. Mirrors toPascalCase in generators.ts/recursive.ts.
+const toPascalCase = (str: string) =>
+  str.split(/[^A-Za-z0-9$]+/).filter(Boolean)
+    .map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
 
 // ASTType が特定のクラス名を参照しているか（配列要素も再帰的に確認）
 const astTypeRefersTo = (type: ASTType | undefined, name: string): boolean => {
@@ -122,6 +128,16 @@ export const convertToASTType = (v: Schema, parentClassPrefix: string, fieldKey:
   return { kind, format: v.format, ...lit, ...coerced, ...refs };
 };
 
+// A single-field object is only a "redundant wrapper" worth flattening when its key is a
+// generic envelope word (e.g. `{ data: User }`). A single-field object whose key is real
+// data — e.g. a one-entry map like `{ "scarlet-violet": Sprite }` — must NOT be flattened:
+// doing so drops the key and yields a schema that rejects the very data it came from.
+const GENERIC_WRAPPER_KEYS = new Set([
+  'data', 'result', 'results', 'payload', 'response', 'body', 'content',
+  'attributes', 'wrapper', 'value', 'item', 'object', 'record',
+]);
+const isGenericWrapperKey = (key: string): boolean => GENERIC_WRAPPER_KEYS.has(key.toLowerCase());
+
 // スキーマ・リファクタリングエンジン (AST 最適化)
 export const optimizeAST = (
   classes: ASTClass[],
@@ -190,7 +206,7 @@ export const optimizeAST = (
         
         if (cls.fields.length === 1) {
           const singleField = cls.fields[0];
-          if (singleField.fieldType.kind === 'classRef') {
+          if (singleField.fieldType.kind === 'classRef' && isGenericWrapperKey(singleField.name)) {
             const targetClassName = singleField.fieldType.classRefName;
             if (!targetClassName) continue;
             
