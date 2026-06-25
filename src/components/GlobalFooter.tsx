@@ -39,13 +39,18 @@ export default function GlobalFooter() {
             <h4 className="font-black text-xs uppercase tracking-[0.2em] text-slate-400 mb-6">Product</h4>
             <ul className="space-y-4 text-sm font-bold text-slate-600 dark:text-slate-400">
               <li><Link prefetch={false} href="/?view=app" className="hover:text-slate-900 dark:hover:text-white transition-colors">Workbench</Link></li>
-              <li><Link prefetch={false} href="/pricing" className="hover:text-slate-900 dark:hover:text-white transition-colors">Pricing</Link></li>
               <li>
                 <Link prefetch={false} href={typeof window !== 'undefined' && window.location.pathname.includes('/jp') ? "/jp/help/" : "/help/"} className="hover:text-slate-900 dark:hover:text-white transition-colors">
                   {typeof window !== 'undefined' && window.location.pathname.includes('/jp') ? '使い方ガイド' : 'How to Use'}
                 </Link>
               </li>
               <li><a href="#" className="hover:text-slate-900 dark:hover:text-white transition-colors">Security Audit</a></li>
+            </ul>
+            <h4 className="font-black text-xs uppercase tracking-[0.2em] text-slate-400 mt-8 mb-4">Tools</h4>
+            <ul className="space-y-3 text-sm font-bold text-slate-600 dark:text-slate-400">
+              <li><Link prefetch={false} href="/tools/env-diff" className="hover:text-slate-900 dark:hover:text-white transition-colors">Environment Diff</Link></li>
+              <li><Link prefetch={false} href="/tools/api-drift-check" className="hover:text-slate-900 dark:hover:text-white transition-colors">API Drift Check</Link></li>
+              <li><Link prefetch={false} href="/tools/llm-output-validator" className="hover:text-slate-900 dark:hover:text-white transition-colors">LLM Output Validator</Link></li>
             </ul>
           </div>
           <div>
@@ -61,6 +66,7 @@ export default function GlobalFooter() {
             <ul className="space-y-3 text-sm font-bold text-slate-600 dark:text-slate-400">
               <li><Link prefetch={false} href="/alternatives/transform-tools" className="hover:text-slate-900 dark:hover:text-white transition-colors">vs transform.tools</Link></li>
               <li><Link prefetch={false} href="/alternatives/quicktype" className="hover:text-slate-900 dark:hover:text-white transition-colors">vs quicktype</Link></li>
+              <li><Link prefetch={false} href="/alternatives/oasdiff" className="hover:text-slate-900 dark:hover:text-white transition-colors">vs oasdiff</Link></li>
             </ul>
           </div>
         </div>

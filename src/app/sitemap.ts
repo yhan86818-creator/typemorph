@@ -62,13 +62,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/pricing`,
+      url: `${baseUrl}/tools/llm-output-validator`,
       lastModified: new Date(),
       changeFrequency: 'monthly' as const,
-      priority: 0.8,
+      priority: 0.9,
     },
     {
-      url: `${baseUrl}/tools/llm-output-validator`,
+      url: `${baseUrl}/tools/env-diff`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/tools/api-drift-check`,
       lastModified: new Date(),
       changeFrequency: 'monthly' as const,
       priority: 0.9,
@@ -88,6 +94,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...blogEntries,
     ...toolEntries,
     ...toolEntriesJP,
+    // alternatives are auto-generated from the alternatives array below
     ...alternatives.map((a) => ({
       url: `${baseUrl}/alternatives/${a.slug}`,
       lastModified: new Date(),

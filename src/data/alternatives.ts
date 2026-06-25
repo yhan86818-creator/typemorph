@@ -49,6 +49,104 @@ const DIFF_NOTE =
 
 export const alternatives: Alternative[] = [
   {
+    slug: 'oasdiff',
+    competitor: 'oasdiff',
+    competitorUrl: 'https://www.oasdiff.com',
+    title: 'TypeMorph vs oasdiff — API Breaking Change Detection Without OpenAPI Spec',
+    description:
+      'oasdiff requires two OpenAPI spec files. TypeMorph check and envdiff detect API schema drift directly from live JSON responses — no spec, no config, no vendor lock-in.',
+    h1: 'TypeMorph vs oasdiff',
+    updated: '2026-06-25',
+    directAnswer:
+      'oasdiff compares two OpenAPI spec files and is the best tool when you maintain up-to-date specs. TypeMorph check and envdiff detect breaking changes directly from live API responses — no spec required. If your API lacks an OpenAPI spec (common for third-party APIs), TypeMorph is the practical choice.',
+    intro:
+      'oasdiff is a widely-used open-source tool for detecting breaking changes between two OpenAPI specifications. It is excellent — when you have specs. TypeMorph takes a different approach: it infers the schema from actual JSON responses and compares them directly, making it the only option for APIs without maintained specs. Here is an honest comparison.',
+    verdict: {
+      useTypemorph:
+        'Your API does not have an OpenAPI spec (or it is out of date), you are monitoring third-party APIs, or you want to compare two live environments (staging vs prod) without maintaining spec files.',
+      useCompetitor:
+        'Your team already maintains accurate OpenAPI specs and you want deep structural diffing — response codes, headers, security schemes — beyond what JSON inference covers.',
+    },
+    table: [
+      { feature: 'Detect breaking changes in CI', typemorph: true, competitor: true },
+      { feature: 'Requires OpenAPI spec file', typemorph: false, competitor: true },
+      { feature: 'Works with live API responses', typemorph: true, competitor: false },
+      { feature: 'Works with third-party APIs (no spec)', typemorph: true, competitor: false },
+      { feature: 'Compare staging vs production live', typemorph: true, competitor: false },
+      { feature: 'Exit code 1 on breaking change', typemorph: true, competitor: true },
+      { feature: 'GitHub Actions format output', typemorph: true, competitor: true },
+      { feature: 'Detects field type changes', typemorph: true, competitor: true },
+      { feature: 'Detects removed required fields', typemorph: true, competitor: true },
+      { feature: 'Detects response code changes', typemorph: false, competitor: true },
+      { feature: 'Detects header / security changes', typemorph: false, competitor: true },
+      { feature: 'JSON → Zod / TypeScript / Go / Prisma', typemorph: '160+ formats', competitor: false },
+      { feature: 'Schema quality scoring', typemorph: true, competitor: false },
+      { feature: 'Web UI (no install)', typemorph: true, competitor: false },
+      { feature: 'Install via npx (no binary needed)', typemorph: true, competitor: false },
+      { feature: 'Free & open source', typemorph: true, competitor: true },
+    ],
+    typemorphStrengths: [
+      'No OpenAPI spec required — infers schema directly from live JSON responses',
+      'Monitor third-party APIs you do not control and that have no public spec',
+      'envdiff compares two live environments (staging vs prod) in one command',
+      'npx typemorph-cli — no Go binary, no Docker, just Node 18+',
+      'Web UI for instant paste-and-compare without any install',
+      '160+ output formats beyond drift detection — Zod, TypeScript, Go, Prisma, and more',
+    ],
+    competitorStrengths: [
+      'Deep OpenAPI diffing — response codes, headers, security schemes, and more',
+      'Spec-to-spec comparison is more comprehensive when specs are accurate',
+      'Long-established tool with wide CI/CD ecosystem support',
+      'Handles complex OpenAPI features ($ref, allOf, oneOf) that JSON inference cannot represent',
+    ],
+    codeDiff: {
+      competitorLabel: 'oasdiff (requires OpenAPI spec)',
+      competitorCode: `# oasdiff requires two OpenAPI spec files
+# You must maintain openapi-v1.yaml and openapi-v2.yaml
+
+oasdiff breaking openapi-v1.yaml openapi-v2.yaml
+
+# If your spec is outdated or missing — oasdiff cannot help:
+# "If the spec is wrong (or doesn't exist), oasdiff can't help."`,
+      typemorphCode: `# typemorph check — no spec file needed
+# First run: saves baseline from the live API
+curl -s https://api.example.com/users/1 \\
+  | npx typemorph-cli check --baseline .typemorph/users.json
+
+# Subsequent runs: compares live response against baseline
+curl -s https://api.example.com/users/1 \\
+  | npx typemorph-cli check --baseline .typemorph/users.json
+
+# Compare staging vs prod directly
+npx typemorph-cli envdiff \\
+  --a https://staging.api.com/users/1 \\
+  --b https://prod.api.com/users/1`,
+      note: 'oasdiff requires maintained OpenAPI specs. TypeMorph infers the schema from the actual response — works on any JSON API, including third-party ones with no public spec.',
+    },
+    faqs: [
+      {
+        q: 'What is a good oasdiff alternative for APIs without an OpenAPI spec?',
+        a: 'TypeMorph check detects API schema drift directly from live JSON responses. No spec file required — save a baseline on the first run, then compare future responses against it in CI.',
+      },
+      {
+        q: 'Can TypeMorph replace oasdiff for OpenAPI spec diffing?',
+        a: 'Not fully. oasdiff provides deeper spec-level diffing (response codes, headers, security schemes). TypeMorph covers field-level breaking changes (type changes, removed fields, renames) inferred from real responses. Use oasdiff when you have accurate specs; use TypeMorph when you do not.',
+      },
+      {
+        q: 'What happened to Optic — the other API drift tool?',
+        a: 'Optic was archived in January 2026 after Atlassian acquired it in 2024. oasdiff and TypeMorph are the two main actively-maintained alternatives for CI-based API drift detection.',
+      },
+      {
+        q: 'How do I monitor a third-party API for breaking changes?',
+        a: 'Use typemorph check. Run `curl -s https://third-party-api.com/endpoint | npx typemorph-cli check --baseline .typemorph/endpoint.json` in CI. It exits with code 1 if the schema changed.',
+      },
+      {
+        q: 'Does TypeMorph work in GitHub Actions like oasdiff?',
+        a: 'Yes. typemorph-cli supports --format github which outputs a markdown table suitable for GitHub Step Summary or PR comments. Exit code 1 on breaking changes integrates with branch protection rules.',
+      },
+    ],
+  },
+  {
     slug: 'transform-tools',
     competitor: 'transform.tools',
     competitorUrl: 'https://transform.tools',

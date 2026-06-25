@@ -72,6 +72,7 @@ const FORMAT_GROUPS: Record<string, string[]> = {
   'Backend':                 ['go', 'rust', 'java', 'csharp', 'python', 'swift', 'kotlin', 'php', 'dart'],
   'Database':                ['prisma', 'mysql', 'postgres', 'sqlite', 'mongoose', 'sequelize', 'typeorm', 'drizzle', 'dynamodb', 'bigquery', 'mongodb'],
   'API / Schema':            ['openapi', 'graphql', 'proto', 'jsonschema'],
+  'AI Tools':                ['mcp-tool', 'openai-function', 'vercel-ai-tool'],
   'Data / Markup':           ['csv', 'sql', 'toml', 'yaml', 'avro'],
   'Docs / Mock':             ['doc', 'mock'],
 };
@@ -96,6 +97,8 @@ ${bold('USAGE')}
   typemorph reverse  [file.ts]        Generate JSON sample from TypeScript interfaces
   typemorph quality  [file]           Grade schema quality (A–F)
   typemorph diff     <old> <new>      Detect breaking changes
+  typemorph check    [file]           Detect API schema drift against a saved baseline
+  typemorph envdiff                   Compare two live environments (staging vs prod)
   typemorph validate <schema> <out>   Validate LLM/API JSON output against a Zod schema
   typemorph validate --infer <out>    Infer a Zod schema from known-good outputs
   typemorph list                      Show all formats
@@ -106,10 +109,16 @@ ${bold('OPTIONS')}
   --schema <name>       Target a specific named schema (OpenAPI/JSON Schema)
   --min-grade <grade>   Fail (exit 1) if quality grade is below threshold (quality)
   --breaking-only       Only show breaking changes (diff)
+  --url <url>           URL to fetch JSON from (check)
+  --baseline <file>     Path to baseline snapshot file (check)
+  --update              Update baseline instead of failing on drift (check)
+  --header <H:V>        HTTP header for authenticated endpoints, repeatable (check, envdiff)
+  --a <url|file>        First environment URL or file (envdiff)
+  --b <url|file>        Second environment URL or file (envdiff)
   --infer               Infer a schema from good outputs instead of validating (validate)
   --strict              Treat warnings (extra fields, drift) as failures (validate)
   --out <file>          Write inferred schema to a file (validate --infer)
-  --format <fmt>        Report format: pretty | json | github (validate)
+  --format <fmt>        Report format: pretty | json | github (validate, check)
   --json                Output results as JSON (quality, diff)
   --version, -v         Show version
   --help,    -h         Show this help
@@ -130,6 +139,17 @@ ${bold('EXAMPLES')}
   typemorph diff      v1.yaml v2.yaml --schema User
   typemorph diff      v1.json v2.json --breaking-only
   typemorph diff      v1.json v2.json --json
+  typemorph check     --url https://api.example.com/users --baseline .typemorph/users.json
+  typemorph check     --url https://api.example.com/users --baseline .typemorph/users.json --format github
+  typemorph mcp-tool        schema.json --root SearchTool     # MCP tool definition
+  typemorph openai-function schema.json --root GetUser        # OpenAI function calling
+  typemorph vercel-ai-tool  schema.json --root FetchOrder     # Vercel AI SDK tool
+  typemorph check     --url https://api.example.com/users --baseline .typemorph/users.json --update
+  typemorph check     --url https://api.example.com/users --baseline .typemorph/users.json --header "Authorization: Bearer \$TOKEN"
+  typemorph check     response.json --baseline .typemorph/users.json
+  typemorph envdiff   --a https://staging.api.com/users --b https://prod.api.com/users
+  typemorph envdiff   --a https://staging.api.com/users --b https://prod.api.com/users --format github
+  typemorph envdiff   staging.json prod.json
   typemorph validate  schema.ts responses.jsonl
   typemorph validate  schema.ts outputs.json --strict --format github
   typemorph validate  --infer good-outputs.jsonl --out schema.ts
@@ -333,6 +353,220 @@ function cmdDiff(oldText: string, newText: string, opts: { schema?: string; brea
   if (totalBreaking > 0) process.exit(1);
 }
 
+// ── envdiff command ───────────────────────────────────────────────────────────
+async function fetchOrRead(urlOrFile: string, headers: Record<string, string>): Promise<string> {
+  if (/^https?:\/\//.test(urlOrFile)) {
+    let res: Response;
+    try {
+      res = await fetch(urlOrFile, { headers });
+    } catch (e: any) {
+      console.error(red(`envdiff: failed to fetch ${urlOrFile} — ${e?.message ?? e}`));
+      process.exit(1);
+    }
+    if (!res.ok) {
+      console.error(red(`envdiff: HTTP ${res.status} from ${urlOrFile}`));
+      process.exit(1);
+    }
+    return res.text();
+  }
+  return readFile(urlOrFile);
+}
+
+async function cmdEnvdiff(opts: {
+  a: string;
+  b: string;
+  label?: [string, string];
+  format: string;
+  headers: Record<string, string>;
+  json?: boolean;
+  breakingOnly: boolean;
+}) {
+  const [textA, textB] = await Promise.all([
+    fetchOrRead(opts.a, opts.headers),
+    fetchOrRead(opts.b, opts.headers),
+  ]);
+
+  const { obj: objA } = parseInput(textA);
+  const { obj: objB } = parseInput(textB);
+  const schemaA = inferSchema(objA);
+  const schemaB = inferSchema(objB);
+
+  const labelA = opts.label?.[0] ?? opts.a;
+  const labelB = opts.label?.[1] ?? opts.b;
+
+  const allDiffs = compareSchemaTypes(schemaA, schemaB);
+  const diffs = opts.breakingOnly ? allDiffs.filter(d => d.severity === 'error') : allDiffs;
+  const breaking = diffs.filter(d => d.severity === 'error').length;
+  const warnings = diffs.filter(d => d.severity === 'warning').length;
+  const info     = diffs.filter(d => d.severity === 'info').length;
+  const ok = breaking === 0;
+
+  if (opts.format === 'github') {
+    const lines: string[] = [];
+    lines.push(`## TypeMorph · Environment Diff`);
+    lines.push(`**A:** \`${labelA}\`  →  **B:** \`${labelB}\``);
+    lines.push('');
+    if (ok) {
+      lines.push(`**✓ Schemas match**${warnings > 0 ? ` (${warnings} warning(s))` : ''}`);
+    } else {
+      lines.push(`**✖ ${breaking} breaking difference(s) detected**`);
+    }
+    if (diffs.length > 0) {
+      lines.push('');
+      lines.push('| field | difference | severity |');
+      lines.push('|---|---|---|');
+      for (const d of diffs) {
+        const icon = d.severity === 'error' ? '🔴' : d.severity === 'warning' ? '🟡' : '🔵';
+        lines.push(`| \`${d.path || 'root'}\` | ${d.description.replace(/\|/g, '\\|')} | ${icon} |`);
+      }
+    }
+    process.stdout.write(lines.join('\n') + '\n');
+  } else if (opts.json) {
+    process.stdout.write(JSON.stringify({ ok, breaking, warnings, info, a: labelA, b: labelB, diffs }, null, 2) + '\n');
+  } else {
+    const scoreStr = ok ? green('✓ Schemas match') : red(`✖ ${breaking} difference${breaking === 1 ? '' : 's'}`);
+    console.log(`\n  ${bold('Environment Diff')}  ${scoreStr}`);
+    console.log(`  ${dim('A:')} ${cyan(labelA)}`);
+    console.log(`  ${dim('B:')} ${cyan(labelB)}\n`);
+    if (diffs.length === 0) {
+      console.log(dim(`  No ${opts.breakingOnly ? 'breaking ' : ''}differences detected.\n`));
+    } else {
+      for (const d of diffs) {
+        const loc = d.path ? blue(`  ${d.path}`) : '';
+        if (loc) console.log(loc);
+        console.log(`    ${severityColor(d)}`);
+      }
+      console.log(dim(`\n  ${breaking} breaking  ·  ${warnings} warnings  ·  ${info} info\n`));
+    }
+  }
+
+  if (!ok) process.exitCode = 1;
+}
+
+// ── check command ────────────────────────────────────────────────────────────
+async function cmdCheck(opts: {
+  url?: string;
+  file?: string;
+  baseline: string;
+  update: boolean;
+  format: string;
+  headers: Record<string, string>;
+  json?: boolean;
+}) {
+  // 1. Fetch or read current response
+  let text: string;
+  if (opts.url) {
+    let res: Response;
+    try {
+      res = await fetch(opts.url, { headers: opts.headers });
+    } catch (e: any) {
+      console.error(red(`check: failed to fetch ${opts.url} — ${e?.message ?? e}`));
+      process.exit(1);
+    }
+    if (!res.ok) {
+      console.error(red(`check: HTTP ${res.status} from ${opts.url}`));
+      process.exit(1);
+    }
+    text = await res.text();
+  } else if (opts.file) {
+    text = readFile(opts.file);
+  } else {
+    text = await readStdin();
+  }
+
+  const { obj } = parseInput(text);
+  const currentSchema = inferSchema(obj);
+
+  // 2. First run: save baseline and exit
+  const baselinePath = path.resolve(opts.baseline);
+  if (!fs.existsSync(baselinePath)) {
+    fs.mkdirSync(path.dirname(baselinePath), { recursive: true });
+    fs.writeFileSync(baselinePath, JSON.stringify(currentSchema, null, 2));
+    if (opts.format === 'github') {
+      console.log(`## TypeMorph · API schema check`);
+      console.log(`**Baseline saved** to \`${opts.baseline}\` — run again to detect drift.`);
+    } else if (opts.json) {
+      process.stdout.write(JSON.stringify({ ok: true, baseline: 'created', file: opts.baseline }) + '\n');
+    } else {
+      console.log(green(`\n  ✓ Baseline saved: ${opts.baseline}`));
+      console.log(dim(`  Run again to detect drift.\n`));
+    }
+    return;
+  }
+
+  // 3. Load baseline and compare
+  let baselineSchema: Schema;
+  try {
+    baselineSchema = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
+  } catch {
+    console.error(red(`check: could not parse baseline file "${opts.baseline}"`));
+    process.exit(1);
+  }
+
+  // Enum inference from a single sample is unreliable: "admin" in one response
+  // doesn't mean "user" is a breaking removal. Downgrade to warning so CI doesn't
+  // false-positive. Type changes and field removals remain errors.
+  const diffs = compareSchemaTypes(baselineSchema, currentSchema).map(d =>
+    d.type === 'enum_changed' && d.severity === 'error'
+      ? { ...d, severity: 'warning' as const, description: d.description + ' (verify: inferred from single sample)' }
+      : d
+  );
+  const breaking = diffs.filter(d => d.severity === 'error').length;
+  const warnings = diffs.filter(d => d.severity === 'warning').length;
+  const info = diffs.filter(d => d.severity === 'info').length;
+  const ok = breaking === 0;
+
+  // 4. Output
+  if (opts.format === 'github') {
+    const lines: string[] = [];
+    lines.push(`## TypeMorph · API schema check`);
+    lines.push('');
+    if (ok) {
+      lines.push(`**✓ No breaking changes detected**`);
+      if (warnings > 0) lines.push(`${warnings} warning(s) found.`);
+    } else {
+      lines.push(`**✖ ${breaking} breaking change(s) detected**`);
+    }
+    if (diffs.length > 0) {
+      lines.push('');
+      lines.push('| field | change | severity |');
+      lines.push('|---|---|---|');
+      for (const d of diffs) {
+        const icon = d.severity === 'error' ? '🔴' : d.severity === 'warning' ? '🟡' : '🔵';
+        lines.push(`| \`${d.path || 'root'}\` | ${d.description.replace(/\|/g, '\\|')} | ${icon} |`);
+      }
+    }
+    process.stdout.write(lines.join('\n') + '\n');
+  } else if (opts.json) {
+    process.stdout.write(JSON.stringify({ ok, breaking, warnings, info, diffs }, null, 2) + '\n');
+  } else {
+    const scoreStr = ok ? green('✓ No breaking changes') : red(`✖ ${breaking} breaking change${breaking === 1 ? '' : 's'}`);
+    console.log(`\n  ${bold('API Schema Drift Check')}  ${scoreStr}\n`);
+    if (diffs.length === 0) {
+      console.log(dim(`  Schema matches baseline: ${opts.baseline}\n`));
+    } else {
+      for (const d of diffs) {
+        const loc = d.path ? blue(`  ${d.path}`) : '';
+        if (loc) console.log(loc);
+        console.log(`    ${severityColor(d)}`);
+      }
+      console.log(dim(`\n  ${breaking} breaking  ·  ${warnings} warnings  ·  ${info} info`));
+      console.log(dim(`  baseline: ${opts.baseline}\n`));
+    }
+  }
+
+  // 5. Update baseline if requested
+  if (opts.update && diffs.length > 0) {
+    fs.writeFileSync(baselinePath, JSON.stringify(currentSchema, null, 2));
+    if (opts.format !== 'github' && !opts.json) {
+      console.log(yellow(`  ⚠ Baseline updated: ${opts.baseline}\n`));
+    }
+    return; // don't exit 1 when --update
+  }
+
+  if (!ok) process.exit(1);
+}
+
 // ── validate command ─────────────────────────────────────────────────────────
 // Load the *expected* schema: a Zod source (.ts/.js or anything containing `z.`)
 // goes through the reverse parser; otherwise treat as JSON Schema / sample JSON.
@@ -497,6 +731,73 @@ async function main() {
     }
     const breakingOnly = argv.includes('--breaking-only');
     cmdDiff(readFile(files[0]), readFile(files[1]), { schema: schemaFilter, breakingOnly, json: jsonOut });
+    return;
+  }
+
+  // ── envdiff ───────────────────────────────────────────────────────────────
+  if (cmd === 'envdiff') {
+    const aIdx = argv.findIndex(a => a === '--a');
+    const bIdx = argv.findIndex(a => a === '--b');
+    const aVal = aIdx !== -1 ? argv[aIdx + 1] : undefined;
+    const bVal = bIdx !== -1 ? argv[bIdx + 1] : undefined;
+
+    // positional fallback: typemorph envdiff staging.json prod.json
+    const flagValues = new Set([aVal, bVal].filter(Boolean));
+    const positional = argv.slice(1).filter(a => !a.startsWith('-') && !flagValues.has(a));
+    const a = aVal ?? positional[0];
+    const b = bVal ?? positional[1];
+
+    if (!a || !b) {
+      console.error(red('Usage: typemorph envdiff --a <url|file> --b <url|file>'));
+      process.exit(1);
+    }
+
+    const fmtIdx = argv.findIndex(a => a === '--format');
+    const format = fmtIdx !== -1 ? (argv[fmtIdx + 1] ?? 'pretty') : 'pretty';
+    const breakingOnly = argv.includes('--breaking-only');
+
+    const headers: Record<string, string> = {};
+    for (let i = 0; i < argv.length - 1; i++) {
+      if (argv[i] === '--header') {
+        const raw = argv[i + 1];
+        const colon = raw.indexOf(':');
+        if (colon > 0) headers[raw.slice(0, colon).trim()] = raw.slice(colon + 1).trim();
+      }
+    }
+
+    await cmdEnvdiff({ a, b, format, headers, json: jsonOut, breakingOnly });
+    return;
+  }
+
+  // ── check ────────────────────────────────────────────────────────────────
+  if (cmd === 'check') {
+    const urlIdx = argv.findIndex(a => a === '--url');
+    const url = urlIdx !== -1 ? argv[urlIdx + 1] : undefined;
+    const baselineIdx = argv.findIndex(a => a === '--baseline');
+    const baseline = baselineIdx !== -1 ? argv[baselineIdx + 1] : undefined;
+    if (!baseline) {
+      console.error(red('Usage: typemorph check [file] --baseline <path> [--url <url>] [--update] [--format github]'));
+      process.exit(1);
+    }
+    const update = argv.includes('--update');
+    const fmtIdx = argv.findIndex(a => a === '--format');
+    const format = fmtIdx !== -1 ? (argv[fmtIdx + 1] ?? 'pretty') : 'pretty';
+
+    // collect --header "Key: Value" entries
+    const headers: Record<string, string> = {};
+    for (let i = 0; i < argv.length - 1; i++) {
+      if (argv[i] === '--header') {
+        const raw = argv[i + 1];
+        const colon = raw.indexOf(':');
+        if (colon > 0) {
+          headers[raw.slice(0, colon).trim()] = raw.slice(colon + 1).trim();
+        }
+      }
+    }
+
+    const flagValues = new Set([url, baseline, format, ...Object.entries(headers).flat()].filter(Boolean));
+    const file = argv.slice(1).find(a => !a.startsWith('-') && !flagValues.has(a));
+    await cmdCheck({ url, file, baseline, update, format, headers, json: jsonOut });
     return;
   }
 

@@ -84,6 +84,44 @@ const jsonLd = {
   }
 };
 
+const softwareJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "TypeMorph",
+  "url": "https://typemorph.dev",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Web, Windows, macOS, Linux",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "description": "Convert JSON to Zod, TypeScript, Go, Rust, Prisma and 160+ formats with real type inference. Detects email, UUID, URL, datetime, enums and int vs float. Includes schema quality grading, breaking change detection, API drift check, and a CLI for CI pipelines. 100% browser-local — your data never leaves your machine.",
+  "featureList": [
+    "JSON to Zod schema conversion with semantic type inference",
+    "160+ output formats including TypeScript, Go, Rust, Prisma, Drizzle",
+    "OpenAPI and JSON Schema input support",
+    "Schema quality grading (A–F)",
+    "Breaking change detection",
+    "API schema drift detection without OpenAPI spec",
+    "Environment diff (staging vs production)",
+    "MCP tool definition generation",
+    "OpenAI function calling schema generation",
+    "Vercel AI SDK tool generation",
+    "LLM output validation",
+    "VS Code extension",
+    "CLI tool (typemorph-cli on npm)",
+    "100% browser-local — no data upload"
+  ],
+  "screenshot": "https://typemorph.dev/hero-preview.png",
+  "softwareVersion": "0.6.0",
+  "author": {
+    "@type": "Organization",
+    "name": "TypeMorph",
+    "url": "https://typemorph.dev"
+  }
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -115,6 +153,10 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareJsonLd) }}
         />
         <GoogleAnalytics gaId="G-BNX0SLDWBX" />
         {children}

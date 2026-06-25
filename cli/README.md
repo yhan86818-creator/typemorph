@@ -15,7 +15,8 @@
 
 - **Real inference, not `z.string()`** — detects `email`, `uuid`, `url`, `datetime`, enums, and `int` vs `float` from your real JSON, plus shared and nested types.
 - **One input → 40+ outputs** — JSON / YAML / SQL / OpenAPI / JSON Schema → Zod, TypeScript, Go, Rust, Prisma, Drizzle, and more.
-- **CI-ready & 100% local** — `diff` blocks breaking API changes; `validate` checks real LLM/API outputs against your schema. Nothing is uploaded.
+- **No OpenAPI spec required** — `check` detects API schema drift directly from live responses. No spec file, no config, no vendor lock-in.
+- **CI-ready & 100% local** — `check` and `diff` block breaking API changes in CI; `validate` checks LLM/API outputs against your schema. Nothing is uploaded.
 
 ---
 
@@ -50,6 +51,9 @@ typemorph quality api-response.json
 
 # Detect breaking changes between API versions
 typemorph diff v1.json v2.json
+
+# Watch a live API for schema drift — no spec file needed
+curl -s https://api.example.com/users/1 | typemorph check --baseline .typemorph/users.json
 ```
 
 ---
@@ -118,6 +122,58 @@ typemorph diff v1.json v2.json --breaking-only
 |------|-------------|
 | `--breaking-only` | Only show breaking changes (severity: error) |
 
+### `typemorph check [file] --baseline <path>`
+
+Detect API schema drift against a saved baseline — **no OpenAPI spec required**. On the first run it saves a baseline snapshot. On subsequent runs it compares the live response against that snapshot and exits with code 1 if breaking changes are found.
+
+Works with any JSON API: your own services, third-party APIs, or LLM structured outputs.
+
+```bash
+# First run: saves baseline
+curl -s https://api.example.com/users/1 | typemorph check --baseline .typemorph/users.json
+
+# Subsequent runs: compares against baseline
+curl -s https://api.example.com/users/1 | typemorph check --baseline .typemorph/users.json
+
+# File input instead of URL
+typemorph check response.json --baseline .typemorph/users.json
+
+# With authentication
+curl -s -H "Authorization: Bearer $TOKEN" https://api.example.com/me | \
+  typemorph check --baseline .typemorph/me.json
+
+# Update baseline without failing (useful for intentional changes)
+curl -s https://api.example.com/users/1 | typemorph check --baseline .typemorph/users.json --update
+
+# GitHub Actions PR comment format
+curl -s https://api.example.com/users/1 | typemorph check --baseline .typemorph/users.json --format github
+```
+
+```
+  API Schema Drift Check  ✖ 2 breaking changes
+
+  email
+    ✖  Required field 'email' was removed. This is a breaking change.
+  id
+    ✖  'id' changed type from 'number' to 'string'.
+
+  2 breaking  ·  0 warnings  ·  0 info
+  baseline: .typemorph/users.json
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--baseline <file>` | Path to baseline snapshot (required) |
+| `--update` | Update baseline instead of failing on drift |
+| `--header <Key: Value>` | HTTP header, repeatable (for auth) |
+| `--format <fmt>` | `pretty` (default), `json`, or `github` |
+
+**Commit your baselines to Git** (`.typemorph/*.json`) so every CI run compares against the same reference point.
+
+---
+
 ### `typemorph validate <schema> <outputs>`
 
 Validate real JSON outputs (LLM structured output, API responses) against a Zod schema. Reports per-record pass/fail with human-readable diagnosis. Exits with code 1 if any output fails — useful in CI. 100% local: nothing is uploaded.
@@ -171,6 +227,7 @@ Print all available output formats.
 | **Backend languages** | `go`, `rust`, `java`, `csharp`, `python`, `swift`, `kotlin`, `php`, `dart` |
 | **Databases & ORMs** | `prisma`, `mysql`, `postgres`, `sqlite`, `mongoose`, `sequelize`, `typeorm`, `drizzle`, `dynamodb`, `bigquery`, `mongodb` |
 | **API / Schema** | `openapi`, `graphql`, `proto`, `jsonschema` |
+| **AI Tools** | `mcp-tool`, `openai-function`, `vercel-ai-tool` |
 | **Data / Markup** | `csv`, `sql`, `toml`, `yaml`, `avro` |
 | **Docs / Mock** | `doc`, `mock` |
 
@@ -189,10 +246,32 @@ TypeMorph CLI auto-detects the input type:
 
 ## CI Integration
 
-Use `typemorph diff` in CI to block deployments when an API change breaks consumers:
+### Detect live API drift (no spec file needed)
+
+Commit your baseline once, then let CI catch any drift:
 
 ```yaml
-# GitHub Actions example
+# .github/workflows/api-check.yml
+name: API Schema Check
+on: [push, pull_request]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check /users endpoint
+        run: |
+          curl -s https://api.example.com/users/1 | \
+          npx typemorph-cli check \
+            --baseline .typemorph/users.json \
+            --format github >> $GITHUB_STEP_SUMMARY
+```
+
+### Detect breaking changes between spec files
+
+```yaml
 - name: Check for breaking API changes
   run: typemorph diff api/v1.json api/v2.json --breaking-only
 ```
@@ -217,6 +296,33 @@ export const userSchema = z.object({
 });
 
 export type User = z.infer<typeof userSchema>;
+```
+
+**JSON → MCP tool definition:**
+```bash
+echo '{"userId":"usr_123","query":"laptops","limit":10}' | typemorph mcp-tool --root SearchProducts
+```
+```typescript
+server.tool(
+  "searchProducts",
+  "Auto-generated MCP tool — replace with a meaningful description",
+  {
+    userId: z.uuid().describe('Unique identifier'),
+    query: z.string().describe('query'),
+    limit: z.number().int().describe('limit'),
+  },
+  async (args) => ({ content: [{ type: "text", text: JSON.stringify(args) }] })
+);
+```
+
+**JSON → OpenAI function calling schema:**
+```bash
+echo '{"userId":"usr_123","query":"laptops","limit":10}' | typemorph openai-function --root SearchProducts
+```
+
+**JSON → Vercel AI SDK tool:**
+```bash
+echo '{"userId":"usr_123","query":"laptops","limit":10}' | typemorph vercel-ai-tool --root SearchProducts
 ```
 
 **OpenAPI spec → Go structs:**

@@ -1,6 +1,6 @@
 {
   "name": "typemorph-cli",
-  "version": "0.4.1",
+  "version": "0.6.0",
   "description": "Convert JSON to Zod, TypeScript, Go & 40+ formats with real type inference (detects email/uuid/url/datetime/enum/int) — plus schema quality grading and breaking-change detection.",
   "keywords": [
     "json",
