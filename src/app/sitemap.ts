@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next';
 import { converters } from '@/data/converters';
 import { alternatives } from '@/data/alternatives';
+import { useCases } from '@/data/use-cases';
 import { BASE_URL, INDEXED_EN_SLUGS, INDEXED_JP_SLUGS, resolveCanonicalSlug } from '@/lib/seo';
 
 export const dynamic = 'force-static';
@@ -94,12 +95,25 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...blogEntries,
     ...toolEntries,
     ...toolEntriesJP,
-    // alternatives are auto-generated from the alternatives array below
+    // alternatives
     ...alternatives.map((a) => ({
       url: `${baseUrl}/alternatives/${a.slug}`,
       lastModified: new Date(),
       changeFrequency: 'monthly' as const,
       priority: 0.8,
+    })),
+    // use cases
+    {
+      url: `${baseUrl}/use-cases`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.9,
+    },
+    ...useCases.map((u) => ({
+      url: `${baseUrl}/use-cases/${u.slug}`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.85,
     })),
   ];
 }

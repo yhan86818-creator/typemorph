@@ -220,7 +220,7 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
             <div className="flex items-center gap-3">
               <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500 shrink-0" />
               <p className="text-[11px] font-medium tracking-tight">
-                Pro features are free during beta
+                Free & open source — no account required
               </p>
             </div>
             <button 

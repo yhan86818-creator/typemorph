@@ -452,8 +452,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
   const [localFileHandle, setLocalFileHandle] = useState<any>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const IS_BETA = true; // ベ�Eタ期間中はtrueに設宁E
-  const [isProLicensed, setIsProLicensed] = useState(IS_BETA);
+  const [isProLicensed, setIsProLicensed] = useState(true);
 
   const EXT_MAP: Record<string, string> = {
     typescript: 'ts', zod: 'zod.ts', go: 'go', python: 'py', rust: 'rs',
@@ -582,18 +581,9 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
       if (saved !== null) {
         setTimeout(() => setSaveCloudHistory(saved === 'true'), 0);
       }
-      
-      // ベ�Eタ版でなぁE��合�Eみローカル証明書をチェチE��
-      if (!IS_BETA) {
-        const cert = localStorage.getItem('typemorph_pro_cert');
-        if (cert) {
-          setTimeout(() => setIsProLicensed(true), 0);
-        }
-      }
-
       // ... (trial reset logic remains same for counting, but won't block Pro in beta)
     }
-  }, [IS_BETA]);
+  }, []);
   const handleSaveCloudHistoryChange = (val: boolean) => {
     setSaveCloudHistory(val);
     localStorage.setItem('typemorph_save_cloud_history', String(val));
@@ -2980,57 +2970,6 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
         </div>
       )}
 
-      {/* Paywall Modal */}
-      {showPaywall && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setShowPaywall(false)} />
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="relative w-full max-w-md bg-white dark:bg-[#0a0f1c] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-6 overflow-hidden flex flex-col items-center text-center"
-          >
-            <div className="absolute top-0 inset-x-0 h-1 bg-slate-900 dark:bg-white" />
-            <div className="w-16 h-16 bg-slate-100 dark:bg-white/10 rounded-2xl flex items-center justify-center mb-4 border border-slate-200 dark:border-white/10">
-              <Crown size={32} className="text-slate-700 dark:text-white" />
-            </div>
-            
-            <h2 className="text-lg font-black text-slate-900 dark:text-[#E8E8E8] mb-2 font-sans tracking-tight">
-              Unlock TypeMorph
-            </h2>
-            <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-6 font-sans">
-              You&apos;ve reached your free daily limit. Upgrade to <b>TypeMorph Pro</b> to unlock unlimited conversions, bulk folder processing, and local file sync.
-            </p>
-
-            <div className="w-full flex flex-col gap-3">
-              <button
-                onClick={() => {
-                  trackProClick('workbench_paywall_pricing');
-                  window.open('https://typemorph.dev/pricing', '_blank');
-                }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-950 dark:bg-white text-white dark:text-slate-950 font-bold text-sm shadow-xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
-              >
-                Get Lifetime Access
-                <span className="text-xs opacity-70 bg-white/20 dark:bg-black/10 px-2 py-0.5 rounded-full">$25 once</span>
-              </button>
-              <button 
-                onClick={() => {
-                  setShowPaywall(false);
-                  setShowGenSettings(true);
-                }}
-                className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-bold text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              >
-                I already have a License Key
-              </button>
-            </div>
-            <button 
-              onClick={() => setShowPaywall(false)}
-              className="mt-6 text-[10px] font-mono uppercase text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-            >
-              Close
-            </button>
-          </motion.div>
-        </div>
-      )}
     </div>
   );
 }

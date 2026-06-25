@@ -52,6 +52,13 @@ export default function GlobalFooter() {
               <li><Link prefetch={false} href="/tools/api-drift-check" className="hover:text-slate-900 dark:hover:text-white transition-colors">API Drift Check</Link></li>
               <li><Link prefetch={false} href="/tools/llm-output-validator" className="hover:text-slate-900 dark:hover:text-white transition-colors">LLM Output Validator</Link></li>
             </ul>
+            <h4 className="font-black text-xs uppercase tracking-[0.2em] text-slate-400 mt-8 mb-4">Use Cases</h4>
+            <ul className="space-y-3 text-sm font-bold text-slate-600 dark:text-slate-400">
+              <li><Link prefetch={false} href="/use-cases/api-response-to-zod" className="hover:text-slate-900 dark:hover:text-white transition-colors">API Response to Zod</Link></li>
+              <li><Link prefetch={false} href="/use-cases/api-drift-detection" className="hover:text-slate-900 dark:hover:text-white transition-colors">API Drift Detection</Link></li>
+              <li><Link prefetch={false} href="/use-cases/github-actions-schema-check" className="hover:text-slate-900 dark:hover:text-white transition-colors">GitHub Actions CI</Link></li>
+              <li><Link prefetch={false} href="/use-cases" className="hover:text-slate-900 dark:hover:text-white transition-colors">All Use Cases →</Link></li>
+            </ul>
           </div>
           <div>
             <h4 className="font-black text-xs uppercase tracking-[0.2em] text-slate-400 mb-6">Resources</h4>
@@ -64,9 +71,12 @@ export default function GlobalFooter() {
             </ul>
             <h4 className="font-black text-xs uppercase tracking-[0.2em] text-slate-400 mt-8 mb-4">Compare</h4>
             <ul className="space-y-3 text-sm font-bold text-slate-600 dark:text-slate-400">
-              <li><Link prefetch={false} href="/alternatives/transform-tools" className="hover:text-slate-900 dark:hover:text-white transition-colors">vs transform.tools</Link></li>
               <li><Link prefetch={false} href="/alternatives/quicktype" className="hover:text-slate-900 dark:hover:text-white transition-colors">vs quicktype</Link></li>
+              <li><Link prefetch={false} href="/alternatives/json-to-ts" className="hover:text-slate-900 dark:hover:text-white transition-colors">vs json-to-ts</Link></li>
+              <li><Link prefetch={false} href="/alternatives/openapi-typescript" className="hover:text-slate-900 dark:hover:text-white transition-colors">vs openapi-typescript</Link></li>
+              <li><Link prefetch={false} href="/alternatives/ts-json-schema-generator" className="hover:text-slate-900 dark:hover:text-white transition-colors">vs ts-json-schema-generator</Link></li>
               <li><Link prefetch={false} href="/alternatives/oasdiff" className="hover:text-slate-900 dark:hover:text-white transition-colors">vs oasdiff</Link></li>
+              <li><Link prefetch={false} href="/alternatives/transform-tools" className="hover:text-slate-900 dark:hover:text-white transition-colors">vs transform.tools</Link></li>
             </ul>
           </div>
         </div>

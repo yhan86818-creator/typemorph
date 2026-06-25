@@ -37,11 +37,13 @@ module.exports = __toCommonJS(extension_exports);
 var vscode = __toESM(require("vscode"));
 
 // ../../src/lib/ast.ts
-var toPascalCase = (str2) => str2.replace(/(^\w|_\w)/g, (m) => m.replace(/_/, "").toUpperCase());
+var toPascalCase = (str2) => str2.split(/[^A-Za-z0-9$]+/).filter(Boolean).map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join("");
 var astTypeRefersTo = (type2, name) => {
   if (!type2) return false;
   if (type2.kind === "classRef") return type2.classRefName === name;
   if (type2.kind === "array") return astTypeRefersTo(type2.itemType, name);
+  if (type2.kind === "record") return astTypeRefersTo(type2.recordValueType, name);
+  if (type2.kind === "tuple") return (type2.tupleTypes ?? []).some((t) => astTypeRefersTo(t, name));
   return false;
 };
 var rootArrayItemClassName = (schema2, rootName) => {
@@ -56,19 +58,35 @@ var rootArrayItemClassName = (schema2, rootName) => {
   return childItemName.includes("_") ? childItemName.split("_").map((part) => toPascalCase(part)).join("") : toPascalCase(childItemName);
 };
 var convertToASTType = (v, parentClassPrefix, fieldKey) => {
+  if (v.type === "object" && v.recordValueType) {
+    return {
+      kind: "record",
+      recordValueType: convertToASTType(v.recordValueType, parentClassPrefix + "_" + fieldKey, "Value")
+    };
+  }
+  if (v.type === "array" && v.tupleTypes) {
+    return {
+      kind: "tuple",
+      tupleTypes: v.tupleTypes.map((t) => convertToASTType(t, parentClassPrefix + "_" + fieldKey, "Item"))
+    };
+  }
+  const refs = v.refinements?.length ? { refinements: v.refinements } : {};
   if (v.type === "union" && v.unionTypes) {
     return {
       kind: "union",
       unionTypes: v.unionTypes
     };
   }
+  const lit = v.literalValue !== void 0 ? { literalValue: v.literalValue } : {};
+  const coerced = v.coerced ? { coerced: true } : {};
+  const raw = v.rawZodType ? { rawZodType: v.rawZodType } : {};
   if (v.type === "string") {
     if (v.enumValues) {
-      return { kind: "enum", enumValues: v.enumValues };
+      return { kind: "enum", enumValues: v.enumValues, ...lit, ...refs };
     }
-    if (v.format === "date") return { kind: "date", format: "date" };
-    if (v.format === "datetime") return { kind: "datetime", format: "datetime" };
-    return { kind: "string", format: v.format };
+    if (v.format === "date") return { kind: "date", format: "date", ...refs };
+    if (v.format === "datetime") return { kind: "datetime", format: "datetime", ...refs };
+    return { kind: "string", format: v.format, ...coerced, ...raw, ...refs };
   }
   if (v.type === "object") {
     const className = v._sharedTypeName ?? parentClassPrefix + "_" + fieldKey;
@@ -91,12 +109,14 @@ var convertToASTType = (v, parentClassPrefix, fieldKey) => {
       }
       return {
         kind: "array",
-        itemType: { kind: "classRef", classRefName: childItemName }
+        itemType: { kind: "classRef", classRefName: childItemName },
+        ...refs
       };
     }
     return {
       kind: "array",
-      itemType: convertToASTType(v.itemType, childPrefix, "Item")
+      itemType: convertToASTType(v.itemType, childPrefix, "Item"),
+      ...refs
     };
   }
   const primitiveMap = {
@@ -106,8 +126,24 @@ var convertToASTType = (v, parentClassPrefix, fieldKey) => {
     union: "union"
   };
   const kind = primitiveMap[v.type] ?? "any";
-  return { kind, format: v.format };
+  return { kind, format: v.format, ...lit, ...coerced, ...refs };
 };
+var GENERIC_WRAPPER_KEYS = /* @__PURE__ */ new Set([
+  "data",
+  "result",
+  "results",
+  "payload",
+  "response",
+  "body",
+  "content",
+  "attributes",
+  "wrapper",
+  "value",
+  "item",
+  "object",
+  "record"
+]);
+var isGenericWrapperKey = (key) => GENERIC_WRAPPER_KEYS.has(key.toLowerCase());
 var optimizeAST = (classes, options = {}) => {
   let optimized = classes.map((cls) => ({
     ...cls,
@@ -159,7 +195,7 @@ var optimizeAST = (classes, options = {}) => {
         if (cls.name === "Root") continue;
         if (cls.fields.length === 1) {
           const singleField = cls.fields[0];
-          if (singleField.fieldType.kind === "classRef") {
+          if (singleField.fieldType.kind === "classRef" && isGenericWrapperKey(singleField.name)) {
             const targetClassName = singleField.fieldType.classRefName;
             if (!targetClassName) continue;
             if (targetClassName === cls.name || flattenedNames.has(targetClassName)) continue;
@@ -210,6 +246,12 @@ var schemaToAST = (schema2, rootName = "Root", options = {}) => {
         else childItemName = name + "Item";
       }
       traverse(s.itemType, childItemName);
+      return;
+    }
+    if (s.type === "object" && s.recordValueType) {
+      const rv = s.recordValueType;
+      if (rv.type === "object") traverse(rv, name + "_Value");
+      else if (rv.type === "array" && rv.itemType?.type === "object") traverse(rv.itemType, name + "_Value_Item");
       return;
     }
     if (s.type !== "object" || !s.fields) return;
@@ -298,6 +340,12 @@ var resolveNameCollisions = (classes) => {
     if (type2.kind === "union" && type2.unionTypes) {
       for (const ut of type2.unionTypes) updateType(ut);
     }
+    if (type2.kind === "record" && type2.recordValueType) {
+      updateType(type2.recordValueType);
+    }
+    if (type2.kind === "tuple" && type2.tupleTypes) {
+      for (const t of type2.tupleTypes) updateType(t);
+    }
   };
   for (const cls of classes) {
     for (const field of cls.fields) {
@@ -331,7 +379,68 @@ var resolveNameCollisions = (classes) => {
 };
 
 // ../../src/lib/generators.ts
-var toPascalCase2 = (str2) => str2.replace(/(^\w|_\w)/g, (m) => m.replace(/_/, "").toUpperCase());
+var toPascalCase2 = (str2) => str2.split(/[^A-Za-z0-9$]+/).filter(Boolean).map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join("");
+var toGoFieldName = (k) => {
+  const parts = k.split(/[^A-Za-z0-9]+/).filter(Boolean);
+  let n = parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join("");
+  if (!n) n = "Field";
+  if (/^[0-9]/.test(n)) n = "F" + n;
+  return n;
+};
+var PY_KEYWORDS = /* @__PURE__ */ new Set([
+  "False",
+  "None",
+  "True",
+  "and",
+  "as",
+  "assert",
+  "async",
+  "await",
+  "break",
+  "class",
+  "continue",
+  "def",
+  "del",
+  "elif",
+  "else",
+  "except",
+  "finally",
+  "for",
+  "from",
+  "global",
+  "if",
+  "import",
+  "in",
+  "is",
+  "lambda",
+  "nonlocal",
+  "not",
+  "or",
+  "pass",
+  "raise",
+  "return",
+  "try",
+  "while",
+  "with",
+  "yield",
+  "match",
+  "case"
+]);
+var toPyFieldName = (k) => {
+  let n = k.replace(/[^A-Za-z0-9_]/g, "_");
+  if (!/^[A-Za-z_]/.test(n)) n = "f_" + n;
+  if (PY_KEYWORDS.has(n)) n = `${n}_`;
+  return n;
+};
+var identWordParts = (k) => k.split(/[^A-Za-z0-9]+/).filter(Boolean);
+var foldIdent = (k, style) => {
+  const parts = identWordParts(k);
+  if (parts.length === 0) return style === "snake" ? "field" : "Field";
+  if (style === "snake") return parts.join("_").toLowerCase();
+  return parts.map(
+    (p, i) => style === "camel" && i === 0 ? p.charAt(0).toLowerCase() + p.slice(1) : p.charAt(0).toUpperCase() + p.slice(1)
+  ).join("");
+};
 var getBaseClass = (cls) => {
   const ann = cls.annotations?.find((a) => a.startsWith("extends "));
   return ann ? ann.slice("extends ".length) : null;
@@ -348,12 +457,38 @@ var computeItemName = (arraySchema, parentName) => {
   if (parentName.endsWith("List")) return toPascalCase2(parentName.slice(0, -4));
   return toPascalCase2(parentName + "Item");
 };
+var schemaNeedsNestedClass = (s) => {
+  if (!s) return false;
+  if (s.type === "object") {
+    if (s.recordValueType) return schemaNeedsNestedClass(s.recordValueType);
+    return !!s.fields && Object.keys(s.fields).length > 0;
+  }
+  if (s.type === "array") return schemaNeedsNestedClass(s.itemType);
+  return false;
+};
+var variantsHaveNestedClass = (variants) => Object.values(variants).some(
+  (v) => v.type === "object" && v.fields ? Object.values(v.fields).some(schemaNeedsNestedClass) : false
+);
+var duVariantSuffixes = (values) => {
+  const used = /* @__PURE__ */ new Set();
+  const map2 = /* @__PURE__ */ new Map();
+  for (const v of values) {
+    const base = foldIdent(v, "pascal");
+    let s = base;
+    let n = 2;
+    while (used.has(s)) s = `${base}${n++}`;
+    used.add(s);
+    map2.set(v, s);
+  }
+  return map2;
+};
 var findDiscriminatedSchemas = (schema2, rootName) => {
   const result = /* @__PURE__ */ new Map();
   const pascalRoot = toPascalCase2(rootName);
   const register = (arraySchema, parentName) => {
     const it = arraySchema.itemType;
     if (it?.discriminatorField && it?.discriminatedVariants) {
+      if (variantsHaveNestedClass(it.discriminatedVariants)) return;
       result.set(computeItemName(arraySchema, parentName), {
         discriminatorField: it.discriminatorField,
         variants: it.discriminatedVariants
@@ -393,6 +528,10 @@ var printASTType = (type2) => {
         return `${sub}[]`;
       }
       return "any[]";
+    case "record":
+      return `Record<string, ${type2.recordValueType ? printASTType(type2.recordValueType) : "any"}>`;
+    case "tuple":
+      return `[${(type2.tupleTypes ?? []).map((t) => printASTType(t)).join(", ")}]`;
     default:
       return type2.kind;
   }
@@ -416,26 +555,39 @@ var tsGen = {
 
 `;
         }
+      } else if (schema2.type === "object" && schema2.recordValueType) {
+        const rootPascal = toPascalCase2(name);
+        const rv = schema2.recordValueType;
+        let valStr;
+        if (rv.type === "object" && rv.fields) {
+          const raw = rv._sharedTypeName ?? `${rootPascal}_Value`;
+          valStr = raw.includes("_") ? raw.split("_").map((p) => toPascalCase2(p)).join("") : toPascalCase2(raw);
+        } else {
+          valStr = printASTType(convertToASTType(rv, rootPascal, "Value"));
+        }
+        res += `export type ${rootPascal} = Record<string, ${valStr}>;
+
+`;
       }
     }
     for (const cls of astClasses) {
       const du = discriminatedMap.get(cls.name);
       if (du) {
+        const suffixMap = duVariantSuffixes(Object.keys(du.variants));
         for (const [value, variantSchema] of Object.entries(du.variants)) {
-          const suffix = toPascalCase2(value);
-          const variantInterfaceName = `${cls.name}${suffix}`;
+          const variantInterfaceName = `${cls.name}${suffixMap.get(value)}`;
           res += `export interface ${variantInterfaceName} {
 `;
           for (const [fk, fv] of Object.entries(variantSchema.fields ?? {})) {
             if (fk === du.discriminatorField) {
-              res += `  ${fk}: "${value}";
+              res += `  ${safeKey(fk)}: ${JSON.stringify(value)};
 `;
             } else {
               const fvAst = convertToASTType(fv, variantInterfaceName, fk);
               const tsType = printASTType(fvAst);
               const optMark = fv.optional ? "?" : "";
               const nullSuffix = fv.nullable ? " | null" : "";
-              res += `  ${fk}${optMark}: ${tsType}${nullSuffix};
+              res += `  ${safeKey(fk)}${optMark}: ${tsType}${nullSuffix};
 `;
             }
           }
@@ -443,7 +595,7 @@ var tsGen = {
 
 `;
         }
-        const variantNames = Object.keys(du.variants).map((v) => `${cls.name}${toPascalCase2(v)}`);
+        const variantNames = Object.keys(du.variants).map((v) => `${cls.name}${suffixMap.get(v)}`);
         res += `export type ${cls.name} = ${variantNames.join(" | ")};
 
 `;
@@ -463,7 +615,7 @@ var tsGen = {
         if (field.isNullable) {
           tsType = tsType.includes(" | ") ? `(${tsType}) | null` : `${tsType} | null`;
         }
-        res += `  ${displayName}${optMark}: ${tsType};
+        res += `  ${safeKey(displayName)}${optMark}: ${tsType};
 `;
       }
       res += `}
@@ -482,6 +634,8 @@ var topoSortForZod = (classes) => {
   const getClassRefs = (type2) => {
     if (type2.kind === "classRef" && type2.classRefName) return [type2.classRefName];
     if (type2.kind === "array" && type2.itemType) return getClassRefs(type2.itemType);
+    if (type2.kind === "record" && type2.recordValueType) return getClassRefs(type2.recordValueType);
+    if (type2.kind === "tuple" && type2.tupleTypes) return type2.tupleTypes.flatMap(getClassRefs);
     if (type2.kind === "union" && type2.unionTypes) {
       return [];
     }
@@ -516,6 +670,15 @@ var topoSortForZod = (classes) => {
   return { sorted, cyclicClassRefs };
 };
 var printZodASTType = (type2, cyclicClassRefs, options = {}) => {
+  const base = printZodASTTypeBase(type2, cyclicClassRefs, options);
+  return type2.refinements?.length ? base + type2.refinements.join("") : base;
+};
+var printZodASTTypeBase = (type2, cyclicClassRefs, options = {}) => {
+  if (type2.rawZodType) return type2.rawZodType;
+  if (type2.literalValue !== void 0) {
+    const v = type2.literalValue;
+    return `z.literal(${typeof v === "string" ? JSON.stringify(v) : v})`;
+  }
   switch (type2.kind) {
     case "union": {
       if (!type2.unionTypes || type2.unionTypes.length === 0) return "z.any()";
@@ -527,11 +690,13 @@ var printZodASTType = (type2, cyclicClassRefs, options = {}) => {
     }
     case "enum":
       if (!type2.enumValues || type2.enumValues.length === 0) return "z.string()";
-      if (type2.enumValues.length === 1) return `z.literal("${type2.enumValues[0]}")`;
+      if (type2.enumValues.length === 1) return "z.string()";
       return `z.enum([${type2.enumValues.map((ev) => `"${ev}"`).join(", ")}])`;
     case "date":
-      return "z.coerce.date()";
+      if (options.inference === "minimal") return "z.string()";
+      return options.zodVersion === "v3" ? "z.coerce.date()" : "z.iso.date()";
     case "datetime":
+      if (options.inference === "minimal") return "z.string()";
       return options.zodVersion === "v3" ? "z.string().datetime()" : "z.iso.datetime()";
     case "classRef": {
       if (!type2.classRefName) return "z.any()";
@@ -544,14 +709,28 @@ var printZodASTType = (type2, cyclicClassRefs, options = {}) => {
         return `z.array(${sub})`;
       }
       return "z.array(z.any())";
+    case "record": {
+      const val = type2.recordValueType ? printZodASTType(type2.recordValueType, cyclicClassRefs, options) : "z.any()";
+      return options.zodVersion === "v3" ? `z.record(${val})` : `z.record(z.string(), ${val})`;
+    }
+    case "tuple": {
+      if (!type2.tupleTypes || type2.tupleTypes.length === 0) return "z.array(z.any())";
+      const items = type2.tupleTypes.map((t) => printZodASTType(t, cyclicClassRefs, options));
+      return `z.tuple([${items.join(", ")}])`;
+    }
     case "string":
+      if (type2.coerced) return "z.coerce.string()";
+      if (options.inference === "minimal") return "z.string()";
       if (type2.format === "email") return options.zodVersion === "v3" ? "z.string().email()" : "z.email()";
       if (type2.format === "url") return options.zodVersion === "v3" ? "z.string().url()" : "z.url()";
       if (type2.format === "uuid") return options.zodVersion === "v3" ? "z.string().uuid()" : "z.uuid()";
+      if (type2.format === "color") return "z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/)";
       return "z.string()";
     case "number":
+      if (type2.coerced) return "z.coerce.number()";
       return options.zodMode === "loose" ? "z.coerce.number()" : "z.number()";
     case "boolean":
+      if (type2.coerced) return "z.coerce.boolean()";
       return "z.boolean()";
     default:
       return "z.any()";
@@ -571,6 +750,10 @@ var printTSTypeForZod = (type2) => {
       return type2.classRefName ?? "unknown";
     case "array":
       return type2.itemType ? `${printTSTypeForZod(type2.itemType)}[]` : "unknown[]";
+    case "record":
+      return `Record<string, ${type2.recordValueType ? printTSTypeForZod(type2.recordValueType) : "unknown"}>`;
+    case "tuple":
+      return `[${(type2.tupleTypes ?? []).map((t) => printTSTypeForZod(t)).join(", ")}]`;
     case "union":
       return type2.unionTypes?.map((t) => printTSTypeForZod({ kind: t })).join(" | ") ?? "unknown";
     case "enum":
@@ -579,6 +762,8 @@ var printTSTypeForZod = (type2) => {
       return "unknown";
   }
 };
+var safeKey = (name) => /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) ? name : JSON.stringify(name);
+var fieldWords = (name) => name.split(/[_\-\s]+|(?<=[a-z0-9])(?=[A-Z])/).map((w) => w.toLowerCase()).filter(Boolean);
 var zodGen = {
   generate: (schema2, name = "root", options = {}) => {
     const mode = options.zodMode ?? "strict";
@@ -588,17 +773,22 @@ var zodGen = {
     const zEmail = isV3 ? "z.string().email()" : "z.email()";
     const zUrl = isV3 ? "z.string().url()" : "z.url()";
     const zUuid = isV3 ? "z.string().uuid()" : "z.uuid()";
+    const inference = options.inference ?? "smart";
+    const inferConstraints = inference === "smart";
+    const rawTypes = inference === "minimal";
     const modeOptions = { ...options, zodMode: mode };
     const discriminatedMap = findDiscriminatedSchemas(schema2, toPascalCase2(name));
-    const astClasses = schemaToAST(schema2, toPascalCase2(name), options);
+    const astOptions = inference === "minimal" ? { ...options, flattenWrappers: false, extractTimestamps: false } : options;
+    const astClasses = schemaToAST(schema2, toPascalCase2(name), astOptions);
     let res = "";
     const { sorted: sortedClasses, cyclicClassRefs } = topoSortForZod(astClasses);
     for (const cls of sortedClasses) {
       const du = discriminatedMap.get(cls.name);
       if (du) {
+        const suffixMap = duVariantSuffixes(Object.keys(du.variants));
         const variantSchemaVarNames = [];
         for (const [value, variantSchema] of Object.entries(du.variants)) {
-          const suffix = toPascalCase2(value);
+          const suffix = suffixMap.get(value);
           const variantCamel = toCamelCase(cls.name) + suffix;
           const variantPascal = cls.name + suffix;
           variantSchemaVarNames.push(`${variantCamel}Schema`);
@@ -606,14 +796,14 @@ var zodGen = {
 `;
           for (const [fk, fv] of Object.entries(variantSchema.fields ?? {})) {
             if (fk === du.discriminatorField) {
-              res += `  ${fk}: z.literal("${value}"),
+              res += `  ${safeKey(fk)}: z.literal(${JSON.stringify(value)}),
 `;
             } else {
               const fvAst = convertToASTType(fv, variantPascal, fk);
               let zType = printZodASTType(fvAst, cyclicClassRefs, modeOptions);
               if (fv.nullable) zType += ".nullable()";
               if (isLoose || fv.optional) zType += ".optional()";
-              res += `  ${fk}: ${zType},
+              res += `  ${safeKey(fk)}: ${zType},
 `;
             }
           }
@@ -648,7 +838,7 @@ var zodGen = {
           const tsType = printTSTypeForZod(cycField.fieldType);
           const opt = cycField.isOptional || isLoose ? "?" : "";
           const nullable = cycField.isNullable ? " | null" : "";
-          res += `  ${cycField.name}${opt}: ${tsType}${nullable};
+          res += `  ${safeKey(cycField.name)}${opt}: ${tsType}${nullable};
 `;
         }
         res += `};
@@ -670,64 +860,82 @@ var zodGen = {
         const customKey = `${cls.name}.${field.name}`;
         const displayName = options.customFieldNames?.[customKey] ?? field.name;
         const k = displayName.toLowerCase();
-        if (!isLoose) {
+        const words = fieldWords(displayName);
+        const hasWord = (...ws) => ws.some((w) => words.includes(w));
+        if (!isLoose && !field.fieldType.refinements?.length) {
           if (field.fieldType.kind === "number") {
-            if (k.includes("percent")) {
-              zType += ".min(0).max(100)";
-            } else if (k.includes("latitude") || k === "lat" || k.endsWith("_lat")) {
-              zType += ".min(-90).max(90)";
-            } else if (k.includes("longitude") || k === "lng" || k === "lon" || k.endsWith("_lng") || k.endsWith("_lon")) {
-              zType += ".min(-180).max(180)";
-            } else if (k.includes("rating")) {
-              zType += ".min(0).max(5)";
-            } else if (k.includes("score")) {
-              zType += ".min(0).max(100)";
-            } else if (k.includes("age")) {
-              zType += ".int().min(0).max(150)";
-            } else if (k.includes("year")) {
-              zType += ".int().min(1900).max(2100)";
-            } else if (k.includes("month") && !k.includes("monthly")) {
-              zType += ".int().min(1).max(12)";
-            } else if (k === "day" || k.endsWith("_day") || k.startsWith("day_")) {
-              zType += ".int().min(1).max(31)";
-            } else if (k.includes("hour")) {
-              zType += ".int().min(0).max(23)";
-            } else if (k.includes("minute") || k.includes("second")) {
-              zType += ".int().min(0).max(59)";
-            } else if (k.includes("count") || k.includes("quantity") || k === "qty") {
-              zType += ".int().min(0)";
-            } else if (["price", "amount", "cost", "fee", "rank", "total", "subtotal"].some((w) => k.includes(w))) {
-              zType += ".min(0)";
-            } else if (k === "port" || k.endsWith("_port") || k === "portnumber" || k === "port_number") {
-              zType += ".int().min(1).max(65535)";
-            } else if (field.fieldType.format === "int") {
+            if (inferConstraints) {
+              const isSignedDelta = /change|delta|diff|growth|variance|deviation|pnl/i.test(k);
+              if (isSignedDelta) {
+                if (field.fieldType.format === "int") zType += ".int()";
+              } else if (k.includes("percent")) {
+                zType += ".min(0)";
+              } else if (k.includes("latitude") || k === "lat" || k.endsWith("_lat")) {
+                zType += ".min(-90).max(90)";
+              } else if (k.includes("longitude") || k === "lng" || k === "lon" || k.endsWith("_lng") || k.endsWith("_lon")) {
+                zType += ".min(-180).max(180)";
+              } else if (k.includes("rating")) {
+                zType += ".min(0).max(5)";
+              } else if (k.includes("score")) {
+                zType += ".min(0).max(100)";
+              } else if (hasWord("age")) {
+                zType += ".int().min(0).max(150)";
+              } else if (k.includes("year")) {
+                zType += ".int().min(1900).max(2100)";
+              } else if (k.includes("month") && !k.includes("monthly")) {
+                zType += ".int().min(1).max(12)";
+              } else if (k === "day" || k.endsWith("_day") || k.startsWith("day_")) {
+                zType += ".int().min(1).max(31)";
+              } else if (k.includes("hour")) {
+                zType += ".int().min(0).max(23)";
+              } else if (k.includes("minute") || k.includes("second")) {
+                zType += ".int().min(0).max(59)";
+              } else if (hasWord("count", "quantity", "qty")) {
+                zType += ".int().min(0)";
+              } else if (hasWord("price", "amount", "cost", "fee", "rank", "total", "subtotal")) {
+                zType += ".min(0)";
+              } else if (k === "port" || k.endsWith("_port") || k === "portnumber" || k === "port_number") {
+                zType += ".int().min(1).max(65535)";
+              } else if (field.fieldType.format === "int") {
+                zType += ".int()";
+              }
+            } else if (!rawTypes && field.fieldType.format === "int") {
               zType += ".int()";
             }
           }
-          if (field.fieldType.kind === "string" && !field.fieldType.format) {
+          if (inferConstraints && field.fieldType.kind === "string" && !field.fieldType.format) {
             if (k.includes("email")) zType = zEmail;
             else if (k.includes("url") || k.includes("link") || k.includes("website")) zType = zUrl;
-            else if (k.includes("uuid") || k.endsWith("_id") || /Id$/.test(displayName) || /ID$/.test(displayName)) zType = zUuid;
-            else if (k.includes("phone") || k === "tel" || k === "telephone" || k.endsWith("_tel") || k.startsWith("tel_")) zType = "z.string().regex(/^\\+?[\\d\\s\\-\\.\\(\\)]{7,15}$/)";
-            else if (k.includes("password") || k.includes("passwd")) zType = "z.string().min(8)";
+            else if (k.includes("uuid") || (k.endsWith("_id") || /Id$/.test(displayName) || /ID$/.test(displayName)) && field.fieldType.format === "uuid") zType = zUuid;
+            else if (k === "ip" || k.includes("ip_address") || k.includes("ipaddress") || k === "remote_ip" || k === "client_ip" || k === "server_ip") zType = isV3 ? "z.string().ip()" : "z.union([z.ipv4(), z.ipv6()])";
+            else if (k.includes("phone") || k === "tel" || k === "telephone" || k.endsWith("_tel") || k.startsWith("tel_")) zType = "z.string().regex(/^\\+?[\\dA-Za-z\\s\\-.()#*]{5,}$/)";
             else if (k === "zip" || k === "zipcode" || k === "zip_code" || k === "postal_code" || k === "postcode") zType = "z.string().regex(/^[A-Z0-9][A-Z0-9\\s\\-]{1,8}[A-Z0-9]$/i)";
             else if (k === "semver") zType = "z.string().regex(/^\\d+\\.\\d+(\\.\\d+)?(-[\\w.]+)?(\\+[\\w.]+)?$/)";
             else if (k.includes("slug")) zType = "z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)";
+            else if (k === "countrycode" || k === "country_code") zType = "z.string().length(2)";
             else {
               const hasTrim = k.includes("name") || k.includes("label") || k.includes("title");
-              const isRequired = !field.isOptional && !options.optionalFields;
-              const longText = ["description", "note", "bio", "comment", "content", "body", "text", "message", "summary", "detail", "info", "about", "remark"].some((w) => k.includes(w));
-              if (hasTrim) zType = isRequired ? "z.string().min(1).trim()" : "z.string().trim()";
-              else if (isRequired && !longText) zType = "z.string().min(1)";
+              if (hasTrim) zType = "z.string().trim()";
             }
           }
+          if (inferConstraints && field.fieldType.kind === "any" && field.isNullable) {
+            const lastWord = words[words.length - 1];
+            if (lastWord === "at" || hasWord("timestamp", "datetime")) zType = isV3 ? "z.string().datetime()" : "z.iso.datetime()";
+            else if (hasWord("date")) zType = isV3 ? "z.coerce.date()" : "z.iso.date()";
+            else if (hasWord("time")) zType = isV3 ? "z.string().datetime()" : "z.iso.datetime()";
+            else if (k.includes("email")) zType = zEmail;
+            else if (k.includes("url") || k.includes("link") || k.includes("website")) zType = zUrl;
+          }
+        }
+        if (field.fieldType.kind === "number" && field.fieldType.format === "int" && field.fieldType.refinements?.length && !zType.includes(".int(")) {
+          zType = zType.replace(/^(z\.(?:coerce\.)?number\(\))/, "$1.int()");
         }
         let fieldExpr = `${zType}${isNull2}${isOpt}`;
         if (isEnterprise) {
           const label = displayName.replace(/_/g, " ").replace(/([A-Z])/g, " $1").trim().toLowerCase();
           fieldExpr += `.describe('${label}')`;
         }
-        res += `  ${displayName}: ${fieldExpr},
+        res += `  ${safeKey(displayName)}: ${fieldExpr},
 `;
       }
       const objSuffix = isLoose ? ".passthrough()" : isEnterprise ? ".strict()" : "";
@@ -746,6 +954,18 @@ var zodGen = {
       const rootPascal = toPascalCase2(name);
       const rootCamel = toCamelCase(rootPascal);
       res += `export const ${rootCamel}Schema = z.array(${toCamelCase(itemName)}Schema);
+`;
+      res += `export type ${rootPascal} = z.infer<typeof ${rootCamel}Schema>;
+
+`;
+    }
+    if (schema2.type === "object" && schema2.recordValueType) {
+      const rootPascal = toPascalCase2(name);
+      const rootCamel = toCamelCase(rootPascal);
+      const valAst = convertToASTType(schema2.recordValueType, rootPascal, "Value");
+      const valExpr = printZodASTType(valAst, cyclicClassRefs, modeOptions);
+      const recExpr = options.zodVersion === "v3" ? `z.record(${valExpr})` : `z.record(z.string(), ${valExpr})`;
+      res += `export const ${rootCamel}Schema = ${recExpr};
 `;
       res += `export type ${rootPascal} = z.infer<typeof ${rootCamel}Schema>;
 
@@ -780,10 +1000,17 @@ var printDartASTType = (type2) => {
       return "dynamic";
   }
 };
+var toDartFieldName = (k) => {
+  if (/^[A-Za-z$][A-Za-z0-9_$]*$/.test(k)) return k;
+  let n = foldIdent(k, "camel");
+  if (/^[0-9]/.test(n)) n = "f" + n.charAt(0).toUpperCase() + n.slice(1);
+  return n;
+};
 var dartGen = {
   generate: (schema2, name = "Root", options = {}) => {
     const astClasses = schemaToAST(schema2, toPascalCase2(name), options);
-    let res = "";
+    const anyRenamed = astClasses.some((cls) => cls.fields.some((f) => toDartFieldName(f.name) !== f.name));
+    let res = anyRenamed ? "import 'package:json_annotation/json_annotation.dart';\n\n" : "";
     for (const cls of astClasses) {
       const baseClass = getBaseClass(cls);
       const inheritance = baseClass ? ` extends ${baseClass}` : "";
@@ -793,7 +1020,10 @@ var dartGen = {
         const isNullable = field.isOptional || field.isNullable;
         let dartType = printDartASTType(field.fieldType);
         if (isNullable && dartType !== "dynamic") dartType += "?";
-        res += `  final ${dartType} ${field.name};
+        const dartName = toDartFieldName(field.name);
+        if (dartName !== field.name) res += `  @JsonKey(name: '${field.name}')
+`;
+        res += `  final ${dartType} ${dartName};
 `;
       }
       res += `
@@ -801,7 +1031,7 @@ var dartGen = {
 `;
       for (const field of cls.fields) {
         const isNullable = field.isOptional || field.isNullable;
-        res += `    ${isNullable ? "" : "required "}this.${field.name},
+        res += `    ${isNullable ? "" : "required "}this.${toDartFieldName(field.name)},
 `;
       }
       res += `  });
@@ -836,6 +1066,12 @@ var printPhpASTType = (type2) => {
       return "mixed";
   }
 };
+var toPhpFieldName = (k) => {
+  if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(k)) return k;
+  let n = foldIdent(k, "camel");
+  if (/^[0-9]/.test(n)) n = "_" + n;
+  return n;
+};
 var phpGen = {
   generate: (schema2, name = "Root", options = {}) => {
     const astClasses = schemaToAST(schema2, toPascalCase2(name), options);
@@ -852,7 +1088,9 @@ var phpGen = {
         const phpType = printPhpASTType(field.fieldType);
         const nullable = (field.isOptional || field.isNullable) && phpType !== "mixed" ? "?" : "";
         const defaultVal = field.isOptional || field.isNullable ? " = null" : "";
-        res += `        private ${nullable}${phpType} $${field.name}${defaultVal},
+        const phpName = toPhpFieldName(field.name);
+        const wireNote = phpName !== field.name ? ` // json: "${field.name}"` : "";
+        res += `        private ${nullable}${phpType} $${phpName}${defaultVal},${wireNote}
 `;
       }
       res += `    ) {}
@@ -860,11 +1098,12 @@ var phpGen = {
       for (const field of cls.fields) {
         const phpType = printPhpASTType(field.fieldType);
         const nullable = (field.isOptional || field.isNullable) && phpType !== "mixed" ? "?" : "";
-        const cap = field.name.charAt(0).toUpperCase() + field.name.slice(1);
+        const phpName = toPhpFieldName(field.name);
+        const cap = phpName.charAt(0).toUpperCase() + phpName.slice(1);
         res += `
-    public function get${cap}(): ${nullable}${phpType} { return $this->${field.name}; }
+    public function get${cap}(): ${nullable}${phpType} { return $this->${phpName}; }
 `;
-        res += `    public function set${cap}(${nullable}${phpType} $${field.name}): void { $this->${field.name} = $${field.name}; }
+        res += `    public function set${cap}(${nullable}${phpType} $${phpName}): void { $this->${phpName} = $${phpName}; }
 `;
       }
       res += `}
@@ -904,7 +1143,8 @@ var pythonGen = {
   generate: (schema2, name = "Root", options = {}) => {
     const astClasses = schemaToAST(schema2, toPascalCase2(name), options);
     let res = "";
-    for (const cls of astClasses) {
+    const { sorted: sortedClasses } = topoSortForZod(astClasses);
+    for (const cls of sortedClasses) {
       const baseClass = getBaseClass(cls) ?? "BaseModel";
       res += `class ${cls.name}(${baseClass}):
 `;
@@ -914,13 +1154,25 @@ var pythonGen = {
 `;
         continue;
       }
+      const usedPyNames = /* @__PURE__ */ new Set();
       for (const field of cls.fields) {
-        let pyType = printPythonASTType(field.fieldType);
-        if (field.isOptional || field.isNullable) {
-          pyType = `Optional[${pyType}] = None`;
-        }
-        res += `    ${field.name}: ${pyType}
+        const pyType = printPythonASTType(field.fieldType);
+        const isOpt = field.isOptional || field.isNullable;
+        let pyName = toPyFieldName(field.name);
+        while (usedPyNames.has(pyName)) pyName += "_";
+        usedPyNames.add(pyName);
+        const needsAlias = pyName !== field.name;
+        if (isOpt) {
+          const dflt = needsAlias ? `Field(default=None, alias=${JSON.stringify(field.name)})` : "None";
+          res += `    ${pyName}: Optional[${pyType}] = ${dflt}
 `;
+        } else if (needsAlias) {
+          res += `    ${pyName}: ${pyType} = Field(alias=${JSON.stringify(field.name)})
+`;
+        } else {
+          res += `    ${pyName}: ${pyType}
+`;
+        }
       }
       res += `
 `;
@@ -954,10 +1206,23 @@ var printProtoASTType = (type2) => {
       return "string";
   }
 };
+var toProtoFieldName = (k) => {
+  if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(k)) return k;
+  let n = foldIdent(k, "snake");
+  if (/^[0-9]/.test(n)) n = "_" + n;
+  return n;
+};
 var protoGen = {
   generate: (schema2, name = "Message", options = {}) => {
     const astClasses = schemaToAST(schema2, toPascalCase2(name), options);
     let res = "";
+    const protoFieldLine = (f, idx) => {
+      const protoType = printProtoASTType(f.fieldType);
+      const protoName = toProtoFieldName(f.name);
+      const jsonName = protoName !== f.name ? ` [json_name = "${f.name}"]` : "";
+      return `  ${protoType} ${protoName} = ${idx}${jsonName};
+`;
+    };
     for (const cls of astClasses) {
       res += `message ${cls.name} {
 `;
@@ -966,18 +1231,10 @@ var protoGen = {
       if (baseClass) {
         const baseCls = astClasses.find((c) => c.name === baseClass);
         if (baseCls) {
-          for (const f of baseCls.fields) {
-            const protoType = printProtoASTType(f.fieldType);
-            res += `  ${protoType} ${f.name} = ${i++};
-`;
-          }
+          for (const f of baseCls.fields) res += protoFieldLine(f, i++);
         }
       }
-      for (const field of cls.fields) {
-        const protoType = printProtoASTType(field.fieldType);
-        res += `  ${protoType} ${field.name} = ${i++};
-`;
-      }
+      for (const field of cls.fields) res += protoFieldLine(field, i++);
       res += `}
 
 `;
@@ -1011,6 +1268,21 @@ var printGqlASTType = (type2) => {
       return "String";
   }
 };
+var toGqlFieldName = (k) => {
+  if (/^[_A-Za-z][_0-9A-Za-z]*$/.test(k)) return k;
+  let n = identWordParts(k).join("_");
+  if (!n) n = "field";
+  if (/^[0-9]/.test(n)) n = "_" + n;
+  return n;
+};
+var gqlFieldLine = (field) => {
+  const gqlType = printGqlASTType(field.fieldType);
+  const bang = field.isOptional || field.isNullable ? "" : "!";
+  const gqlName = toGqlFieldName(field.name);
+  const note = gqlName !== field.name ? ` # json: "${field.name}"` : "";
+  return `  ${gqlName}: ${gqlType}${bang}${note}
+`;
+};
 var gqlGen = {
   generate: (schema2, name = "Type", options = {}) => {
     const astClasses = schemaToAST(schema2, toPascalCase2(name), options);
@@ -1022,20 +1294,10 @@ var gqlGen = {
       if (baseClass) {
         const baseCls = astClasses.find((c) => c.name === baseClass);
         if (baseCls) {
-          for (const f of baseCls.fields) {
-            const gqlType = printGqlASTType(f.fieldType);
-            const bang = f.isOptional || f.isNullable ? "" : "!";
-            res += `  ${f.name}: ${gqlType}${bang}
-`;
-          }
+          for (const f of baseCls.fields) res += gqlFieldLine(f);
         }
       }
-      for (const field of cls.fields) {
-        const gqlType = printGqlASTType(field.fieldType);
-        const bang = field.isOptional || field.isNullable ? "" : "!";
-        res += `  ${field.name}: ${gqlType}${bang}
-`;
-      }
+      for (const field of cls.fields) res += gqlFieldLine(field);
       res += `}
 
 `;
@@ -1048,6 +1310,13 @@ var toSnakeCase = (str2) => {
 };
 var RUST_RESERVED = /* @__PURE__ */ new Set(["type", "struct", "enum", "match", "use", "mod", "fn", "let", "pub", "impl", "trait", "for", "loop", "while", "if", "else", "return", "break", "continue", "as", "async", "await", "const", "crate", "dyn", "extern", "false", "true", "in", "move", "mut", "ref", "self", "Self", "static", "super", "unsafe", "where"]);
 var escapeRust = (s) => RUST_RESERVED.has(s) ? `r#${s}` : s;
+var toRustFieldName = (k) => {
+  const snake = toSnakeCase(k);
+  if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(snake)) return escapeRust(snake);
+  let n = foldIdent(k, "snake");
+  if (/^[0-9]/.test(n)) n = "_" + n;
+  return escapeRust(n);
+};
 var printRustASTType = (type2) => {
   switch (type2.kind) {
     case "union":
@@ -1100,7 +1369,7 @@ pub struct ${cls.name} {
         if (field.isOptional || field.isNullable) {
           rustType = `Option<${rustType}>`;
         }
-        const snakeFieldName = escapeRust(toSnakeCase(field.name));
+        const snakeFieldName = toRustFieldName(field.name);
         if (snakeFieldName !== field.name) {
           res += `  #[serde(rename = "${field.name}")]
 `;
@@ -1162,12 +1431,15 @@ var goGen = {
         res += `  ${baseStruct}
 `;
       }
+      const usedGoNames = /* @__PURE__ */ new Set();
       for (const field of cls.fields) {
         let goType = printGoASTType(field.fieldType);
         if (field.isNullable || field.isOptional) goType = `*${goType}`;
-        const pascalFieldName = toPascalCase2(field.name);
+        let goFieldName = toGoFieldName(field.name);
+        while (usedGoNames.has(goFieldName)) goFieldName += "_";
+        usedGoNames.add(goFieldName);
         const omitEmpty = field.isOptional || field.isNullable ? ",omitempty" : "";
-        res += `  ${pascalFieldName} ${goType} \`json:"${field.name}${omitEmpty}"\`
+        res += `  ${goFieldName} ${goType} \`json:"${field.name}${omitEmpty}"\`
 `;
       }
       res += `}
@@ -1178,7 +1450,13 @@ var goGen = {
   }
 };
 var toJavaClassName = (n) => n.split(/[_\s-]+/).map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join("");
-var toJavaFieldName = (k) => k.replace(/_([a-zA-Z0-9])/g, (_, c) => c.toUpperCase());
+var toJavaFieldName = (k) => {
+  const camel = k.replace(/_([a-zA-Z0-9])/g, (_, c) => c.toUpperCase());
+  if (/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(camel)) return camel;
+  let n = foldIdent(k, "camel");
+  if (/^[0-9]/.test(n)) n = "_" + n;
+  return n;
+};
 var isJavaMoney = (k) => ["price", "amount", "cost", "fee", "total", "subtotal", "balance", "payment"].some((w) => k.toLowerCase().includes(w));
 var printJavaASTType = (type2, isNullable, fieldName = "") => {
   switch (type2.kind) {
@@ -1314,6 +1592,12 @@ var printPrismaASTType = (type2) => {
       return "String";
   }
 };
+var toPrismaFieldName = (k) => {
+  if (/^[A-Za-z][A-Za-z0-9_]*$/.test(k)) return k;
+  let n = foldIdent(k, "camel");
+  if (/^[0-9]/.test(n)) n = "f" + n.charAt(0).toUpperCase() + n.slice(1);
+  return n;
+};
 var prismaGen = {
   generate: (schema2, name = "Root", options = {}) => {
     const astClasses = schemaToAST(schema2, toPascalCase2(name), options);
@@ -1333,7 +1617,9 @@ var prismaGen = {
           for (const f of baseCls.fields) {
             const prismaType = printPrismaASTType(f.fieldType);
             const idTag = f.name === "id" ? " @id" : "";
-            res += `  ${f.name} ${prismaType}${idTag}
+            const fName = toPrismaFieldName(f.name);
+            const mapTag = fName !== f.name ? ` @map("${f.name}")` : "";
+            res += `  ${fName} ${prismaType}${idTag}${mapTag}
 `;
           }
         }
@@ -1347,14 +1633,22 @@ var prismaGen = {
         const customKey2 = `${cls.name}.${field.name}`;
         const displayName2 = options.customFieldNames?.[customKey2] ?? field.name;
         const idTag = displayName2 === "id" ? " @id" : "";
+        const prismaName = toPrismaFieldName(displayName2);
+        const mapTag = prismaName !== displayName2 ? ` @map("${displayName2}")` : "";
         if (field.fieldType.kind === "classRef") {
-          res += `  ${displayName2} Json${opt}
+          const child = astClasses.find((c) => c.name === field.fieldType.classRefName);
+          if (child) res += `  /// embedded as Json \u2014 see model ${child.name} for the shape
+`;
+          res += `  ${prismaName} Json${opt}${mapTag}
 `;
         } else if (isArray && field.fieldType.itemType?.kind === "classRef") {
-          res += `  ${displayName2} Json
+          const child = astClasses.find((c) => c.name === field.fieldType.itemType.classRefName);
+          if (child) res += `  /// embedded as Json \u2014 see model ${child.name} for the element shape
+`;
+          res += `  ${prismaName} Json${mapTag}
 `;
         } else {
-          res += `  ${displayName2} ${prismaType}${opt}${idTag}
+          res += `  ${prismaName} ${prismaType}${opt}${idTag}${mapTag}
 `;
           if (!isArray && displayName2.length > 2 && displayName2.endsWith("Id") && field.fieldType.format === "uuid") {
             const relName = displayName2.slice(0, -2);
@@ -1365,7 +1659,7 @@ var prismaGen = {
               const suffixMatches = astClasses.filter((c) => c.name !== cls.name && c.name.endsWith(refClass));
               const refModel = exactModel ?? (suffixMatches.length === 1 ? suffixMatches[0] : null);
               if (refModel) {
-                res += `  ${relName} ${refModel.name}? @relation(fields: [${displayName2}], references: [id])
+                res += `  ${relName} ${refModel.name}? @relation(fields: [${prismaName}], references: [id])
 `;
               }
             }
@@ -1412,6 +1706,14 @@ var mockGen = {
   generate: (schema2) => {
     let _arrayIndex = 0;
     const generateMock = (s, key = "", parentKey = "") => {
+      if (s.type === "object" && s.recordValueType) {
+        const obj = {};
+        for (let i = 1; i <= 2; i++) obj[`key${i}`] = generateMock(s.recordValueType, key, parentKey);
+        return obj;
+      }
+      if (s.type === "array" && s.tupleTypes) {
+        return s.tupleTypes.map((t) => generateMock(t, key, parentKey));
+      }
       if (s.type === "object" && s.fields) {
         const obj = {};
         for (const [k, v] of Object.entries(s.fields)) {
@@ -1506,11 +1808,19 @@ var printCsharpASTType = (type2) => {
       return "object";
   }
 };
+var toCsharpFieldName = (k) => {
+  const pascal = toPascalCase2(k);
+  if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(pascal)) return pascal;
+  let n = foldIdent(k, "pascal");
+  if (/^[0-9]/.test(n)) n = "_" + n;
+  return n;
+};
 var csharpGen = {
   generate: (schema2, name = "Root", options = {}) => {
     const astClasses = schemaToAST(schema2, toPascalCase2(name), options);
     let body = "";
     let hasRequired = false;
+    let hasJsonName = false;
     for (const cls of astClasses) {
       const baseClass = getBaseClass(cls);
       const inheritance = baseClass ? ` : ${baseClass}` : "";
@@ -1526,14 +1836,23 @@ var csharpGen = {
           body += `    [Required]
 `;
         }
-        body += `    public ${csType}${nullable} ${toPascalCase2(field.name)} { get; set; }
+        const csName = toCsharpFieldName(field.name);
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(field.name)) {
+          hasJsonName = true;
+          body += `    [JsonPropertyName("${field.name}")]
+`;
+        }
+        body += `    public ${csType}${nullable} ${csName} { get; set; }
 `;
       }
       body += `}
 
 `;
     }
-    const header = hasRequired ? "using System.ComponentModel.DataAnnotations;\n\n" : "";
+    let header = "";
+    if (hasRequired) header += "using System.ComponentModel.DataAnnotations;\n";
+    if (hasJsonName) header += "using System.Text.Json.Serialization;\n";
+    if (header) header += "\n";
     return header + body;
   }
 };
@@ -1818,7 +2137,7 @@ var nestjsDtoGen = {
           block += `  ${dec}
 `;
         }
-        block += `  ${field.name}${optMark}: ${tsType};
+        block += `  ${safeKey(field.name)}${optMark}: ${tsType};
 
 `;
       }
@@ -1934,7 +2253,7 @@ var effectSchemaGen = {
         } else if (field.isOptional) {
           effectType = `Schema.optional(${effectType})`;
         }
-        res += `  ${field.name}: ${effectType},
+        res += `  ${safeKey(field.name)}: ${effectType},
 `;
       }
       res += `});
@@ -2030,6 +2349,105 @@ var docGen = {
       return res;
     }
     return "";
+  }
+};
+var typeGuardGen = {
+  generate: (schema2, name = "Root", options = {}) => {
+    const discriminatedMap = findDiscriminatedSchemas(schema2, name);
+    const astClasses = schemaToAST(schema2, name, options);
+    const lines = [];
+    const typeCheckExpr = (fieldType, accessor) => {
+      switch (fieldType.kind) {
+        case "string":
+          return `typeof ${accessor} === 'string'`;
+        case "number":
+          return `typeof ${accessor} === 'number'`;
+        case "boolean":
+          return `typeof ${accessor} === 'boolean'`;
+        case "date":
+        case "datetime":
+          return `(typeof ${accessor} === 'string' || ${accessor} instanceof Date)`;
+        case "any":
+          return "true";
+        case "classRef":
+          return `is${fieldType.classRefName}(${accessor})`;
+        case "array":
+          return `Array.isArray(${accessor})`;
+        case "enum": {
+          const vals = (fieldType.enumValues ?? []).map((v) => `'${v}'`).join(", ");
+          return `typeof ${accessor} === 'string' && [${vals}].includes(${accessor})`;
+        }
+        case "union": {
+          const checks = (fieldType.unionTypes ?? []).filter((t) => t !== "any").map((t) => `typeof ${accessor} === '${t}'`);
+          return checks.length ? `(${checks.join(" || ")})` : "true";
+        }
+        default:
+          return "true";
+      }
+    };
+    const buildFieldLine = (field) => {
+      const acc = `o['${field.name}']`;
+      const check = typeCheckExpr(field.fieldType, acc);
+      const hasRealCheck = check !== "true";
+      if (field.isOptional && field.isNullable) {
+        return hasRealCheck ? `(${acc} == null || ${check})` : `(${acc} == null)`;
+      }
+      if (field.isOptional) return hasRealCheck ? `(${acc} === undefined || ${check})` : "true";
+      if (field.isNullable) return hasRealCheck ? `(${acc} === null || ${check})` : `${acc} === null`;
+      return check;
+    };
+    const emitGuard = (className, fields) => {
+      lines.push(`export function is${className}(obj: unknown): obj is ${className} {`);
+      lines.push(`  if (typeof obj !== 'object' || obj === null) return false;`);
+      lines.push(`  const o = obj as Record<string, unknown>;`);
+      const checkLines = fields.map(buildFieldLine).filter((l) => l !== "true");
+      if (checkLines.length === 0) {
+        lines.push(`  return true;`);
+      } else {
+        lines.push(`  return (`);
+        checkLines.forEach((line, i) => {
+          const sep = i < checkLines.length - 1 ? " &&" : "";
+          lines.push(`    ${line}${sep}`);
+        });
+        lines.push(`  );`);
+      }
+      lines.push(`}`);
+      lines.push("");
+    };
+    for (const cls of astClasses) {
+      const du = discriminatedMap.get(cls.name);
+      if (du) {
+        const suffixMap = duVariantSuffixes(Object.keys(du.variants));
+        for (const [value, variantSchema] of Object.entries(du.variants)) {
+          const variantName = `${cls.name}${suffixMap.get(value)}`;
+          const variantFields = Object.entries(variantSchema.fields ?? {}).map(([fk, fv]) => {
+            if (fk === du.discriminatorField) {
+              return { name: fk, fieldType: { kind: "enum", enumValues: [value] }, isOptional: false, isNullable: false };
+            }
+            return { name: fk, fieldType: convertToASTType(fv, variantName, fk), isOptional: !!fv.optional, isNullable: !!fv.nullable };
+          });
+          emitGuard(variantName, variantFields);
+        }
+        const variantChecks = Object.keys(du.variants).map((v) => `is${cls.name}${suffixMap.get(v)}(obj)`);
+        lines.push(`export function is${cls.name}(obj: unknown): obj is ${cls.name} {`);
+        lines.push(`  return ${variantChecks.join(" || ")};`);
+        lines.push(`}`);
+        lines.push("");
+        continue;
+      }
+      emitGuard(cls.name, cls.fields);
+    }
+    if (schema2.type === "array" && schema2.itemType) {
+      const itemName = rootArrayItemClassName(schema2, name);
+      if (itemName) {
+        const pascalName = toPascalCase2(name);
+        lines.push(`export function is${pascalName}(obj: unknown): obj is ${pascalName} {`);
+        lines.push(`  return Array.isArray(obj) && obj.every((item) => is${itemName}(item));`);
+        lines.push(`}`);
+        lines.push("");
+      }
+    }
+    return lines.join("\n");
   }
 };
 
@@ -4665,6 +5083,7 @@ var toCamelCase2 = (s) => {
   return p.charAt(0).toLowerCase() + p.slice(1);
 };
 var toScreamingSnake = (s) => toSnakeCase2(s).toUpperCase();
+var safeKey2 = (name) => /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) ? name : JSON.stringify(name);
 var getFields = (schema2) => {
   if (schema2.type === "array" && schema2.itemType) {
     return schema2.itemType.fields ?? {};
@@ -4969,17 +5388,18 @@ var envValidatorGen = {
     const f = getFields(schema2);
     if (!Object.keys(f).length) return "";
     const fieldToZod = (k, v) => {
+      const key = safeKey2(k);
       if (v.type === "boolean") {
-        return `  ${k}: z.enum(["true", "false"]).transform(v => v === "true")`;
+        return `  ${key}: z.enum(["true", "false"]).transform(v => v === "true")`;
       }
       if (v.type === "number") {
         const intPart = v.format === "int" ? ".int()" : "";
-        return `  ${k}: z.coerce.number()${intPart}`;
+        return `  ${key}: z.coerce.number()${intPart}`;
       }
-      if (v.format === "url") return `  ${k}: z.url()`;
-      if (v.format === "email") return `  ${k}: z.email()`;
+      if (v.format === "url") return `  ${key}: z.url()`;
+      if (v.format === "email") return `  ${key}: z.email()`;
       const optPart = v.optional ? ".optional()" : "";
-      return `  ${k}: z.string()${optPart}`;
+      return `  ${key}: z.string()${optPart}`;
     };
     const lines = Object.entries(f).map(([k, v]) => fieldToZod(k, v));
     return `import { z } from "zod";
@@ -5472,7 +5892,7 @@ var mongooseGen = {
       const f = getFields(s);
       let res = "{\n";
       for (const [k, v] of Object.entries(f)) {
-        res += `${indent}  ${k}: `;
+        res += `${indent}  ${safeKey2(k)}: `;
         if (v.type === "object") {
           res += buildSchemaFields(v, indent + "  ", depth + 1) + ",\n";
         } else if (v.type === "array") {
@@ -5551,7 +5971,7 @@ import sequelize from '../config/database';
       if (v.enumValues && v.enumValues.length) {
         typeStr = `DataTypes.ENUM(${v.enumValues.map((e) => `'${e}'`).join(", ")})`;
       }
-      res += `  ${k}: {
+      res += `  ${safeKey2(k)}: {
     type: ${typeStr},
     allowNull: ${!!v.optional || !!v.nullable}
   },
@@ -5620,7 +6040,7 @@ var typeormGen = {
         colDecorator = colType ? `@Column('${colType}')` : `@Column()`;
       }
       res += `  ${colDecorator}
-  ${k}${v.optional ? "?" : "!"}: ${typeStr}${v.nullable ? " | null" : ""};
+  ${safeKey2(k)}${v.optional ? "?" : "!"}: ${typeStr}${v.nullable ? " | null" : ""};
 
 `;
     }
@@ -5726,7 +6146,7 @@ var drizzleGen = {
           col = `varchar('${dbCol}', { length: 255 })${nn}`;
         }
       }
-      lines.push(`  ${k}: ${col}`);
+      lines.push(`  ${safeKey2(k)}: ${col}`);
     }
     if (!hasCreatedAt) {
       imports.add("timestamp");
@@ -5776,7 +6196,7 @@ var kyselyGen = {
       if (v.format === "datetime") return "Date | string";
       if (v.type === "object" && v.fields && Object.keys(v.fields).length) {
         const subName = toPascalCase3(k);
-        const subFields = Object.entries(v.fields).map(([sk, sv]) => `  ${sk}: ${kyselyType(sk, sv)};`).join("\n");
+        const subFields = Object.entries(v.fields).map(([sk, sv]) => `  ${safeKey2(sk)}: ${kyselyType(sk, sv)};`).join("\n");
         subInterfaces.push(`export interface ${subName} {
 ${subFields}
 }`);
@@ -5786,7 +6206,7 @@ ${subFields}
       }
       if (v.type === "array" && v.itemType?.type === "object" && v.itemType.fields) {
         const subName = toPascalCase3(k.replace(/s$/, ""));
-        const subFields = Object.entries(v.itemType.fields).map(([sk, sv]) => `  ${sk}: ${kyselyType(sk, sv)};`).join("\n");
+        const subFields = Object.entries(v.itemType.fields).map(([sk, sv]) => `  ${safeKey2(sk)}: ${kyselyType(sk, sv)};`).join("\n");
         subInterfaces.push(`export interface ${subName} {
 ${subFields}
 }`);
@@ -5804,7 +6224,7 @@ ${subFields}
     for (const [k, v] of Object.entries(f)) {
       const typeStr = kyselyType(k, v);
       const typeWithNull = v.optional ? `${typeStr} | null` : typeStr;
-      tableBody += `  ${k}: ${typeWithNull};
+      tableBody += `  ${safeKey2(k)}: ${typeWithNull};
 `;
     }
     if (!f.createdAt && !f.created_at) tableBody += `  createdAt: Generated<string>;
@@ -5868,7 +6288,7 @@ var yupGen = {
         } else {
           yupType = v.type === "any" ? "yup.mixed()" : `yup.${v.type}()`;
         }
-        res += `  ${k}: ${yupType}${nullable}${required},
+        res += `  ${safeKey2(k)}: ${yupType}${nullable}${required},
 `;
       }
       res += `});
@@ -5926,7 +6346,7 @@ var joiGen = {
         } else {
           joiType = `Joi.${v.type}()`;
         }
-        res += `  ${k}: ${joiType}${nullable}${required},
+        res += `  ${safeKey2(k)}: ${joiType}${nullable}${required},
 `;
       }
       res += `});
@@ -5988,7 +6408,7 @@ var valibotGen = {
         if (v.optional) {
           valiType = `v.optional(${valiType})`;
         }
-        res += `  ${k}: ${valiType},
+        res += `  ${safeKey2(k)}: ${valiType},
 `;
       }
       res += `});
@@ -6045,7 +6465,7 @@ var superstructGen = {
         if (v.optional) {
           structType = `s.optional(${structType})`;
         }
-        res += `  ${k}: ${structType},
+        res += `  ${safeKey2(k)}: ${structType},
 `;
       }
       res += `});
@@ -6086,7 +6506,7 @@ var reactPropsGen = {
     res += `export interface ${componentName}Props {
 `;
     for (const [k, v] of Object.entries(f)) {
-      res += `  ${k}${v.optional ? "?" : ""}: ${schemaToTsType(v)};
+      res += `  ${safeKey2(k)}${v.optional ? "?" : ""}: ${schemaToTsType(v)};
 `;
     }
     res += `}
@@ -6124,7 +6544,7 @@ var reactContextGen = {
     res += `export interface ${contextName}State {
 `;
     for (const [k, v] of Object.entries(f)) {
-      res += `  ${k}${v.optional ? "?" : ""}: ${schemaToTsType(v)};
+      res += `  ${safeKey2(k)}${v.optional ? "?" : ""}: ${schemaToTsType(v)};
 `;
     }
     res += `}
@@ -6175,7 +6595,7 @@ var reduxSliceGen = {
     res += `export interface ${sliceName}State {
 `;
     for (const [k, v] of Object.entries(f)) {
-      res += `  ${k}${v.optional ? "?" : ""}: ${schemaToTsType(v)};
+      res += `  ${safeKey2(k)}${v.optional ? "?" : ""}: ${schemaToTsType(v)};
 `;
     }
     res += `}
@@ -6189,7 +6609,7 @@ var reduxSliceGen = {
       else if (v.type === "boolean") dVal = "false";
       else if (v.type === "object") dVal = "{}";
       else if (v.type === "array") dVal = "[]";
-      res += `  ${k}: ${dVal},
+      res += `  ${safeKey2(k)}: ${dVal},
 `;
     }
     res += `};
@@ -6233,7 +6653,7 @@ var piniaStoreGen = {
     res += `export interface ${storeName}State {
 `;
     for (const [k, v] of Object.entries(f)) {
-      res += `  ${k}: ${tsType(v)};
+      res += `  ${safeKey2(k)}: ${tsType(v)};
 `;
     }
     res += `}
@@ -6249,7 +6669,7 @@ var piniaStoreGen = {
       else if (v.type === "boolean") dVal = "false";
       else if (v.type === "object") dVal = "{}";
       else if (v.type === "array") dVal = "[]";
-      res += `    ${k}: ${dVal},
+      res += `    ${safeKey2(k)}: ${dVal},
 `;
     }
     res += `  }),
@@ -6888,7 +7308,7 @@ import { z } from 'zod';
 const ${entityName}Schema = z.object({
 ${fields.map((k) => {
       const v = f[k];
-      return `  ${k}: ${fieldToZod(k, v)}${v.optional ? ".optional()" : ""}`;
+      return `  ${safeKey2(k)}: ${fieldToZod(k, v)}${v.optional ? ".optional()" : ""}`;
     }).join(",\n")}
 });
 
@@ -6934,7 +7354,7 @@ export interface ${entityName} {
 ${fields.map((k) => {
       const v = f[k];
       const tsType = v.type === "number" ? "number" : v.type === "boolean" ? "boolean" : "string";
-      return `  ${k}${v.optional ? "?" : ""}: ${tsType};`;
+      return `  ${safeKey2(k)}${v.optional ? "?" : ""}: ${tsType};`;
     }).join("\n")}
 }
 
@@ -7212,16 +7632,16 @@ var aiFieldDesc = (k, v) => {
   }
   return k.replace(/([A-Z])/g, " $1").replace(/_/g, " ").trim();
 };
-var aiFieldToZod = (k, v, indent = "    ") => {
+var aiFieldToZod = (k, v, indent = "    ", withDescribe = true) => {
   const kl = k.toLowerCase();
-  const opt = v.optional || v.nullable ? ".optional()" : "";
-  if (v.type === "boolean") return `z.boolean()${opt}`;
+  const suffix = v.nullable && v.optional ? ".nullable().optional()" : v.nullable ? ".nullable()" : v.optional ? ".optional()" : "";
+  if (v.type === "boolean") return `z.boolean()${suffix}`;
   if (v.type === "number") {
     let z = "z.number()";
     if (v.format === "int") z += ".int()";
     const isMoney = ["price", "amount", "cost", "fee", "total", "subtotal", "balance"].some((w) => kl.includes(w));
     if (v.format === "int" && (kl.includes("count") || kl.includes("quantity") || kl === "qty") || isMoney) z += ".min(0)";
-    return `${z}${opt}`;
+    return `${z}${suffix}`;
   }
   if (v.type === "array") {
     const it = v.itemType;
@@ -7232,35 +7652,88 @@ var aiFieldToZod = (k, v, indent = "    ") => {
       else if (it.type === "boolean") inner = "z.boolean()";
       else if (it.type === "object" && it.fields) {
         const ni = indent + "  ";
-        const props = Object.entries(it.fields).map(
-          ([nk, nv]) => `${ni}  ${nk}: ${aiFieldToZod(nk, nv, ni + "  ")}.describe('${aiFieldDesc(nk, nv)}'),`
-        ).join("\n");
+        const props = Object.entries(it.fields).map(([nk, nv]) => {
+          const line = `${ni}  ${nk}: ${aiFieldToZod(nk, nv, ni + "  ", withDescribe)}`;
+          return withDescribe ? `${line}.describe('${aiFieldDesc(nk, nv)}'),` : `${line},`;
+        }).join("\n");
         inner = `z.object({
 ${props}
 ${ni}})`;
       }
     }
-    return `z.array(${inner})${opt}`;
+    return `z.array(${inner})${suffix}`;
   }
   if (v.type === "object" && v.fields) {
     const ni = indent + "  ";
-    const props = Object.entries(v.fields).map(
-      ([nk, nv]) => `${ni}${nk}: ${aiFieldToZod(nk, nv, ni)}.describe('${aiFieldDesc(nk, nv)}'),`
-    ).join("\n");
+    const props = Object.entries(v.fields).map(([nk, nv]) => {
+      const line = `${ni}${nk}: ${aiFieldToZod(nk, nv, ni, withDescribe)}`;
+      return withDescribe ? `${line}.describe('${aiFieldDesc(nk, nv)}'),` : `${line},`;
+    }).join("\n");
     return `z.object({
 ${props}
-${indent}})${opt}`;
+${indent}})${suffix}`;
   }
   if (v.type === "union" && v.enumValues?.length) {
     const vals = v.enumValues.map((e) => `"${e}"`).join(", ");
-    return `z.enum([${vals}])${opt}`;
+    return `z.enum([${vals}])${suffix}`;
   }
-  if (v.format === "email" || kl.includes("email")) return `z.email()${opt}`;
-  if (v.format === "uuid" || /Id$/.test(k) || /ID$/.test(k) || kl.endsWith("_id")) return `z.uuid()${opt}`;
-  if (v.format === "url" || kl.includes("url") || kl.includes("link")) return `z.url()${opt}`;
-  if (v.format === "datetime") return `z.iso.datetime()${opt}`;
-  if (kl.includes("password") || kl.includes("passwd")) return `z.string().min(8)${opt}`;
-  return `z.string()${opt}`;
+  if (v.format === "email" || kl.includes("email")) return `z.email()${suffix}`;
+  if (v.format === "uuid" || /Id$/.test(k) || /ID$/.test(k) || kl.endsWith("_id")) return `z.uuid()${suffix}`;
+  if (v.format === "url" || kl.includes("url") || kl.includes("link")) return `z.url()${suffix}`;
+  if (v.format === "datetime") return `z.iso.datetime()${suffix}`;
+  if (kl.includes("password") || kl.includes("passwd")) return `z.string().min(8)${suffix}`;
+  return `z.string()${suffix}`;
+};
+var llmValidatorGen = {
+  generate: (schema2, name = "Root") => {
+    const camelName = toCamelCase2(name);
+    const pascalName = toPascalCase3(name);
+    const schemaVar = `${camelName}Schema`;
+    const parseFn = `parse${pascalName}`;
+    const root = rootObject(schema2);
+    const f = root.fields ?? {};
+    const fields = Object.entries(f).map(([k, v]) => `  ${safeKey2(k)}: ${aiFieldToZod(k, v, "  ", false)},`).join("\n");
+    return `import { z } from "zod";
+
+// \u2500\u2500 Schema \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+const ${schemaVar} = z.object({
+${fields}
+});
+
+export type ${pascalName} = z.infer<typeof ${schemaVar}>;
+
+// \u2500\u2500 Safe Parse \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// Validates every LLM response before it reaches your application logic.
+export function ${parseFn}(raw: unknown):
+  | { ok: true; data: ${pascalName} }
+  | { ok: false; errors: string[] } {
+  const result = ${schemaVar}.safeParse(raw);
+  if (!result.success) {
+    return {
+      ok: false,
+      errors: result.error.issues.map(i => \`\${i.path.join(".")}: \${i.message}\`),
+    };
+  }
+  return { ok: true, data: result.data };
+}
+
+// \u2500\u2500 Usage \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// OpenAI (json_object / json_schema mode):
+//   const raw = JSON.parse(completion.choices[0].message.content!);
+//   const parsed = ${parseFn}(raw);
+//
+// Anthropic tool_use:
+//   const parsed = ${parseFn}(msg.content[0].input);
+//
+// Vercel AI SDK generateObject:
+//   const parsed = ${parseFn}(object);
+//
+//   if (!parsed.ok) {
+//     console.error("LLM schema mismatch:", parsed.errors);
+//   } else {
+//     use(parsed.data); // fully typed \u2713
+//   }`;
+  }
 };
 var mcpToolGen = {
   generate: (schema2, name = "Root") => {
@@ -7268,9 +7741,8 @@ var mcpToolGen = {
     const f = getFields(schema2);
     const fields = Object.keys(f);
     const params = fields.map(
-      (k) => `    ${k}: ${aiFieldToZod(k, f[k], "    ")}.describe('${aiFieldDesc(k, f[k])}'),`
+      (k) => `    ${safeKey2(k)}: ${aiFieldToZod(k, f[k], "    ")}.describe('${aiFieldDesc(k, f[k])}'),`
     ).join("\n");
-    const destructure = fields.join(", ");
     return `import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
@@ -7282,8 +7754,8 @@ server.tool(
   {
 ${params}
   },
-  async ({ ${destructure} }) => ({
-    content: [{ type: "text", text: JSON.stringify({ ${destructure} }) }]
+  async (args) => ({
+    content: [{ type: "text", text: JSON.stringify(args) }]
   })
 );
 
@@ -7357,7 +7829,6 @@ var openAiFunctionGen = {
       else if (v.format === "uuid" || /Id$/.test(k) || /ID$/.test(k) || kl.endsWith("_id")) s.format = "uuid";
       else if (v.format === "url" || kl.includes("url") || kl.includes("link")) s.format = "uri";
       else if (v.format === "datetime") s.format = "date-time";
-      else if (kl.includes("password") || kl.includes("passwd")) s.minLength = 8;
       return s;
     };
     const properties = {};
@@ -7382,7 +7853,7 @@ var vercelAiToolGen = {
     const f = getFields(schema2);
     const fields = Object.keys(f);
     const params = fields.map(
-      (k) => `    ${k}: ${aiFieldToZod(k, f[k], "    ")}.describe('${aiFieldDesc(k, f[k])}'),`
+      (k) => `    ${safeKey2(k)}: ${aiFieldToZod(k, f[k], "    ")}.describe('${aiFieldDesc(k, f[k])}'),`
     ).join("\n");
     return `import { tool } from "ai";
 import { z } from "zod";
@@ -7402,6 +7873,142 @@ ${params}
 
 // ../../src/lib/engine.ts
 var import_crypto = require("crypto");
+
+// ../../src/lib/graph.ts
+function splitMembers(body) {
+  const members = [];
+  let cur = "";
+  let depth = 0;
+  let inStr = null;
+  for (let i = 0; i < body.length; i++) {
+    const ch = body[i];
+    const next = body[i + 1];
+    if (inStr) {
+      cur += ch;
+      if (ch === "\\") {
+        cur += next ?? "";
+        i++;
+        continue;
+      }
+      if (ch === inStr) inStr = null;
+      continue;
+    }
+    if (ch === "/" && next === "/") {
+      while (i < body.length && body[i] !== "\n") i++;
+      i--;
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      i += 2;
+      while (i < body.length && !(body[i] === "*" && body[i + 1] === "/")) i++;
+      i++;
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") {
+      inStr = ch;
+      cur += ch;
+      continue;
+    }
+    if (ch === "<" || ch === "(" || ch === "[" || ch === "{") {
+      depth++;
+      cur += ch;
+      continue;
+    }
+    if (ch === ">" || ch === ")" || ch === "]" || ch === "}") {
+      depth = Math.max(0, depth - 1);
+      cur += ch;
+      continue;
+    }
+    if (depth === 0 && (ch === ";" || ch === "," || ch === "\n")) {
+      if (cur.trim()) members.push(cur.trim());
+      cur = "";
+      continue;
+    }
+    cur += ch;
+  }
+  if (cur.trim()) members.push(cur.trim());
+  return members;
+}
+function extractTypeGraph(tsCode) {
+  const nodes = [];
+  const edges = [];
+  const allInterfaceNames = /* @__PURE__ */ new Set();
+  const scanRegex = /(?:export\s+)?interface\s+(\w+)/g;
+  let scanMatch;
+  while ((scanMatch = scanRegex.exec(tsCode)) !== null) {
+    allInterfaceNames.add(scanMatch[1]);
+  }
+  const extractedInterfaces = [];
+  const headerRe = /(?:export\s+)?interface\s+(\w+)(?:\s+extends\s+([^{]+))?\s*\{/g;
+  let hm;
+  while ((hm = headerRe.exec(tsCode)) !== null) {
+    const ifName = hm[1];
+    const extendsRaw = hm[2];
+    let depth = 1;
+    let pos = hm.index + hm[0].length;
+    while (pos < tsCode.length && depth > 0) {
+      const ch = tsCode[pos++];
+      if (ch === "{") depth++;
+      else if (ch === "}") depth--;
+    }
+    extractedInterfaces.push({ name: ifName, body: tsCode.slice(hm.index + hm[0].length, pos - 1), extendsRaw });
+  }
+  const nodeMap = /* @__PURE__ */ new Map();
+  for (const { name: interfaceName, body, extendsRaw } of extractedInterfaces) {
+    const fields = [];
+    let indexSignature;
+    for (const member of splitMembers(body)) {
+      const idxMatch = member.match(/^\[\s*\w+\s*:\s*(?:string|number|symbol)\s*\]\s*:\s*([\s\S]+)$/);
+      if (idxMatch) {
+        indexSignature = idxMatch[1].trim();
+        continue;
+      }
+      const fieldMatch = member.match(/^(?:readonly\s+)?(\w+)(\?)?\s*:\s*([\s\S]+)$/);
+      if (!fieldMatch) continue;
+      const [, fieldName, optional, rawType] = fieldMatch;
+      const cleanType = rawType.replace(/[;,]\s*$/, "").trim();
+      fields.push({
+        name: fieldName,
+        type: cleanType,
+        optional: optional === "?"
+      });
+    }
+    const extendsList = extendsRaw ? extendsRaw.split(",").map((s) => s.trim().replace(/<.*$/, "").trim()).filter(Boolean) : void 0;
+    const node = {
+      id: interfaceName,
+      label: interfaceName,
+      fields,
+      isRoot: false,
+      ...extendsList && extendsList.length ? { extendsList } : {},
+      ...indexSignature ? { indexSignature } : {}
+    };
+    if (nodeMap.has(interfaceName)) continue;
+    nodes.push(node);
+    nodeMap.set(interfaceName, node);
+  }
+  for (const node of nodes) {
+    for (const field of node.fields) {
+      const typeTokens = field.type.replace(/\[\]/g, "").split(/[|&,\s<>]+/).map((t) => t.trim()).filter((t) => t.length > 0 && /^[A-Z]/.test(t));
+      for (const token of typeTokens) {
+        if (allInterfaceNames.has(token) && token !== node.id) {
+          const exists = edges.some((e) => e.from === node.id && e.to === token && e.label === field.name);
+          if (!exists) {
+            edges.push({
+              from: node.id,
+              to: token,
+              label: field.name
+            });
+          }
+        }
+      }
+    }
+  }
+  const referencedIds = new Set(edges.map((e) => e.to));
+  for (const node of nodes) {
+    node.isRoot = !referencedIds.has(node.id);
+  }
+  return { nodes, edges };
+}
 
 // ../../src/lib/parsers.ts
 var parseYAML = (str2) => {
@@ -7532,11 +8139,20 @@ function parseOpenAPIComponents(spec) {
 }
 
 // ../../src/lib/jsonschema-parser.ts
+var JSON_SCHEMA_TYPES = /* @__PURE__ */ new Set(["object", "string", "number", "integer", "boolean", "array", "null"]);
 function isJSONSchema(obj) {
   if (typeof obj !== "object" || obj === null || Array.isArray(obj)) return false;
   const o = obj;
   const s = String(o.$schema ?? "");
-  return s.includes("json-schema.org") || /^https?:\/\/.*\/schema/.test(s);
+  if (s.includes("json-schema.org") || /^https?:\/\/.*\/schema/.test(s)) return true;
+  const hasSchemaType = typeof o.type === "string" && JSON_SCHEMA_TYPES.has(o.type);
+  const hasProps = typeof o.properties === "object" && o.properties !== null && !Array.isArray(o.properties);
+  const hasItems = typeof o.items === "object" && o.items !== null;
+  if (hasSchemaType && (hasProps || hasItems)) return true;
+  if ((o.$defs !== void 0 || o.definitions !== void 0) && hasProps) return true;
+  if (typeof o.$ref === "string" && o.$ref.startsWith("#/")) return true;
+  if (Array.isArray(o.allOf) || Array.isArray(o.anyOf) || Array.isArray(o.oneOf)) return true;
+  return false;
 }
 function parseJSONSchema(root) {
   const defs = root.$defs ?? root.definitions ?? {};
@@ -7669,7 +8285,7 @@ function parseJSONSchema(root) {
 
 // ../../src/lib/recursive.ts
 function toPascalCase4(str2) {
-  return str2.replace(/(^\w|_\w)/g, (m) => m.replace(/_/, "").toUpperCase());
+  return str2.split(/[^A-Za-z0-9$]+/).filter(Boolean).map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join("");
 }
 function objectFieldNames(s) {
   if (s.type !== "object" || !s.fields) return null;
@@ -7835,6 +8451,7 @@ var enumKeywordsSet = /* @__PURE__ */ new Set([
   "alignment",
   "position"
 ]);
+var OPEN_VOCAB_NAME = /(\bcountry\b|\bcurrency\b|\bcity\b|\btimezone\b|\btz\b|\blocale\b|\blanguage\b|\blang\b|\bregion\b|\bpostal\b|\bzip\b|\btag\b|categor|\bsku\b|\bslug\b|\buuid\b|\bid\b|_id\b|\burl\b|\bdomain\b)/i;
 var calcEnumConfidence = (key, values, options) => {
   if (values.length === 0) return 0;
   let score = 0;
@@ -7897,6 +8514,23 @@ var applyContextCorrections = (fields) => {
     }
   }
 };
+var RECORD_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+var isDynamicRecordKeys = (keys) => {
+  if (keys.length < 2) return false;
+  if (keys.every((k) => /^\d+$/.test(k))) return true;
+  if (keys.every((k) => RECORD_UUID_RE.test(k))) return true;
+  const m0 = keys[0].match(/^(.*?)[_-]?\d+$/);
+  if (m0 && m0[1]) {
+    const prefix = m0[1];
+    if (keys.every((k) => {
+      const m = k.match(/^(.*?)[_-]?\d+$/);
+      return !!m && m[1] === prefix;
+    })) return true;
+  }
+  return false;
+};
+var STRICT_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+var STRICT_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 var inferSchema = (val, keyName, depth = 0, allowedEnumKeys, options) => {
   const maxDepth = options?.maxDepth ?? MAX_DEPTH;
   const addMeta = (s, reason, info) => {
@@ -7945,7 +8579,13 @@ var inferSchema = (val, keyName, depth = 0, allowedEnumKeys, options) => {
         itemType = { ...itemType, discriminatorField: du.discriminatorField, discriminatedVariants: du.variants };
       }
     }
-    return addMeta({ type: "array", itemType }, "array_inferred", { samples: len, sampled: sampledItems.length });
+    let tupleTypes;
+    if (len >= 2 && len <= 6 && val.every((el) => el === null || typeof el !== "object")) {
+      const elems = val.map((el) => inferSchema(el, void 0, depth + 1, void 0, options));
+      const sigs = new Set(elems.map((s) => s.type));
+      if (sigs.size >= 2) tupleTypes = elems;
+    }
+    return addMeta({ type: "array", itemType, ...tupleTypes ? { tupleTypes } : {} }, "array_inferred", { samples: len, sampled: sampledItems.length });
   }
   if (typeof val === "object") {
     const fields = {};
@@ -7953,32 +8593,45 @@ var inferSchema = (val, keyName, depth = 0, allowedEnumKeys, options) => {
       fields[key] = inferSchema(val[key], key, depth + 1, allowedEnumKeys, options);
     }
     applyContextCorrections(fields);
+    const keys = Object.keys(fields);
+    if (isDynamicRecordKeys(keys)) {
+      let valueType = fields[keys[0]];
+      for (let i = 1; i < keys.length; i++) valueType = mergeSchemas(valueType, fields[keys[i]], depth + 1);
+      return addMeta({ type: "object", fields, recordValueType: valueType }, "record_inferred", { fieldCount: keys.length });
+    }
     return addMeta({ type: "object", fields }, "object", { fieldCount: Object.keys(fields).length });
   }
   if (typeof val === "string") {
     if (val === "") return addMeta({ type: "string", format: "text" }, "empty_string");
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) return addMeta({ type: "string", format: "uuid" }, "format:uuid");
-    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return addMeta({ type: "string", format: "email" }, "format:email");
+    if (/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(val)) return addMeta({ type: "string", format: "email" }, "format:email");
+    if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(val)) return addMeta({ type: "string", format: "color" }, "format:color");
+    if (/^https?:\/\/[^\s]+$/.test(val) && val.includes("{")) return addMeta({ type: "string", format: "text" }, "format:url-template");
     if (/^https?:\/\/[^\s]+$/.test(val)) return addMeta({ type: "string", format: "url" }, "format:url");
     const isVersionKey = /version|semver|release/i.test(keyName ?? "");
     if (!isVersionKey) {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: "string", format: "date" }, "format:date");
-      if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: "string", format: "date" }, "format:date");
-      if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}[ T]\d{2}:\d{2}/.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: "string", format: "datetime" }, "format:datetime");
-      if (/^\d/.test(val) && val.includes("T") && !isNaN(Date.parse(val)) && val.length > 7) return addMeta({ type: "string", format: "datetime" }, "format:datetime");
+      if (STRICT_DATE_RE.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: "string", format: "date" }, "format:date");
+      if (STRICT_DATETIME_RE.test(val) && !isNaN(Date.parse(val))) return addMeta({ type: "string", format: "datetime" }, "format:datetime");
     }
     let isEnumCandidate = false;
     if (keyName) {
       const k = keyName.toLowerCase();
       const enumKeywords = Array.from(enumKeywordsSet);
       const floatKeyPattern = /price|amount|cost|fee|tax|rate|ratio|percent|score|weight|height|width|balance|salary|revenue/i;
-      const uuidKeyPattern = /_id$|^uuid$|^guid$/i;
+      const uuidKeyPattern = /^uuid$|^guid$/i;
       const urlKeyPattern = /url|uri|href|link|(?<![a-zA-Z])src|endpoint|avatar|thumbnail|image|photo/i;
       const emailKeyPattern = /email|mail/i;
       if (uuidKeyPattern.test(keyName)) return addMeta({ type: "string", format: "uuid" }, "format:uuid:keyname");
       if (emailKeyPattern.test(keyName)) return addMeta({ type: "string", format: "email" }, "format:email:keyname");
       const hasNonHttpScheme = /^[a-z][a-z0-9+.-]*:/.test(val) && !/^https?:\/\//.test(val);
+      if (urlKeyPattern.test(keyName) && /^[A-Za-z0-9._-]+@[A-Za-z0-9._-]+:(?!\/)/.test(val)) {
+        return addMeta({ type: "string", format: "text" }, "format:text:ssh-url");
+      }
+      if (urlKeyPattern.test(keyName) && !val.startsWith("/") && !hasNonHttpScheme && val.includes("{")) return addMeta({ type: "string", format: "text" }, "format:url-template:keyname");
       if (urlKeyPattern.test(keyName) && !val.startsWith("/") && !hasNonHttpScheme) return addMeta({ type: "string", format: "url" }, "format:url:keyname");
+      if (/website|homepage/i.test(keyName) && !val.startsWith("/") && !hasNonHttpScheme) {
+        return addMeta({ type: "string", format: "text" }, "format:text:website-nonurl");
+      }
       if (allowedEnumKeys) {
         isEnumCandidate = allowedEnumKeys.has(keyName);
       } else {
@@ -7990,6 +8643,9 @@ var inferSchema = (val, keyName, depth = 0, allowedEnumKeys, options) => {
             isEnumCandidate = true;
           }
         }
+      }
+      if (isEnumCandidate && OPEN_VOCAB_NAME.test(keyName)) {
+        isEnumCandidate = false;
       }
       if (!isEnumCandidate && floatKeyPattern.test(keyName)) {
         return addMeta({ type: "string" }, "format:float:keyname");
@@ -8119,7 +8775,12 @@ var DEPENDENCY_COMMENTS = {
   "openai-function": "",
   "vercel-ai-tool": "// Required: npm install ai zod\n\n",
   "nestjs-dto": '// Required: npm install class-validator class-transformer\n// tsconfig.json: "experimentalDecorators": true, "emitDecoratorMetadata": true\n\n',
-  "effect-schema": '// Required: npm install effect\nimport { Schema } from "effect";\n\n'
+  "effect-schema": '// Required: npm install effect\nimport { Schema } from "effect";\n\n',
+  "llm-response": "",
+  "llm-validator": "",
+  "llm-zod": "",
+  "type-guard": "",
+  "typeguard": ""
 };
 var cleanAndFormatCode = (code) => {
   const lines = code.split("\n").map((line) => line.trimEnd());
@@ -8283,6 +8944,7 @@ var mergeIsomorphicObjects = (target, source) => {
     }
   }
 };
+var toSafeIdent = (s) => s.replace(/[^A-Za-z0-9_$]+([A-Za-z0-9_$])?/g, (_m, c) => c ? c.toUpperCase() : "");
 var buildIsomorphicGroups = (nodes, options = {}) => {
   const prefix = options.sharedPrefix !== void 0 ? options.sharedPrefix : "Shared";
   const rawGroups = [];
@@ -8328,6 +8990,7 @@ var buildIsomorphicGroups = (nodes, options = {}) => {
       const camelKey = bestKey.replace(/(^\w|_\w)/g, (m) => m.replace(/_/, "").toUpperCase());
       semanticName = prefix ? `${prefix}${camelKey}` : camelKey;
     }
+    semanticName = toSafeIdent(semanticName);
     let finalName = semanticName;
     while (sharedNames.has(finalName)) finalName = `${semanticName}${counter++}`;
     sharedNames.add(finalName);
@@ -8372,7 +9035,10 @@ var runEngine = (json2, lang, slug = "", options = {}) => {
       }
     }
     const isOAComp = !!options._openAPIComponent;
-    const schema2 = json2 && json2._isTypeMorphSchema ? json2 : inferSchema(json2);
+    let schema2 = json2 && json2._isTypeMorphSchema ? json2 : inferSchema(json2);
+    if (options.samplesMode && schema2.type === "array" && schema2.itemType) {
+      schema2 = schema2.itemType;
+    }
     const rootName = options.rootName ?? "Root";
     if (!isOAComp && !json2?._isTypeMorphSchema) detectRecursiveTypes(schema2, rootName);
     if (!isOAComp) extractSharedTypes(schema2, options);
@@ -8404,7 +9070,8 @@ var runEngine = (json2, lang, slug = "", options = {}) => {
       if (/\bOptional\[/.test(body)) typingNeeded.push("Optional");
       if (/\bList\[/.test(body)) typingNeeded.push("List");
       if (/\bAny\b/.test(body)) typingNeeded.push("Any");
-      let imports = `from pydantic import BaseModel
+      let imports = /\bField\(/.test(body) ? `from pydantic import BaseModel, Field
+` : `from pydantic import BaseModel
 `;
       if (typingNeeded.length) imports += `from typing import ${typingNeeded.join(", ")}
 `;
@@ -8494,13 +9161,47 @@ syntax = "proto3";
     else if (s.includes("solidity")) out = solidityGen.generate(schema2, "Root");
     else if (s.includes("cpp") || s.includes("c++") || s.includes("cpp-struct") || s.includes("cpp-class")) out = cppGen.generate(schema2, rootName);
     else if (s === "c" || s.includes("c-struct") || s.includes("json-to-c")) out = cGen.generate(schema2, rootName);
-    else if (s.includes("mcp-tool") || s.includes("mcp")) out = mcpToolGen.generate(schema2, rootName);
+    else if (s.includes("zod-migrate") || s.includes("zod-v3") || s.includes("zod-v4")) {
+      out = `/* Zod v4 Migration \u2014 paste your Zod v3 schema in the \u2B06 Zod v4 tab */
+import { z } from 'zod';
+
+// Format validators are now top-level in Zod v4:
+const examples = {
+  email:    z.email(),           // was: z.string().email()
+  url:      z.url(),             // was: z.string().url()
+  uuid:     z.uuid(),            // was: z.string().uuid()
+  datetime: z.iso.datetime(),    // was: z.string().datetime()
+  date:     z.iso.date(),        // was: z.string().date()
+};`;
+      matchedKey = "zod-migrate";
+    } else if (s.includes("ts-to-zod") || s === "ts-to-zod") {
+      out = `/* TypeScript \u2192 Zod \u2014 paste your TypeScript interfaces in the TS \u2192 Zod tab */
+import { z } from 'zod';
+
+const UserSchema = z.object({
+  id:    z.string(),
+  email: z.string(),
+  age:   z.number(),
+  role:  z.enum(['admin', 'user', 'guest']),
+});
+export type User = z.infer<typeof UserSchema>;`;
+      matchedKey = "ts-to-zod";
+    } else if (s.includes("mcp-tool") || s.includes("mcp")) out = mcpToolGen.generate(schema2, rootName);
     else if (s.includes("openai-function") || s.includes("openai-func")) out = openAiFunctionGen.generate(schema2, rootName);
     else if (s.includes("vercel-ai-tool") || s.includes("vercel-ai")) out = vercelAiToolGen.generate(schema2, rootName);
     else if (s.includes("nestjs-dto") || s.includes("nestjs")) out = nestjsDtoGen.generate(schema2, rootName, options);
     else if (s.includes("effect-schema") || s.includes("effect")) out = effectSchemaGen.generate(schema2, rootNameLower, options);
+    else if (s.includes("llm-response") || s.includes("llm-validator") || s.includes("llm-zod")) out = llmValidatorGen.generate(schema2, rootName);
+    else if (s.includes("type-guard") || s.includes("typeguard")) {
+      const pfx = isOAComp ? "" : `/**
+ * TypeMorph Generated Type Guards
+ * No runtime dependencies required
+ */
+`;
+      out = pfx + typeGuardGen.generate(schema2, rootName, options);
+    }
     const KNOWN_TARGETS_EXACT = /* @__PURE__ */ new Set(["typescript", "ts", "zod", "go", "golang", "rust", "java", "python", "php", "sql", "prisma", "proto", "protobuf", "graphql", "gql", "json", "r"]);
-    const KNOWN_TARGET_SUBSTR = ["csv", "sql-insert", "mysql", "postgres", "sqlite", "snowflake", "mongodb", "mongoose", "ruby", "rails", "django", "dart", "flutter", "swift", "kotlin", "csharp", "c-sharp", "openapi", "jsonschema", "yup", "joi", "valibot", "react-props", "vue-props", "svelte-props", "solid-props", "react-context", "react-query", "api-route", "nextjs-api", "redux-slice", "pinia", "sequelize", "typeorm", "drizzle", "kysely", "superstruct", "arduino", "mock", "ui", "doc", "avro", "toml", "yaml", "env-validator", "env", "properties", "markdown", "asciidoc", "latex", "mermaid", "bigquery", "dynamodb", "postman", "http", "vscode", "curl", "cobol", "clojure", "elixir", "elm", "godot", "gdscript", "haskell", "r-lang", "scala", "solidity", "cpp", "c++", "cpp-struct", "cpp-class", "c-struct", "json-to-c", "mcp-tool", "mcp", "openai-function", "openai-func", "vercel-ai-tool", "vercel-ai", "nestjs-dto", "nestjs", "effect-schema", "effect"];
+    const KNOWN_TARGET_SUBSTR = ["csv", "sql-insert", "mysql", "postgres", "sqlite", "snowflake", "mongodb", "mongoose", "ruby", "rails", "django", "dart", "flutter", "swift", "kotlin", "csharp", "c-sharp", "openapi", "jsonschema", "yup", "joi", "valibot", "react-props", "vue-props", "svelte-props", "solid-props", "react-context", "react-query", "api-route", "nextjs-api", "redux-slice", "pinia", "sequelize", "typeorm", "drizzle", "kysely", "superstruct", "arduino", "mock", "ui", "doc", "avro", "toml", "yaml", "env-validator", "env", "properties", "markdown", "asciidoc", "latex", "mermaid", "bigquery", "dynamodb", "postman", "http", "vscode", "curl", "cobol", "clojure", "elixir", "elm", "godot", "gdscript", "haskell", "r-lang", "scala", "solidity", "cpp", "c++", "cpp-struct", "cpp-class", "c-struct", "json-to-c", "mcp-tool", "mcp", "openai-function", "openai-func", "vercel-ai-tool", "vercel-ai", "nestjs-dto", "nestjs", "effect-schema", "effect", "llm-response", "llm-validator", "llm-zod", "type-guard", "typeguard"];
     const targetMatched = KNOWN_TARGETS_EXACT.has(s) || KNOWN_TARGET_SUBSTR.some((k) => s.includes(k));
     if (s === "json") {
       out = JSON.stringify(json2, null, 2);
@@ -8679,80 +9380,6 @@ function analyzeQuality(schema2) {
   };
 }
 
-// ../../src/lib/graph.ts
-function extractTypeGraph(tsCode) {
-  const nodes = [];
-  const edges = [];
-  const allInterfaceNames = /* @__PURE__ */ new Set();
-  const scanRegex = /(?:export\s+)?interface\s+(\w+)/g;
-  let scanMatch;
-  while ((scanMatch = scanRegex.exec(tsCode)) !== null) {
-    allInterfaceNames.add(scanMatch[1]);
-  }
-  const extractedInterfaces = [];
-  const headerRe = /(?:export\s+)?interface\s+(\w+)\s*(?:extends\s+[\w,\s]+)?\s*\{/g;
-  let hm;
-  while ((hm = headerRe.exec(tsCode)) !== null) {
-    const ifName = hm[1];
-    let depth = 1;
-    let pos = hm.index + hm[0].length;
-    while (pos < tsCode.length && depth > 0) {
-      const ch = tsCode[pos++];
-      if (ch === "{") depth++;
-      else if (ch === "}") depth--;
-    }
-    extractedInterfaces.push({ name: ifName, body: tsCode.slice(hm.index + hm[0].length, pos - 1) });
-  }
-  const nodeMap = /* @__PURE__ */ new Map();
-  for (const { name: interfaceName, body } of extractedInterfaces) {
-    const fields = [];
-    const fieldLines = body.split("\n").map((l) => l.trim()).filter(Boolean);
-    for (const line of fieldLines) {
-      if (line.startsWith("//") || line.startsWith("*") || line.startsWith("/*")) continue;
-      const fieldMatch = line.match(/^(\w+)(\?)?:\s*(.+?);?\s*$/);
-      if (!fieldMatch) continue;
-      const [, fieldName, optional, rawType] = fieldMatch;
-      const cleanType = rawType.replace(/[;,]$/, "").trim();
-      fields.push({
-        name: fieldName,
-        type: cleanType,
-        optional: optional === "?"
-      });
-    }
-    const node = {
-      id: interfaceName,
-      label: interfaceName,
-      fields,
-      isRoot: false
-    };
-    if (nodeMap.has(interfaceName)) continue;
-    nodes.push(node);
-    nodeMap.set(interfaceName, node);
-  }
-  for (const node of nodes) {
-    for (const field of node.fields) {
-      const typeTokens = field.type.replace(/\[\]/g, "").split(/[|&,\s<>]+/).map((t) => t.trim()).filter((t) => t.length > 0 && /^[A-Z]/.test(t));
-      for (const token of typeTokens) {
-        if (allInterfaceNames.has(token) && token !== node.id) {
-          const exists = edges.some((e) => e.from === node.id && e.to === token && e.label === field.name);
-          if (!exists) {
-            edges.push({
-              from: node.id,
-              to: token,
-              label: field.name
-            });
-          }
-        }
-      }
-    }
-  }
-  const referencedIds = new Set(edges.map((e) => e.to));
-  for (const node of nodes) {
-    node.isRoot = !referencedIds.has(node.id);
-  }
-  return { nodes, edges };
-}
-
 // ../../src/lib/reverse.ts
 function sampleString(fieldName) {
   const k = fieldName.toLowerCase();
@@ -8822,7 +9449,22 @@ function parseType(typeStr, fieldName, nodeMap, visited, depth) {
     if (visited.has(t)) return {};
     return buildFromNode(nodeMap.get(t), nodeMap, /* @__PURE__ */ new Set([...visited, t]), depth + 1);
   }
+  if (t.startsWith("{") && t.endsWith("}")) {
+    return parseInlineObject(t.slice(1, -1), nodeMap, visited, depth + 1);
+  }
   return null;
+}
+function parseInlineObject(body, nodeMap, visited, depth) {
+  if (depth > 6) return {};
+  const result = {};
+  for (const member of splitMembers(body)) {
+    if (/^\[/.test(member)) continue;
+    const m = member.match(/^(?:readonly\s+)?(\w+)(\?)?\s*:\s*([\s\S]+)$/);
+    if (!m) continue;
+    const [, fieldName, , rawType] = m;
+    result[fieldName] = parseType(rawType.replace(/[;,]\s*$/, "").trim(), fieldName, nodeMap, visited, depth);
+  }
+  return result;
 }
 function buildFromNode(node, nodeMap, visited, depth) {
   const result = {};
@@ -8831,18 +9473,57 @@ function buildFromNode(node, nodeMap, visited, depth) {
   }
   return result;
 }
+function extractObjectTypeAliases(tsCode) {
+  const nodes = [];
+  const headerRe = /(?:export\s+)?type\s+(\w+)\s*=\s*\{/g;
+  let hm;
+  while ((hm = headerRe.exec(tsCode)) !== null) {
+    let depth = 1;
+    let pos = hm.index + hm[0].length;
+    while (pos < tsCode.length && depth > 0) {
+      const ch = tsCode[pos++];
+      if (ch === "{") depth++;
+      else if (ch === "}") depth--;
+    }
+    const body = tsCode.slice(hm.index + hm[0].length, pos - 1);
+    const fields = [];
+    for (const member of splitMembers(body)) {
+      if (/^\[/.test(member)) continue;
+      const fm = member.match(/^(?:readonly\s+)?(\w+)(\?)?\s*:\s*([\s\S]+)$/);
+      if (!fm) continue;
+      fields.push({ name: fm[1], type: fm[3].replace(/[;,]\s*$/, "").trim(), optional: fm[2] === "?" });
+    }
+    nodes.push({ id: hm[1], label: hm[1], fields, isRoot: false });
+  }
+  return nodes;
+}
+function refTokens(type2) {
+  return type2.replace(/\[\]/g, "").split(/[|&,\s<>]+/).map((t) => t.trim()).filter((t) => t.length > 0 && /^[A-Z]/.test(t));
+}
 function generateSampleJson(tsCode) {
   try {
     const graph = extractTypeGraph(tsCode);
-    if (graph.nodes.length === 0) {
+    const aliasNodes = extractObjectTypeAliases(tsCode).filter(
+      (a) => !graph.nodes.some((n) => n.id === a.id)
+    );
+    const allNodes = [...graph.nodes, ...aliasNodes];
+    if (allNodes.length === 0) {
       return {
         json: "",
-        error: "No TypeScript interfaces found.\n\nExample:\n\ninterface User {\n  user_id: string;\n  name: string;\n  email: string;\n  age: number;\n}"
+        error: "No TypeScript interfaces or object type aliases found.\n\nExample:\n\ninterface User {\n  user_id: string;\n  name: string;\n  email: string;\n  age: number;\n}"
       };
     }
-    const nodeMap = new Map(graph.nodes.map((n) => [n.id, n]));
-    const roots = graph.nodes.filter((n) => n.isRoot);
-    const target = roots.length > 0 ? roots[0] : graph.nodes[0];
+    const nodeMap = new Map(allNodes.map((n) => [n.id, n]));
+    const referenced = /* @__PURE__ */ new Set();
+    for (const node of allNodes) {
+      for (const field of node.fields) {
+        for (const token of refTokens(field.type)) {
+          if (nodeMap.has(token) && token !== node.id) referenced.add(token);
+        }
+      }
+    }
+    const roots = allNodes.filter((n) => !referenced.has(n.id));
+    const target = roots.length > 0 ? roots[0] : allNodes[0];
     const sample = buildFromNode(target, nodeMap, /* @__PURE__ */ new Set([target.id]), 0);
     return { json: JSON.stringify(sample, null, 2) };
   } catch (e) {
@@ -8929,7 +9610,9 @@ var OUTPUT_TARGETS = {
   "openai-function": T("openai-function", "OpenAI Function", 2, "json"),
   "vercel-ai-tool": T("vercel-ai-tool", "Vercel AI Tool", 2, "typescript"),
   "nestjs-dto": T("nestjs-dto", "NestJS DTO", 2, "typescript"),
-  "effect-schema": T("effect-schema", "Effect Schema", 2, "typescript")
+  "effect-schema": T("effect-schema", "Effect Schema", 2, "typescript"),
+  "zod-migrate": T("zod-migrate", "Zod v4 Migration", 1, "typescript"),
+  "ts-to-zod": T("ts-to-zod", "TS \u2192 Zod", 1, "typescript")
 };
 
 // src/extension.ts

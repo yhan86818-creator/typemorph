@@ -9,15 +9,14 @@ interface LandingViewProps {
 const MONO = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
 const SANS = "'DM Sans', ui-sans-serif, system-ui, -apple-system, sans-serif";
 
-// Cycling output demo — same input, six real TypeMorph targets.
-// Zod uses v4 syntax (z.email / z.iso.datetime) — the format-inference moat, made visible.
+// Cycling output demo — actual TypeMorph engine output for the same input.
 const OUTPUTS = [
-  { lang: 'TypeScript', ext: '.ts', code: `export interface User {\n  id:         string;\n  email:      string;\n  createdAt:  string;\n}` },
-  { lang: 'Zod', ext: '.ts', code: `const UserSchema = z.object({\n  id:        z.uuid(),\n  email:     z.email(),\n  createdAt: z.iso.datetime(),\n});\n\ntype User = z.infer<typeof UserSchema>;` },
-  { lang: 'Go', ext: '.go', code: `type User struct {\n\tID        string \`json:"id"\`\n\tEmail     string \`json:"email"\`\n\tCreatedAt string \`json:"createdAt"\`\n}` },
-  { lang: 'Rust', ext: '.rs', code: `#[derive(Serialize, Deserialize)]\npub struct User {\n    pub id:         String,\n    pub email:      String,\n    pub created_at: String,\n}` },
-  { lang: 'Prisma', ext: '.prisma', code: `model User {\n  id        String   @id @default(uuid())\n  email     String   @unique\n  createdAt DateTime @default(now())\n}` },
-  { lang: 'Python', ext: '.py', code: `class User(BaseModel):\n    id:         UUID\n    email:      EmailStr\n    created_at: datetime` },
+  { lang: 'TypeScript', ext: '.ts', code: `export interface Root {\n  id:        string;\n  email:     string;\n  createdAt: Date;\n}` },
+  { lang: 'Zod', ext: '.ts', code: `import { z } from "zod";\n\nexport const rootSchema = z.object({\n  id:        z.uuid(),\n  email:     z.email(),\n  createdAt: z.iso.datetime(),\n});\nexport type Root = z.infer<typeof rootSchema>;` },
+  { lang: 'Go', ext: '.go', code: `package main\n\nimport "time"\n\ntype Root struct {\n  Id        string    \`json:"id"\`\n  Email     string    \`json:"email"\`\n  CreatedAt time.Time \`json:"createdAt"\`\n}` },
+  { lang: 'Rust', ext: '.rs', code: `use serde::{Serialize, Deserialize};\n\n#[derive(Serialize, Deserialize, Debug, Clone)]\npub struct Root {\n  pub id: String,\n  pub email: String,\n  #[serde(rename = "createdAt")]\n  pub created_at: chrono::DateTime<chrono::Utc>,\n}` },
+  { lang: 'Prisma', ext: '.prisma', code: `model Root {\n  id        String   @id\n  email     String\n  createdAt DateTime\n}` },
+  { lang: 'Python', ext: '.py', code: `from pydantic import BaseModel\nfrom datetime import datetime\n\nclass Root(BaseModel):\n    id:        str\n    email:     str\n    createdAt: datetime` },
 ];
 
 // Real JSON with real values — so the format inference (uuid/email/datetime) is honest, not a JSON-Schema guess.
@@ -75,12 +74,12 @@ export function LandingView({ onSelect }: LandingViewProps) {
 
   return (
     <div className="min-h-full" style={{ background: '#0d1117', color: '#fff', fontFamily: SANS }}>
-      <div className="max-w-[1180px] mx-auto px-6 md:px-12">
+      <div className="max-w-[1320px] mx-auto px-6 md:px-10">
 
         {/* HERO */}
         <section className="flex flex-col lg:flex-row items-center gap-10 lg:gap-14 pt-16 pb-20">
           {/* Left copy */}
-          <div className="w-full lg:w-[420px] lg:flex-shrink-0">
+          <div className="w-full lg:w-[380px] lg:flex-shrink-0">
             <div className="flex items-center gap-2 mb-7">
               <span className="w-1.5 h-1.5 rounded-full bg-white/60" />
               <span style={{ fontFamily: MONO, color: '#8b949e' }} className="text-xs tracking-wide">

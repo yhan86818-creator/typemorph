@@ -390,4 +390,309 @@ npx typemorph-cli envdiff \\
       },
     ],
   },
+  {
+    slug: 'json-to-ts',
+    competitor: 'json-to-ts',
+    competitorUrl: 'https://www.npmjs.com/package/json-to-ts',
+    title: 'TypeMorph vs json-to-ts — JSON to TypeScript Converter Comparison',
+    description:
+      'json-to-ts is a popular npm package for converting JSON to TypeScript interfaces. TypeMorph does the same plus 160+ other formats, semantic type inference (email/uuid/url), Zod v4, and a web UI. Honest comparison.',
+    h1: 'TypeMorph vs json-to-ts',
+    updated: '2026-06-25',
+    directAnswer:
+      'json-to-ts generates TypeScript interfaces from JSON with good nested-type extraction. TypeMorph covers the same use case and adds Zod v4 output, format inference (email/uuid/url/datetime), 160+ additional formats, a web UI, and a VS Code extension. Use json-to-ts if you want a zero-dependency function to call in Node.js code; use TypeMorph if you want richer output or a browser/CLI workflow.',
+    intro:
+      'json-to-ts is a well-known npm package that converts JSON to TypeScript interfaces. It handles nested objects cleanly and is easy to call programmatically. TypeMorph covers the same core conversion and extends it with semantic inference, 160+ output formats, a quality scorer, a VS Code extension, and a CLI. Here is an honest side-by-side.',
+    verdict: {
+      useTypemorph:
+        'You want Zod output, format inference (email/uuid/url/datetime), any non-TypeScript target (Go, Rust, Prisma, SQL…), a web UI, a VS Code extension, or a CLI for CI pipelines.',
+      useCompetitor:
+        'You want a tiny, zero-dependency npm function to call programmatically inside your own Node.js code and TypeScript interfaces are the only output you need.',
+    },
+    table: [
+      { feature: 'JSON → TypeScript interfaces', typemorph: true, competitor: true },
+      { feature: 'Nested object extraction', typemorph: true, competitor: true },
+      { feature: 'Array handling', typemorph: true, competitor: true },
+      { feature: 'JSON → Zod v4', typemorph: true, competitor: false },
+      { feature: 'Detects email / uuid / url / datetime', typemorph: true, competitor: false },
+      { feature: 'int vs float detection', typemorph: true, competitor: false },
+      { feature: 'Enum inference from repeated values', typemorph: true, competitor: false },
+      { feature: 'JSON → Go / Rust / Python / Java', typemorph: true, competitor: false },
+      { feature: 'JSON → Prisma / Drizzle / SQL', typemorph: true, competitor: false },
+      { feature: 'OpenAPI / JSON Schema input', typemorph: true, competitor: false },
+      { feature: 'Total output formats', typemorph: '160+', competitor: 'TypeScript only' },
+      { feature: 'Schema Quality Score (A–F)', typemorph: true, competitor: false },
+      { feature: 'Breaking Change Detector', typemorph: true, competitor: false },
+      { feature: 'Web UI (no install)', typemorph: true, competitor: false },
+      { feature: 'VS Code Extension', typemorph: true, competitor: false },
+      { feature: 'CLI tool (npm)', typemorph: true, competitor: false },
+      { feature: 'Programmatic Node.js API', typemorph: false, competitor: true },
+      { feature: 'Free & open source', typemorph: true, competitor: true },
+    ],
+    typemorphStrengths: [
+      'Detects email, uuid, url, and datetime formats — TypeScript output gains JSDoc comments and Zod gains semantic validators, where json-to-ts emits plain string',
+      'Zod v4 output with .email(), .uuid(), .url(), .iso.datetime() inferred from actual values',
+      '160+ additional output formats from the same JSON — Go structs, Rust, Prisma, SQL, Protobuf, MCP tool, and more',
+      'Web UI at typemorph.dev — paste JSON, get TypeScript instantly, no npm install',
+      'VS Code Extension — convert any .json file with Ctrl+Shift+T without leaving your editor',
+      'Schema Quality Score and Breaking Change Detector for ongoing schema maintenance',
+    ],
+    competitorStrengths: [
+      'Tiny zero-dependency library you can call programmatically in your own Node.js/TypeScript code',
+      'Clean nested interface extraction with automatic interface naming',
+      'Well-established with years of production use',
+    ],
+    codeDiff: {
+      competitorLabel: 'json-to-ts',
+      competitorCode: `interface RootObject {
+  id: string;
+  email: string;
+  website: string;
+  created_at: string;
+  age: number;
+}`,
+      typemorphCode: `// TypeScript (TypeMorph)
+export interface User {
+  /** @format uuid */  id: string;
+  /** @format email */ email: string;
+  /** @format uri */   website: string;
+  /** @format date-time */ created_at: string;
+  age: number;
+}
+
+// Zod v4 (TypeMorph — extra format)
+export const UserSchema = z.object({
+  id: z.uuid(),
+  email: z.email(),
+  website: z.url(),
+  created_at: z.iso.datetime(),
+  age: z.number().int().min(0),
+});`,
+      note: 'json-to-ts outputs clean TypeScript interfaces. TypeMorph adds JSDoc @format annotations to TypeScript output and generates Zod v4 with semantic validators from the same input.',
+    },
+    faqs: [
+      {
+        q: 'What is a json-to-ts alternative that also generates Zod?',
+        a: 'TypeMorph converts JSON to both TypeScript interfaces and Zod v4 schemas from the same input, and it adds semantic validators (z.email(), z.uuid(), z.url()) that json-to-ts cannot produce.',
+      },
+      {
+        q: 'Does json-to-ts work with OpenAPI or JSON Schema input?',
+        a: 'No — json-to-ts accepts only raw JSON objects. TypeMorph also accepts OpenAPI 3.x specs and JSON Schema as input.',
+      },
+      {
+        q: 'Can I use TypeMorph programmatically like json-to-ts?',
+        a: 'TypeMorph ships a CLI (typemorph-cli) for scripting and CI, and a web UI for browser use. A programmatic Node.js API is on the roadmap but not available yet — for that use case json-to-ts remains the right choice.',
+      },
+      {
+        q: 'Does json-to-ts detect email or UUID types?',
+        a: 'No. json-to-ts infers only the JavaScript type (string, number, boolean). TypeMorph reads the actual values and annotates email, uuid, url, and datetime fields.',
+      },
+    ],
+  },
+  {
+    slug: 'ts-json-schema-generator',
+    competitor: 'ts-json-schema-generator',
+    competitorUrl: 'https://github.com/vega/ts-json-schema-generator',
+    title: 'TypeMorph vs ts-json-schema-generator — Schema Conversion Comparison',
+    description:
+      'ts-json-schema-generator converts TypeScript types to JSON Schema. TypeMorph goes in both directions: JSON/OpenAPI/JSON Schema → 160+ formats including TypeScript, Zod, Go, and Prisma. Honest comparison.',
+    h1: 'TypeMorph vs ts-json-schema-generator',
+    updated: '2026-06-25',
+    directAnswer:
+      'ts-json-schema-generator converts TypeScript source code to JSON Schema Draft 7 — it reads your .ts files and extracts schemas from type annotations, which TypeMorph cannot do. TypeMorph goes the other direction: JSON, OpenAPI, or JSON Schema → 160+ output formats including TypeScript, Zod, Go, Rust, and Prisma. Use ts-json-schema-generator to generate JSON Schema from TypeScript; use TypeMorph to convert JSON/OpenAPI data into typed code.',
+    intro:
+      'ts-json-schema-generator is the go-to tool for extracting JSON Schema from TypeScript type definitions — useful for runtime validation, API documentation, and test generation. TypeMorph is for the reverse and lateral workflows: converting JSON responses or OpenAPI specs into typed code. They solve complementary problems and are often used together.',
+    verdict: {
+      useTypemorph:
+        'You have JSON data, an API response, or an OpenAPI spec and want to generate TypeScript interfaces, Zod schemas, Go structs, Prisma models, or 160+ other formats.',
+      useCompetitor:
+        'You have TypeScript source code with type annotations and want to generate JSON Schema from your existing types — for runtime validation, OpenAPI docs, or test data generation.',
+    },
+    table: [
+      { feature: 'TypeScript → JSON Schema', typemorph: true, competitor: true },
+      { feature: 'JSON → TypeScript', typemorph: true, competitor: false },
+      { feature: 'JSON → Zod v4', typemorph: true, competitor: false },
+      { feature: 'JSON → Go / Rust / Python / Java', typemorph: true, competitor: false },
+      { feature: 'JSON → Prisma / Drizzle / SQL', typemorph: true, competitor: false },
+      { feature: 'OpenAPI → TypeScript / Zod', typemorph: true, competitor: false },
+      { feature: 'Reads TypeScript source files (.ts)', typemorph: false, competitor: true },
+      { feature: 'Supports TypeScript generics', typemorph: false, competitor: true },
+      { feature: 'Supports TypeScript utility types', typemorph: false, competitor: true },
+      { feature: 'Semantic format inference (email/uuid)', typemorph: true, competitor: false },
+      { feature: 'Schema Quality Score', typemorph: true, competitor: false },
+      { feature: 'Breaking Change Detector', typemorph: true, competitor: false },
+      { feature: 'Web UI (no install)', typemorph: true, competitor: false },
+      { feature: 'VS Code Extension', typemorph: true, competitor: false },
+      { feature: 'CLI tool (npm)', typemorph: true, competitor: true },
+      { feature: 'Free & open source', typemorph: true, competitor: true },
+    ],
+    typemorphStrengths: [
+      'JSON, YAML, and OpenAPI as input — convert API responses and specs directly to typed code',
+      '160+ output formats from one input: TypeScript, Zod v4, Go, Rust, Prisma, SQL, MCP tool, and more',
+      'Semantic format inference reads actual values: email → z.email(), uuid → z.uuid(), url → z.url()',
+      'Web UI — paste any JSON and get TypeScript or Zod instantly without installing anything',
+      'VS Code Extension — Ctrl+Shift+T to convert any file without leaving your editor',
+      'Also generates TypeScript → JSON Schema (the same direction as ts-json-schema-generator, from JSON input)',
+    ],
+    competitorStrengths: [
+      'The definitive tool for TypeScript source → JSON Schema: reads .ts files and handles generics, utility types, and JSDoc annotations',
+      'Supports complex TypeScript features (Partial<T>, Pick<T,K>, conditional types) that cannot be inferred from JSON alone',
+      'Often used to generate JSON Schema for tRPC, Fastify, or OpenAPI docs from existing type definitions',
+      'Deep TypeScript AST analysis — no false positives from value-based inference',
+    ],
+    faqs: [
+      {
+        q: 'Can TypeMorph replace ts-json-schema-generator?',
+        a: 'Not for TypeScript → JSON Schema extraction from .ts source files — ts-json-schema-generator is the right tool for that. TypeMorph covers the reverse: JSON/OpenAPI → TypeScript, Zod, Go, and 160+ other formats.',
+      },
+      {
+        q: 'I have a JSON Schema from ts-json-schema-generator. Can TypeMorph use it?',
+        a: 'Yes. TypeMorph accepts JSON Schema as input and converts it to TypeScript, Zod v4, Go, Rust, Prisma, and 160+ other formats. This is a common workflow: ts-json-schema-generator to extract the schema, TypeMorph to generate code in other languages.',
+      },
+      {
+        q: 'What is the difference between JSON Schema and Zod?',
+        a: 'JSON Schema is a language-agnostic standard for describing data shape. Zod is a TypeScript-first runtime validation library. TypeMorph can convert between them: JSON → JSON Schema, JSON Schema → Zod, and TypeScript → JSON Schema.',
+      },
+      {
+        q: 'Does TypeMorph support TypeScript generics?',
+        a: 'TypeMorph infers schema from values, not TypeScript source. It cannot resolve generics or utility types from .ts files. For that, use ts-json-schema-generator first, then feed the JSON Schema output into TypeMorph.',
+      },
+    ],
+  },
+  {
+    slug: 'openapi-typescript',
+    competitor: 'openapi-typescript',
+    competitorUrl: 'https://openapi-ts.dev',
+    title: 'TypeMorph vs openapi-typescript — OpenAPI to TypeScript Comparison',
+    description:
+      'openapi-typescript generates TypeScript types from OpenAPI specs. TypeMorph converts OpenAPI (and raw JSON) to 160+ formats including Zod, Go, Rust, Prisma, and MCP tool definitions. Honest comparison.',
+    h1: 'TypeMorph vs openapi-typescript',
+    updated: '2026-06-25',
+    directAnswer:
+      'openapi-typescript generates highly accurate TypeScript types from OpenAPI specs using the full spec structure — discriminated unions, $ref resolution, and path/component typing. TypeMorph takes OpenAPI or raw JSON and converts it to 160+ output formats including Zod v4, Go structs, Rust, Prisma, and AI tool definitions. Use openapi-typescript when you need production-grade TypeScript types from a maintained OpenAPI spec; use TypeMorph when you need multiple output formats or lack a spec.',
+    intro:
+      'openapi-typescript (maintained by the openapi-ts organization) is the leading tool for generating TypeScript from OpenAPI 3.x specs. It produces idiomatic TypeScript with full $ref resolution and discriminated unions. TypeMorph overlaps on OpenAPI → TypeScript but extends to 160+ output formats and works even when you have only a raw JSON response rather than a full spec.',
+    verdict: {
+      useTypemorph:
+        'You need multiple output formats from OpenAPI (Zod, Go, Rust, Prisma…), you are working from raw JSON responses without a full spec, or you want semantic validators (email/uuid/url) added to your Zod output.',
+      useCompetitor:
+        'You have a maintained OpenAPI 3.x spec and need production-grade TypeScript types with full $ref resolution, discriminated unions, and path-level type safety for fetch clients.',
+    },
+    table: [
+      { feature: 'OpenAPI → TypeScript', typemorph: true, competitor: true },
+      { feature: 'Full $ref / allOf / oneOf resolution', typemorph: 'partial', competitor: true },
+      { feature: 'Discriminated union types', typemorph: false, competitor: true },
+      { feature: 'Path / operation typed fetch client', typemorph: false, competitor: true },
+      { feature: 'OpenAPI → Zod v4', typemorph: true, competitor: false },
+      { feature: 'OpenAPI → Go / Rust / Python / Java', typemorph: true, competitor: false },
+      { feature: 'OpenAPI → Prisma / Drizzle / SQL', typemorph: true, competitor: false },
+      { feature: 'OpenAPI → MCP / OpenAI / Vercel AI tool', typemorph: true, competitor: false },
+      { feature: 'Raw JSON input (no spec required)', typemorph: true, competitor: false },
+      { feature: 'Semantic format inference (email/uuid)', typemorph: true, competitor: false },
+      { feature: 'Schema Quality Score', typemorph: true, competitor: false },
+      { feature: 'Web UI (no install)', typemorph: true, competitor: false },
+      { feature: 'VS Code Extension', typemorph: true, competitor: false },
+      { feature: 'CLI tool (npm)', typemorph: true, competitor: true },
+      { feature: 'Free & open source', typemorph: true, competitor: true },
+    ],
+    typemorphStrengths: [
+      '160+ output formats from the same OpenAPI spec: Zod v4, Go, Rust, Python, Prisma, SQL, MCP tool, OpenAI function, Vercel AI SDK, and more',
+      'Works with raw JSON responses when no OpenAPI spec exists',
+      'Semantic format inference: email fields become z.email(), uuid → z.uuid(), url → z.url()',
+      'Web UI — paste an OpenAPI spec or JSON and get any output format instantly, no install',
+      'API drift detection: typemorph check monitors live endpoints without a spec',
+      'VS Code Extension — convert any file with Ctrl+Shift+T',
+    ],
+    competitorStrengths: [
+      'Best-in-class TypeScript fidelity from OpenAPI: full $ref resolution, allOf/oneOf/anyOf, discriminated unions',
+      'Generates typed fetch clients (openapi-fetch) with path-level request and response types',
+      'Handles OpenAPI 3.0 and 3.1, including Webhooks and complex security schemes',
+      'Large ecosystem: supports openapi-fetch, openapi-react-query, and Astro integrations',
+      'Active development and wide community adoption',
+    ],
+    faqs: [
+      {
+        q: 'Does openapi-typescript generate Zod schemas?',
+        a: 'openapi-typescript focuses on TypeScript types. There are community plugins to derive Zod from its output. TypeMorph converts OpenAPI directly to Zod v4 with semantic validators (z.email(), z.uuid()) in one step.',
+      },
+      {
+        q: 'Can TypeMorph replace openapi-typescript for TypeScript generation?',
+        a: 'For basic TypeScript interfaces from OpenAPI components, yes. For path-level typed fetch clients and full discriminated union support, openapi-typescript is more complete. They serve slightly different needs.',
+      },
+      {
+        q: 'What if I do not have an OpenAPI spec — can I still use TypeMorph?',
+        a: 'Yes. TypeMorph infers a schema directly from a raw JSON response. Paste or pipe any API response and get TypeScript, Zod, or any other format immediately — no spec required.',
+      },
+      {
+        q: 'Can TypeMorph generate Go or Rust from an OpenAPI spec?',
+        a: 'Yes. TypeMorph accepts OpenAPI 3.x as input and can output Go structs, Rust structs, Python dataclasses, Java classes, Prisma models, and 160+ other formats from the same spec.',
+      },
+    ],
+  },
+  {
+    slug: 'zod-to-json-schema',
+    competitor: 'zod-to-json-schema',
+    competitorUrl: 'https://www.npmjs.com/package/zod-to-json-schema',
+    title: 'TypeMorph vs zod-to-json-schema — Zod Schema Conversion Comparison',
+    description:
+      'zod-to-json-schema converts Zod schemas to JSON Schema at runtime. TypeMorph goes the other directions: JSON or JSON Schema → Zod v4, TypeScript, Go, Prisma, and 160+ formats. Honest comparison.',
+    h1: 'TypeMorph vs zod-to-json-schema',
+    updated: '2026-06-25',
+    directAnswer:
+      'zod-to-json-schema and TypeMorph solve opposite problems. zod-to-json-schema converts Zod schemas to JSON Schema at runtime in your application code — essential for OpenAPI docs, tRPC, and Fastify integration. TypeMorph converts JSON data and JSON Schema into Zod (and 160+ other formats) for development-time code generation. They are complementary, not competing.',
+    intro:
+      'zod-to-json-schema is a widely-used runtime library that takes a z.ZodType and returns a JSON Schema Draft 7 object. It is the standard way to expose Zod schemas as JSON Schema for OpenAPI generators and validation libraries. TypeMorph is a development-time tool: it reads JSON responses or existing schemas and generates typed code. Both tools appear in TypeScript stacks, but at different stages of the workflow.',
+    verdict: {
+      useTypemorph:
+        'You are starting from JSON data or an OpenAPI spec and want to generate Zod, TypeScript, Go, Prisma, or any other typed format for your codebase.',
+      useCompetitor:
+        'You already have a Zod schema in your codebase and need to convert it to JSON Schema at runtime — for OpenAPI documentation, tRPC, Fastify, or validation in other languages.',
+    },
+    table: [
+      { feature: 'Zod → JSON Schema (runtime)', typemorph: false, competitor: true },
+      { feature: 'JSON Schema → Zod', typemorph: true, competitor: false },
+      { feature: 'JSON → Zod v4', typemorph: true, competitor: false },
+      { feature: 'OpenAPI → Zod', typemorph: true, competitor: false },
+      { feature: 'JSON → TypeScript / Go / Rust', typemorph: true, competitor: false },
+      { feature: 'JSON → Prisma / Drizzle / SQL', typemorph: true, competitor: false },
+      { feature: 'Semantic format inference (email/uuid)', typemorph: true, competitor: false },
+      { feature: 'Can be called from application code', typemorph: false, competitor: true },
+      { feature: 'Zod v4 support', typemorph: true, competitor: true },
+      { feature: 'Schema Quality Score', typemorph: true, competitor: false },
+      { feature: 'Web UI', typemorph: true, competitor: false },
+      { feature: 'CLI tool', typemorph: true, competitor: false },
+      { feature: 'Free & open source', typemorph: true, competitor: true },
+    ],
+    typemorphStrengths: [
+      'Converts JSON data and JSON Schema into Zod v4 with semantic validators — email → z.email(), uuid → z.uuid(), url → z.url()',
+      '160+ output formats from the same input: TypeScript, Go, Rust, Prisma, SQL, MCP tool, OpenAI function, and more',
+      'OpenAPI 3.x as input — generate Zod schemas from an existing API spec',
+      'Development-time code generation with a Schema Quality Score (A–F)',
+      'Web UI and VS Code Extension for instant conversion without a build step',
+    ],
+    competitorStrengths: [
+      'Runtime conversion: call it in your application code to expose Zod schemas as JSON Schema for OpenAPI generators',
+      'The standard solution for tRPC, Fastify JSON Schema validation, and similar integrations',
+      'Handles Zod refinements, transforms, and metadata in the JSON Schema output',
+      'Zero configuration — import the function and call zodToJsonSchema(schema)',
+    ],
+    faqs: [
+      {
+        q: 'Can TypeMorph convert Zod to JSON Schema?',
+        a: 'TypeMorph has a zod-to-json-schema converter page that shows the output, but it is not a runtime library you call in your application. For runtime Zod → JSON Schema in application code, use the zod-to-json-schema npm package.',
+      },
+      {
+        q: 'Can I use TypeMorph to generate Zod from JSON Schema?',
+        a: 'Yes. Paste any JSON Schema Draft 7 or 2020-12 into TypeMorph and select Zod v4 as the output format. This is the reverse of what zod-to-json-schema does.',
+      },
+      {
+        q: 'What is the typical workflow combining both tools?',
+        a: 'A common pattern: use TypeMorph to generate a Zod schema from an API response or OpenAPI spec (development time), then use zod-to-json-schema at runtime to expose that Zod schema in your OpenAPI documentation or tRPC router.',
+      },
+      {
+        q: 'Does zod-to-json-schema support Zod v4?',
+        a: 'Yes, recent versions of zod-to-json-schema support Zod v4. TypeMorph also outputs Zod v4 syntax (z.email(), z.iso.datetime()) when generating Zod from JSON input.',
+      },
+    ],
+  },
 ];

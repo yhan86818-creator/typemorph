@@ -108,7 +108,7 @@ ${schemaInput}
           <div>
             <h1 className="text-xl font-black uppercase tracking-widest flex items-center gap-3">
               <AppWindow className="text-slate-700 dark:text-white" size={24} />
-              Micro-SaaS Engine <span className="px-2 py-0.5 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white border border-slate-200 dark:border-white/10 rounded-md text-[10px] ml-2">V5 BETA</span>
+              Micro-SaaS Engine
             </h1>
             <p className="text-xs text-slate-500 font-bold mt-2">Instantly synthesize a fully functional React + Tailwind CRUD dashboard from any schema.</p>
           </div>

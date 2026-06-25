@@ -56,3 +56,22 @@ _check*.mts
 
 # transient temp modules from real-data round-trip test
 src/lib/__tests__/.tmp_realdata_*.mjs
+
+# scratch / experimental artifacts (never commit)
+__pycache__/
+scratch/
+_bench.mts
+_heldout.mts
+_tweet.mts
+_tweet_keys.mts
+_preview_shot.png
+complex_sample.json
+exp_vbw_out.txt
+
+# throwaway test scaffolds
+src/_check_lp_demo.test.ts
+src/_exp_vbw.test.ts
+
+# internal benchmark — NOT public
+bench-results.json
+src/lib/__bench__/

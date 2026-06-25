@@ -116,7 +116,7 @@ ${sourceJson}
           <div>
             <h1 className="text-xl font-black uppercase tracking-widest flex items-center gap-3">
               <Globe2 className="text-slate-700 dark:text-white" size={24} />
-              i18n Auto-Gen <span className="px-2 py-0.5 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white border border-slate-200 dark:border-white/10 rounded-md text-[10px] ml-2">V5 BETA</span>
+              i18n Auto-Gen
             </h1>
             <p className="text-xs text-slate-500 font-bold mt-2">Instantly translate your source dictionary into 5 global languages with high-context software accuracy.</p>
           </div>
