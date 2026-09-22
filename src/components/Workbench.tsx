@@ -883,7 +883,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
 
   // NOTE: Auto-sync to URL is intentionally REMOVED.
   // State is written to URL ONLY when the user explicitly presses the Share button.
-  // This preserves the Privacy Manifesto: data never leaves the browser unless explicitly shared.
+  // URL sharing is explicit; signed-in cloud history is saved separately below.
 
   // Load settings
   useEffect(() => {
@@ -1379,7 +1379,7 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
   }, [libraryRenameValue]);
 
   // Hybrid Smart Share: URL hash for small payloads, Supabase for large ones.
-  // Data NEVER leaves the browser unless the user explicitly clicks this button.
+  // This sharing upload is explicit and independent of signed-in cloud history.
   const handleSmartShare = useCallback(async () => {
     if (!input) {
       alert("Please enter some input data first.");
@@ -2271,9 +2271,10 @@ export function Workbench({ slug, isDark, outputTab, setOutputTab, isPro, setSho
 
                   <div className="border-t border-slate-200 dark:border-slate-800 my-3 pt-3">
                     <h5 className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 mb-2 tracking-wider">Privacy & Data Control</h5>
+                    <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">Stay signed out for local conversion history. Turning cloud history off stops future saves; it does not delete previous cloud history. Sharing uploads are controlled separately. <a href="/privacy" className="underline">Privacy details</a></p>
                     <label className="flex items-center gap-2 text-xs font-bold dark:text-[#E8E8E8] cursor-pointer mb-3">
                       <input type="checkbox" checked={saveCloudHistory} onChange={e => handleSaveCloudHistoryChange(e.target.checked)} className="rounded text-slate-900 dark:text-white focus:ring-slate-900/20 dark:focus:ring-white/20" />
-                      Save History to Cloud (Supabase)
+                      Automatically save input and output to cloud history when signed in (Supabase)
                     </label>
 
                     <button 
