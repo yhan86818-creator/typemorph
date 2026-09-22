@@ -28,7 +28,7 @@ const FEATURES = [
   { mark: 'v1→v2', mono: true, title: 'Breaking Change Detector', body: 'Semantic diff between schema versions with severity scoring. Never ship a silent breaking change.' },
   { mark: '⌃⇧T', mono: true, title: 'VS Code Extension', body: 'Convert schemas without leaving your editor. Ctrl+Shift+T to transform. Right-click to check quality.' },
   { mark: '$ npm', mono: true, title: 'CLI', body: 'typemorph-cli on npm. Integrate schema conversion into any CI pipeline or build script in seconds.' },
-  { mark: '0 kb↑', mono: true, title: '100% Local', body: 'Your schema never leaves your machine. No servers, no accounts, no upload endpoints. Ever.' },
+  { mark: 'Local', mono: true, title: 'Choose how to save', body: 'Convert without signing in to keep conversion history local. Sign in for automatic cloud history. Sharing and URL import are separate actions.' },
 ];
 
 const STEPS = [
@@ -83,7 +83,7 @@ export function LandingView({ onSelect }: LandingViewProps) {
             <div className="flex items-center gap-2 mb-7">
               <span className="w-1.5 h-1.5 rounded-full bg-white/60" />
               <span style={{ fontFamily: MONO, color: '#8b949e' }} className="text-xs tracking-wide">
-                local-first · zero data retention
+                local conversion · cloud history when signed in
               </span>
             </div>
             <h1 className="font-bold leading-[1.08] tracking-tight mb-5 text-[44px] md:text-[54px]" style={{ textWrap: 'balance' } as React.CSSProperties}>
@@ -238,8 +238,8 @@ export function LandingView({ onSelect }: LandingViewProps) {
 
         {/* CTA */}
         <section className="py-20 text-center" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <h2 className="text-[38px] font-bold tracking-tight mb-3.5">No signup. No upload.</h2>
-          <p className="text-[15px]" style={{ color: '#8b949e' }}>Everything runs in your browser — no servers, no accounts, ever.</p>
+          <h2 className="text-[38px] font-bold tracking-tight mb-3.5">Convert locally. Sign in to save.</h2>
+          <p className="text-[15px]" style={{ color: '#8b949e' }}>Conversion runs in your browser. Stay signed out for local history, or sign in to automatically save input and output to cloud history. <a href="/privacy" className="underline">Privacy details</a></p>
         </section>
 
       </div>

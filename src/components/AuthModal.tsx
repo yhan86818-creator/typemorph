@@ -28,7 +28,7 @@ export const AuthModal = ({ isOpen, onClose, isDark }: { isOpen: boolean, onClos
             initial={{ scale: 0.9, opacity: 0, y: 20 }} 
             animate={{ scale: 1, opacity: 1, y: 0 }} 
             exit={{ scale: 0.9, opacity: 0, y: 20 }} 
-            className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl border border-slate-200 dark:border-slate-800"
+            className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl border border-slate-200 dark:border-slate-800"
           >
             <button onClick={onClose} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
               <X size={20} />
@@ -36,8 +36,11 @@ export const AuthModal = ({ isOpen, onClose, isDark }: { isOpen: boolean, onClos
             
             <div className="mb-8">
               <h2 className="text-2xl font-black mb-2 dark:text-white text-slate-900">Welcome Back</h2>
-              <p className="text-slate-500 text-sm font-medium">Log in to save your conversion history and sync across devices.</p>
+              <p className="text-slate-500 text-sm font-medium">Signing in automatically saves your workbench input and generated output to cloud history in Supabase, unless you have disabled cloud history in Settings.</p>
             </div>
+
+            <p className="mb-4 text-sm text-slate-500">Prefer local conversion? Continue without signing in. Sharing and URL import have separate network behavior. <a href="/privacy" className="underline">Privacy details</a></p>
+            <button type="button" onClick={onClose} className="mb-6 w-full rounded-xl border border-slate-300 dark:border-slate-700 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Continue without signing in</button>
 
             {supabase ? (
               <Auth

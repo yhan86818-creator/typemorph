@@ -118,7 +118,7 @@ export default async function ConverterPage({ params }: { params: Promise<{ slug
       {
         "@type": "Question",
         "name": `Does ${converter.title} send my data to a server?`,
-        "acceptedAnswer": { "@type": "Answer", "text": "No. TypeMorph is local-first. All processing happens entirely in your browser using Web Workers. Your data never leaves your machine." }
+        "acceptedAnswer": { "@type": "Answer", "text": "Conversion runs in your browser. Without signing in, conversion history stays local. Signing in enables automatic cloud history unless disabled in Settings. Cloud sharing and URL import are separate network actions." }
       },
       {
         "@type": "Question",
@@ -137,7 +137,7 @@ export default async function ConverterPage({ params }: { params: Promise<{ slug
       <p>The <strong>${c.title}</strong> is a specialized utility designed to seamlessly transform data structures securely within your browser.</p>
       
       <h2>Local-First Processing</h2>
-      <p>Unlike server-based tools, this converter uses the <strong>${name}</strong> engine to process everything locally. Your JSON, SQL, or API data never leaves your machine, ensuring full privacy and compliance with enterprise security standards.</p>
+      <p>Unlike server-based tools, this converter uses the <strong>${name}</strong> engine to process everything locally. Without signing in, conversion history stays local. Signing in enables automatic cloud history unless disabled in Settings; cloud sharing and URL import are separate network actions.</p>
       
       <h2>Core Features</h2>
       <ul>
@@ -226,7 +226,7 @@ export default async function ConverterPage({ params }: { params: Promise<{ slug
           <div className="grid md:grid-cols-2 gap-12">
             <div>
               <p className="font-black text-slate-900 mb-2">Is the processing local-only?</p>
-              <p className="text-sm text-slate-500 leading-relaxed font-medium">Absolutely. TypeMorph operates entirely within your browser&apos;s sandbox. We use Web Workers for high-performance computation without ever transmitting your JSON, SQL, or API data to a remote server.</p>
+              <p className="text-sm text-slate-500 leading-relaxed font-medium">Conversion runs in your browser. Stay signed out for local conversion history, or sign in for automatic cloud history unless disabled in Settings. Sharing and URL import have separate network behavior. See the Privacy Policy for details.</p>
             </div>
             <div>
               <p className="font-black text-slate-900 mb-2">Can I use this for enterprise projects?</p>

@@ -2,7 +2,7 @@
 
 > Convert JSON, YAML, OpenAPI, or JSON Schema to Zod, TypeScript, Go, Rust, Prisma, and 160+ more formats.  
 > Real type inference — detects `email`, `uuid`, `url`, `datetime`, enums, and `int` vs `float` from your actual data.  
-> 100% browser-local. No sign-up. No upload.
+> Convert locally without signing in. Sign in to automatically save input and generated output to cloud history, unless you disable it in Settings.
 
 [![Live](https://img.shields.io/badge/Live-typemorph.dev-3B82F6?style=for-the-badge&logo=cloudflare&logoColor=white)](https://typemorph.dev)
 [![VS Code](https://img.shields.io/badge/VS%20Code-Extension-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=TypeMorph.typemorph-vscode)
@@ -187,7 +187,9 @@ Input (JSON / YAML / OpenAPI / JSON Schema / TypeScript)
         └─► Zod, TypeScript, Go, Rust, Prisma, MCP, OpenAI …
 ```
 
-All inference and code generation run in your browser (or Node.js for the CLI). Your data never leaves your machine.
+All inference and code generation run in your browser (or Node.js for the CLI). Unsigned-in web conversions do not upload your input or output to cloud history. Signing in enables automatic history storage in Supabase by default; you can disable future saves in Settings → Privacy & Data Control. Previously saved data is not deleted by disabling saves or signing out.
+
+Sharing is separate: small share links contain data in the URL fragment, while larger links upload compressed input and settings to Supabase when you click Share, even without signing in. URL import contacts the requested server; the optional proxy fetches it through Cloudflare. The website also uses Google Analytics, external editor assets, and optional feedback, authentication, and license services. See the [Privacy Policy](https://typemorph.dev/privacy) for details.
 
 ---
 

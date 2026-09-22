@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     default: "TypeMorph | JSON to Zod — 160+ Schema Formats, Runs in Browser",
     template: "%s | TypeMorph"
   },
-  description: "The best way to convert JSON to Zod schemas. Migrate Zod v3 → v4 automatically, generate TypeScript, Go, Rust and 160+ formats. 100% browser-local, no signup.",
+  description: "The best way to convert JSON to Zod schemas. Migrate Zod v3 → v4 automatically, generate TypeScript, Go, Rust and 160+ formats. Local conversion without signup; sign in for cloud history.",
   metadataBase: new URL('https://typemorph.dev'),
   icons: {
     icon: '/favicon.png',
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "TypeMorph | JSON to Zod — 160+ Schema Formats, Runs in Browser",
-    description: "The best way to convert JSON to Zod schemas. Migrate Zod v3 → v4 automatically, generate TypeScript, Go, Rust and 160+ formats. 100% browser-local, no signup.",
+    description: "The best way to convert JSON to Zod schemas. Migrate Zod v3 → v4 automatically, generate TypeScript, Go, Rust and 160+ formats. Local conversion without signup; sign in for cloud history.",
     url: 'https://typemorph.dev',
     siteName: 'TypeMorph',
     images: [
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'TypeMorph | JSON to Zod — 160+ Schema Formats, Runs in Browser',
-    description: 'The best way to convert JSON to Zod schemas. Migrate Zod v3 → v4 automatically. 160+ formats, 100% browser-local.',
+    description: 'The best way to convert JSON to Zod schemas. Migrate Zod v3 → v4 automatically. 160+ formats. Convert locally; sign in for cloud history.',
     images: ['/og-image.png'],
   },
   verification: {
@@ -96,7 +96,7 @@ const softwareJsonLd = {
     "price": "0",
     "priceCurrency": "USD"
   },
-  "description": "Convert JSON to Zod, TypeScript, Go, Rust, Prisma and 160+ formats with real type inference. Detects email, UUID, URL, datetime, enums and int vs float. Includes schema quality grading, breaking change detection, API drift check, and a CLI for CI pipelines. 100% browser-local — your data never leaves your machine.",
+  "description": "Convert JSON to Zod, TypeScript, Go, Rust, Prisma and 160+ formats with real type inference. Detects email, UUID, URL, datetime, enums and int vs float. Includes schema quality grading, breaking change detection, API drift check, and a CLI for CI pipelines. Conversion runs locally. Stay signed out for local history; sign in for automatic cloud history. Sharing and URL import are separate actions.",
   "featureList": [
     "JSON to Zod schema conversion with semantic type inference",
     "160+ output formats including TypeScript, Go, Rust, Prisma, Drizzle",
@@ -111,7 +111,7 @@ const softwareJsonLd = {
     "LLM output validation",
     "VS Code extension",
     "CLI tool (typemorph-cli on npm)",
-    "100% browser-local — no data upload"
+    "Local conversion; automatic cloud history when signed in"
   ],
   "screenshot": "https://typemorph.dev/hero-preview.png",
   "softwareVersion": "0.6.0",
