@@ -123,3 +123,75 @@ describe('inferExpectedSchema', () => {
     expect(r.ok).toBe(true);
   });
 });
+
+describe('arithmetic-identity derivation & checks', () => {
+  // Minimal invoice corpus: subtotal = Σ line_items.amount, amount = qty × unit_price.
+  // total = subtotal + tax holds for ALL rows here (no hidden fees), so it's learnable.
+  const inv = (n: number, qty: number, price: number, tax: number) => {
+    const amount = qty * price;
+    return {
+      subtotal: amount, tax, total: amount + tax,
+      line_items: [{ description: `item${n}`, qty, unit_price: price, amount }],
+    };
+  };
+  const corpus = [inv(1, 3, 50, 15), inv(2, 2, 100, 20), inv(3, 5, 30, 15), inv(4, 1, 200, 20)];
+
+  it('derives sum and product identities that hold across all samples', () => {
+    const s = inferExpectedSchema(corpus);
+    const targets = (s.arithIdentities ?? []).map(i => `${i.target}:${i.kind}`);
+    expect(targets).toContain('subtotal:sum');
+    expect(targets).toContain('total:sum');
+    expect(s.fields?.line_items?.itemType?.arithIdentities?.some(i => i.target === 'amount' && i.kind === 'product')).toBe(true);
+  });
+
+  it('produces zero arith issues on the clean corpus (no false positives)', () => {
+    const s = inferExpectedSchema(corpus);
+    const r = validateOutputs(s, corpus);
+    expect(r.issues.filter(i => i.code === 'arith')).toHaveLength(0);
+  });
+
+  it('flags a line-item decimal shift (amount ≠ qty × unit_price)', () => {
+    const s = inferExpectedSchema(corpus);
+    const bad = { subtotal: 1500, tax: 150, total: 1650,
+      line_items: [{ description: 'x', qty: 3, unit_price: 50, amount: 1500 }] }; // should be 150
+    const a = validateOutputs(s, [bad]).issues.filter(i => i.code === 'arith');
+    expect(a.some(i => i.path === 'line_items[0].amount')).toBe(true);
+  });
+
+  it('flags subtotal ≠ Σ line_items.amount', () => {
+    const s = inferExpectedSchema(corpus);
+    const bad = { subtotal: 999, tax: 100, total: 1099,
+      line_items: [{ description: 'x', qty: 3, unit_price: 50, amount: 150 }] };
+    const a = validateOutputs(s, [bad]).issues.filter(i => i.code === 'arith' && i.path === 'subtotal');
+    expect(a).toHaveLength(1);
+  });
+
+  it('flags a 10× total typo when the total identity is learnable', () => {
+    const s = inferExpectedSchema(corpus);
+    const bad = { subtotal: 760, tax: 76, total: 8360, // 8360 vs 836
+      line_items: [{ description: 'x', qty: 2, unit_price: 380, amount: 760 }] };
+    const a = validateOutputs(s, [bad]).issues.filter(i => i.code === 'arith' && i.path === 'total');
+    expect(a).toHaveLength(1);
+  });
+
+  it('self-disables the total identity when samples carry hidden fees (FP-zero)', () => {
+    // inv with shipping/discount baked into total but NOT present as a field → total
+    // has no identity that holds across all rows → must not be learned, so a later
+    // odd total is NOT flagged (we cannot prove it wrong without the breakdown).
+    const withHidden = [...corpus,
+      { subtotal: 480, tax: 40.8, total: 555.8, line_items: [{ description: 'x', qty: 4, unit_price: 120, amount: 480 }] }, // +35 shipping
+      { subtotal: 200, tax: 36, total: 216, line_items: [{ description: 'x', qty: 2, unit_price: 100, amount: 200 }] },     // -20 discount
+    ];
+    const s = inferExpectedSchema(withHidden);
+    expect((s.arithIdentities ?? []).some(i => i.target === 'total')).toBe(false);
+    // subtotal/amount identities still hold and still catch a real error
+    const bad = { subtotal: 999, tax: 1, total: 1000, line_items: [{ description: 'x', qty: 1, unit_price: 1, amount: 1 }] };
+    const a = validateOutputs(s, [bad]).issues.filter(i => i.code === 'arith' && i.path === 'subtotal');
+    expect(a).toHaveLength(1);
+  });
+
+  it('does not derive identities from fewer than 3 samples', () => {
+    const s = inferExpectedSchema(corpus.slice(0, 2));
+    expect(s.arithIdentities ?? []).toHaveLength(0);
+  });
+});
