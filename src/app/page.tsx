@@ -182,6 +182,15 @@ export default function TypeMorphMainApp({ defaultView = 'landing', initialSlug 
           </div>
 
           <div className="flex items-center gap-4">
+            {!user && (
+              <button
+                type="button"
+                onClick={() => setShowAuthModal(true)}
+                className="shrink-0 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-200"
+              >
+                Sign in
+              </button>
+            )}
             {deferredPrompt && (
               <button onClick={handleInstall} className="hidden md:flex items-center gap-2 px-3.5 py-1.5 text-slate-500 dark:text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
                 <Download size={12} /> Install App
